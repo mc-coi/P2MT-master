@@ -9,24 +9,24 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
-    <div class="w3-card w3-padding w3-margin-bottom">
+  <div class="page-container" style="margin-top:10px;">
+    <div class="filter-bar">
       <h2>School Calendar</h2>
       <div class="w3-row">
         <div class="w3-col m6">
-          <button class="w3-button w3-blue w3-margin" id="btn-save-changes">
+          <button class="w3-button btn-primary w3-margin" id="btn-save-changes">
             <i class="fas fa-save"></i> Save Changes
           </button>
-          <button class="w3-button w3-green w3-margin" id="btn-add-date-range">
+          <button class="w3-button btn-primary w3-margin" id="btn-add-date-range">
             <i class="fas fa-plus"></i> Add Date Range
           </button>
         </div>
       </div>
     </div>
 
-    <div class="w3-card w3-padding w3-margin-bottom">
+    <div class="filter-bar">
       <h4>Filter by Date Range</h4>
       <div class="w3-row w3-margin-bottom">
         <div class="w3-col m3 w3-padding-small">
@@ -43,14 +43,14 @@
         </div>
         <div class="w3-col m3 w3-padding-small">
           <label>&nbsp;</label>
-          <button class="w3-button w3-blue w3-block" id="btn-load-filter">Load</button>
+          <button class="w3-button btn-primary w3-block" id="btn-load-filter">Load</button>
         </div>
       </div>
     </div>
 
-    <div class="w3-card w3-padding">
-      <div style="overflow-x:auto;">
-        <table id="calendar-table" class="w3-table w3-striped w3-bordered">
+    <div class="filter-bar">
+      <div class="table-wrap">
+      <table id="calendar-table" class="w3-table w3-striped w3-bordered">
           <thead>
             <tr class="w3-teal">
               <th>Date</th>
@@ -84,8 +84,8 @@
         <input type="date" id="input-start-date" class="w3-input w3-border w3-margin-bottom">
         <label>End Date</label>
         <input type="date" id="input-end-date" class="w3-input w3-border w3-margin-bottom">
-        <button class="w3-button w3-green w3-margin-top" id="btn-confirm-add-dates">Add Dates</button>
-        <button class="w3-button w3-red w3-margin-top" onclick="document.getElementById('modal-add-dates').style.display='none'">Cancel</button>
+        <button class="w3-button btn-primary w3-margin-top" id="btn-confirm-add-dates">Add Dates</button>
+        <button class="w3-button btn-danger w3-margin-top" onclick="document.getElementById('modal-add-dates').style.display='none'">Cancel</button>
       </div>
     </div>
   </div>

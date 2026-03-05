@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Profile - P2MT</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .avatar-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            margin-right: 16px;
+        }
+
+        .avatar-circle.blue { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .avatar-circle.red { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+        .avatar-circle.green { background: linear-gradient(135deg, #2ecc71, #27ae60); }
+        .avatar-circle.purple { background: linear-gradient(135deg, #9b59b6, #8e44ad); }
+        .avatar-circle.orange { background: linear-gradient(135deg, #f39c12, #e67e22); }
+
+        .profile-header-content {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+
+        .profile-header-info h1 {
+            margin: 0;
+            font-size: 28px;
+            color: #333;
+        }
+
+        .profile-header-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .graduation-badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            background: #ecf0f1;
+            border-radius: 4px;
+            color: #555;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .timeline-item:not(:last-child)::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 40px;
+            width: 2px;
+            height: calc(100% + 20px);
+            background: #ecf0f1;
+        }
+
+        .timeline-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: white;
+            border: 3px solid #3498db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 14px;
+            color: #3498db;
+            z-index: 1;
+        }
+
+        .timeline-content {
+            margin-left: 20px;
+            flex: 1;
+        }
+
+        .timeline-date {
+            font-size: 12px;
+            color: #95a5a6;
+            font-weight: 600;
+        }
+
+        .timeline-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 4px 0;
+        }
+
+        .timeline-status {
+            font-size: 12px;
+            color: #7f8c8d;
+            margin-top: 4px;
+        }
+
+        .class-card {
+            border: 1px solid #ecf0f1;
+            border-radius: 6px;
+            padding: 16px;
+            background: white;
+        }
+
+        .class-card .class-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .class-card .class-detail {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin: 4px 0;
+        }
+
+        .class-card .class-detail i {
+            width: 16px;
+            margin-right: 8px;
+            color: #3498db;
+        }
+
+        .pbl-card {
+            border: 1px solid #ecf0f1;
+            border-radius: 6px;
+            padding: 16px;
+            background: white;
+        }
+
+        .pbl-card .pbl-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .pbl-card .pbl-detail {
+            font-size: 13px;
+            color: #7f8c8d;
+            margin: 4px 0;
+        }
+
+        .pbl-card .pbl-detail i {
+            width: 16px;
+            margin-right: 8px;
+            color: #9b59b6;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .stat-small {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-small-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+
+        .stat-small-label {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 768px) {
+            .profile-header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .profile-header-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="nav-container"></div>
+    
+    <div class="page-container">
+        <!-- Back button + page header -->
+        <div class="page-header">
+            <div class="profile-header-content">
+                <div class="avatar-circle blue" id="avatar-circle">--</div>
+                <div class="profile-header-info">
+                    <h1 id="student-name">Student Name</h1>
+                    <span class="graduation-badge" id="graduation-year">2026</span>
+                </div>
+            </div>
+            <div class="actions">
+                <button class="w3-button btn-primary" onclick="openEditModal()">Edit</button>
+                <a href="students.html" class="w3-button btn-ghost">Back to Students</a>
+            </div>
+        </div>
+
+        <!-- Profile overview row: 4 stat cards -->
+        <div class="grid-stats">
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stat-value" id="stat-attendance-rate">0%</div>
+                <div class="stat-label">Attendance Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="stat-value" id="stat-active-interventions">0</div>
+                <div class="stat-label">Active Interventions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <i class="fas fa-book"></i>
+                </div>
+                <div class="stat-value" id="stat-classes-enrolled">0</div>
+                <div class="stat-label">Classes Enrolled</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon indigo">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+                <div class="stat-value" id="stat-pbl-teams">0</div>
+                <div class="stat-label">PBL Teams</div>
+            </div>
+        </div>
+
+        <!-- Student info card -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Student Information</div>
+            </div>
+            <div class="card-body">
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Email</div>
+                        <div class="info-value" id="student-email">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">ChattState A#</div>
+                        <div class="info-value" id="student-a-number">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">House</div>
+                        <div class="info-value" id="student-house">--</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Graduation Year</div>
+                        <div class="info-value" id="student-grad-year">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab(event, 'interventions')">Interventions</button>
+            <button class="tab-btn" onclick="switchTab(event, 'attendance')">Attendance</button>
+            <button class="tab-btn" onclick="switchTab(event, 'schedule')">Schedule</button>
+            <button class="tab-btn" onclick="switchTab(event, 'pbl')">PBL Teams</button>
+        </div>
+
+        <!-- Tab content panels -->
+        
+        <!-- Tab 1 - Interventions -->
+        <div id="interventions" class="tab-content active">
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table id="interventions-table" class="w3-table w3-striped">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Level</th>
+                                    <th>Start Date</th>
+                                    <th>End Date</th>
+                                    <th>Status</th>
+                                    <th>TMI Minutes</th>
+                                    <th>Staff</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="interventions-empty" class="empty-state" style="display: none;">
+                        <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                        <div class="empty-title">No Interventions</div>
+                        <div class="empty-subtitle">This student has no intervention records</div>
+                    </div>
+                </div>
+            </div>
+            <div id="interventionTimeline"></div>
+        </div>
+
+        <!-- Tab 2 - Attendance -->
+        <div id="attendance" class="tab-content">
+            <div class="card">
+                <div class="card-body">
+                    <div class="stats-row">
+                        <div class="stat-small">
+                            <div class="stat-small-value" id="attendance-present">0</div>
+                            <div class="stat-small-label">Present</div>
+                        </div>
+                        <div class="stat-small">
+                            <div class="stat-small-value" id="attendance-tardy">0</div>
+                            <div class="stat-small-label">Tardy</div>
+                        </div>
+                        <div class="stat-small">
+                            <div class="stat-small-value" id="attendance-absent">0</div>
+                            <div class="stat-small-label">Absent</div>
+                        </div>
+                        <div class="stat-small">
+                            <div class="stat-small-value" id="attendance-rate-tab">0%</div>
+                            <div class="stat-small-label">Rate</div>
+                        </div>
+                    </div>
+                    <div class="table-wrap">
+                        <table id="attendance-table" class="w3-table w3-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Code</th>
+                                    <th>Comment</th>
+                                    <th>Staff</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="attendance-empty" class="empty-state" style="display: none;">
+                        <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                        <div class="empty-title">No Attendance Records</div>
+                        <div class="empty-subtitle">This student has no attendance records</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3 - Schedule -->
+        <div id="schedule" class="tab-content">
+            <div class="grid-2" id="schedule-grid">
+                <!-- Class cards will be inserted here -->
+            </div>
+            <div id="schedule-empty" class="empty-state" style="display: none;">
+                <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                <div class="empty-title">No Classes Enrolled</div>
+                <div class="empty-subtitle">This student is not enrolled in any classes</div>
+            </div>
+        </div>
+
+        <!-- Tab 4 - PBL Teams -->
+        <div id="pbl" class="tab-content">
+            <div class="grid-2" id="pbl-grid">
+                <!-- PBL cards will be inserted here -->
+            </div>
+            <div id="pbl-empty" class="empty-state" style="display: none;">
+                <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                <div class="empty-title">No PBL Teams</div>
+                <div class="empty-subtitle">This student is not in any PBL teams</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div id="editModal" class="w3-modal">
+        <div class="w3-modal-content">
+            <div class="modal-header">
+                <span class="modal-close-btn" onclick="closeEditModal()">&times;</span>
+                <h2 style="margin: 0;">Edit Student</h2>
+            </div>
+            <div class="modal-body">
+                <form id="editForm">
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label">First Name</label>
+                        <input type="text" id="edit-firstName" class="w3-input w3-border" required>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" id="edit-lastName" class="w3-input w3-border" required>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label">ChattState A#</label>
+                        <input type="text" id="edit-chattStateANumber" class="w3-input w3-border" required>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label">Email</label>
+                        <input type="email" id="edit-email" class="w3-input w3-border" required>
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label">House</label>
+                        <input type="text" id="edit-house" class="w3-input w3-border">
+                    </div>
+                    <div style="margin-bottom: 16px;">
+                        <label class="form-label">Year of Graduation</label>
+                        <input type="number" id="edit-yearOfGraduation" class="w3-input w3-border" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="w3-button btn-ghost" onclick="closeEditModal()">Cancel</button>
+                <button class="w3-button btn-primary" onclick="saveEditForm()">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script type="module">
+        import { initAuth, getCurrentUser, signOut } from './js/auth.js';
+        import { initNav } from './js/nav.js';
+        import { getById, getWhere, updateDoc } from './js/db.js';
+        import { formatDate, showToast } from './js/utils.js';
+
+        // Initialize auth and check if user is logged in
+        await initAuth();
+        const user = getCurrentUser();
+        if (!user) {
+            window.location.href = 'index.html';
+        }
+
+        // Initialize navigation
+        initNav('students');
+
+        // Get studentId from URL
+        const studentId = new URLSearchParams(window.location.search).get('id');
+        if (!studentId) {
+            window.location.href = 'students.html';
+        }
+
+        let currentStudent = null;
+        let interventions = [];
+        let attendanceLogs = [];
+        let classSchedules = [];
+        let pblTeams = [];
+
+        // Load all data in parallel
+        const [student, interventionsData, attendanceData, scheduleData, pblData] = await Promise.all([
+            getById('students', studentId),
+            getWhere('interventionLogs', 'studentId', studentId),
+            getWhere('dailyAttendanceLogs', 'chattStateANumber', null), // Will filter manually
+            getWhere('classSchedules', 'chattStateANumber', null), // Will filter manually
+            getWhere('pblTeams', 'chattStateANumber', null) // Will filter manually
+        ]);
+
+        if (!student) {
+            showToast('Student not found', 'error');
+            window.location.href = 'students.html';
+        }
+
+        currentStudent = student;
+
+        // Filter attendance logs by chattStateANumber
+        attendanceLogs = attendanceData.filter(log => log.chattStateANumber === student.chattStateANumber);
+
+        // Filter class schedules by chattStateANumber
+        classSchedules = scheduleData.filter(schedule => schedule.chattStateANumber === student.chattStateANumber);
+
+        // Filter PBL teams by chattStateANumber
+        pblTeams = pblData.filter(team => team.chattStateANumber === student.chattStateANumber);
+
+        // Get all interventions to filter by studentId
+        interventions = interventionsData.filter(int => int.studentId === studentId);
+
+        // Helper function to get initials
+        function getInitials(firstName, lastName) {
+            return `${(firstName || '').charAt(0)}${(lastName || '').charAt(0)}`.toUpperCase();
+        }
+
+        // Helper function to get avatar color
+        function getAvatarColor() {
+            const colors = ['blue', 'red', 'green', 'purple', 'orange'];
+            const index = (student.firstName.charCodeAt(0) + student.lastName.charCodeAt(0)) % colors.length;
+            return colors[index];
+        }
+
+        // Helper function to get badge class for attendance code
+        function getAttendanceBadgeClass(code) {
+            switch(code) {
+                case 'P': return 'badge-success';
+                case 'T': return 'badge-warning';
+                case 'U':
+                case 'E': return 'badge-danger';
+                case 'Q': return 'badge-primary';
+                case 'W':
+                case 'H':
+                case 'L': return 'badge-gray';
+                default: return 'badge-gray';
+            }
+        }
+
+        // Render profile header
+        const initials = getInitials(student.firstName, student.lastName);
+        const avatarColor = getAvatarColor();
+        document.getElementById('avatar-circle').textContent = initials;
+        document.getElementById('avatar-circle').className = `avatar-circle ${avatarColor}`;
+        document.getElementById('student-name').textContent = `${student.firstName} ${student.lastName}`;
+        document.getElementById('graduation-year').textContent = `Class of ${student.yearOfGraduation}`;
+
+        // Render student information
+        document.getElementById('student-email').textContent = student.email || '--';
+        document.getElementById('student-a-number').textContent = student.chattStateANumber || '--';
+        document.getElementById('student-house').textContent = student.house || '--';
+        document.getElementById('student-grad-year').textContent = student.yearOfGraduation || '--';
+
+        // Calculate stats
+        const activeInterventionsCount = interventions.filter(int => int.interventionStatus === 'Active').length;
+        const classesCount = classSchedules.length;
+        const pblTeamsCount = pblTeams.length;
+
+        // Calculate attendance rate
+        let attendanceRate = 0;
+        if (attendanceLogs.length > 0) {
+            const presentCount = attendanceLogs.filter(log => log.attendanceCode === 'P').length;
+            attendanceRate = ((presentCount / attendanceLogs.length) * 100).toFixed(1);
+        }
+
+        // Render stat cards
+        document.getElementById('stat-attendance-rate').textContent = `${attendanceRate}%`;
+        document.getElementById('stat-active-interventions').textContent = activeInterventionsCount;
+        document.getElementById('stat-classes-enrolled').textContent = classesCount;
+        document.getElementById('stat-pbl-teams').textContent = pblTeamsCount;
+
+        // Update icon color based on attendance rate
+        const attendanceIcon = document.querySelector('#stat-attendance-rate').closest('.stat-card').querySelector('.stat-icon');
+        if (attendanceRate < 80) {
+            attendanceIcon.classList.remove('green');
+            attendanceIcon.classList.add('red');
+        }
+
+        // Render Interventions Tab
+        function renderInterventionsTab() {
+            const table = document.getElementById('interventions-table').querySelector('tbody');
+            table.innerHTML = '';
+
+            if (interventions.length > 0) {
+                document.getElementById('interventions-empty').style.display = 'none';
+                document.getElementById('interventions-table').style.display = 'table';
+
+                interventions.forEach(intervention => {
+                    const row = document.createElement('tr');
+                    const levelNum = intervention.interventionLevel || 1;
+                    const levelClass = `level-${levelNum}`;
+
+                    row.innerHTML = `
+                        <td>${intervention.interventionType || 'N/A'}</td>
+                        <td><span class="badge ${levelClass}">Level ${levelNum}</span></td>
+                        <td>${formatDate(intervention.startDate)}</td>
+                        <td>${intervention.endDate ? formatDate(intervention.endDate) : '--'}</td>
+                        <td><span class="badge ${intervention.interventionStatus === 'Active' ? 'badge-danger' : 'badge-gray'}">${intervention.interventionStatus}</span></td>
+                        <td>${intervention.tmiMinutesServed || 0}/${intervention.tmiMinutes || 0}</td>
+                        <td>${intervention.staffName || 'N/A'}</td>
+                    `;
+                    table.appendChild(row);
+                });
+
+                // Render timeline if there are interventions
+                const timelineHtml = renderInterventionTimeline();
+                if (timelineHtml) {
+                    document.getElementById('interventionTimeline').innerHTML = timelineHtml;
+                }
+            } else {
+                document.getElementById('interventions-table').style.display = 'none';
+                document.getElementById('interventions-empty').style.display = 'block';
+                document.getElementById('interventionTimeline').innerHTML = '';
+            }
+        }
+
+        // Render intervention timeline
+        function renderInterventionTimeline() {
+            if (interventions.length === 0) return '';
+
+            const sortedInterventions = interventions.sort((a, b) => 
+                new Date(b.startDate) - new Date(a.startDate)
+            );
+
+            let timelineHtml = '<div class="card" style="margin-top: 20px;"><div class="card-header"><div class="card-title">Intervention Timeline</div></div><div class="card-body"><div class="timeline">';
+
+            sortedInterventions.forEach((intervention, index) => {
+                const levelNum = intervention.interventionLevel || 1;
+                const levelClass = `level-${levelNum}`;
+
+                timelineHtml += `
+                    <div class="timeline-item">
+                        <div class="timeline-dot">${index + 1}</div>
+                        <div class="timeline-content">
+                            <div class="timeline-date">${formatDate(intervention.startDate)}</div>
+                            <div class="timeline-title">
+                                <span class="badge ${levelClass}">Level ${levelNum}</span>
+                                ${intervention.interventionType}
+                            </div>
+                            <div class="timeline-status">
+                                Status: ${intervention.interventionStatus} | Staff: ${intervention.staffName || 'N/A'}
+                            </div>
+                            ${intervention.comment ? `<div class="timeline-status" style="margin-top: 8px; color: #555;">${intervention.comment}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+
+            timelineHtml += '</div></div></div>';
+            return timelineHtml;
+        }
+
+        // Render Attendance Tab
+        function renderAttendanceTab() {
+            const table = document.getElementById('attendance-table').querySelector('tbody');
+            table.innerHTML = '';
+
+            if (attendanceLogs.length > 0) {
+                document.getElementById('attendance-empty').style.display = 'none';
+                document.getElementById('attendance-table').style.display = 'table';
+
+                // Calculate attendance stats
+                const presentCount = attendanceLogs.filter(log => log.attendanceCode === 'P').length;
+                const tardyCount = attendanceLogs.filter(log => log.attendanceCode === 'T').length;
+                const absentCount = attendanceLogs.filter(log => log.attendanceCode === 'E' || log.attendanceCode === 'U').length;
+                const rate = ((presentCount / attendanceLogs.length) * 100).toFixed(1);
+
+                document.getElementById('attendance-present').textContent = presentCount;
+                document.getElementById('attendance-tardy').textContent = tardyCount;
+                document.getElementById('attendance-absent').textContent = absentCount;
+                document.getElementById('attendance-rate-tab').textContent = `${rate}%`;
+
+                // Sort by date descending
+                const sortedLogs = attendanceLogs.sort((a, b) => 
+                    new Date(b.absenceDate) - new Date(a.absenceDate)
+                );
+
+                sortedLogs.forEach(log => {
+                    const row = document.createElement('tr');
+                    const badgeClass = getAttendanceBadgeClass(log.attendanceCode);
+
+                    row.innerHTML = `
+                        <td>${formatDate(log.absenceDate)}</td>
+                        <td><span class="badge ${badgeClass}">${log.attendanceCode}</span></td>
+                        <td>${log.comment || '--'}</td>
+                        <td>${log.staffName || 'N/A'}</td>
+                    `;
+                    table.appendChild(row);
+                });
+            } else {
+                document.getElementById('attendance-table').style.display = 'none';
+                document.getElementById('attendance-empty').style.display = 'block';
+            }
+        }
+
+        // Render Schedule Tab
+        function renderScheduleTab() {
+            const grid = document.getElementById('schedule-grid');
+            grid.innerHTML = '';
+
+            if (classSchedules.length > 0) {
+                document.getElementById('schedule-empty').style.display = 'none';
+                grid.style.display = 'grid';
+
+                classSchedules.forEach(schedule => {
+                    const card = document.createElement('div');
+                    card.className = 'class-card';
+
+                    card.innerHTML = `
+                        <div class="class-name">${schedule.className}</div>
+                        <div class="class-detail"><i class="fas fa-user"></i>${schedule.teacherLastName}</div>
+                        <div class="class-detail"><i class="fas fa-calendar-days"></i>${schedule.classDays || 'N/A'}</div>
+                        <div class="class-detail"><i class="fas fa-clock"></i>${schedule.startTime} - ${schedule.endTime}</div>
+                        <div class="class-detail"><i class="fas fa-book"></i>School Year: ${schedule.schoolYear}</div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } else {
+                grid.style.display = 'none';
+                document.getElementById('schedule-empty').style.display = 'block';
+            }
+        }
+
+        // Render PBL Tab
+        function renderPblTab() {
+            const grid = document.getElementById('pbl-grid');
+            grid.innerHTML = '';
+
+            if (pblTeams.length > 0) {
+                document.getElementById('pbl-empty').style.display = 'none';
+                grid.style.display = 'grid';
+
+                pblTeams.forEach(team => {
+                    const card = document.createElement('div');
+                    card.className = 'pbl-card';
+
+                    card.innerHTML = `
+                        <div class="pbl-name">${team.pblName}</div>
+                        <div class="pbl-detail"><i class="fas fa-users"></i>Team #${team.pblTeamNumber}</div>
+                        <div class="pbl-detail"><i class="fas fa-calendar"></i>Quarter: ${team.quarter || 'N/A'}</div>
+                        <div class="pbl-detail"><i class="fas fa-user-tie"></i>${team.pblSponsorPersonName || 'N/A'}</div>
+                    `;
+                    grid.appendChild(card);
+                });
+            } else {
+                grid.style.display = 'none';
+                document.getElementById('pbl-empty').style.display = 'block';
+            }
+        }
+
+        // Render all tabs
+        renderInterventionsTab();
+        renderAttendanceTab();
+        renderScheduleTab();
+        renderPblTab();
+
+        // Tab switching logic
+        window.switchTab = function(event, tabName) {
+            // Hide all tab contents
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            // Remove active class from all tab buttons
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active class to clicked button
+            event.target.classList.add('active');
+        };
+
+        // Edit modal functions
+        window.openEditModal = function() {
+            document.getElementById('edit-firstName').value = currentStudent.firstName;
+            document.getElementById('edit-lastName').value = currentStudent.lastName;
+            document.getElementById('edit-chattStateANumber').value = currentStudent.chattStateANumber;
+            document.getElementById('edit-email').value = currentStudent.email;
+            document.getElementById('edit-house').value = currentStudent.house || '';
+            document.getElementById('edit-yearOfGraduation').value = currentStudent.yearOfGraduation;
+            document.getElementById('editModal').style.display = 'block';
+        };
+
+        window.closeEditModal = function() {
+            document.getElementById('editModal').style.display = 'none';
+        };
+
+        window.saveEditForm = function() {
+            const updatedStudent = {
+                firstName: document.getElementById('edit-firstName').value,
+                lastName: document.getElementById('edit-lastName').value,
+                chattStateANumber: document.getElementById('edit-chattStateANumber').value,
+                email: document.getElementById('edit-email').value,
+                house: document.getElementById('edit-house').value,
+                yearOfGraduation: parseInt(document.getElementById('edit-yearOfGraduation').value)
+            };
+
+            updateDoc('students', studentId, updatedStudent)
+                .then(() => {
+                    showToast('Student updated successfully', 'success');
+                    currentStudent = { ...currentStudent, ...updatedStudent };
+                    document.getElementById('student-name').textContent = `${updatedStudent.firstName} ${updatedStudent.lastName}`;
+                    document.getElementById('student-email').textContent = updatedStudent.email;
+                    document.getElementById('student-a-number').textContent = updatedStudent.chattStateANumber;
+                    document.getElementById('student-house').textContent = updatedStudent.house || '--';
+                    document.getElementById('student-grad-year').textContent = updatedStudent.yearOfGraduation;
+                    closeEditModal();
+                })
+                .catch(error => {
+                    console.error('Error updating student:', error);
+                    showToast('Error updating student', 'error');
+                });
+        };
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('editModal');
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>

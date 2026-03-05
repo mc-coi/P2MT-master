@@ -9,10 +9,10 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
-    <div class="w3-card w3-padding w3-margin-bottom">
+  <div class="page-container" style="margin-top:10px;">
+    <div class="filter-bar">
       <h2>PBL Planner</h2>
     </div>
 
@@ -25,15 +25,15 @@
     <!-- Tab 1: PBL Projects -->
     <div id="tab-content-projects" class="tab-content w3-card w3-padding">
       <div class="w3-margin-bottom">
-        <button class="w3-button w3-green w3-margin" id="btn-add-pbl">
+        <button class="w3-button btn-primary w3-margin" id="btn-add-pbl">
           <i class="fas fa-plus"></i> Add PBL
         </button>
-        <button class="w3-button w3-blue w3-margin" id="btn-download-pbls">
+        <button class="w3-button btn-primary w3-margin" id="btn-download-pbls">
           <i class="fas fa-download"></i> Download CSV
         </button>
       </div>
-      <div style="overflow-x:auto;">
-        <table id="pbls-table" class="w3-table w3-striped w3-bordered">
+      <div class="table-wrap">
+      <table id="pbls-table" class="w3-table w3-striped w3-bordered">
           <thead>
             <tr class="w3-teal">
               <th>Class</th>
@@ -62,16 +62,16 @@
         </div>
         <div class="w3-col m2 w3-padding-small">
           <label>&nbsp;</label>
-          <button class="w3-button w3-blue w3-block" id="btn-filter-events">Filter</button>
+          <button class="w3-button btn-primary w3-block" id="btn-filter-events">Filter</button>
         </div>
       </div>
       <div class="w3-margin-bottom">
-        <button class="w3-button w3-green w3-margin" id="btn-add-event">
+        <button class="w3-button btn-primary w3-margin" id="btn-add-event">
           <i class="fas fa-plus"></i> Add Event
         </button>
       </div>
-      <div style="overflow-x:auto;">
-        <table id="events-table" class="w3-table w3-striped w3-bordered">
+      <div class="table-wrap">
+      <table id="events-table" class="w3-table w3-striped w3-bordered">
           <thead>
             <tr class="w3-teal">
               <th>PBL Project</th>
@@ -100,19 +100,19 @@
         </div>
         <div class="w3-col m2 w3-padding-small">
           <label>&nbsp;</label>
-          <button class="w3-button w3-blue w3-block" id="btn-filter-teams">Filter</button>
+          <button class="w3-button btn-primary w3-block" id="btn-filter-teams">Filter</button>
         </div>
       </div>
       <div class="w3-margin-bottom">
-        <button class="w3-button w3-green w3-margin" id="btn-add-student">
+        <button class="w3-button btn-primary w3-margin" id="btn-add-student">
           <i class="fas fa-plus"></i> Add Student to Project
         </button>
-        <button class="w3-button w3-blue w3-margin" id="btn-download-teams">
+        <button class="w3-button btn-primary w3-margin" id="btn-download-teams">
           <i class="fas fa-download"></i> Download Roster CSV
         </button>
       </div>
-      <div style="overflow-x:auto;">
-        <table id="teams-table" class="w3-table w3-striped w3-bordered">
+      <div class="table-wrap">
+      <table id="teams-table" class="w3-table w3-striped w3-bordered">
           <thead>
             <tr class="w3-teal">
               <th>Student Name</th>
@@ -153,8 +153,8 @@
         <input type="email" id="pbl-sponsorEmail" class="w3-input w3-border w3-margin-bottom">
         <label>Comments</label>
         <textarea id="pbl-comments" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
-        <button class="w3-button w3-green w3-margin-top" id="btn-save-pbl">Save</button>
-        <button class="w3-button w3-red w3-margin-top" onclick="document.getElementById('modal-pbl').style.display='none'">Cancel</button>
+        <button class="w3-button btn-primary w3-margin-top" id="btn-save-pbl">Save</button>
+        <button class="w3-button btn-danger w3-margin-top" onclick="document.getElementById('modal-pbl').style.display='none'">Cancel</button>
       </div>
     </div>
   </div>
@@ -198,8 +198,8 @@
         <input type="checkbox" id="event-confirmed" class="w3-check w3-margin-bottom">
         <label>Comments</label>
         <textarea id="event-comments" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
-        <button class="w3-button w3-green w3-margin-top" id="btn-save-event">Save</button>
-        <button class="w3-button w3-red w3-margin-top" onclick="document.getElementById('modal-event').style.display='none'">Cancel</button>
+        <button class="w3-button btn-primary w3-margin-top" id="btn-save-event">Save</button>
+        <button class="w3-button btn-danger w3-margin-top" onclick="document.getElementById('modal-event').style.display='none'">Cancel</button>
       </div>
     </div>
   </div>
@@ -220,8 +220,8 @@
         </select>
         <label>Team Number</label>
         <input type="number" id="team-add-teamNumber" class="w3-input w3-border w3-margin-bottom">
-        <button class="w3-button w3-green w3-margin-top" id="btn-confirm-add-student">Add</button>
-        <button class="w3-button w3-red w3-margin-top" onclick="document.getElementById('modal-add-student').style.display='none'">Cancel</button>
+        <button class="w3-button btn-primary w3-margin-top" id="btn-confirm-add-student">Add</button>
+        <button class="w3-button btn-danger w3-margin-top" onclick="document.getElementById('modal-add-student').style.display='none'">Cancel</button>
       </div>
     </div>
   </div>

@@ -27,12 +27,9 @@
     .radio-group input[type="radio"] { width: auto; }
     .class-info-card { background: #e3f2fd; padding: 16px; border-radius: 4px; margin-bottom: 16px; border-left: 4px solid #2196F3; }
     .class-info-card h4 { margin: 0 0 8px 0; color: #1976D2; }
-    .class-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .class-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
     .class-info-item { font-size: 14px; }
     .class-info-label { font-weight: 600; color: #555; }
-    .tab-buttons { display: flex; gap: 8px; margin-bottom: 16px; }
-    .tab-button { padding: 10px 20px; cursor: pointer; background: white; border: 1px solid #ddd; border-radius: 4px 4px 0 0; }
-    .tab-button.active { background: #2196F3; color: white; border-color: #2196F3; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
     .student-name { font-weight: 600; color: #333; }
@@ -40,43 +37,47 @@
     .save-button-row { padding: 16px; background: white; position: sticky; bottom: 0; border-top: 2px solid #ddd; }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
   
-  <div class="w3-container w3-padding" style="margin-top: 10px;">
+  <div class="page-container">
     <!-- Header -->
-    <div class="w3-row w3-margin-bottom">
-      <div class="w3-col m8">
-        <h2><i class="fas fa-graduation-cap"></i> Class Attendance Log</h2>
-      </div>
-      <div class="w3-col m4 w3-right-align w3-padding-top">
-        <button id="btn-download-csv" class="w3-button w3-blue action-button">
+    <div class="page-header">
+      <h1><i class="fas fa-graduation-cap"></i> Class Attendance Log</h1>
+      <div class="actions">
+        <button id="btn-download-csv" class="w3-button btn-primary action-button">
           <i class="fas fa-download"></i> Download CSV
         </button>
       </div>
     </div>
 
     <!-- Filter Bar -->
-    <div class="filter-card w3-padding w3-margin-bottom">
+    <div class="filter-bar filter-card w3-margin-bottom">
       <div class="w3-row">
         <div class="w3-col m3 w3-padding-small">
-          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Teacher</label>
-          <select id="filter-teacher" class="w3-select w3-border">
-            <option value="">-- Select Teacher --</option>
-          </select>
+          <div class="filter-group">
+            <label class="form-label">Teacher</label>
+            <select id="filter-teacher" class="w3-select w3-border">
+              <option value="">-- Select Teacher --</option>
+            </select>
+          </div>
         </div>
         <div class="w3-col m3 w3-padding-small">
-          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Class</label>
-          <select id="filter-class" class="w3-select w3-border">
-            <option value="">-- Select Class --</option>
-          </select>
+          <div class="filter-group">
+            <label class="form-label">Class</label>
+            <select id="filter-class" class="w3-select w3-border">
+              <option value="">-- Select Class --</option>
+            </select>
+          </div>
         </div>
         <div class="w3-col m3 w3-padding-small">
-          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Class Date</label>
-          <input type="date" id="filter-class-date" class="w3-input w3-border">
+          <div class="filter-group">
+            <label class="form-label">Class Date</label>
+            <input type="date" id="filter-class-date" class="w3-input w3-border">
+          </div>
         </div>
         <div class="w3-col m3 w3-padding-small" style="padding-top: 30px;">
-          <button id="btn-apply-filters" class="w3-button w3-blue w3-block">
+          <button id="btn-apply-filters" class="w3-button btn-primary w3-block">
             <i class="fas fa-filter"></i> Apply
           </button>
         </div>
@@ -84,11 +85,11 @@
     </div>
 
     <!-- Tab Navigation -->
-    <div class="tab-buttons">
-      <button class="tab-button active" onclick="switchTab('attendance-tab')">
-        <i class="fas fa-users-check"></i> Take Attendance
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('attendance-tab', this)">
+        <i class="fas fa-users"></i> Take Attendance
       </button>
-      <button class="tab-button" onclick="switchTab('absence-tab')">
+      <button class="tab-btn" onclick="switchTab('absence-tab', this)">
         <i class="fas fa-ban"></i> Absence Summary
       </button>
     </div>
@@ -99,7 +100,7 @@
       <div id="class-info-container" style="display: none;">
         <div class="class-info-card">
           <h4>Class Information</h4>
-          <div class="class-info-grid">
+          <div class="class-info-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
             <div class="class-info-item">
               <div class="class-info-label">Teacher</div>
               <div id="class-teacher">-</div>
@@ -132,7 +133,7 @@
         </div>
       </div>
 
-      <div id="no-selection-message" class="w3-card w3-white w3-padding w3-center w3-margin-bottom" style="color: #999;">
+      <div id="no-selection-message" class="card card-body" style="text-align:center;color:var(--text-muted);padding:40px;">
         <p><i class="fas fa-filter" style="font-size: 40px; margin: 20px 0;"></i></p>
         <p>Select teacher, class, and date above to begin taking attendance.</p>
       </div>
@@ -140,15 +141,18 @@
       <div id="attendance-container" style="display: none;">
         <div class="w3-card w3-white">
           <div class="save-button-row" style="position: sticky; top: 0; background: white; border-bottom: 2px solid #ddd; z-index: 10;">
-            <button id="btn-save-top" class="w3-button w3-green">
+            <button id="btn-save-top" class="w3-button btn-primary">
               <i class="fas fa-save"></i> Save All Changes
+            </button>
+            <button id="btn-mark-all-present" class="w3-button btn-ghost" onclick="markAllPresent()" style="margin-left:8px;">
+              <i class="fas fa-check-double"></i> Mark All Present
             </button>
           </div>
           <div id="attendance-students-list"></div>
         </div>
 
         <div class="save-button-row">
-          <button id="btn-save-bottom" class="w3-button w3-green w3-block w3-large">
+          <button id="btn-save-bottom" class="w3-button btn-primary w3-block w3-large">
             <i class="fas fa-save"></i> Save All Changes
           </button>
         </div>
@@ -158,29 +162,35 @@
     <!-- Tab 2: Absence Summary -->
     <div id="absence-tab" class="tab-content">
       <!-- Absence Filters -->
-      <div class="filter-card w3-padding w3-margin-bottom">
+      <div class="filter-bar filter-card w3-margin-bottom">
         <div class="w3-row">
           <div class="w3-col m4 w3-padding-small">
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Teacher</label>
-            <select id="absence-filter-teacher" class="w3-select w3-border">
-              <option value="">All Teachers</option>
-            </select>
+            <div class="filter-group">
+              <label class="form-label">Teacher</label>
+              <select id="absence-filter-teacher" class="w3-select w3-border">
+                <option value="">All Teachers</option>
+              </select>
+            </div>
           </div>
           <div class="w3-col m4 w3-padding-small">
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Start Date</label>
-            <input type="date" id="absence-filter-start-date" class="w3-input w3-border">
+            <div class="filter-group">
+              <label class="form-label">Start Date</label>
+              <input type="date" id="absence-filter-start-date" class="w3-input w3-border">
+            </div>
           </div>
           <div class="w3-col m4 w3-padding-small">
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">End Date</label>
-            <input type="date" id="absence-filter-end-date" class="w3-input w3-border">
+            <div class="filter-group">
+              <label class="form-label">End Date</label>
+              <input type="date" id="absence-filter-end-date" class="w3-input w3-border">
+            </div>
           </div>
         </div>
         <div class="w3-row w3-margin-top">
           <div class="w3-col m12 w3-padding-small">
-            <button id="btn-apply-absence-filters" class="w3-button w3-blue">
+            <button id="btn-apply-absence-filters" class="w3-button btn-primary">
               <i class="fas fa-filter"></i> Apply Filters
             </button>
-            <button id="btn-download-absence-csv" class="w3-button w3-blue">
+            <button id="btn-download-absence-csv" class="w3-button btn-primary">
               <i class="fas fa-download"></i> Download CSV
             </button>
           </div>
@@ -195,7 +205,7 @@
         </div>
       </div>
 
-      <div class="w3-card w3-white">
+      <div class="table-wrap">
         <table id="absenceTable" class="w3-table w3-striped w3-bordered">
           <thead class="w3-blue">
             <tr>
@@ -458,6 +468,16 @@
       attendanceChanges[studentId].assignTmi = checked;
     };
 
+    window.markAllPresent = function() {
+      document.querySelectorAll('input[type="radio"][value="P"]').forEach(radio => {
+        radio.checked = true;
+        const studentId = radio.name.replace('code-', '');
+        if (!attendanceChanges[studentId]) attendanceChanges[studentId] = {};
+        attendanceChanges[studentId].code = 'P';
+      });
+      showToast('All students marked present', 'success');
+    };
+
     async function saveAllChanges() {
       if (!currentClassScheduleId || !currentDate) {
         showToast('No class selected', 'error');
@@ -469,14 +489,14 @@
 
         // Get all radio buttons to capture current state
         const allRadios = document.querySelectorAll('input[type="radio"]:checked');
-        const allStudents = new Set();
+        const allStudentsSet = new Set();
         allRadios.forEach(radio => {
           const name = radio.name;
           const studentId = name.replace('code-', '');
-          allStudents.add(studentId);
+          allStudentsSet.add(studentId);
         });
 
-        allStudents.forEach(studentId => {
+        allStudentsSet.forEach(studentId => {
           const code = document.querySelector(`input[name="code-${studentId}"]:checked`)?.value || 'P';
           const comment = document.getElementById(`comment-${studentId}`)?.value || '';
           const assignTmi = document.getElementById(`tmi-${studentId}`)?.checked || false;
@@ -666,23 +686,12 @@
       }
     }
 
-    window.switchTab = function(tabName) {
-      // Hide all tabs
-      document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-      });
-      document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-      });
-
-      // Show selected tab
+    window.switchTab = function(tabName, btn) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       document.getElementById(tabName).classList.add('active');
-      event.target.classList.add('active');
-
-      // Load absence data when switching to absence tab
-      if (tabName === 'absence-tab') {
-        loadAbsenceData();
-      }
+      if (btn) btn.classList.add('active');
+      if (tabName === 'absence-tab') loadAbsenceData();
     };
   </script>
 </body>

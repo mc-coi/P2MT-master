@@ -131,34 +131,52 @@ export function importCSV(file) {
 
 // Show a toast notification
 export function showToast(message, type = 'info') {
-  const toastContainer = document.getElementById('toast-container');
-  if (!toastContainer) {
-    const container = document.createElement('div');
+  // Ensure container exists
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
     container.id = 'toast-container';
-    container.style.position = 'fixed';
-    container.style.bottom = '20px';
-    container.style.right = '20px';
-    container.style.zIndex = '9999';
     document.body.appendChild(container);
   }
-  
+
+  const iconMap = {
+    success: 'fa-check-circle',
+    error:   'fa-exclamation-circle',
+    warning: 'fa-exclamation-triangle',
+    info:    'fa-info-circle'
+  };
+  const bgMap = {
+    success: 'linear-gradient(135deg,#059669,#10B981)',
+    error:   'linear-gradient(135deg,#DC2626,#EF4444)',
+    warning: 'linear-gradient(135deg,#D97706,#F59E0B)',
+    info:    'linear-gradient(135deg,#3730A3,#4F46E5)'
+  };
+
   const toast = document.createElement('div');
-  toast.className = `w3-card w3-padding w3-margin w3-animate-bottom w3-text-white`;
-  
-  let backgroundColor = '#2196F3'; // info
-  if (type === 'success') backgroundColor = '#4CAF50';
-  if (type === 'error') backgroundColor = '#F44336';
-  if (type === 'warning') backgroundColor = '#FFC107';
-  
-  toast.style.backgroundColor = backgroundColor;
-  toast.textContent = message;
-  
-  const container = document.getElementById('toast-container');
+  toast.style.cssText = `
+    display:flex; align-items:center; gap:10px;
+    padding:12px 18px; border-radius:10px;
+    font-family:inherit; font-size:13px; font-weight:500;
+    color:white; box-shadow:0 8px 24px rgba(0,0,0,0.18);
+    background:${bgMap[type] || bgMap.info};
+    animation:toastIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+    max-width:340px; pointer-events:auto; cursor:pointer;
+    transition:opacity 0.2s, transform 0.2s;
+  `;
+  toast.innerHTML = `<i class="fas ${iconMap[type] || iconMap.info}" style="font-size:14px;opacity:0.9;flex-shrink:0;"></i><span>${message}</span>`;
+  toast.addEventListener('click', () => dismissToast(toast));
   container.appendChild(toast);
-  
-  setTimeout(() => {
-    toast.remove();
-  }, 4000);
+
+  // Auto-dismiss
+  const timer = setTimeout(() => dismissToast(toast), 4000);
+  toast._timer = timer;
+}
+
+function dismissToast(toast) {
+  clearTimeout(toast._timer);
+  toast.style.opacity = '0';
+  toast.style.transform = 'translateX(20px)';
+  setTimeout(() => toast.remove(), 220);
 }
 
 // Show a modal dialog with confirmation
@@ -167,36 +185,33 @@ export function showModal(title, content, onConfirm) {
   const modal = document.createElement('div');
   modal.id = modalId;
   modal.className = 'w3-modal';
-  modal.style.display = 'block';
-  
+  modal.style.display = 'flex';
+
   modal.innerHTML = `
-    <div class="w3-modal-content w3-card-4">
-      <header class="w3-container w3-light-blue">
-        <span class="w3-button w3-display-topright w3-large" onclick="document.getElementById('${modalId}').style.display='none'">&times;</span>
-        <h2>${title}</h2>
+    <div class="w3-modal-content" style="max-width:420px;">
+      <header class="modal-header">
+        <h3 style="margin:0;font-size:16px;font-weight:700;">${title}</h3>
+        <button class="modal-close-btn" onclick="document.getElementById('${modalId}').remove()">&times;</button>
       </header>
-      <div class="w3-container w3-padding">
+      <div class="modal-body" style="font-size:14px;color:var(--text-secondary);">
         ${content}
       </div>
-      <footer class="w3-container w3-light-gray w3-padding">
-        <button class="w3-button w3-blue w3-right" onclick="document.getElementById('${modalId}').style.display='none'">Cancel</button>
-        <button class="w3-button w3-green w3-right w3-margin-right" id="confirm-btn-${modalId}">Confirm</button>
-      </footer>
+      <div class="modal-footer">
+        <button class="w3-button btn-ghost" onclick="document.getElementById('${modalId}').remove()">Cancel</button>
+        <button class="w3-button btn-primary" id="confirm-btn-${modalId}">Confirm</button>
+      </div>
     </div>
   `;
-  
+
   document.body.appendChild(modal);
-  
-  const confirmBtn = document.getElementById(`confirm-btn-${modalId}`);
-  confirmBtn.addEventListener('click', () => {
+
+  document.getElementById(`confirm-btn-${modalId}`).addEventListener('click', () => {
     modal.remove();
     if (onConfirm) onConfirm();
   });
-  
-  window.addEventListener('click', (event) => {
-    if (event.target === modal) {
-      modal.remove();
-    }
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) modal.remove();
   });
 }
 

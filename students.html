@@ -15,25 +15,23 @@
     .spinner { display: inline-block; margin-right: 8px; }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
   
-  <div class="w3-container w3-padding" style="margin-top: 10px;">
+  <div class="page-container">
     <!-- Header -->
-    <div class="w3-row w3-margin-bottom">
-      <div class="w3-col m8">
-        <h2><i class="fas fa-users"></i> Students 
-          <span class="w3-badge w3-round student-badge" id="student-count">0</span>
-        </h2>
-      </div>
-      <div class="w3-col m4 w3-right-align w3-padding-top">
-        <button id="btn-add-student" class="w3-button w3-teal action-button">
+    <div class="page-header">
+      <h1><i class="fas fa-users"></i> Students 
+        <span class="badge badge-primary" id="student-count">0</span>
+      </h1>
+      <div class="actions">
+        <button id="btn-add-student" class="w3-button btn-primary action-button">
           <i class="fas fa-plus"></i> Add Student
         </button>
-        <button id="btn-download-csv" class="w3-button w3-blue action-button">
+        <button id="btn-download-csv" class="w3-button btn-primary action-button">
           <i class="fas fa-download"></i> Download CSV
         </button>
-        <button id="btn-upload-csv" class="w3-button w3-orange action-button">
+        <button id="btn-upload-csv" class="w3-button btn-primary action-button">
           <i class="fas fa-upload"></i> Upload CSV
         </button>
         <input type="file" id="file-upload" style="display:none;" accept=".csv">
@@ -41,36 +39,45 @@
     </div>
 
     <!-- Filter Bar -->
-    <div class="w3-card w3-light-grey w3-padding w3-margin-bottom">
+    <div class="filter-bar">
       <div class="w3-row">
         <div class="w3-col m4 w3-padding-small">
-          <input type="text" id="search-input" class="w3-input w3-border" placeholder="Search name or email...">
+          <div class="filter-group">
+            <label class="form-label">Search</label>
+            <input type="text" id="search-input" class="w3-input w3-border" placeholder="Search name or email...">
+          </div>
         </div>
         <div class="w3-col m4 w3-padding-small">
-          <select id="grad-year-filter" class="w3-select w3-border">
-            <option value="">All Graduation Years</option>
-            <option value="2025">2025</option>
-            <option value="2026">2026</option>
-            <option value="2027">2027</option>
-            <option value="2028">2028</option>
-            <option value="2029">2029</option>
-            <option value="2030">2030</option>
-          </select>
+          <div class="filter-group">
+            <label class="form-label">Graduation Year</label>
+            <select id="grad-year-filter" class="w3-select w3-border">
+              <option value="">All Graduation Years</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+              <option value="2029">2029</option>
+              <option value="2030">2030</option>
+            </select>
+          </div>
         </div>
         <div class="w3-col m4 w3-padding-small">
-          <select id="house-filter" class="w3-select w3-border">
-            <option value="">All Houses</option>
-            <option value="Alpha">Alpha</option>
-            <option value="Beta">Beta</option>
-            <option value="Gamma">Gamma</option>
-            <option value="Delta">Delta</option>
-          </select>
+          <div class="filter-group">
+            <label class="form-label">House</label>
+            <select id="house-filter" class="w3-select w3-border">
+              <option value="">All Houses</option>
+              <option value="Alpha">Alpha</option>
+              <option value="Beta">Beta</option>
+              <option value="Gamma">Gamma</option>
+              <option value="Delta">Delta</option>
+            </select>
+          </div>
         </div>
       </div>
     </div>
 
     <!-- DataTable -->
-    <div class="w3-card w3-white">
+    <div class="table-wrap">
       <table id="studentsTable" class="w3-table w3-striped w3-bordered">
         <thead class="w3-teal">
           <tr>
@@ -91,47 +98,64 @@
   <!-- Add/Edit Student Modal -->
   <div id="addEditModal" class="w3-modal">
     <div class="w3-modal-content w3-card modal-form">
-      <header class="w3-container w3-teal">
-        <span class="w3-button w3-display-topright" onclick="closeAddEditModal()">&times;</span>
+      <header class="modal-header">
         <h3 id="modal-title">Add Student</h3>
+        <button class="modal-close-btn" onclick="closeAddEditModal()">×</button>
       </header>
-      <form id="studentForm" class="w3-padding">
-        <label class="w3-text-teal"><b>First Name</b></label>
-        <input type="text" id="firstName" class="w3-input w3-border w3-margin-bottom" required>
+      <form id="studentForm" class="modal-body">
+        <div class="form-group">
+          <label class="form-label">First Name</label>
+          <input type="text" id="firstName" class="w3-input w3-border w3-margin-bottom" required>
+        </div>
         
-        <label class="w3-text-teal"><b>Last Name</b></label>
-        <input type="text" id="lastName" class="w3-input w3-border w3-margin-bottom" required>
+        <div class="form-group">
+          <label class="form-label">Last Name</label>
+          <input type="text" id="lastName" class="w3-input w3-border w3-margin-bottom" required>
+        </div>
         
-        <label class="w3-text-teal"><b>Email</b></label>
-        <input type="email" id="email" class="w3-input w3-border w3-margin-bottom" required>
+        <div class="form-group">
+          <label class="form-label">Email</label>
+          <input type="email" id="email" class="w3-input w3-border w3-margin-bottom" required>
+        </div>
         
-        <label class="w3-text-teal"><b>ChattState A#</b></label>
-        <input type="text" id="chattStateANumber" class="w3-input w3-border w3-margin-bottom" required>
+        <div class="form-group">
+          <label class="form-label">ChattState A#</label>
+          <input type="text" id="chattStateANumber" class="w3-input w3-border w3-margin-bottom" required>
+        </div>
         
-        <label class="w3-text-teal"><b>Year of Graduation</b></label>
-        <select id="yearOfGraduation" class="w3-select w3-border w3-margin-bottom" required>
-          <option value="">Select Year</option>
-          <option value="2025">2025</option>
-          <option value="2026">2026</option>
-          <option value="2027">2027</option>
-          <option value="2028">2028</option>
-          <option value="2029">2029</option>
-          <option value="2030">2030</option>
-        </select>
+        <div class="form-group">
+          <label class="form-label">Year of Graduation</label>
+          <select id="yearOfGraduation" class="w3-select w3-border w3-margin-bottom" required>
+            <option value="">Select Year</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+            <option value="2028">2028</option>
+            <option value="2029">2029</option>
+            <option value="2030">2030</option>
+          </select>
+        </div>
         
-        <label class="w3-text-teal"><b>House</b></label>
-        <select id="house" class="w3-select w3-border w3-margin-bottom" required>
-          <option value="">Select House</option>
-          <option value="Alpha">Alpha</option>
-          <option value="Beta">Beta</option>
-          <option value="Gamma">Gamma</option>
-          <option value="Delta">Delta</option>
-        </select>
+        <div class="form-group">
+          <label class="form-label">House</label>
+          <select id="house" class="w3-select w3-border w3-margin-bottom" required>
+            <option value="">Select House</option>
+            <option value="Alpha">Alpha</option>
+            <option value="Beta">Beta</option>
+            <option value="Gamma">Gamma</option>
+            <option value="Delta">Delta</option>
+          </select>
+        </div>
         
-        <label class="w3-text-teal"><b>Google Calendar ID (Optional)</b></label>
-        <input type="text" id="googleCalendarId" class="w3-input w3-border w3-margin-bottom">
+        <div class="form-group">
+          <label class="form-label">Google Calendar ID (Optional)</label>
+          <input type="text" id="googleCalendarId" class="w3-input w3-border w3-margin-bottom">
+        </div>
         
-        <button type="submit" class="w3-button w3-teal w3-round">Save Student</button>
+        <div class="modal-footer">
+          <button type="submit" class="w3-button btn-primary">Save Student</button>
+          <button type="button" class="w3-button btn-ghost" onclick="closeAddEditModal()">Cancel</button>
+        </div>
       </form>
     </div>
   </div>
@@ -139,15 +163,17 @@
   <!-- Delete Confirmation Modal -->
   <div id="deleteConfirmModal" class="w3-modal">
     <div class="w3-modal-content w3-card" style="max-width: 400px;">
-      <header class="w3-container w3-red">
-        <span class="w3-button w3-display-topright" onclick="closeDeleteModal()">&times;</span>
+      <header class="modal-header">
         <h3>Delete Student</h3>
+        <button class="modal-close-btn" onclick="closeDeleteModal()">×</button>
       </header>
-      <div class="w3-padding">
+      <div class="modal-body">
         <p>Type <b>DELETE</b> to confirm deletion of <span id="delete-student-name"></span></p>
         <input type="text" id="delete-confirm-input" class="w3-input w3-border w3-margin-bottom" placeholder="Type DELETE...">
-        <button class="w3-button w3-red w3-round" onclick="confirmDelete()">Delete</button>
-        <button class="w3-button w3-gray w3-round" onclick="closeDeleteModal()">Cancel</button>
+      </div>
+      <div class="modal-footer">
+        <button class="w3-button btn-danger" onclick="confirmDelete()">Delete</button>
+        <button class="w3-button btn-ghost" onclick="closeDeleteModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -155,30 +181,41 @@
   <!-- Add Attendance Modal -->
   <div id="attendanceModal" class="w3-modal">
     <div class="w3-modal-content w3-card" style="max-width: 400px;">
-      <header class="w3-container w3-blue">
-        <span class="w3-button w3-display-topright" onclick="closeAttendanceModal()">&times;</span>
+      <header class="modal-header">
         <h3>Add Daily Attendance</h3>
+        <button class="modal-close-btn" onclick="closeAttendanceModal()">×</button>
       </header>
-      <form id="attendanceForm" class="w3-padding">
-        <label class="w3-text-blue"><b>Student</b></label>
-        <p id="attendance-student-name" class="w3-margin-bottom"></p>
+      <form id="attendanceForm" class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Student</label>
+          <p id="attendance-student-name" class="w3-margin-bottom"></p>
+        </div>
         
-        <label class="w3-text-blue"><b>Date</b></label>
-        <input type="date" id="attendance-date" class="w3-input w3-border w3-margin-bottom" required>
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" id="attendance-date" class="w3-input w3-border w3-margin-bottom" required>
+        </div>
         
-        <label class="w3-text-blue"><b>Attendance Code</b></label>
-        <select id="attendance-code" class="w3-select w3-border w3-margin-bottom" required>
-          <option value="">Select Code</option>
-          <option value="Present">Present</option>
-          <option value="Absent">Absent</option>
-          <option value="Tardy">Tardy</option>
-          <option value="Excused">Excused</option>
-        </select>
+        <div class="form-group">
+          <label class="form-label">Attendance Code</label>
+          <select id="attendance-code" class="w3-select w3-border w3-margin-bottom" required>
+            <option value="">Select Code</option>
+            <option value="Present">Present</option>
+            <option value="Absent">Absent</option>
+            <option value="Tardy">Tardy</option>
+            <option value="Excused">Excused</option>
+          </select>
+        </div>
         
-        <label class="w3-text-blue"><b>Comment (Optional)</b></label>
-        <textarea id="attendance-comment" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
+        <div class="form-group">
+          <label class="form-label">Comment (Optional)</label>
+          <textarea id="attendance-comment" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
+        </div>
         
-        <button type="submit" class="w3-button w3-blue w3-round">Save Attendance</button>
+        <div class="modal-footer">
+          <button type="submit" class="w3-button btn-primary">Save Attendance</button>
+          <button type="button" class="w3-button btn-ghost" onclick="closeAttendanceModal()">Cancel</button>
+        </div>
       </form>
     </div>
   </div>
@@ -248,16 +285,19 @@
           <td>${student.email}</td>
           <td>${student.chattStateANumber}</td>
           <td>
-            <button class="w3-button w3-small w3-blue action-button" onclick="editStudent('${student.id}')">
+            <button class="w3-button w3-small btn-primary action-button" onclick="editStudent('${student.id}')">
               <i class="fas fa-edit"></i> Edit
             </button>
-            <button class="w3-button w3-small w3-green action-button" onclick="viewInterventions('${student.id}')">
+            <a href="./student-profile.html?id=${student.id}" class="w3-button w3-small btn-ghost action-button">
+              <i class="fas fa-user"></i> Profile
+            </a>
+            <button class="w3-button w3-small btn-primary action-button" onclick="viewInterventions('${student.id}')">
               <i class="fas fa-chart-line"></i> Interventions
             </button>
-            <button class="w3-button w3-small w3-orange action-button" onclick="addAttendance('${student.id}')">
+            <button class="w3-button w3-small btn-primary action-button" onclick="addAttendance('${student.id}')">
               <i class="fas fa-calendar-check"></i> Attendance
             </button>
-            <button class="w3-button w3-small w3-red action-button" onclick="deleteStudent('${student.id}')">
+            <button class="w3-button w3-small btn-danger action-button" onclick="deleteStudent('${student.id}')">
               <i class="fas fa-trash"></i> Delete
             </button>
           </td>

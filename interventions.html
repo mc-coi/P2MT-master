@@ -9,66 +9,72 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
   <style>
-    .level-badge-1 { background-color: #4CAF50; color: white; }
-    .level-badge-2 { background-color: #8BC34A; color: white; }
-    .level-badge-3 { background-color: #FFEB3B; color: black; }
-    .level-badge-4 { background-color: #FF9800; color: white; }
-    .level-badge-5 { background-color: #F44336; color: white; }
-    .level-badge-6 { background-color: #8B0000; color: white; }
+    .level-1, .level-2 { background: #D1FAE5 !important; color: #065F46 !important; }
+    .level-3 { background: #FEF3C7 !important; color: #92400E !important; }
+    .level-4 { background: #FED7AA !important; color: #9A3412 !important; }
+    .level-5 { background: #FEE2E2 !important; color: #991B1B !important; }
+    .level-6 { background: #4C0519 !important; color: #FFE4E6 !important; }
     .modal-content { max-height: 90vh; overflow-y: auto; }
     .action-btn { padding: 4px 8px; font-size: 12px; margin: 2px; }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
+  <div class="page-container">
     
-    <div class="w3-card w3-padding w3-margin-bottom">
-      <h2><i class="fas fa-clipboard-list"></i> Intervention Log</h2>
-      <div class="w3-bar w3-margin-bottom">
-        <button class="w3-bar-item w3-button w3-blue w3-round" id="addBtn">
+    <div class="page-header">
+      <h1><i class="fas fa-clipboard-list"></i> Intervention Log</h1>
+      <div class="actions">
+        <button class="w3-button btn-primary" id="addBtn">
           <i class="fas fa-plus"></i> Add Intervention
         </button>
-        <button class="w3-bar-item w3-button w3-teal w3-round" id="downloadBtn">
+        <button class="w3-button btn-primary" id="downloadBtn">
           <i class="fas fa-download"></i> Download CSV
         </button>
       </div>
     </div>
 
-    <div class="w3-card w3-padding w3-margin-bottom">
-      <h4>Filters</h4>
+    <div class="filter-bar">
       <div class="w3-row">
         <div class="w3-col m3">
-          <label>Student Name</label>
-          <input type="text" id="filterStudent" class="w3-input w3-border" placeholder="Search student...">
+          <div class="filter-group">
+            <label class="form-label">Student Name</label>
+            <input type="text" id="filterStudent" class="w3-input w3-border" placeholder="Search student...">
+          </div>
         </div>
         <div class="w3-col m3">
-          <label>Intervention Type</label>
-          <select id="filterType" class="w3-input w3-border">
-            <option value="">-- All Types --</option>
-          </select>
+          <div class="filter-group">
+            <label class="form-label">Intervention Type</label>
+            <select id="filterType" class="w3-input w3-border">
+              <option value="">-- All Types --</option>
+            </select>
+          </div>
         </div>
         <div class="w3-col m3">
-          <label>Status</label>
-          <select id="filterStatus" class="w3-input w3-border">
-            <option value="">-- All Status --</option>
-            <option value="Active">Active</option>
-            <option value="Closed">Closed</option>
-          </select>
+          <div class="filter-group">
+            <label class="form-label">Status</label>
+            <select id="filterStatus" class="w3-input w3-border">
+              <option value="">-- All Status --</option>
+              <option value="Active">Active</option>
+              <option value="Closed">Closed</option>
+            </select>
+          </div>
         </div>
         <div class="w3-col m3">
-          <label>Start Date Range</label>
-          <input type="date" id="filterStartDate" class="w3-input w3-border">
-          <input type="date" id="filterEndDate" class="w3-input w3-border" style="margin-top:4px;">
+          <div class="filter-group">
+            <label class="form-label">Start Date Range</label>
+            <input type="date" id="filterStartDate" class="w3-input w3-border">
+            <input type="date" id="filterEndDate" class="w3-input w3-border" style="margin-top:4px;">
+          </div>
         </div>
       </div>
       <div class="w3-margin-top">
-        <button class="w3-button w3-green w3-round" id="applyFiltersBtn">Apply Filters</button>
-        <button class="w3-button w3-light-grey w3-round" id="clearFiltersBtn">Clear</button>
+        <button class="w3-button btn-primary" id="applyFiltersBtn">Apply Filters</button>
+        <button class="w3-button btn-ghost" id="clearFiltersBtn">Clear</button>
       </div>
     </div>
 
-    <div class="w3-card w3-padding">
+    <div class="table-wrap">
       <div id="loadingSpinner" class="w3-center w3-padding" style="display:none;">
         <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i> Loading...
       </div>
@@ -97,65 +103,81 @@
   <!-- Add/Edit Intervention Modal -->
   <div id="interventionModal" class="w3-modal" style="display:none;z-index:10;">
     <div class="w3-modal-content w3-card-4 modal-content" style="max-width:600px;">
-      <header class="w3-container w3-blue">
-        <span class="w3-button w3-display-topright" onclick="closeModal('interventionModal')">&times;</span>
+      <header class="modal-header">
         <h2 id="modalTitle">Add Intervention</h2>
+        <button class="modal-close-btn" onclick="closeModal('interventionModal')">×</button>
       </header>
-      <form id="interventionForm" class="w3-container w3-padding">
-        <label class="w3-text-blue"><b>Student *</b></label>
-        <select id="studentSelect" class="w3-input w3-border w3-margin-bottom" required>
-          <option value="">-- Select Student --</option>
-        </select>
+      <form id="interventionForm" class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Student *</label>
+          <select id="studentSelect" class="w3-input w3-border w3-margin-bottom" required>
+            <option value="">-- Select Student --</option>
+          </select>
+        </div>
 
-        <label class="w3-text-blue"><b>Intervention Type *</b></label>
-        <select id="typeSelect" class="w3-input w3-border w3-margin-bottom" required>
-          <option value="">-- Select Type --</option>
-        </select>
+        <div class="form-group">
+          <label class="form-label">Intervention Type *</label>
+          <select id="typeSelect" class="w3-input w3-border w3-margin-bottom" required>
+            <option value="">-- Select Type --</option>
+          </select>
+        </div>
 
-        <label class="w3-text-blue"><b>Intervention Level *</b></label>
-        <select id="levelSelect" class="w3-input w3-border w3-margin-bottom" required>
-          <option value="">-- Select Level --</option>
-          <option value="1">1 - Green</option>
-          <option value="2">2 - Light Green</option>
-          <option value="3">3 - Yellow</option>
-          <option value="4">4 - Orange</option>
-          <option value="5">5 - Red</option>
-          <option value="6">6 - Dark Red</option>
-        </select>
+        <div class="form-group">
+          <label class="form-label">Intervention Level *</label>
+          <select id="levelSelect" class="w3-input w3-border w3-margin-bottom" required>
+            <option value="">-- Select Level --</option>
+            <option value="1">1 - Green</option>
+            <option value="2">2 - Light Green</option>
+            <option value="3">3 - Yellow</option>
+            <option value="4">4 - Orange</option>
+            <option value="5">5 - Red</option>
+            <option value="6">6 - Dark Red</option>
+          </select>
+        </div>
 
-        <label class="w3-text-blue"><b>Start Date *</b></label>
-        <input type="date" id="startDateInput" class="w3-input w3-border w3-margin-bottom" required>
+        <div class="form-group">
+          <label class="form-label">Start Date *</label>
+          <input type="date" id="startDateInput" class="w3-input w3-border w3-margin-bottom" required>
+        </div>
 
-        <label class="w3-text-blue"><b>End Date</b></label>
-        <input type="date" id="endDateInput" class="w3-input w3-border w3-margin-bottom">
+        <div class="form-group">
+          <label class="form-label">End Date</label>
+          <input type="date" id="endDateInput" class="w3-input w3-border w3-margin-bottom">
+        </div>
 
-        <label class="w3-text-blue"><b>Comment</b></label>
-        <textarea id="commentInput" class="w3-input w3-border w3-margin-bottom" rows="3" placeholder="Add comment..."></textarea>
+        <div class="form-group">
+          <label class="form-label">Comment</label>
+          <textarea id="commentInput" class="w3-input w3-border w3-margin-bottom" rows="3" placeholder="Add comment..."></textarea>
+        </div>
 
-        <label class="w3-text-blue"><b>TMI Minutes *</b></label>
-        <input type="number" id="tmiMinutesInput" class="w3-input w3-border w3-margin-bottom" min="0" required>
+        <div class="form-group">
+          <label class="form-label">TMI Minutes *</label>
+          <input type="number" id="tmiMinutesInput" class="w3-input w3-border w3-margin-bottom" min="0" required>
+        </div>
 
-        <label class="w3-text-blue"><b>Status *</b></label>
-        <select id="statusSelect" class="w3-input w3-border w3-margin-bottom" required>
-          <option value="Active">Active</option>
-          <option value="Closed">Closed</option>
-        </select>
+        <div class="form-group">
+          <label class="form-label">Status *</label>
+          <select id="statusSelect" class="w3-input w3-border w3-margin-bottom" required>
+            <option value="Active">Active</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
 
-        <div class="w3-margin-bottom">
+        <div class="form-group">
           <label class="w3-checkbox">
             <input type="checkbox" id="studentNotifInput"> Notify Student
           </label>
         </div>
 
-        <div class="w3-margin-bottom">
+        <div class="form-group">
           <label class="w3-checkbox">
             <input type="checkbox" id="parentNotifInput"> Notify Parent
           </label>
         </div>
 
-        <div class="w3-bar w3-margin-top">
-          <button type="submit" class="w3-bar-item w3-button w3-green w3-round">Save</button>
-          <button type="button" class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('interventionModal')">Cancel</button>
+        <div class="modal-footer">
+          <button type="submit" class="w3-button btn-primary">Save</button>
+          <button type="button" class="w3-button btn-ghost" onclick="closeModal('interventionModal')">Cancel</button>
         </div>
       </form>
     </div>
@@ -164,16 +186,16 @@
   <!-- Delete Confirmation Modal -->
   <div id="deleteModal" class="w3-modal" style="display:none;z-index:10;">
     <div class="w3-modal-content w3-card-4" style="max-width:400px;">
-      <header class="w3-container w3-red">
-        <span class="w3-button w3-display-topright" onclick="closeModal('deleteModal')">&times;</span>
+      <header class="modal-header">
         <h2>Confirm Delete</h2>
+        <button class="modal-close-btn" onclick="closeModal('deleteModal')">×</button>
       </header>
-      <div class="w3-container w3-padding">
+      <div class="modal-body">
         <p>Are you sure you want to delete this intervention?</p>
-        <div class="w3-bar">
-          <button class="w3-bar-item w3-button w3-red w3-round" id="confirmDeleteBtn">Delete</button>
-          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('deleteModal')">Cancel</button>
-        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="w3-button btn-danger" id="confirmDeleteBtn">Delete</button>
+        <button class="w3-button btn-ghost" onclick="closeModal('deleteModal')">Cancel</button>
       </div>
     </div>
   </div>
@@ -181,11 +203,11 @@
   <!-- Notification Template Modal -->
   <div id="notificationModal" class="w3-modal" style="display:none;z-index:10;">
     <div class="w3-modal-content w3-card-4 modal-content" style="max-width:700px;">
-      <header class="w3-container w3-blue">
-        <span class="w3-button w3-display-topright" onclick="closeModal('notificationModal')">&times;</span>
+      <header class="modal-header">
         <h2>Notification Template</h2>
+        <button class="modal-close-btn" onclick="closeModal('notificationModal')">×</button>
       </header>
-      <div class="w3-container w3-padding">
+      <div class="modal-body">
         <div class="w3-panel w3-light-grey w3-round">
           <p><b>To:</b> <span id="notifTo"></span></p>
           <p><b>Subject:</b> <span id="notifSubject"></span></p>
@@ -193,12 +215,24 @@
         <div class="w3-panel w3-white w3-border" style="min-height:200px;white-space:pre-wrap;">
           <div id="notifContent"></div>
         </div>
-        <div class="w3-bar">
-          <button class="w3-bar-item w3-button w3-blue w3-round" id="copyNotifBtn">
-            <i class="fas fa-copy"></i> Copy to Clipboard
-          </button>
-          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('notificationModal')">Close</button>
-        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="w3-button btn-primary" id="copyNotifBtn">
+          <i class="fas fa-copy"></i> Copy to Clipboard
+        </button>
+        <button class="w3-button btn-ghost" onclick="closeModal('notificationModal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline Modal -->
+  <div id="timelineModal" class="w3-modal" style="display:none;z-index:10;">
+    <div class="w3-modal-content" style="max-width:600px;">
+      <header class="modal-header">
+        <h3 id="timelineStudentName">Intervention Timeline</h3>
+        <button class="modal-close-btn" onclick="closeModal('timelineModal')">×</button>
+      </header>
+      <div class="modal-body" id="timelineContent" style="max-height:70vh;overflow-y:auto;">
       </div>
     </div>
   </div>
@@ -290,10 +324,10 @@
       }
       $('#interventionTableBody').empty();
       filteredInterventions.forEach(intervention => {
-        let levelBadge = `<span class="w3-badge level-badge-${intervention.interventionLevel}">${intervention.interventionLevel}</span>`;
+        let levelBadge = `<span class="badge level-${intervention.interventionLevel}">${intervention.interventionLevel}</span>`;
         let statusBadge = intervention.interventionStatus === 'Active' 
-          ? '<span class="w3-badge w3-green">Active</span>' 
-          : '<span class="w3-badge w3-gray">Closed</span>';
+          ? '<span class="badge badge-success">Active</span>' 
+          : '<span class="badge badge-gray">Closed</span>';
         let row = `
           <tr>
             <td>${intervention.studentName || ''}</td>
@@ -308,13 +342,16 @@
             <td>${intervention.tmiMinutesRemaining || 0}</td>
             <td>${intervention.staffName || ''}</td>
             <td>
-              <button class="w3-button w3-small w3-blue action-btn" onclick="editIntervention('${intervention.id}')">
+              <button class="w3-button w3-small btn-primary action-btn" onclick="editIntervention('${intervention.id}')">
                 <i class="fas fa-edit"></i>
               </button>
-              <button class="w3-button w3-small w3-red action-btn" onclick="deleteIntervention('${intervention.id}')">
+              <button class="w3-button w3-small btn-ghost action-btn" onclick="showTimeline('${intervention.studentId}', '${intervention.studentName}')">
+                <i class="fas fa-history"></i>
+              </button>
+              <button class="w3-button w3-small btn-danger action-btn" onclick="deleteIntervention('${intervention.id}')">
                 <i class="fas fa-trash"></i>
               </button>
-              <button class="w3-button w3-small w3-teal action-btn" onclick="showNotificationTemplate('${intervention.id}')">
+              <button class="w3-button w3-small btn-primary action-btn" onclick="showNotificationTemplate('${intervention.id}')">
                 <i class="fas fa-bell"></i>
               </button>
             </td>
@@ -556,6 +593,75 @@
     function closeModal(modalId) {
       document.getElementById(modalId).style.display = 'none';
     }
+
+    window.showTimeline = async function(studentId, studentName) {
+      try {
+        // Get all interventions for this student
+        const studentInterventions = interventions
+          .filter(i => i.studentId === studentId)
+          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        
+        const levelColors = {
+          1: { bg: '#D1FAE5', text: '#065F46', label: 'Level 1' },
+          2: { bg: '#D1FAE5', text: '#065F46', label: 'Level 2' },
+          3: { bg: '#FEF3C7', text: '#92400E', label: 'Level 3' },
+          4: { bg: '#FED7AA', text: '#9A3412', label: 'Level 4' },
+          5: { bg: '#FEE2E2', text: '#991B1B', label: 'Level 5' },
+          6: { bg: '#4C0519', text: '#FFE4E6', label: 'Level 6' },
+        };
+        
+        document.getElementById('timelineStudentName').textContent = `Timeline: ${studentName}`;
+        
+        if (studentInterventions.length === 0) {
+          document.getElementById('timelineContent').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon"><i class="fas fa-history"></i></div>
+              <div class="empty-title">No Interventions</div>
+              <div class="empty-subtitle">No intervention history found for this student.</div>
+            </div>`;
+        } else {
+          const html = `
+            <div style="padding: 8px 0;">
+              ${studentInterventions.map((intervention, idx) => {
+                const c = levelColors[intervention.interventionLevel] || levelColors[1];
+                const isActive = intervention.interventionStatus === 'Active';
+                const escalated = idx > 0 && intervention.interventionLevel > studentInterventions[idx-1].interventionLevel;
+                const deescalated = idx > 0 && intervention.interventionLevel < studentInterventions[idx-1].interventionLevel;
+                return `
+                  <div style="display:flex;gap:12px;margin-bottom:0;position:relative;">
+                    <!-- Timeline line -->
+                    <div style="display:flex;flex-direction:column;align-items:center;width:32px;flex-shrink:0;">
+                      <div style="width:12px;height:12px;border-radius:50%;background:${c.bg};border:2px solid ${c.text};flex-shrink:0;margin-top:4px;"></div>
+                      ${idx < studentInterventions.length - 1 ? '<div style="width:2px;flex:1;background:#E2E8F0;margin:2px 0;min-height:40px;"></div>' : ''}
+                    </div>
+                    <!-- Content -->
+                    <div style="flex:1;padding-bottom:20px;">
+                      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                        <span style="background:${c.bg};color:${c.text};padding:2px 10px;border-radius:9999px;font-size:11px;font-weight:700;">${c.label}</span>
+                        <span style="background:${isActive ? '#D1FAE5' : '#F1F5F9'};color:${isActive ? '#065F46' : '#475569'};padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;">${intervention.interventionStatus}</span>
+                        ${escalated ? '<span style="background:#FEE2E2;color:#991B1B;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;">↑ Escalated</span>' : ''}
+                        ${deescalated ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;">↓ De-escalated</span>' : ''}
+                      </div>
+                      <div style="font-weight:600;font-size:13px;color:#0F172A;margin-bottom:2px;">${intervention.interventionType || 'Unknown Type'}</div>
+                      <div style="font-size:12px;color:#64748B;">
+                        <i class="fas fa-calendar-alt" style="margin-right:4px;"></i>
+                        ${formatDate(intervention.startDate)}${intervention.endDate ? ' → ' + formatDate(intervention.endDate) : ' → Present'}
+                      </div>
+                      ${intervention.tmiMinutes ? `<div style="font-size:12px;color:#64748B;margin-top:2px;"><i class="fas fa-clock" style="margin-right:4px;"></i>TMI: ${intervention.tmiMinutesServed||0}/${intervention.tmiMinutes} min</div>` : ''}
+                      ${intervention.comment ? `<div style="font-size:12px;color:#64748B;margin-top:4px;font-style:italic;">"${intervention.comment}"</div>` : ''}
+                    </div>
+                  </div>`;
+              }).join('')}
+            </div>`;
+          document.getElementById('timelineContent').innerHTML = html;
+        }
+        
+        document.getElementById('timelineModal').style.display = 'flex';
+      } catch (error) {
+        console.error('Error loading timeline:', error);
+        showToast('Error loading timeline', 'error');
+      }
+    };
 
     window.editIntervention = editIntervention;
     window.deleteIntervention = deleteIntervention;

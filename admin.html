@@ -23,10 +23,10 @@
     .template-button { margin: 5px; }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
   
-  <div class="w3-container w3-padding" style="margin-top: 10px;">
+  <div class="page-container" style="margin-top: 10px;">
     <h2><i class="fas fa-cog"></i> Admin Dashboard</h2>
 
     <!-- Tab Navigation -->
@@ -57,10 +57,10 @@
           </h3>
         </div>
         <div class="w3-col m4 w3-right-align">
-          <button id="btn-add-student" class="w3-button w3-teal action-button">
+          <button id="btn-add-student" class="w3-button btn-primary action-button">
             <i class="fas fa-plus"></i> Add
           </button>
-          <button id="btn-download-students" class="w3-button w3-blue action-button">
+          <button id="btn-download-students" class="w3-button btn-primary action-button">
             <i class="fas fa-download"></i> Download
           </button>
           <button id="btn-upload-students" class="w3-button w3-orange action-button">
@@ -95,10 +95,10 @@
           </h3>
         </div>
         <div class="w3-col m4 w3-right-align">
-          <button id="btn-add-staff" class="w3-button w3-teal action-button">
+          <button id="btn-add-staff" class="w3-button btn-primary action-button">
             <i class="fas fa-plus"></i> Add
           </button>
-          <button id="btn-download-staff" class="w3-button w3-blue action-button">
+          <button id="btn-download-staff" class="w3-button btn-primary action-button">
             <i class="fas fa-download"></i> Download
           </button>
           <button id="btn-upload-staff" class="w3-button w3-orange action-button">
@@ -132,7 +132,7 @@
           <h3>Parent Information</h3>
         </div>
         <div class="w3-col m4 w3-right-align">
-          <button id="btn-download-parents" class="w3-button w3-blue action-button">
+          <button id="btn-download-parents" class="w3-button btn-primary action-button">
             <i class="fas fa-download"></i> Download
           </button>
           <button id="btn-upload-parents" class="w3-button w3-orange action-button">
@@ -185,7 +185,7 @@
               </label>
             </div>
           </div>
-          <button id="btn-save-email-settings" class="w3-button w3-teal w3-round">Save Email Settings</button>
+          <button id="btn-save-email-settings" class="w3-button btn-primary w3-round">Save Email Settings</button>
         </div>
 
         <div class="w3-card settings-card">
@@ -203,16 +203,16 @@
         <div class="w3-card settings-card">
           <h3 class="w3-text-teal">CSV Templates</h3>
           <p class="w3-text-grey">Download template files for bulk importing data:</p>
-          <button id="btn-download-students-template" class="w3-button w3-blue template-button">
+          <button id="btn-download-students-template" class="w3-button btn-primary template-button">
             <i class="fas fa-download"></i> Students Template
           </button>
-          <button id="btn-download-staff-template" class="w3-button w3-blue template-button">
+          <button id="btn-download-staff-template" class="w3-button btn-primary template-button">
             <i class="fas fa-download"></i> Staff Template
           </button>
-          <button id="btn-download-parents-template" class="w3-button w3-blue template-button">
+          <button id="btn-download-parents-template" class="w3-button btn-primary template-button">
             <i class="fas fa-download"></i> Parents Template
           </button>
-          <button id="btn-download-schedule-template" class="w3-button w3-blue template-button">
+          <button id="btn-download-schedule-template" class="w3-button btn-primary template-button">
             <i class="fas fa-download"></i> Schedule Template
           </button>
         </div>
@@ -226,7 +226,7 @@
           <h3>Intervention Types</h3>
         </div>
         <div class="w3-col m4 w3-right-align">
-          <button id="btn-add-intervention-type" class="w3-button w3-teal action-button">
+          <button id="btn-add-intervention-type" class="w3-button btn-primary action-button">
             <i class="fas fa-plus"></i> Add Type
           </button>
         </div>
@@ -249,7 +249,7 @@
   <!-- MODAL: Add/Edit Student -->
   <div id="studentModal" class="w3-modal">
     <div class="w3-modal-content w3-card modal-form">
-      <header class="w3-container w3-teal">
+      <header class="modal-header">
         <span class="w3-button w3-display-topright" onclick="closeStudentModal()">&times;</span>
         <h3 id="student-modal-title">Add Student</h3>
       </header>
@@ -288,7 +288,7 @@
         </div>
         <label class="w3-text-teal"><b>Google Calendar ID</b></label>
         <input type="text" id="student-googleCalendarId" class="w3-input w3-border w3-margin-bottom">
-        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+        <button type="submit" class="w3-button btn-primary w3-round">Save</button>
       </form>
     </div>
   </div>
@@ -296,7 +296,7 @@
   <!-- MODAL: Add/Edit Staff -->
   <div id="staffModal" class="w3-modal">
     <div class="w3-modal-content w3-card modal-form">
-      <header class="w3-container w3-teal">
+      <header class="modal-header">
         <span class="w3-button w3-display-topright" onclick="closeStaffModal()">&times;</span>
         <h3 id="staff-modal-title">Add Staff</h3>
       </header>
@@ -342,7 +342,7 @@
         </div>
         <label class="w3-text-teal"><b>Twitter Account</b></label>
         <input type="text" id="staff-twitterAccount" class="w3-input w3-border w3-margin-bottom">
-        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+        <button type="submit" class="w3-button btn-primary w3-round">Save</button>
       </form>
     </div>
   </div>
@@ -350,7 +350,7 @@
   <!-- MODAL: Edit Parent -->
   <div id="parentModal" class="w3-modal">
     <div class="w3-modal-content w3-card modal-form">
-      <header class="w3-container w3-teal">
+      <header class="modal-header">
         <span class="w3-button w3-display-topright" onclick="closeParentModal()">&times;</span>
         <h3>Edit Parent Information</h3>
       </header>
@@ -379,7 +379,7 @@
         </div>
         <label class="w3-text-teal"><b>Guardian Email</b></label>
         <input type="email" id="parent-guardianEmail" class="w3-input w3-border w3-margin-bottom">
-        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+        <button type="submit" class="w3-button btn-primary w3-round">Save</button>
       </form>
     </div>
   </div>
@@ -387,7 +387,7 @@
   <!-- MODAL: Add/Edit Intervention Type -->
   <div id="interventionTypeModal" class="w3-modal">
     <div class="w3-modal-content w3-card" style="max-width: 400px;">
-      <header class="w3-container w3-teal">
+      <header class="modal-header">
         <span class="w3-button w3-display-topright" onclick="closeInterventionTypeModal()">&times;</span>
         <h3 id="intervention-modal-title">Add Intervention Type</h3>
       </header>
@@ -396,7 +396,7 @@
         <input type="text" id="intervention-interventionType" class="w3-input w3-border w3-margin-bottom" required>
         <label class="w3-text-teal"><b>Max Level</b></label>
         <input type="number" id="intervention-maxLevel" class="w3-input w3-border w3-margin-bottom" min="1" required>
-        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+        <button type="submit" class="w3-button btn-primary w3-round">Save</button>
       </form>
     </div>
   </div>
@@ -404,15 +404,15 @@
   <!-- MODAL: Delete Confirmation -->
   <div id="deleteConfirmModal" class="w3-modal">
     <div class="w3-modal-content w3-card" style="max-width: 400px;">
-      <header class="w3-container w3-red">
+      <header class="modal-header">
         <span class="w3-button w3-display-topright" onclick="closeDeleteModal()">&times;</span>
         <h3>Confirm Delete</h3>
       </header>
       <div class="w3-padding">
         <p>Type <b>DELETE</b> to confirm:</p>
         <input type="text" id="delete-confirm-input" class="w3-input w3-border w3-margin-bottom">
-        <button class="w3-button w3-red w3-round" onclick="confirmDelete()">Delete</button>
-        <button class="w3-button w3-gray w3-round" onclick="closeDeleteModal()">Cancel</button>
+        <button class="w3-button btn-danger w3-round" onclick="confirmDelete()">Delete</button>
+        <button class="w3-button btn-ghost w3-round" onclick="closeDeleteModal()">Cancel</button>
       </div>
     </div>
   </div>

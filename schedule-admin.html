@@ -25,9 +25,9 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
+  <div class="page-container" style="margin-top:10px;">
     <h1><i class="fas fa-cogs"></i> Schedule Administration</h1>
 
     <!-- Tab Buttons -->
@@ -48,16 +48,16 @@
         <i class="fas fa-cloud-upload-alt" style="font-size:48px; color:#2196F3;"></i>
         <p><strong>Drag and drop CSV file here</strong> or click to select</p>
         <input type="file" id="csvFile" accept=".csv" onchange="previewCSV()" style="display:none;">
-        <button class="w3-button w3-blue" onclick="document.getElementById('csvFile').click()"><i class="fas fa-folder-open"></i> Select File</button>
+        <button class="w3-button btn-primary" onclick="document.getElementById('csvFile').click()"><i class="fas fa-folder-open"></i> Select File</button>
       </div>
 
-      <p class="w3-margin-top"><button class="w3-button w3-green" onclick="downloadTemplate()"><i class="fas fa-download"></i> Download Template</button></p>
+      <p class="w3-margin-top"><button class="w3-button btn-primary" onclick="downloadTemplate()"><i class="fas fa-download"></i> Download Template</button></p>
 
       <div id="csvPreview" style="margin-top:20px;"></div>
 
       <div id="uploadProgress" style="margin-top:20px;"></div>
 
-      <button class="w3-button w3-blue w3-margin-top" id="importBtn" onclick="importCSVData()" style="display:none;"><i class="fas fa-upload"></i> Import Data</button>
+      <button class="w3-button btn-primary w3-margin-top" id="importBtn" onclick="importCSVData()" style="display:none;"><i class="fas fa-upload"></i> Import Data</button>
     </div>
 
     <!-- TAB 2: Add Single Class -->
@@ -102,7 +102,7 @@
 
       <label class="w3-margin-top">Comment:<textarea class="w3-input w3-border" id="addComment" rows="3"></textarea></label>
 
-      <button class="w3-button w3-blue w3-margin-top" onclick="addSingleClass()"><i class="fas fa-save"></i> Add Class</button>
+      <button class="w3-button btn-primary w3-margin-top" onclick="addSingleClass()"><i class="fas fa-save"></i> Add Class</button>
       <div id="addResult" style="margin-top:20px;"></div>
     </div>
 
@@ -121,7 +121,7 @@
         <div><label>End Date:<input class="w3-input w3-border" type="date" id="propEndDate"></label></div>
       </div>
 
-      <button class="w3-button w3-blue w3-margin-top" onclick="propagateAttendance()"><i class="fas fa-play"></i> Propagate</button>
+      <button class="w3-button btn-primary w3-margin-top" onclick="propagateAttendance()"><i class="fas fa-play"></i> Propagate</button>
       <div id="propagateProgress" style="margin-top:20px;"></div>
     </div>
 
@@ -145,27 +145,25 @@
 
       <label class="w3-margin-top">Type "DELETE" to confirm:<input class="w3-input w3-border" type="text" id="deleteConfirmText" placeholder="DELETE"></label>
 
-      <button class="w3-button w3-red w3-margin-top" onclick="previewDelete()"><i class="fas fa-search"></i> Preview Delete</button>
-      <button class="w3-button w3-red w3-margin-top" id="deleteBtn" onclick="confirmDeleteSchedules()" style="display:none;"><i class="fas fa-trash"></i> Delete Records</button>
+      <button class="w3-button btn-danger w3-margin-top" onclick="previewDelete()"><i class="fas fa-search"></i> Preview Delete</button>
+      <button class="w3-button btn-danger w3-margin-top" id="deleteBtn" onclick="confirmDeleteSchedules()" style="display:none;"><i class="fas fa-trash"></i> Delete Records</button>
     </div>
 
     <!-- TAB 5: Download Reports -->
     <div id="tab-reports" class="tab-content">
       <h2>Download Reports</h2>
 
-      <div class="w3-card w3-padding w3-margin-bottom">
-        <h3>Download Class Schedule</h3>
+      <div class="filter-bar"><h3>Download Class Schedule</h3>
         <p class="w3-text-grey">Export class schedule records filtered by criteria.</p>
         <div class="form-row">
           <div><label>School Year:<input class="w3-input w3-border" type="text" id="repSchoolYear"></label></div>
           <div><label>Semester:<select class="w3-input w3-border" id="repSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
         </div>
         <label>Teacher Last Name (optional):<input class="w3-input w3-border" type="text" id="repTeacher"></label>
-        <button class="w3-button w3-green w3-margin-top" onclick="downloadScheduleReport()"><i class="fas fa-download"></i> Download Schedule CSV</button>
+        <button class="w3-button btn-primary w3-margin-top" onclick="downloadScheduleReport()"><i class="fas fa-download"></i> Download Schedule CSV</button>
       </div>
 
-      <div class="w3-card w3-padding">
-        <h3>Download Class Attendance</h3>
+      <div class="filter-bar"><h3>Download Class Attendance</h3>
         <p class="w3-text-grey">Export attendance records for a date range and teacher.</p>
         <div class="form-row">
           <div><label>School Year:<input class="w3-input w3-border" type="text" id="attSchoolYear"></label></div>
@@ -176,7 +174,7 @@
           <div><label>End Date:<input class="w3-input w3-border" type="date" id="attEndDate"></label></div>
         </div>
         <label>Teacher Last Name (optional):<input class="w3-input w3-border" type="text" id="attTeacher"></label>
-        <button class="w3-button w3-green w3-margin-top" onclick="downloadAttendanceReport()"><i class="fas fa-download"></i> Download Attendance CSV</button>
+        <button class="w3-button btn-primary w3-margin-top" onclick="downloadAttendanceReport()"><i class="fas fa-download"></i> Download Attendance CSV</button>
       </div>
     </div>
   </div>
@@ -289,7 +287,7 @@
           let html = '<h3>Preview (first 5 rows):</h3><div style="overflow-x:auto;"><table class="w3-table w3-bordered w3-striped">';
           
           if (csvData.length > 0) {
-            html += '<tr class="w3-blue"><th>' + Object.keys(csvData[0]).join('</th><th>') + '</th></tr>';
+            html += '<tr class="btn-primary"><th>' + Object.keys(csvData[0]).join('</th><th>') + '</th></tr>';
             csvData.slice(0, 5).forEach(row => {
               html += '<tr><td>' + Object.values(row).map(v => (v || '').substring(0, 20)).join('</td><td>') + '</td></tr>';
             });
@@ -353,7 +351,7 @@
           }
 
           const pct = Math.round((i + 1) / csvData.length * 100);
-          progress.innerHTML = `<div class="w3-light-grey" style="margin:10px 0;"><div class="w3-blue" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed</p>`;
+          progress.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-primary" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed</p>`;
         }
 
         progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Import Complete!</strong><br>Successful: ${successful}<br>Errors: ${errors}</div>`;
@@ -523,7 +521,7 @@
           await batchWrite('classAttendanceLogs', batch_data);
           
           const pct = Math.round((i + batchSize) / attendanceLogs.length * 100);
-          progress.innerHTML = `<div class="w3-light-grey" style="margin:10px 0;"><div class="w3-blue" style="width:${Math.min(pct, 100)}%; text-align:center; color:white; height:25px; line-height:25px;">${Math.min(pct, 100)}%</div></div><p>Created ${Math.min(i + batchSize, attendanceLogs.length)}/${attendanceLogs.length} attendance logs</p>`;
+          progress.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-primary" style="width:${Math.min(pct, 100)}%; text-align:center; color:white; height:25px; line-height:25px;">${Math.min(pct, 100)}%</div></div><p>Created ${Math.min(i + batchSize, attendanceLogs.length)}/${attendanceLogs.length} attendance logs</p>`;
         }
 
         progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Propagation Complete!</strong><br>Created ${attendanceLogs.length} attendance logs</div>`;
@@ -593,7 +591,7 @@
         for (let i = 0; i < toDelete.length; i++) {
           await deleteDoc('classSchedules', toDelete[i].id);
           const pct = Math.round((i + 1) / toDelete.length * 100);
-          preview.innerHTML = `<div class="w3-light-grey" style="margin:10px 0;"><div class="w3-red" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>Deleted ${i + 1}/${toDelete.length} records</p>`;
+          preview.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-danger" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>Deleted ${i + 1}/${toDelete.length} records</p>`;
         }
 
         preview.innerHTML = `<div class="w3-panel w3-light-red w3-border"><strong>Deletion Complete!</strong><br>Deleted ${toDelete.length} schedule records</div>`;

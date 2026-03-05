@@ -5,7 +5,7 @@ import { getCurrentUser, signOut } from './auth.js';
 import { getInitials } from './utils.js';
 
 const navItems = [
-  { id: 'home',             label: 'Home',            href: './index.html',             icon: 'fa-home' },
+  { id: 'home',             label: 'Home',            href: './dashboard.html',         icon: 'fa-home' },
   { id: 'students',         label: 'Students',         href: './students.html',          icon: 'fa-users' },
   { id: 'daily-attendance', label: 'Daily Attendance', href: './daily-attendance.html',  icon: 'fa-clipboard-list' },
   { id: 'class-attendance', label: 'Class Attendance', href: './class-attendance.html',  icon: 'fa-calendar-check' },
@@ -81,7 +81,7 @@ export function initNav(activePage) {
   navContainer.innerHTML = `
     <nav class="p2mt-nav">
       <!-- Brand -->
-      <a href="./students.html" class="p2mt-nav-brand" title="P2MT Home">
+      <a href="./dashboard.html" class="p2mt-nav-brand" title="P2MT Home">
         <div class="p2mt-nav-logo">P2</div>
         <span class="p2mt-nav-name">P2MT</span>
       </a>

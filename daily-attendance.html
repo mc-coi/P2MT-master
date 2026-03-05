@@ -24,63 +24,110 @@
     .form-row.full { grid-template-columns: 1fr; }
     .date-range-group { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
     .spinner { display: inline-block; margin-right: 8px; }
+    .mb-4 { margin-bottom: 16px; }
+    .grid-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .stat-card { background: white; padding: 16px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; gap: 12px; align-items: center; }
+    .stat-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .stat-icon.blue { background: var(--primary-light, #E3F2FD); color: var(--primary, #2196F3); }
+    .stat-icon.red { background: var(--danger-light, #FFEBEE); color: var(--danger, #F44336); }
+    .stat-icon.yellow { background: var(--warning-light, #FEF3C7); color: var(--warning, #F59E0B); }
+    .stat-value { font-size: 24px; font-weight: 700; color: #333; }
+    .stat-label { font-size: 12px; color: #999; margin-top: 4px; }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
   
-  <div class="w3-container w3-padding" style="margin-top: 10px;">
+  <div class="page-container">
     <!-- Header -->
-    <div class="w3-row w3-margin-bottom">
-      <div class="w3-col m8">
-        <h2><i class="fas fa-calendar-check"></i> Daily Attendance Log</h2>
-      </div>
-      <div class="w3-col m4 w3-right-align w3-padding-top">
-        <button id="btn-add-absence" class="w3-button w3-green action-button">
+    <div class="page-header">
+      <h1><i class="fas fa-calendar-check"></i> Daily Attendance Log</h1>
+      <div class="actions">
+        <button id="btn-add-absence" class="w3-button btn-primary action-button">
           <i class="fas fa-plus"></i> Add Absence
         </button>
-        <button id="btn-download-csv" class="w3-button w3-blue action-button">
+        <button id="btn-download-csv" class="w3-button btn-primary action-button">
           <i class="fas fa-download"></i> Download CSV
         </button>
       </div>
     </div>
 
+    <!-- Attendance Analytics -->
+    <div class="grid-stats mb-4" id="attendance-stats-row">
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-calendar-check"></i></div>
+        <div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Total Records</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+        <div>
+          <div class="stat-value" id="stat-unexcused">0</div>
+          <div class="stat-label">Unexcused</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon yellow"><i class="fas fa-clock"></i></div>
+        <div>
+          <div class="stat-value" id="stat-tardy">0</div>
+          <div class="stat-label">Tardy</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+        <div>
+          <div class="stat-value" id="stat-chronic">0</div>
+          <div class="stat-label">Chronic (&lt;80%)</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Filter Bar -->
-    <div class="filter-card w3-padding w3-margin-bottom">
+    <div class="filter-bar filter-card w3-margin-bottom">
       <div class="w3-row">
         <div class="w3-col m3 w3-padding-small">
-          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Start Date</label>
-          <input type="date" id="filter-start-date" class="w3-input w3-border">
+          <div class="filter-group">
+            <label class="form-label">Start Date</label>
+            <input type="date" id="filter-start-date" class="w3-input w3-border">
+          </div>
         </div>
         <div class="w3-col m3 w3-padding-small">
-          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">End Date</label>
-          <input type="date" id="filter-end-date" class="w3-input w3-border">
+          <div class="filter-group">
+            <label class="form-label">End Date</label>
+            <input type="date" id="filter-end-date" class="w3-input w3-border">
+          </div>
         </div>
         <div class="w3-col m3 w3-padding-small">
-          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Student</label>
-          <input type="text" id="filter-student" class="w3-input w3-border" placeholder="Search by name...">
+          <div class="filter-group">
+            <label class="form-label">Student</label>
+            <input type="text" id="filter-student" class="w3-input w3-border" placeholder="Search by name...">
+          </div>
         </div>
         <div class="w3-col m3 w3-padding-small">
-          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Code</label>
-          <select id="filter-code" class="w3-select w3-border">
-            <option value="">All Codes</option>
-            <option value="P">Present</option>
-            <option value="T">Tardy</option>
-            <option value="E">Excused</option>
-            <option value="U">Unexcused</option>
-            <option value="Q">Quarantine</option>
-            <option value="W">Withdrawn</option>
-            <option value="H">Homebound</option>
-            <option value="L">Late Start</option>
-          </select>
+          <div class="filter-group">
+            <label class="form-label">Code</label>
+            <select id="filter-code" class="w3-select w3-border">
+              <option value="">All Codes</option>
+              <option value="P">Present</option>
+              <option value="T">Tardy</option>
+              <option value="E">Excused</option>
+              <option value="U">Unexcused</option>
+              <option value="Q">Quarantine</option>
+              <option value="W">Withdrawn</option>
+              <option value="H">Homebound</option>
+              <option value="L">Late Start</option>
+            </select>
+          </div>
         </div>
       </div>
       <div class="w3-row w3-margin-top">
         <div class="w3-col m12 w3-padding-small">
-          <button id="btn-apply-filters" class="w3-button w3-blue">
+          <button id="btn-apply-filters" class="w3-button btn-primary">
             <i class="fas fa-filter"></i> Apply Filters
           </button>
-          <button id="btn-clear-filters" class="w3-button w3-gray">
+          <button id="btn-clear-filters" class="w3-button btn-ghost">
             <i class="fas fa-times"></i> Clear
           </button>
         </div>
@@ -88,7 +135,7 @@
     </div>
 
     <!-- DataTable -->
-    <div class="w3-card w3-white">
+    <div class="table-wrap">
       <div id="loading-container" class="loading-container" style="display: none;">
         <div class="loading-text">
           <div class="spinner"></div>
@@ -117,14 +164,14 @@
   <!-- Add/Edit Absence Modal -->
   <div id="addEditModal" class="w3-modal">
     <div class="w3-modal-content w3-card modal-form">
-      <header class="w3-container w3-blue">
-        <span class="w3-button w3-display-topright" onclick="closeAddEditModal()">&times;</span>
+      <header class="modal-header">
+        <button class="modal-close-btn" onclick="closeAddEditModal()">×</button>
         <h3 id="modal-title">Add Absence</h3>
       </header>
       <form id="absenceForm" class="w3-padding">
         <div class="form-row full">
           <div>
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Student <span style="color: red;">*</span></b></label>
+            <label class="form-label"><b>Student <span style="color: red;">*</span></b></label>
             <input type="hidden" id="studentId">
             <input type="text" id="studentName" class="w3-input w3-border" placeholder="Search student..." readonly style="cursor: pointer; background-color: #f9f9f9;">
             <div id="student-dropdown" class="w3-card" style="position: absolute; max-height: 200px; overflow-y: auto; z-index: 100; display: none; width: 90%; max-width: 600px;"></div>
@@ -133,18 +180,18 @@
 
         <div class="form-row">
           <div>
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Absence Start Date <span style="color: red;">*</span></b></label>
+            <label class="form-label"><b>Absence Start Date <span style="color: red;">*</span></b></label>
             <input type="date" id="absenceStartDate" class="w3-input w3-border" required>
           </div>
           <div>
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Absence End Date <span style="color: red;">*</span></b></label>
+            <label class="form-label"><b>Absence End Date <span style="color: red;">*</span></b></label>
             <input type="date" id="absenceEndDate" class="w3-input w3-border" required>
           </div>
         </div>
 
         <div class="form-row">
           <div>
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Attendance Code <span style="color: red;">*</span></b></label>
+            <label class="form-label"><b>Attendance Code <span style="color: red;">*</span></b></label>
             <select id="attendanceCode" class="w3-select w3-border" required>
               <option value="">-- Select Code --</option>
               <option value="P">Present (P)</option>
@@ -158,7 +205,7 @@
             </select>
           </div>
           <div>
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Assign TMI</b></label>
+            <label class="form-label"><b>Assign TMI</b></label>
             <input type="checkbox" id="assignTmi" class="w3-check" style="width: auto; margin-top: 10px;">
             <span style="margin-left: 8px; color: #666;">Check if TMI assigned</span>
           </div>
@@ -166,17 +213,17 @@
 
         <div class="form-row full">
           <div>
-            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Comment</b></label>
+            <label class="form-label"><b>Comment</b></label>
             <textarea id="comment" class="w3-input w3-border" style="resize: vertical; min-height: 100px;" placeholder="Add notes about this absence..."></textarea>
           </div>
         </div>
 
         <div class="w3-row w3-margin-top">
           <div class="w3-col m6 w3-padding-small">
-            <button type="button" class="w3-button w3-block w3-gray" onclick="closeAddEditModal()">Cancel</button>
+            <button type="button" class="w3-button btn-ghost w3-block" onclick="closeAddEditModal()">Cancel</button>
           </div>
           <div class="w3-col m6 w3-padding-small">
-            <button type="submit" class="w3-button w3-block w3-green">Save Absence</button>
+            <button type="submit" class="w3-button btn-primary w3-block">Save Absence</button>
           </div>
         </div>
       </form>
@@ -214,6 +261,7 @@
         // Load students and attendance data
         await loadStudents();
         await loadAttendanceRecords();
+        updateStats();
         initializeDataTable();
         attachEventListeners();
       } catch (error) {
@@ -241,6 +289,37 @@
         showToast('Error loading attendance records', 'error');
         document.getElementById('loading-container').style.display = 'none';
       }
+    }
+
+    function updateStats() {
+      const total = allAttendanceRecords.length;
+      const unexcused = allAttendanceRecords.filter(r => r.attendanceCode === 'U').length;
+      const tardy = allAttendanceRecords.filter(r => r.attendanceCode === 'T').length;
+      
+      // Chronic absenteeism: students with < 80% attendance
+      // Count absences per student (non-P, non-W codes)
+      const absenceMap = {};
+      const totalDaysMap = {};
+      allAttendanceRecords.forEach(r => {
+        const key = r.chattStateANumber || r.studentName;
+        if (!key) return;
+        totalDaysMap[key] = (totalDaysMap[key] || 0) + 1;
+        if (r.attendanceCode !== 'P' && r.attendanceCode !== 'W') {
+          absenceMap[key] = (absenceMap[key] || 0) + 1;
+        }
+      });
+      let chronic = 0;
+      Object.keys(totalDaysMap).forEach(key => {
+        const total = totalDaysMap[key];
+        const absences = absenceMap[key] || 0;
+        const rate = (total - absences) / total;
+        if (rate < 0.8) chronic++;
+      });
+      
+      document.getElementById('stat-total').textContent = total;
+      document.getElementById('stat-unexcused').textContent = unexcused;
+      document.getElementById('stat-tardy').textContent = tardy;
+      document.getElementById('stat-chronic').textContent = chronic;
     }
 
     function initializeDataTable() {
@@ -383,6 +462,7 @@
             await deleteDoc('dailyAttendanceLogs', id);
             showToast('Absence record deleted', 'success');
             await loadAttendanceRecords();
+            updateStats();
             initializeDataTable();
           } catch (error) {
             console.error('Error deleting record:', error);
@@ -493,6 +573,7 @@
 
         closeAddEditModal();
         await loadAttendanceRecords();
+        updateStats();
         initializeDataTable();
       } catch (error) {
         console.error('Error saving absence:', error);

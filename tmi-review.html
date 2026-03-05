@@ -14,52 +14,70 @@
     .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
+  <div class="page-container">
     
-    <div class="w3-card w3-padding w3-margin-bottom">
-      <h2><i class="fas fa-clock"></i> TMI Teacher Review</h2>
-      <p class="w3-text-grey">Review and confirm student TMI assignments for the current TMI period.</p>
-      <button class="w3-button w3-green w3-round" id="saveAllBtn">
-        <i class="fas fa-save"></i> Save All
-      </button>
-    </div>
-
-    <div class="w3-card w3-padding w3-margin-bottom">
-      <h4>Info</h4>
-      <div class="w3-panel w3-light-blue w3-round">
-        <p>
-          <strong>TMI (Time Management Intervention):</strong> During the designated TMI period, 
-          students with unexcused absences must attend. Teachers review their class attendance 
-          to confirm which students served their TMI time. Attendance codes: P (Present), 
-          T (Tardy), E (Early Dismissal), U (Unexcused Absence).
-        </p>
+    <div class="card">
+      <div class="card-header">
+        <h2><i class="fas fa-clock"></i> TMI Teacher Review</h2>
+      </div>
+      <div class="card-body">
+        <p class="w3-text-grey">Review and confirm student TMI assignments for the current TMI period.</p>
+        <button class="w3-button btn-primary w3-round" id="saveAllBtn">
+          <i class="fas fa-save"></i> Save All
+        </button>
       </div>
     </div>
 
-    <div class="w3-card w3-padding w3-margin-bottom">
-      <h4>Filters</h4>
-      <div class="w3-row">
-        <div class="w3-col m4">
-          <label>Teacher Name</label>
-          <select id="filterTeacher" class="w3-input w3-border">
-            <option value="">-- Select Teacher --</option>
-          </select>
-        </div>
-        <div class="w3-col m4">
-          <label>Class Name</label>
-          <select id="filterClass" class="w3-input w3-border" disabled>
-            <option value="">-- Select Class --</option>
-          </select>
-        </div>
-        <div class="w3-col m4">
-          <label>TMI Period</label>
-          <div id="tmiPeriodInfo" class="w3-text-grey">Loading...</div>
+    <div class="card w3-margin-bottom">
+      <div class="card-header">
+        <h4>Info</h4>
+      </div>
+      <div class="card-body">
+        <div class="w3-panel w3-light-blue w3-round">
+          <p>
+            <strong>TMI (Time Management Intervention):</strong> During the designated TMI period, 
+            students with unexcused absences must attend. Teachers review their class attendance 
+            to confirm which students served their TMI time. Attendance codes: P (Present), 
+            T (Tardy), E (Early Dismissal), U (Unexcused Absence).
+          </p>
         </div>
       </div>
-      <div class="w3-margin-top">
-        <button class="w3-button w3-green w3-round" id="loadAttendanceBtn" disabled>Load Attendance</button>
+    </div>
+
+    <div class="card w3-margin-bottom">
+      <div class="card-header">
+        <h4>Filters</h4>
+      </div>
+      <div class="card-body">
+        <div class="w3-row">
+          <div class="w3-col m4">
+            <div class="filter-group">
+              <label class="form-label">Teacher Name</label>
+              <select id="filterTeacher" class="w3-input w3-border">
+                <option value="">-- Select Teacher --</option>
+              </select>
+            </div>
+          </div>
+          <div class="w3-col m4">
+            <div class="filter-group">
+              <label class="form-label">Class Name</label>
+              <select id="filterClass" class="w3-input w3-border" disabled>
+                <option value="">-- Select Class --</option>
+              </select>
+            </div>
+          </div>
+          <div class="w3-col m4">
+            <div class="filter-group">
+              <label class="form-label">TMI Period</label>
+              <div id="tmiPeriodInfo" class="w3-text-grey">Loading...</div>
+            </div>
+          </div>
+        </div>
+        <div class="w3-margin-top">
+          <button class="w3-button btn-primary w3-round" id="loadAttendanceBtn" disabled>Load Attendance</button>
+        </div>
       </div>
     </div>
 
@@ -92,27 +110,31 @@
       </div>
     </div>
 
-    <div class="w3-card w3-padding">
+    <div class="card">
       <div id="loadingSpinner" class="w3-center w3-padding" style="display:none;">
         <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i> Loading...
       </div>
       <div id="attendanceTableContainer" style="display:none;">
-        <h4>Attendance Review</h4>
-        <div style="overflow-x:auto;">
-          <table id="attendanceTable" class="w3-table w3-bordered w3-striped" style="width:100%;">
-            <thead>
-              <tr class="w3-blue">
-                <th>Student Name</th>
-                <th>A#</th>
-                <th>TMI Minutes Assigned</th>
-                <th>TMI Served</th>
-                <th>TMI Remaining</th>
-                <th>In TMI Now</th>
-                <th id="dateHeadersRow"></th>
-              </tr>
-            </thead>
-            <tbody id="attendanceTableBody"></tbody>
-          </table>
+        <div class="card-header">
+          <h4>Attendance Review</h4>
+        </div>
+        <div class="card-body">
+          <div style="overflow-x:auto;">
+            <table id="attendanceTable" class="w3-table w3-bordered w3-striped" style="width:100%;">
+              <thead>
+                <tr class="w3-blue">
+                  <th>Student Name</th>
+                  <th>A#</th>
+                  <th>TMI Minutes Assigned</th>
+                  <th>TMI Served</th>
+                  <th>TMI Remaining</th>
+                  <th>In TMI Now</th>
+                  <th id="dateHeadersRow"></th>
+                </tr>
+              </thead>
+              <tbody id="attendanceTableBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
       <div id="noDataMsg" class="w3-panel w3-light-grey w3-round w3-center">

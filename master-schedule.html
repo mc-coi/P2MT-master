@@ -28,15 +28,15 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
+  <div class="page-container" style="margin-top:10px;">
     <h1><i class="fas fa-calendar-alt"></i> Master Schedule</h1>
     
     <!-- Action Buttons -->
     <div class="w3-bar w3-margin-bottom">
-      <button class="w3-button w3-blue" onclick="openAddModal()"><i class="fas fa-plus"></i> Add Class</button>
-      <button class="w3-button w3-green" onclick="downloadSchedule()"><i class="fas fa-download"></i> Download Schedule</button>
+      <button class="w3-button btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Add Class</button>
+      <button class="w3-button btn-primary" onclick="downloadSchedule()"><i class="fas fa-download"></i> Download Schedule</button>
       <button class="w3-button w3-orange" onclick="openUploadModal()"><i class="fas fa-upload"></i> Upload Schedule CSV</button>
       <button class="w3-button w3-purple" onclick="openPropagateModal()"><i class="fas fa-clock"></i> Propagate Attendance Logs</button>
     </div>
@@ -53,7 +53,7 @@
       </div>
       <div class="w3-row w3-margin-top">
         <div class="w3-col s12 m3"><label>Campus:<input class="w3-input w3-border" type="text" id="filterCampus" placeholder="Campus"></label></div>
-        <div class="w3-col s12 m9 w3-right-align"><button class="w3-button w3-blue" onclick="applyFilters()"><i class="fas fa-filter"></i> Apply Filters</button></div>
+        <div class="w3-col s12 m9 w3-right-align"><button class="w3-button btn-primary" onclick="applyFilters()"><i class="fas fa-filter"></i> Apply Filters</button></div>
       </div>
     </div>
 
@@ -61,7 +61,7 @@
     <div style="overflow-x: auto;">
       <table id="scheduleTable" class="w3-table-all w3-striped w3-bordered">
         <thead>
-          <tr class="w3-blue">
+          <tr class="btn-primary">
             <th>Student Name</th>
             <th>ChattState A#</th>
             <th>School Year</th>
@@ -84,9 +84,8 @@
   <!-- Add/Edit Modal -->
   <div id="scheduleModal" class="w3-modal" onclick="if(event.target===this)closeModal()">
     <div class="w3-modal-content w3-card modal-form">
-      <span class="w3-button w3-large w3-display-topright" onclick="closeModal()">&times;</span>
-      <div class="w3-container w3-padding-16">
-        <h2 id="modalTitle">Add Class Schedule</h2>
+      <button class="modal-close-btn" onclick="closeModal()">×</button>
+      <div class="modal-body"><h2 id="modalTitle">Add Class Schedule</h2>
         
         <div class="form-row">
           <div><label>Student:<br><input class="w3-input w3-border" type="text" id="studentSearch" placeholder="Search student" onkeyup="searchStudents()"></label>
@@ -126,8 +125,8 @@
         <label class="w3-margin-top">Comment<textarea class="w3-input w3-border" id="comment" rows="3"></textarea></label>
 
         <div class="w3-row w3-margin-top">
-          <button class="w3-button w3-blue w3-half" onclick="saveSchedule()"><i class="fas fa-save"></i> Save</button>
-          <button class="w3-button w3-red w3-half" onclick="closeModal()"><i class="fas fa-times"></i> Cancel</button>
+          <button class="w3-button btn-primary w3-half" onclick="saveSchedule()"><i class="fas fa-save"></i> Save</button>
+          <button class="w3-button btn-danger w3-half" onclick="closeModal()"><i class="fas fa-times"></i> Cancel</button>
         </div>
       </div>
     </div>
@@ -136,10 +135,9 @@
   <!-- Upload Modal -->
   <div id="uploadModal" class="w3-modal" onclick="if(event.target===this)closeUploadModal()">
     <div class="w3-modal-content w3-card" style="max-width:600px;">
-      <span class="w3-button w3-large w3-display-topright" onclick="closeUploadModal()">&times;</span>
-      <div class="w3-container w3-padding-16">
-        <h2>Upload Schedule CSV</h2>
-        <p><button class="w3-button w3-blue" onclick="downloadTemplate()"><i class="fas fa-download"></i> Download Template</button></p>
+      <button class="modal-close-btn" onclick="closeUploadModal()">×</button>
+      <div class="modal-body"><h2>Upload Schedule CSV</h2>
+        <p><button class="w3-button btn-primary" onclick="downloadTemplate()"><i class="fas fa-download"></i> Download Template</button></p>
         
         <label>Select CSV File:</label>
         <input type="file" id="csvFile" accept=".csv" onchange="previewCSV()">
@@ -147,8 +145,8 @@
         <div id="csvPreview" style="margin-top:20px;"></div>
         
         <div class="w3-row w3-margin-top">
-          <button class="w3-button w3-blue w3-half" onclick="importCSVData()"><i class="fas fa-upload"></i> Import</button>
-          <button class="w3-button w3-red w3-half" onclick="closeUploadModal()"><i class="fas fa-times"></i> Cancel</button>
+          <button class="w3-button btn-primary w3-half" onclick="importCSVData()"><i class="fas fa-upload"></i> Import</button>
+          <button class="w3-button btn-danger w3-half" onclick="closeUploadModal()"><i class="fas fa-times"></i> Cancel</button>
         </div>
         <div id="uploadProgress" style="margin-top:15px;"></div>
       </div>
@@ -158,9 +156,8 @@
   <!-- Propagate Modal -->
   <div id="propagateModal" class="w3-modal" onclick="if(event.target===this)closePropagateModal()">
     <div class="w3-modal-content w3-card" style="max-width:500px;">
-      <span class="w3-button w3-large w3-display-topright" onclick="closePropagateModal()">&times;</span>
-      <div class="w3-container w3-padding-16">
-        <h2>Propagate Attendance Logs</h2>
+      <button class="modal-close-btn" onclick="closePropagateModal()">×</button>
+      <div class="modal-body"><h2>Propagate Attendance Logs</h2>
         <p class="w3-text-grey">Create attendance log records for all scheduled classes in the selected date range.</p>
         
         <label>School Year:<input class="w3-input w3-border" type="text" id="propSchoolYear"></label>
@@ -169,8 +166,8 @@
         <label>End Date:<input class="w3-input w3-border" type="date" id="propEndDate"></label>
         
         <div class="w3-row w3-margin-top">
-          <button class="w3-button w3-blue w3-half" onclick="propagateAttendance()"><i class="fas fa-clock"></i> Propagate</button>
-          <button class="w3-button w3-red w3-half" onclick="closePropagateModal()"><i class="fas fa-times"></i> Cancel</button>
+          <button class="w3-button btn-primary w3-half" onclick="propagateAttendance()"><i class="fas fa-clock"></i> Propagate</button>
+          <button class="w3-button btn-danger w3-half" onclick="closePropagateModal()"><i class="fas fa-times"></i> Cancel</button>
         </div>
         <div id="propagateProgress" style="margin-top:15px;"></div>
       </div>
@@ -180,13 +177,12 @@
   <!-- Delete Confirmation Modal -->
   <div id="deleteModal" class="w3-modal">
     <div class="w3-modal-content w3-card" style="max-width:400px;">
-      <span class="w3-button w3-large w3-display-topright" onclick="closeDeleteModal()">&times;</span>
-      <div class="w3-container w3-padding-16">
-        <h2>Delete Schedule Entry</h2>
+      <button class="modal-close-btn" onclick="closeDeleteModal()">×</button>
+      <div class="modal-body"><h2>Delete Schedule Entry</h2>
         <p>Are you sure you want to delete this schedule entry?</p>
         <div class="w3-row w3-margin-top">
-          <button class="w3-button w3-red w3-half" onclick="confirmDelete()"><i class="fas fa-trash"></i> Delete</button>
-          <button class="w3-button w3-grey w3-half" onclick="closeDeleteModal()"><i class="fas fa-times"></i> Cancel</button>
+          <button class="w3-button btn-danger w3-half" onclick="confirmDelete()"><i class="fas fa-trash"></i> Delete</button>
+          <button class="w3-button btn-ghost w3-half" onclick="closeDeleteModal()"><i class="fas fa-times"></i> Cancel</button>
         </div>
       </div>
     </div>
@@ -283,8 +279,8 @@
             <td>${schedule.endTime || ''}</td>
             <td>${flagsHtml}</td>
             <td>
-              <button class="w3-button w3-blue w3-small" onclick="openEditModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
-              <button class="w3-button w3-red w3-small" onclick="openDeleteModal('${schedule.id}')"><i class="fas fa-trash"></i></button>
+              <button class="w3-button btn-primary w3-small" onclick="openEditModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
+              <button class="w3-button btn-danger w3-small" onclick="openDeleteModal('${schedule.id}')"><i class="fas fa-trash"></i></button>
             </td>
           </tr>
         `;
@@ -542,7 +538,7 @@
           let html = '<h4>Preview (first 5 rows):</h4><table class="w3-table w3-bordered w3-striped">';
           
           if (csvData.length > 0) {
-            html += '<tr class="w3-blue"><th>' + Object.keys(csvData[0]).join('</th><th>') + '</th></tr>';
+            html += '<tr class="btn-primary"><th>' + Object.keys(csvData[0]).join('</th><th>') + '</th></tr>';
             csvData.slice(0, 5).forEach(row => {
               html += '<tr><td>' + Object.values(row).join('</td><td>') + '</td></tr>';
             });
@@ -605,7 +601,7 @@
           }
 
           const pct = Math.round((i + 1) / csvData.length * 100);
-          progress.innerHTML = `<div class="w3-light-grey"><div class="w3-blue" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed</p>`;
+          progress.innerHTML = `<div class="btn-ghost"><div class="btn-primary" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed</p>`;
         }
 
         progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Import Complete!</strong><br>Successful: ${successful}<br>Errors: ${errors}</div>`;
@@ -690,7 +686,7 @@
           await batchWrite('classAttendanceLogs', batch_data);
           
           const pct = Math.round((i + batchSize) / attendanceLogs.length * 100);
-          progress.innerHTML = `<div class="w3-light-grey"><div class="w3-blue" style="width:${Math.min(pct, 100)}%; text-align:center; color:white; height:25px; line-height:25px;">${Math.min(pct, 100)}%</div></div><p>Created ${Math.min(i + batchSize, attendanceLogs.length)}/${attendanceLogs.length} attendance logs</p>`;
+          progress.innerHTML = `<div class="btn-ghost"><div class="btn-primary" style="width:${Math.min(pct, 100)}%; text-align:center; color:white; height:25px; line-height:25px;">${Math.min(pct, 100)}%</div></div><p>Created ${Math.min(i + batchSize, attendanceLogs.length)}/${attendanceLogs.length} attendance logs</p>`;
         }
 
         progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Propagation Complete!</strong><br>Created ${attendanceLogs.length} attendance logs</div>`;

@@ -17,28 +17,27 @@
     .modal-content { max-height: 90vh; overflow-y: auto; }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
+  <div class="page-container" style="margin-top:10px;">
     
     <div class="w3-card w3-padding w3-margin-bottom">
       <h2><i class="fas fa-check-circle"></i> TMI Final Approval</h2>
       <p class="w3-text-grey">Complete final TMI assignments and send notifications to students and parents.</p>
       <div class="w3-bar">
-        <button class="w3-bar-item w3-button w3-green w3-round" id="processAllBtn">
+        <button class="w3-bar-item w3-button btn-primary w3-round" id="processAllBtn">
           <i class="fas fa-cogs"></i> Process All
         </button>
-        <button class="w3-bar-item w3-button w3-teal w3-round" id="downloadReportBtn">
+        <button class="w3-bar-item w3-button btn-primary w3-round" id="downloadReportBtn">
           <i class="fas fa-download"></i> Download Report
         </button>
-        <button class="w3-bar-item w3-button w3-blue w3-round" id="sendAllNotifBtn">
+        <button class="w3-bar-item w3-button btn-primary w3-round" id="sendAllNotifBtn">
           <i class="fas fa-envelope"></i> Send All Notifications
         </button>
       </div>
     </div>
 
-    <div class="w3-card w3-padding w3-margin-bottom">
-      <h4>TMI Period Selection</h4>
+    <div class="filter-bar"><h3>TMI Period Selection</h3>
       <div class="w3-row">
         <div class="w3-col m6">
           <label>Start Date</label>
@@ -50,7 +49,7 @@
         </div>
       </div>
       <div class="w3-margin-top">
-        <button class="w3-button w3-green w3-round" id="loadDataBtn">Load TMI Data</button>
+        <button class="w3-button btn-primary w3-round" id="loadDataBtn">Load TMI Data</button>
       </div>
     </div>
 
@@ -90,7 +89,7 @@
       <div id="tmiTableContainer" style="display:none;">
         <table id="tmiTable" class="w3-table w3-bordered w3-striped" style="width:100%;">
           <thead>
-            <tr class="w3-blue">
+            <tr class="btn-primary">
               <th>Student Name</th>
               <th>ChattState A#</th>
               <th>Grad Year</th>
@@ -107,7 +106,7 @@
           <tbody id="tmiTableBody"></tbody>
         </table>
       </div>
-      <div id="noDataMsg" class="w3-panel w3-light-grey w3-round w3-center">
+      <div id="noDataMsg" class="w3-panel btn-ghost w3-round w3-center">
         Select TMI period dates and load data to begin final approval process.
       </div>
     </div>
@@ -116,17 +115,17 @@
   <!-- Bulk Notification Modal -->
   <div id="bulkNotificationModal" class="w3-modal" style="display:none;z-index:10;">
     <div class="w3-modal-content w3-card-4 modal-content" style="max-width:800px;">
-      <header class="w3-container w3-blue">
-        <span class="w3-button w3-display-topright" onclick="closeModal('bulkNotificationModal')">&times;</span>
+      <header class="modal-header">
+        <button class="modal-close-btn" onclick="closeModal('bulkNotificationModal')">×</button>
         <h2>Bulk Notifications</h2>
       </header>
-      <div class="w3-container w3-padding">
+      <div class="page-container">
         <div id="notificationsList" style="max-height:400px;overflow-y:auto;"></div>
         <div class="w3-bar w3-margin-top">
-          <button class="w3-bar-item w3-button w3-blue w3-round" id="copyAllNotifBtn">
+          <button class="w3-bar-item w3-button btn-primary w3-round" id="copyAllNotifBtn">
             <i class="fas fa-copy"></i> Copy All
           </button>
-          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('bulkNotificationModal')">Close</button>
+          <button class="w3-bar-item w3-button btn-ghost w3-round" onclick="closeModal('bulkNotificationModal')">Close</button>
         </div>
       </div>
     </div>
@@ -135,12 +134,12 @@
   <!-- Single Notification Modal -->
   <div id="singleNotificationModal" class="w3-modal" style="display:none;z-index:10;">
     <div class="w3-modal-content w3-card-4 modal-content" style="max-width:700px;">
-      <header class="w3-container w3-blue">
-        <span class="w3-button w3-display-topright" onclick="closeModal('singleNotificationModal')">&times;</span>
+      <header class="modal-header">
+        <button class="modal-close-btn" onclick="closeModal('singleNotificationModal')">×</button>
         <h2>Notification</h2>
       </header>
-      <div class="w3-container w3-padding">
-        <div class="w3-panel w3-light-grey w3-round">
+      <div class="page-container">
+        <div class="w3-panel btn-ghost w3-round">
           <p><b>To:</b> <span id="notifTo"></span></p>
           <p><b>Subject:</b> <span id="notifSubject"></span></p>
         </div>
@@ -148,10 +147,10 @@
           <div id="notifContent"></div>
         </div>
         <div class="w3-bar">
-          <button class="w3-bar-item w3-button w3-blue w3-round" id="copySingleNotifBtn">
+          <button class="w3-bar-item w3-button btn-primary w3-round" id="copySingleNotifBtn">
             <i class="fas fa-copy"></i> Copy
           </button>
-          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('singleNotificationModal')">Close</button>
+          <button class="w3-bar-item w3-button btn-ghost w3-round" onclick="closeModal('singleNotificationModal')">Close</button>
         </div>
       </div>
     </div>
@@ -323,13 +322,13 @@
             <td><input type="checkbox" class="parent-notified" data-id="${student.id}" ${student.parentNotified ? 'checked' : ''}></td>
             <td><input type="checkbox" class="student-notified" data-id="${student.id}" ${student.studentNotified ? 'checked' : ''}></td>
             <td>
-              <button class="w3-button w3-small w3-blue action-btn" onclick="showStudentNotification('${student.id}', '${student.studentName}')">
+              <button class="w3-button w3-small btn-primary action-btn" onclick="showStudentNotification('${student.id}', '${student.studentName}')">
                 <i class="fas fa-envelope"></i>
               </button>
-              <button class="w3-button w3-small w3-teal action-btn" onclick="showParentNotification('${student.id}', '${student.studentName}')">
+              <button class="w3-button w3-small btn-primary action-btn" onclick="showParentNotification('${student.id}', '${student.studentName}')">
                 <i class="fas fa-envelope-open"></i>
               </button>
-              <button class="w3-button w3-small w3-green action-btn" onclick="markComplete('${student.id}')">
+              <button class="w3-button w3-small btn-primary action-btn" onclick="markComplete('${student.id}')">
                 <i class="fas fa-check"></i>
               </button>
             </td>
@@ -459,8 +458,7 @@
             let template = templates.find(t => t.sendToStudent === true) || templates[0];
             if (template) {
               let notifHtml = `
-                <div class="w3-card w3-padding w3-margin-bottom">
-                  <h5>${student.studentName} (Student)</h5>
+                <div class="filter-bar"><h3>${student.studentName} (Student)</h3>
                   <p><b>Subject:</b> ${template.emailSubject || ''}</p>
                   <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.templateContent || ''}</p>
                 </div>
@@ -479,8 +477,7 @@
             let template = templates.find(t => t.sendToParent === true) || templates[0];
             if (template && parent) {
               let notifHtml = `
-                <div class="w3-card w3-padding w3-margin-bottom">
-                  <h5>${parent.firstName} (Parent of ${student.studentName})</h5>
+                <div class="filter-bar"><h3>${parent.firstName} (Parent of ${student.studentName})</h3>
                   <p><b>Subject:</b> ${template.emailSubject || ''}</p>
                   <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.templateContent || ''}</p>
                 </div>

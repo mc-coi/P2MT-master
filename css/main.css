@@ -307,8 +307,209 @@ h1, h2, h3, h4, h5, h6 {
   .p2mt-nav-mobile-menu.open { display: block; }
 }
 
-/* Override W3.CSS bar so our nav takes over */
-.w3-bar { display: none; }
+/* Override W3.CSS bar — only hide the top nav bar, not inline button groups */
+#nav-container .w3-bar { display: none; }
+
+/* ─── W3.CSS Color Utility Overrides ─────────────────────────── */
+/* Background colors used on modal headers, table thead rows, etc. */
+.w3-blue   { background-color: var(--primary) !important; color: white !important; }
+.w3-teal   { background-color: #0D9488 !important; color: white !important; }
+.w3-green  { background-color: var(--success) !important; color: white !important; }
+.w3-red    { background-color: var(--danger)  !important; color: white !important; }
+.w3-orange { background-color: var(--warning) !important; color: var(--text-primary) !important; }
+.w3-gray, .w3-grey   { background-color: var(--surface-2) !important; color: var(--text-secondary) !important; }
+.w3-dark-gray, .w3-dark-grey { background-color: var(--nav-bg) !important; color: white !important; }
+.w3-purple { background-color: #7C3AED !important; color: white !important; }
+.w3-light-blue { background-color: var(--primary) !important; color: white !important; }
+
+/* Hover states */
+.w3-hover-light-blue:hover  { background-color: var(--primary-light) !important; color: var(--primary) !important; }
+.w3-hover-light-gray:hover, .w3-hover-light-grey:hover { background-color: var(--bg) !important; color: var(--text-primary) !important; }
+.w3-hover-blue:hover   { background-color: var(--primary-dark) !important; color: white !important; }
+.w3-hover-red:hover    { background-color: #DC2626 !important; color: white !important; }
+
+/* Text color helpers */
+.w3-text-dark  { color: var(--text-primary) !important; }
+.w3-text-teal  { color: var(--text-secondary) !important; }
+.w3-text-orange { color: var(--warning) !important; }
+.w3-text-white { color: white !important; }
+
+/* Inline button groups / toolbar */
+.w3-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.w3-bar-item { flex-shrink: 0; }
+
+/* Badge */
+.w3-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+/* Panel */
+.w3-panel {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+}
+
+/* W3 col grid — keep W3.CSS responsive grid functional */
+.w3-row::after { content: ''; display: table; clear: both; }
+.w3-col { float: left; width: 100%; }
+.w3-col.m1  { width: 8.33333%; }
+.w3-col.m2  { width: 16.6667%; }
+.w3-col.m3  { width: 25%; }
+.w3-col.m4  { width: 33.3333%; }
+.w3-col.m5  { width: 41.6667%; }
+.w3-col.m6  { width: 50%; }
+.w3-col.m7  { width: 58.3333%; }
+.w3-col.m8  { width: 66.6667%; }
+.w3-col.m9  { width: 75%; }
+.w3-col.m10 { width: 83.3333%; }
+.w3-col.m11 { width: 91.6667%; }
+.w3-col.m12 { width: 100%; }
+
+/* Padding small for col grid */
+.w3-padding-small { padding: 6px 8px; }
+.w3-right-align { text-align: right; }
+.w3-right { float: right !important; }
+.w3-left  { float: left  !important; }
+.w3-center { text-align: center !important; }
+.w3-block  { display: block !important; width: 100%; }
+.w3-large  { font-size: 16px !important; }
+.w3-margin-right { margin-right: 8px !important; }
+.w3-margin-left  { margin-left:  8px !important; }
+.w3-padding-top  { padding-top: 8px; }
+
+/* filter-card — legacy class used in some pages */
+.filter-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Display-topright close button */
+.w3-display-topright {
+  position: absolute;
+  right: 12px;
+  top: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: white;
+  line-height: 1;
+  z-index: 1;
+}
+.w3-display-topright:hover { opacity: 0.8; }
+
+/* Modal header relative positioning */
+.w3-modal-content header,
+.w3-modal-content .w3-container.w3-blue,
+.w3-modal-content .w3-container.w3-teal,
+.w3-modal-content .w3-container.w3-red,
+.w3-modal-content .w3-container.w3-green {
+  position: relative;
+  padding: 18px 20px;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+.w3-modal-content .w3-container.w3-blue h2,
+.w3-modal-content .w3-container.w3-teal h2,
+.w3-modal-content .w3-container.w3-red  h2,
+.w3-modal-content .w3-container.w3-green h2,
+.w3-modal-content header h2,
+.w3-modal-content header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+  color: white;
+}
+
+/* Modal body padding */
+.w3-modal-content .w3-container.w3-padding,
+.w3-modal-content form.w3-padding,
+.w3-modal-content form.w3-container {
+  padding: 20px;
+}
+
+/* Modal footer */
+.w3-modal-content footer.w3-container {
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+/* Class info card */
+.class-info-card {
+  background: var(--primary-light);
+  border: 1px solid #C7D2FE;
+  border-left: 4px solid var(--primary);
+  padding: 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+.class-info-card h4 { margin: 0 0 10px; color: var(--primary-dark); font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Tab buttons compat */
+.tab-buttons { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.tab-button {
+  padding: 8px 16px;
+  cursor: pointer;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+.tab-button.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+  font-weight: 600;
+}
+.tab-button:hover:not(.active) { background: var(--bg); color: var(--text-primary); }
+
+/* Attendance row */
+.attendance-row {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.attendance-row:last-child { border-bottom: none; }
+.attendance-row:hover { background: var(--surface-2); }
+.student-name { font-weight: 600; color: var(--text-primary); font-size: 14px; }
+.save-button-row {
+  padding: 12px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* W3 checkbox */
+.w3-check { accent-color: var(--primary); width: 16px; height: 16px; }
+
+/* W3 margin/padding overrides used inline */
+.w3-margin-bottom { margin-bottom: 14px !important; }
 
 /* ─── Page Layout ─────────────────────────────────────────────── */
 .w3-container { max-width: 1440px; margin: 0 auto; }

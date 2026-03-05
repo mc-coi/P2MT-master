@@ -528,7 +528,7 @@
       try {
         const staff = await getById('staff', user.uid);
         if (staff) {
-          window.location.href = './students.html';
+          window.location.href = './dashboard.html';
         } else {
           setLoading(false);
           showError('Access denied. Your account is not authorized to use this system. Please contact your administrator.');
@@ -551,7 +551,7 @@
         const staff = await getById('staff', user.uid);
 
         if (staff) {
-          window.location.href = './students.html';
+          window.location.href = './dashboard.html';
         } else {
           setLoading(false);
           showError('Access denied. Your account is not authorized. Please contact your administrator.');

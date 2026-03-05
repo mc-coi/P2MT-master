@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - P2MT</title>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div id="nav-container"></div>
+    
+    <div class="page-container">
+        <div class="page-header">
+            <h1>Dashboard</h1>
+            <div class="actions">
+                <span id="current-date" style="font-size: 14px; color: #666;"></span>
+            </div>
+        </div>
+
+        <!-- Stats row -->
+        <div class="grid-stats">
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-value" id="stat-students">0</div>
+                <div class="stat-label">Total Students</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="stat-value" id="stat-active-interventions">0</div>
+                <div class="stat-label">Active Interventions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon yellow">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <div class="stat-value" id="stat-today-absences">0</div>
+                <div class="stat-label">Today's Absences</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon indigo">
+                    <i class="fas fa-calendar"></i>
+                </div>
+                <div class="stat-value" id="stat-upcoming-tmi">0</div>
+                <div class="stat-label">Upcoming TMI Days</div>
+            </div>
+        </div>
+
+        <!-- Two-column layout -->
+        <div class="grid-2">
+            <!-- Active Interventions card -->
+            <div class="card">
+                <div class="card-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div class="card-title">Active Interventions</div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="badge badge-danger" id="active-interventions-count">0</span>
+                            <a href="interventions.html" class="w3-button btn-ghost" style="font-size: 12px; padding: 4px 8px;">View All</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table id="active-interventions-table" class="w3-table w3-striped">
+                            <thead>
+                                <tr>
+                                    <th>Student Name</th>
+                                    <th>Level</th>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="active-interventions-empty" class="empty-state" style="display: none;">
+                        <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                        <div class="empty-title">No Active Interventions</div>
+                        <div class="empty-subtitle">No students currently have active interventions</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Absences card -->
+            <div class="card">
+                <div class="card-header">
+                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                        <div class="card-title">Recent Absences</div>
+                        <a href="daily-attendance.html" class="w3-button btn-ghost" style="font-size: 12px; padding: 4px 8px;">View All</a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-wrap">
+                        <table id="recent-absences-table" class="w3-table w3-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Student Name</th>
+                                    <th>Code</th>
+                                    <th>Staff</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="recent-absences-empty" class="empty-state" style="display: none;">
+                        <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+                        <div class="empty-title">No Recent Absences</div>
+                        <div class="empty-subtitle">No absence records found</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chronic Absenteeism alert section -->
+        <div id="chronic-absenteeism-card" class="card" style="display: none;">
+            <div class="card-header">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div class="card-title">Chronic Absenteeism Alert</div>
+                    <span class="badge badge-danger" id="chronic-count">0</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="table-wrap">
+                    <table id="chronic-absenteeism-table" class="w3-table w3-striped">
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Records</th>
+                                <th>Attendance Rate</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script type="module">
+        import { initAuth, getCurrentUser, signOut } from './js/auth.js';
+        import { initNav } from './js/nav.js';
+        import { getAll, getWhere } from './js/db.js';
+        import { formatDate, getCurrentSchoolYear } from './js/utils.js';
+
+        // Initialize auth and check if user is logged in
+        await initAuth();
+        const user = getCurrentUser();
+        if (!user) {
+            window.location.href = 'index.html';
+        }
+
+        // Initialize navigation
+        initNav('home');
+
+        // Set current date
+        const today = new Date();
+        const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        document.getElementById('current-date').textContent = dateString;
+
+        // Get today's date for filtering
+        const todayFormatted = today.toISOString().split('T')[0];
+
+        // Load all data in parallel
+        const [students, interventionLogs, dailyAttendanceLogs, schoolCalendarDocs] = await Promise.all([
+            getAll('students'),
+            getAll('interventionLogs'),
+            getAll('dailyAttendanceLogs'),
+            getAll('schoolCalendar')
+        ]);
+
+        // Calculate stats
+        const totalStudents = students.length;
+        
+        // Active interventions (where interventionStatus === 'Active')
+        const activeInterventions = interventionLogs.filter(log => log.interventionStatus === 'Active');
+        const activeInterventionsCount = activeInterventions.length;
+
+        // Today's absences (where absenceDate === today and code !== 'P')
+        const todaysAbsences = dailyAttendanceLogs.filter(log => 
+            log.absenceDate === todayFormatted && log.attendanceCode !== 'P'
+        );
+        const todaysAbsencesCount = todaysAbsences.length;
+
+        // Upcoming TMI days (count TMI days in schoolCalendar where stemSchoolDay === true)
+        const upcomingTmiDays = schoolCalendarDocs.filter(cal => cal.tmiDay === true).length;
+
+        // Render stat cards
+        document.getElementById('stat-students').textContent = totalStudents;
+        document.getElementById('stat-active-interventions').textContent = activeInterventionsCount;
+        document.getElementById('stat-today-absences').textContent = todaysAbsencesCount;
+        document.getElementById('stat-upcoming-tmi').textContent = upcomingTmiDays;
+
+        // Helper function to get badge class for attendance code
+        function getAttendanceBadgeClass(code) {
+            switch(code) {
+                case 'P': return 'badge-success';
+                case 'T': return 'badge-warning';
+                case 'U':
+                case 'E': return 'badge-danger';
+                case 'Q': return 'badge-primary';
+                case 'W':
+                case 'H':
+                case 'L': return 'badge-gray';
+                default: return 'badge-gray';
+            }
+        }
+
+        // Render active interventions table (top 10 active, sorted by level desc)
+        const activeInterventionsSorted = activeInterventions
+            .sort((a, b) => (b.interventionLevel || 1) - (a.interventionLevel || 1))
+            .slice(0, 10);
+
+        const interventionsTable = document.getElementById('active-interventions-table').querySelector('tbody');
+        if (activeInterventionsSorted.length > 0) {
+            document.getElementById('active-interventions-empty').style.display = 'none';
+            document.getElementById('active-interventions-table').style.display = 'table';
+            document.getElementById('active-interventions-count').textContent = activeInterventionsCount;
+            
+            activeInterventionsSorted.forEach(intervention => {
+                const row = document.createElement('tr');
+                const levelNum = intervention.interventionLevel || 1;
+                const levelClass = `level-${levelNum}`;
+                
+                row.innerHTML = `
+                    <td>${intervention.studentName || 'N/A'}</td>
+                    <td><span class="badge ${levelClass}">Level ${levelNum}</span></td>
+                    <td>${intervention.interventionType || 'N/A'}</td>
+                    <td>${formatDate(intervention.startDate)}</td>
+                `;
+                interventionsTable.appendChild(row);
+            });
+        } else {
+            document.getElementById('active-interventions-table').style.display = 'none';
+            document.getElementById('active-interventions-empty').style.display = 'block';
+        }
+
+        // Render recent absences table (last 10 by date)
+        const recentAbsencesSorted = dailyAttendanceLogs
+            .sort((a, b) => new Date(b.absenceDate) - new Date(a.absenceDate))
+            .slice(0, 10);
+
+        const absencesTable = document.getElementById('recent-absences-table').querySelector('tbody');
+        if (recentAbsencesSorted.length > 0) {
+            document.getElementById('recent-absences-empty').style.display = 'none';
+            document.getElementById('recent-absences-table').style.display = 'table';
+            
+            recentAbsencesSorted.forEach(absence => {
+                const row = document.createElement('tr');
+                const badgeClass = getAttendanceBadgeClass(absence.attendanceCode);
+                
+                row.innerHTML = `
+                    <td>${formatDate(absence.absenceDate)}</td>
+                    <td>${absence.studentName || 'N/A'}</td>
+                    <td><span class="badge ${badgeClass}">${absence.attendanceCode}</span></td>
+                    <td>${absence.staffName || 'N/A'}</td>
+                `;
+                absencesTable.appendChild(row);
+            });
+        } else {
+            document.getElementById('recent-absences-table').style.display = 'none';
+            document.getElementById('recent-absences-empty').style.display = 'block';
+        }
+
+        // Chronic absenteeism: group attendance by student, calculate rate, show students with <80% attendance
+        const attendanceByStudent = {};
+        dailyAttendanceLogs.forEach(log => {
+            const name = log.studentName;
+            if (!attendanceByStudent[name]) {
+                attendanceByStudent[name] = { present: 0, total: 0 };
+            }
+            attendanceByStudent[name].total++;
+            if (log.attendanceCode === 'P') {
+                attendanceByStudent[name].present++;
+            }
+        });
+
+        const chronicStudents = Object.entries(attendanceByStudent)
+            .filter(([name, stats]) => stats.total >= 5 && (stats.present / stats.total) < 0.80)
+            .map(([name, stats]) => ({
+                name,
+                records: stats.total,
+                rate: ((stats.present / stats.total) * 100).toFixed(1)
+            }))
+            .sort((a, b) => parseFloat(a.rate) - parseFloat(b.rate));
+
+        if (chronicStudents.length > 0) {
+            document.getElementById('chronic-absenteeism-card').style.display = 'block';
+            document.getElementById('chronic-count').textContent = chronicStudents.length;
+            
+            const chronicTable = document.getElementById('chronic-absenteeism-table').querySelector('tbody');
+            chronicStudents.forEach(student => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${student.name}</td>
+                    <td>${student.records}</td>
+                    <td><span style="color: #e74c3c; font-weight: bold;">${student.rate}%</span></td>
+                `;
+                chronicTable.appendChild(row);
+            });
+        } else {
+            document.getElementById('chronic-absenteeism-card').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

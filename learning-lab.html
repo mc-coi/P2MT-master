@@ -31,31 +31,31 @@
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
   </style>
 </head>
-<body class="w3-light-grey">
+<body>
   <div id="nav-container"></div>
-  <div class="w3-container w3-padding" style="margin-top:10px;">
+  <div class="page-container" style="margin-top:10px;">
     <h1><i class="fas fa-book"></i> Learning Lab Manager</h1>
     
     <!-- Action Buttons -->
     <div class="w3-bar w3-margin-bottom">
-      <button class="w3-button w3-blue" onclick="openAddLabModal()"><i class="fas fa-plus"></i> Add Learning Lab</button>
+      <button class="w3-button btn-primary" onclick="openAddLabModal()"><i class="fas fa-plus"></i> Add Learning Lab</button>
     </div>
 
     <!-- Filter Bar -->
-    <div class="w3-card w3-padding w3-margin-bottom">
+    <div class="filter-bar">
       <div class="w3-row">
-        <div class="w3-col s12 m3"><label>School Year:<input class="w3-input w3-border" type="text" id="filterSchoolYear" placeholder="e.g., 2025-2026"></label></div>
-        <div class="w3-col s12 m3"><label>Semester:<select class="w3-input w3-border" id="filterSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
-        <div class="w3-col s12 m3"><label>Student:<input class="w3-input w3-border" type="text" id="filterStudent" placeholder="Name or A#"></label></div>
-        <div class="w3-col s12 m3"><label>Teacher:<input class="w3-input w3-border" type="text" id="filterTeacher" placeholder="Last Name"></label></div>
+        <div class="w3-col s12 m3"><label class="form-label">School Year:<input class="w3-input w3-border" type="text" id="filterSchoolYear" placeholder="e.g., 2025-2026"></label></div>
+        <div class="w3-col s12 m3"><label class="form-label">Semester:<select class="w3-input w3-border" id="filterSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
+        <div class="w3-col s12 m3"><label class="form-label">Student:<input class="w3-input w3-border" type="text" id="filterStudent" placeholder="Name or A#"></label></div>
+        <div class="w3-col s12 m3"><label class="form-label">Teacher:<input class="w3-input w3-border" type="text" id="filterTeacher" placeholder="Last Name"></label></div>
       </div>
       <div class="w3-row w3-margin-top">
-        <div class="w3-col s12"><button class="w3-button w3-blue" onclick="applyFilters()"><i class="fas fa-filter"></i> Apply Filters</button></div>
+        <div class="w3-col s12"><button class="w3-button btn-primary" onclick="applyFilters()"><i class="fas fa-filter"></i> Apply Filters</button></div>
       </div>
     </div>
 
     <!-- Data Table -->
-    <div style="overflow-x: auto;">
+    <div class="table-wrap">
       <table id="labTable" class="w3-table-all w3-striped w3-bordered">
         <thead>
           <tr class="w3-blue">
@@ -79,12 +79,12 @@
   <!-- Add/Edit Learning Lab Modal -->
   <div id="labModal" class="w3-modal" onclick="if(event.target===this)closeLabModal()">
     <div class="w3-modal-content w3-card modal-form">
-      <span class="w3-button w3-large w3-display-topright" onclick="closeLabModal()">&times;</span>
-      <div class="w3-container w3-padding-16">
+      <button class="modal-close-btn" onclick="closeLabModal()">×</button>
+      <div class="modal-body">
         <h2 id="labModalTitle">Add Learning Lab</h2>
         
         <div class="form-row">
-          <div><label>Student (searchable):<br>
+          <div><label class="form-label">Student (searchable):<br>
             <input class="w3-input w3-border" type="text" id="labStudentSearch" placeholder="Search student" onkeyup="searchLabStudents()">
             <div id="labStudentDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:250px; max-height:200px; overflow-y:auto; z-index:100;"></div>
             <input type="hidden" id="labStudentId">
@@ -99,7 +99,7 @@
         </div>
 
         <div class="form-row-full"><label>Class Name<input class="w3-input w3-border" type="text" id="labClassName"></label></div>
-        <div class="form-row-full"><label>Teacher (searchable):<br>
+        <div class="form-row-full"><label class="form-label">Teacher (searchable):<br>
           <input class="w3-input w3-border" type="text" id="labTeacherSearch" placeholder="Search teacher" onkeyup="searchLabTeachers()">
           <div id="labTeacherDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:250px; max-height:150px; overflow-y:auto; z-index:100;"></div>
           <input type="hidden" id="labTeacherId">
@@ -120,7 +120,7 @@
           <strong>Session 1</strong> <span style="float:right; color:#2196F3;"><i class="fas fa-chevron-down"></i></span>
         </div>
         <div class="session-content active" id="session1Content">
-          <label>Days:</label>
+          <label class="form-label">Days:</label>
           <div class="checkbox-group w3-margin-bottom">
             <label><input type="checkbox" class="session1Days" value="M"> M</label>
             <label><input type="checkbox" class="session1Days" value="T"> T</label>
@@ -139,7 +139,7 @@
           <strong>Session 2 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
         </div>
         <div class="session-content" id="session2Content">
-          <label>Days:</label>
+          <label class="form-label">Days:</label>
           <div class="checkbox-group w3-margin-bottom">
             <label><input type="checkbox" class="session2Days" value="M"> M</label>
             <label><input type="checkbox" class="session2Days" value="T"> T</label>
@@ -158,7 +158,7 @@
           <strong>Session 3 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
         </div>
         <div class="session-content" id="session3Content">
-          <label>Days:</label>
+          <label class="form-label">Days:</label>
           <div class="checkbox-group w3-margin-bottom">
             <label><input type="checkbox" class="session3Days" value="M"> M</label>
             <label><input type="checkbox" class="session3Days" value="T"> T</label>
@@ -177,7 +177,7 @@
           <strong>Session 4 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
         </div>
         <div class="session-content" id="session4Content">
-          <label>Days:</label>
+          <label class="form-label">Days:</label>
           <div class="checkbox-group w3-margin-bottom">
             <label><input type="checkbox" class="session4Days" value="M"> M</label>
             <label><input type="checkbox" class="session4Days" value="T"> T</label>
@@ -196,7 +196,7 @@
           <strong>Session 5 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
         </div>
         <div class="session-content" id="session5Content">
-          <label>Days:</label>
+          <label class="form-label">Days:</label>
           <div class="checkbox-group w3-margin-bottom">
             <label><input type="checkbox" class="session5Days" value="M"> M</label>
             <label><input type="checkbox" class="session5Days" value="T"> T</label>
@@ -217,7 +217,7 @@
         <label class="w3-margin-top">Comment<textarea class="w3-input w3-border" id="labComment" rows="3"></textarea></label>
 
         <h3 style="margin-top:20px; border-bottom:2px solid #2196F3; padding-bottom:10px;">Link to Intervention</h3>
-        <label>Linked Intervention (optional):<br>
+        <label class="form-label">Linked Intervention (optional):<br>
           <input class="w3-input w3-border" type="text" id="labInterventionSearch" placeholder="Search intervention" onkeyup="searchLabInterventions()">
           <div id="labInterventionDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:300px; max-height:200px; overflow-y:auto; z-index:100;"></div>
           <input type="hidden" id="labInterventionId">
@@ -225,8 +225,8 @@
         </label>
 
         <div class="w3-row w3-margin-top">
-          <button class="w3-button w3-blue w3-half" onclick="saveLabSchedule()"><i class="fas fa-save"></i> Save Learning Lab</button>
-          <button class="w3-button w3-red w3-half" onclick="closeLabModal()"><i class="fas fa-times"></i> Cancel</button>
+          <button class="w3-button btn-primary w3-half" onclick="saveLabSchedule()"><i class="fas fa-save"></i> Save Learning Lab</button>
+          <button class="w3-button btn-danger w3-half" onclick="closeLabModal()"><i class="fas fa-times"></i> Cancel</button>
         </div>
       </div>
     </div>
@@ -235,11 +235,11 @@
   <!-- View Schedule Modal -->
   <div id="viewScheduleModal" class="w3-modal" onclick="if(event.target===this)closeViewScheduleModal()">
     <div class="w3-modal-content w3-card" style="max-width:600px;">
-      <span class="w3-button w3-large w3-display-topright" onclick="closeViewScheduleModal()">&times;</span>
-      <div class="w3-container w3-padding-16">
+      <button class="modal-close-btn" onclick="closeViewScheduleModal()">×</button>
+      <div class="modal-body">
         <h2>Learning Lab Schedule</h2>
         <div id="scheduleList"></div>
-        <button class="w3-button w3-red w3-margin-top" onclick="closeViewScheduleModal()"><i class="fas fa-times"></i> Close</button>
+        <button class="w3-button btn-danger w3-margin-top" onclick="closeViewScheduleModal()"><i class="fas fa-times"></i> Close</button>
       </div>
     </div>
   </div>
@@ -247,13 +247,13 @@
   <!-- Delete Modal -->
   <div id="deleteModal" class="w3-modal">
     <div class="w3-modal-content w3-card" style="max-width:400px;">
-      <span class="w3-button w3-large w3-display-topright" onclick="closeDeleteModal()">&times;</span>
-      <div class="w3-container w3-padding-16">
+      <button class="modal-close-btn" onclick="closeDeleteModal()">×</button>
+      <div class="modal-body">
         <h2>Delete Learning Lab</h2>
         <p>Are you sure you want to delete this learning lab and all its sessions?</p>
         <div class="w3-row w3-margin-top">
-          <button class="w3-button w3-red w3-half" onclick="confirmDeleteLab()"><i class="fas fa-trash"></i> Delete</button>
-          <button class="w3-button w3-grey w3-half" onclick="closeDeleteModal()"><i class="fas fa-times"></i> Cancel</button>
+          <button class="w3-button btn-danger w3-half" onclick="confirmDeleteLab()"><i class="fas fa-trash"></i> Delete</button>
+          <button class="w3-button btn-ghost w3-half" onclick="closeDeleteModal()"><i class="fas fa-times"></i> Cancel</button>
         </div>
       </div>
     </div>
@@ -342,9 +342,9 @@
             <td>${schedule.endDate || ''}</td>
             <td>${intervention ? intervention.interventionType || 'Linked' : '-'}</td>
             <td>
-              <button class="w3-button w3-blue w3-small" onclick="openEditLabModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
-              <button class="w3-button w3-green w3-small" onclick="openViewSchedule('${schedule.id}')"><i class="fas fa-eye"></i></button>
-              <button class="w3-button w3-red w3-small" onclick="openDeleteLabModal('${schedule.id}')"><i class="fas fa-trash"></i></button>
+              <button class="w3-button btn-primary w3-small" onclick="openEditLabModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
+              <button class="w3-button btn-primary w3-small" onclick="openViewSchedule('${schedule.id}')"><i class="fas fa-eye"></i></button>
+              <button class="w3-button btn-danger w3-small" onclick="openDeleteLabModal('${schedule.id}')"><i class="fas fa-trash"></i></button>
             </td>
           </tr>
         `;
