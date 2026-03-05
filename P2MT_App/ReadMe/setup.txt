@@ -1,8 +1,0 @@
-Packages required for Google login:
-
-    AuthLib:
-    pip install -U Flask Authlib requests
-
-    Flask-Login:
-    pip install flask-login
-
