@@ -1,0 +1,56 @@
+{% extends 'layout.html'%}
+{% block content %}
+
+{% macro macro_display_formfield(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+    {{ formfield.label(class="w3-text-green w3-large") }}
+    {% if formfield.errors %}
+    {{ formfield(class="w3-select is-invalid") }}
+    <div class="invalid-feedback">
+        {% for error in formfield.errors %}
+        <span>{{ error }}</span>
+        {% endfor %}
+    </div>
+    {% else %}
+    {{ formfield(class="w3-select  w3-section") }}
+    {% endif %}
+</div>
+{% endmacro %}
+
+<div class="w3-container w3-green w3-row">
+    <div class="w3-third">
+        <h2>{{title}}</h2>
+    </div>
+</div>
+
+{{ macro_display_flashed_messages() }}
+
+<div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+        action="{{ url_for('p2mtAdmin_bp.updateStaff', staff_id=updateStaffForm.staff_id.data) }}"
+        enctype="multipart/form-data">
+        {{ updateStaffForm.hidden_tag() }}
+        <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+            <legend class="w3-xlarge">Staff Member Info</legend>
+            <div class="w3-row-padding">
+                {{ macro_display_formfield(updateStaffForm.firstName, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.lastName, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.position, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.email, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.house, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.houseGrade, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.phoneNumber, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.chattStateANumber, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.myersBriggs, "w3-half") }}
+                {{ macro_display_formfield(updateStaffForm.twitterAccount, "w3-half") }}
+            </div>
+            <div class="w3-row w3-padding-large">
+                <a class="w3-btn w3-border-blue w3-large"
+                    href="{{ url_for('p2mtAdmin_bp.displayP2MTAdmin') }}">Cancel</a>
+                {{ updateStaffForm.submitUpdateStaff(class="w3-btn w3-blue w3-large") }}
+            </div>
+        </fieldset>
+    </form>
+</div>
+
+{% endblock content %}

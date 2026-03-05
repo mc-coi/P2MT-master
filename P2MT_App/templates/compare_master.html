@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+
+<title>P2MT - Attendance Log</title>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="/static/main.css">
+
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.24/datatables.min.css" />
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.24/datatables.min.js"></script>
+
+<!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway"> -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<!-- <style>
+    html,
+    body,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5 {
+        font-family: "Raleway", sans-serif
+    }
+</style> -->
+
+<!-- Macro to display flashed messaged -->
+
+
+<body class="w3-light-grey">
+
+    <!-- Top container -->
+    <div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
+        <button id="menuButton" class="w3-bar-item w3-button w3-hover-none w3-hover-text-light-grey"
+            onclick="w3_open();"><i class="fa fa-bars"></i> Menu</button>
+        <span class="w3-bar-item w3-right"> <span class="w3-small w3-padding"><a href="/p2mtadmin"
+                    onclick="openP2MTSetup()">
+                    <strong>System Mode = Live </strong></a><span class="w3-small w3-padding"><a href="/logininfo"><i
+                            class="fa fa-user-circle fa-fw"></i>
+                        <strong>System System </strong></a></span> P2MT</span>
+    </div>
+
+    <!-- Sidebar/menu -->
+    <nav class="w3-sidebar w3-white w3-animate-left" style="display:none;z-index:3;width:300px;" id="mySidebar"><br>
+        <div class="w3-bar-block">
+            <a href="/" class="w3-bar-item w3-button w3-padding"><i class="fa fa-home fa-fw"></i>
+                Home</a>
+            <a href="/classattendancelog" class="w3-bar-item w3-button w3-padding"><i class="fa fa-diamond fa-fw"></i>
+                Attendance</a>
+            <a href="/weekly-class-schedules" class="w3-bar-item w3-button w3-padding"><i
+                    class="fa fa-calendar fa-fw"></i> Weekly Class Schedules</a>
+            <a href="/learninglab" class="w3-bar-item w3-button w3-padding"><i class="fa fa-book fa-fw"></i>
+                Learning Lab</a>
+            <a href="/dailyattendancelog" class="w3-bar-item w3-button w3-padding"><i class="fa fa-id-badge fa-fw"></i>
+                Absence Log</a>
+            <a href="/classabsencelog" class="w3-bar-item w3-button w3-padding"><i
+                    class="fa fa-check-circle-o fa-fw"></i>
+                Class Absence Log</a>
+            <a href="/interventionlog" class="w3-bar-item w3-button w3-padding"><i class="fa fa-gavel fa-fw"></i>
+                Intervention Log</a>
+            <a href="/tmiteacherreview" class="w3-bar-item w3-button w3-padding"><i
+                    class="fa fa-check-square-o fa-fw"></i>
+                TMI Teacher Review</a>
+            <a href="/tmifinalapproval" class="w3-bar-item w3-button w3-padding"><i class="fa fa-th-list fa-fw"></i>
+                TMI Final Approval</a>
+            <a href="/students" class="w3-bar-item w3-button w3-padding"><i class="fa fa-users fa-fw"></i>
+                Students</a>
+            <a href="/parents" class="w3-bar-item w3-button w3-padding"><i class="fa fa-address-card-o fa-fw"></i>
+                Parent Info</a>
+            <a href="/masterschedule" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bullseye fa-fw"></i>
+                Master
+                Schedule</a>
+
+            <div class="w3-dropdown-hover">
+                <button class="w3-button w3-padding"><i class="fa fa-globe fa-fw"></i> STEM III Tools
+                    <i class="fa fa-caret-down"></i>
+                </button>
+                <div class="w3-dropdown-content w3-bar-block w3-card w3-dark-grey">
+                    <a href="/stemiiipblplanner" class="w3-bar-item w3-button w3-padding"><i
+                            class="fa fa-calendar-o fa-fw"></i> PBL
+                        Planner</a>
+                    <a href="/stemiiiteams" class="w3-bar-item w3-button w3-padding"><i class="fa fa-cubes fa-fw"></i>
+                        Team
+                        Manager</a>
+                    <a href="/stemiiipblreports" class="w3-bar-item w3-button w3-padding"><i
+                            class="fa fa-paperclip fa-fw"></i> PBL
+                        Reports</a>
+                </div>
+            </div>
+
+            <div class="w3-dropdown-hover">
+                <button class="w3-button w3-padding"><i class="fa fa-gear fa-fw"></i> Settings and Admin Tools
+                    <i class="fa fa-caret-down"></i>
+                </button>
+                <div class="w3-dropdown-content w3-bar-block w3-card w3-dark-grey">
+                    <a href="/p2mttemplates" class="w3-bar-item w3-button w3-padding"><i class="fa fa-book fa-fw"></i>
+                        Email Templates</a>
+                    <a href="/schoolcalendar" class="w3-bar-item w3-button w3-padding"><i
+                            class="fa fa-calendar fa-fw"></i>
+                        School
+                        Calendar</a>
+                    <a href="/scheduleadmin" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bell fa-fw"></i>
+                        Schedule
+                        Admin</a>
+                    <a href="/p2mtadmin" class="w3-bar-item w3-button w3-padding"><i class="fa fa-cogs fa-fw"></i> P2MT
+                        Admin</a>
+                    <a href="/fettools" class="w3-bar-item w3-button w3-padding"><i class="fa fa-truck fa-fw"></i> FET
+                        Tools</a>
+                </div>
+            </div>
+            <a href="/survey" class="w3-bar-item w3-button w3-padding"><i class="fa fa-comment fa-fw"></i>
+                P2MT User Survey</a>
+            <a href="/about" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bank fa-fw"></i> About P2MT</a>
+
+        </div>
+    </nav>
+
+
+    <!-- Overlay effect when opening sidebar on small screens -->
+    <div class="w3-overlay w3-animate-opacity" onclick="w3_close()" style="cursor:pointer" title="close side menu"
+        id="myOverlay"></div>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-main" style="margin-left:0px;margin-top:43px;">
+
+        <div class="w3-col">
+
+
+
+
+            <div class="w3-container w3-green w3-row">
+                <div class="w3-third">
+                    <h2>Attendance Log</h2>
+                </div>
+                <div>
+                    <input type="text" class="w3-third w3-margin w3-padding" size="25" id="searchFilter"
+                        placeholder="Search by student name...">
+                </div>
+            </div>
+
+            <div class="w3-bar w3-blue">
+                <button id='button_ClassAttendance' class="w3-bar-item w3-button tablink"
+                    onclick="openTable(event, 'ClassAttendance', 'Attendance')">Class
+                    Attendance</button>
+                <button id='button_LearningLabAttendance' class="w3-bar-item w3-button tablink"
+                    onclick="openTable(event, 'LearningLabAttendance', 'Attendance')">Learning Lab
+                    Attendance</button>
+            </div>
+
+
+            <div>
+
+
+
+            </div>
+
+
+            <form class="w3-container w3-padding-large" method="POST" action="/classattendancelog"
+                enctype="multipart/form-data">
+                <input id="updateFiltersFlag" name="updateFiltersFlag" type="hidden" value="">
+                <input id="csrf_token" name="csrf_token" type="hidden"
+                    value="IjJmZDA4NjUzOGIyN2I5ZmQxMTJmMmIxODk5YTM4NTZlMWMxNWVmYmQi.YTlVMA.mpGekXX2u-9Q_R8VizM23FFNC78">
+                <div class="w3-row-padding">
+
+                    <div class="w3-third">
+                        <label class="w3-text-green w3-large" for="teacherName">Teacher</label>
+
+                        <select class="w3-select w3-border" id="teacherName" name="teacherName">
+                            <option value=""></option>
+                            <option value=""></option>
+                            <option value="Burrus">Burrus</option>
+                            <option value="Carrasco">Carrasco</option>
+                            <option value="Christopher">Christopher</option>
+                            <option value="Condra">Condra</option>
+                            <option value="Femal">Femal</option>
+                            <option value="McCoy">McCoy</option>
+                            <option value="Millard">Millard</option>
+                            <option value="Seigle">Seigle</option>
+                            <option value="Stanley">Stanley</option>
+                            <option value="Vanzant">Vanzant</option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="w3-third">
+                        <label class="w3-text-green w3-large" for="className">Class</label>
+
+                        <select class="w3-select w3-border" id="className" name="className">
+                            <option value="All Classes">All Classes</option>
+                            <option value="4K Grad Assistant">4K Grad Assistant</option>
+                            <option value="ACT Review English">ACT Review English</option>
+                            <option value="ACT Review Math">ACT Review Math</option>
+                            <option value="Algebra II">Algebra II</option>
+                            <option value="Algebra II - Learning Lab">Algebra II - Learning Lab</option>
+                            <option value="BB - TA">BB - TA</option>
+                            <option value="Biology">Biology</option>
+                            <option value="Biology - Study Session">Biology - Study Session</option>
+                            <option value="Biology Study Session">Biology Study Session</option>
+                            <option value="Calculus">Calculus</option>
+                            <option value="Coding I">Coding I</option>
+                            <option value="Coding II">Coding II</option>
+                            <option value="College Success Learning Lab">College Success Learning Lab</option>
+                            <option value="College Success Math Sciences">College Success Math Sciences</option>
+                            <option value="Concepts of Wellness">Concepts of Wellness</option>
+                            <option value="Digital Fabrication">Digital Fabrication</option>
+                            <option value="Edgenuity">Edgenuity</option>
+                            <option value="English III">English III</option>
+                            <option value="English IV">English IV</option>
+                            <option value="GCDI">GCDI</option>
+                            <option value="Gov/Econ">Gov/Econ</option>
+                            <option value="Gov/Econ Learning Lab">Gov/Econ Learning Lab</option>
+                            <option value="Multimedia">Multimedia</option>
+                            <option value="PE/Wellness Learning Lab">PE/Wellness Learning Lab</option>
+                            <option value="Personal Finance">Personal Finance</option>
+                            <option value="Precalculus">Precalculus</option>
+                            <option value="SAILS">SAILS</option>
+                            <option value="SAILS Math">SAILS Math</option>
+                            <option value="Scientific Research">Scientific Research</option>
+                            <option value="Scientific Research Study Session">Scientific Research Study Session</option>
+                            <option value="Skills for Success">Skills for Success</option>
+                            <option value="Spanish II">Spanish II</option>
+                            <option value="STEM III">STEM III</option>
+                            <option value="STEM IV">STEM IV</option>
+                            <option value="Video Game Design">Video Game Design</option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="w3-third">
+                        <label class="w3-text-green w3-large" for="classDate">Class Date</label>
+
+                        <input class="w3-select w3-border" id="classDate" name="classDate" type="date"
+                            value="2021-09-09">
+
+                    </div>
+
+                </div>
+
+                <table id="datatable" class="w3-table w3-table-border w3-table-bordered w3-hoverable">
+                    <thead>
+                        <tr class="w3-blue">
+                            <th scope="col">Class Name</th>
+                            <th scope="col">Start Time</th>
+                            <th scope="col">End Time</th>
+                            <th scope="col">First Name</th>
+                            <th scope="col">Last Name</th>
+                            <th scope="col">Attendance Code</th>
+                            <th scope="col">Comment</th>
+                        </tr>
+                    </thead>
+                    <tbody id="filteredTable">
+
+
+                    </tbody>
+                </table>
+
+            </form>
+
+
+
+            <!-- Script for page tabs -->
+            <script type="text/javascript" src="/static/js/pageTables.js"></script>
+
+
+            <!-- Search Filter -->
+            <script type="text/javascript" src="/static/js/searchFilters.js"></script>
+            <script>
+                var tableBody = document.getElementById('filteredTable');
+                var searchFilter = document.getElementById('searchFilter');
+                searchFilter.firstNameCellPosition = 3;
+                searchFilter.lastNameCellPosition = 4;
+                searchFilter.addEventListener('keyup', filterFirstLastNames);
+            </script>
+
+
+            <!-- Reload page to last loaded tab -->
+            <script type='text/javascript'>
+                document.addEventListener("DOMContentLoaded", function (event) {
+                    selected_tab = 'Attendance_selected_tab';
+                    var selectedTab = sessionStorage.getItem(selected_tab);
+                    if (selectedTab) {
+                        document.getElementById("button_" + selectedTab).click();
+                    } else {
+                        document.getElementById("button_ClassAttendance").click();
+                    }
+                });
+            </script>
+
+
+            <script>
+                // Keep track of the scroll position so the page reloads to the same position 
+                // after submitting attendance (prevents page from reloading to top of page 
+                // when updating attendance records further down the page)
+                document.addEventListener("DOMContentLoaded", function (event) {
+                    var scrollpos = localStorage.getItem('scrollpos');
+                    if (scrollpos) window.scrollTo(0, scrollpos);
+                });
+
+                window.onbeforeunload = function (e) {
+                    localStorage.setItem('scrollpos', window.scrollY);
+                };
+
+                // Set event listerners for updates to radio buttons
+                var radioButtons = document.querySelectorAll("input[type=radio]");
+                for (i = 0; i < radioButtons.length; i++) {
+                    radioButtons[i].addEventListener("click", function () { submitUpdate(event); });
+                }
+                // Set event listerners for updates to comment fields
+                var commentFields = document.querySelectorAll('input[type=text]:not([id="searchFilter"]');
+                for (i = 0; i < commentFields.length; i++) {
+                    commentFields[i].addEventListener("blur", function () { submitUpdate(event); });
+                }
+
+                // Set event listeners for updates to teacher, class, and class date filter selections
+                var teacherNameElement = document.getElementById("teacherName")
+                teacherNameElement.addEventListener("change", function () { filterUpdateAndSubmit(event); });
+                var classNameElement = document.getElementById("className")
+                classNameElement.addEventListener("change", function () { filterUpdateAndSubmit(event); });
+                var classDateElement = document.getElementById("classDate")
+                classDateElement.addEventListener("change", function () { filterUpdateAndSubmit(event); });
+
+                // Update filterUpdateFlag to indicate change to filter settings and submit form
+                function filterUpdateAndSubmit(event) {
+                    console.log('Filter change detected!')
+                    console.log(document.getElementById("updateFiltersFlag").value)
+                    document.getElementById("updateFiltersFlag").value = 'updated';
+                    console.log(document.getElementById("updateFiltersFlag").value)
+                    trigger_field = document.getElementById(event.target.id);
+                    console.log('trigger_field = ' + trigger_field);
+                    form = trigger_field.form;
+                    console.log('trigger_form = ' + form)
+                    form.submit();
+                }
+
+                // Submit update to attendance on changes to attendanceCode or comment
+                function submitUpdate(event) {
+                    // Identify the form which was updated
+                    trigger_field = document.getElementById(event.target.id);
+                    console.log('trigger_field = ' + trigger_field);
+                    form = trigger_field.form;
+                    console.log('trigger_form = ' + form)
+
+                    // Update the hidden fields to capture the teacher name, class name, and class date
+                    event_id = event.target.id;
+                    event_split_id = event_id.split('-');
+                    classNameHiddenInput_id = event_split_id[0] + '-' + event_split_id[1] + '-updateFlag';
+                    console.log(classNameHiddenInput_id)
+                    document.getElementById(classNameHiddenInput_id).value = 'updated';
+                    form.submit();
+                }
+
+            </script>
+
+
+        </div>
+
+        <!-- Footer -->
+        <footer class="w3-container w3-padding-32 w3-light-grey">
+            <!-- <h4></h4> -->
+            <!-- <p>Powered by <a href="https://www.w3schools.com/w3css/default.asp" target="_blank">w3.css</a></p> -->
+        </footer>
+
+        <!-- End page content -->
+    </div>
+
+    <script>
+        // Get the Sidebar
+        var mySidebar = document.getElementById("mySidebar");
+
+        // Get the DIV with overlay effect
+        var overlayBg = document.getElementById("myOverlay");
+
+        // Toggle between showing and hiding the sidebar, and add overlay effect
+        function w3_open() {
+            if (mySidebar.style.display === 'block') {
+                mySidebar.style.display = 'none';
+                overlayBg.style.display = "none";
+            } else {
+                mySidebar.style.display = 'block';
+                overlayBg.style.display = "block";
+            }
+        }
+
+        // Close the sidebar with the close button
+        function w3_close() {
+            console.log('w3_close called');
+            mySidebar.style.display = "none";
+            overlayBg.style.display = "none";
+        }
+    </script>
+
+    <script>
+        function openP2MTSetup() {
+            sessionStorage.setItem("P2MTAdmin_selected_tab", "P2MTSetupTab");
+            return true;
+        }
+
+    </script>
+
+</body>
+
+</html>

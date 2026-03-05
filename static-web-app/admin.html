@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .w3-tab { display: none; }
+    .w3-tab.active { display: block; }
+    .tab-nav { display: flex; border-bottom: 2px solid #009688; }
+    .tab-nav button { background-color: #f1f1f1; border: none; outline: none; cursor: pointer; padding: 12px 16px; font-size: 14px; flex: 1; text-align: left; border-bottom: 3px solid transparent; transition: background-color 0.3s; }
+    .tab-nav button:hover { background-color: #ddd; }
+    .tab-nav button.active { background-color: white; border-bottom-color: #009688; }
+    .action-button { margin: 2px; font-size: 0.9rem; }
+    .modal-form { max-width: 700px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-full { grid-column: 1 / -1; }
+    .settings-card { max-width: 500px; padding: 20px; margin-bottom: 20px; }
+    .template-button { margin: 5px; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  
+  <div class="w3-container w3-padding" style="margin-top: 10px;">
+    <h2><i class="fas fa-cog"></i> Admin Dashboard</h2>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-button active" onclick="openTab(event, 'tab-students')">
+        <i class="fas fa-users"></i> Students
+      </button>
+      <button class="tab-button" onclick="openTab(event, 'tab-staff')">
+        <i class="fas fa-chalkboard-user"></i> Staff
+      </button>
+      <button class="tab-button" onclick="openTab(event, 'tab-parents')">
+        <i class="fas fa-user-tie"></i> Parents
+      </button>
+      <button class="tab-button" onclick="openTab(event, 'tab-settings')">
+        <i class="fas fa-sliders"></i> System Settings
+      </button>
+      <button class="tab-button" onclick="openTab(event, 'tab-interventions')">
+        <i class="fas fa-chart-line"></i> Intervention Types
+      </button>
+    </div>
+
+    <!-- TAB 1: STUDENTS -->
+    <div id="tab-students" class="w3-tab active">
+      <div class="w3-row w3-margin-top w3-margin-bottom">
+        <div class="w3-col m8">
+          <h3>Students
+            <span class="w3-badge w3-round" id="student-count">0</span>
+          </h3>
+        </div>
+        <div class="w3-col m4 w3-right-align">
+          <button id="btn-add-student" class="w3-button w3-teal action-button">
+            <i class="fas fa-plus"></i> Add
+          </button>
+          <button id="btn-download-students" class="w3-button w3-blue action-button">
+            <i class="fas fa-download"></i> Download
+          </button>
+          <button id="btn-upload-students" class="w3-button w3-orange action-button">
+            <i class="fas fa-upload"></i> Upload
+          </button>
+          <input type="file" id="file-upload-students" style="display:none;" accept=".csv">
+        </div>
+      </div>
+      <div class="w3-card w3-white w3-responsive">
+        <table id="studentsTable" class="w3-table w3-striped w3-bordered">
+          <thead class="w3-teal">
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Grad Year</th>
+              <th>House</th>
+              <th>ChattState A#</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="students-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: STAFF -->
+    <div id="tab-staff" class="w3-tab">
+      <div class="w3-row w3-margin-top w3-margin-bottom">
+        <div class="w3-col m8">
+          <h3>Staff
+            <span class="w3-badge w3-round" id="staff-count">0</span>
+          </h3>
+        </div>
+        <div class="w3-col m4 w3-right-align">
+          <button id="btn-add-staff" class="w3-button w3-teal action-button">
+            <i class="fas fa-plus"></i> Add
+          </button>
+          <button id="btn-download-staff" class="w3-button w3-blue action-button">
+            <i class="fas fa-download"></i> Download
+          </button>
+          <button id="btn-upload-staff" class="w3-button w3-orange action-button">
+            <i class="fas fa-upload"></i> Upload
+          </button>
+          <input type="file" id="file-upload-staff" style="display:none;" accept=".csv">
+        </div>
+      </div>
+      <div class="w3-card w3-white w3-responsive">
+        <table id="staffTable" class="w3-table w3-striped w3-bordered">
+          <thead class="w3-teal">
+            <tr>
+              <th>Name</th>
+              <th>Position</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>House</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="staff-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: PARENTS -->
+    <div id="tab-parents" class="w3-tab">
+      <div class="w3-row w3-margin-top w3-margin-bottom">
+        <div class="w3-col m8">
+          <h3>Parent Information</h3>
+        </div>
+        <div class="w3-col m4 w3-right-align">
+          <button id="btn-download-parents" class="w3-button w3-blue action-button">
+            <i class="fas fa-download"></i> Download
+          </button>
+          <button id="btn-upload-parents" class="w3-button w3-orange action-button">
+            <i class="fas fa-upload"></i> Upload
+          </button>
+          <input type="file" id="file-upload-parents" style="display:none;" accept=".csv">
+        </div>
+      </div>
+      <input type="text" id="parents-search" class="w3-input w3-border w3-margin-bottom" placeholder="Search by student name...">
+      <div class="w3-card w3-white w3-responsive">
+        <table id="parentsTable" class="w3-table w3-striped w3-bordered">
+          <thead class="w3-teal">
+            <tr>
+              <th>Student Name</th>
+              <th>Guardianship</th>
+              <th>Mother Email</th>
+              <th>Father Email</th>
+              <th>Guardian Email</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="parents-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: SYSTEM SETTINGS -->
+    <div id="tab-settings" class="w3-tab">
+      <div class="w3-margin-top">
+        <div class="w3-card settings-card">
+          <h3 class="w3-text-teal">Email Configuration</h3>
+          <div class="w3-row w3-margin-bottom">
+            <div class="w3-col m6">
+              <label class="w3-text-teal"><b>Email Mode</b></label>
+              <div class="w3-margin-bottom">
+                <label class="w3-radio">
+                  <input type="radio" name="emailMode" value="Live" id="email-mode-live">
+                  <span class="w3-validate">Live</span>
+                </label>
+                <label class="w3-radio">
+                  <input type="radio" name="emailMode" value="Test" id="email-mode-test" checked>
+                  <span class="w3-validate">Test</span>
+                </label>
+              </div>
+            </div>
+            <div class="w3-col m6">
+              <label class="w3-checkbox">
+                <input type="checkbox" id="enable-live-email">
+                <span class="w3-validate">Enable Live Email</span>
+              </label>
+            </div>
+          </div>
+          <button id="btn-save-email-settings" class="w3-button w3-teal w3-round">Save Email Settings</button>
+        </div>
+
+        <div class="w3-card settings-card">
+          <h3 class="w3-text-teal">API Key Management</h3>
+          <div class="w3-margin-bottom">
+            <label class="w3-text-teal"><b>Current API Key</b></label>
+            <div class="w3-padding w3-light-grey w3-border w3-margin-bottom" style="word-break: break-all;">
+              <span id="api-key-display">sk_live_xxxxxxxxxxxxx</span>
+              <button id="btn-copy-api-key" class="w3-button w3-small w3-blue w3-right">Copy</button>
+            </div>
+          </div>
+          <button id="btn-regenerate-api-key" class="w3-button w3-orange w3-round">Regenerate API Key</button>
+        </div>
+
+        <div class="w3-card settings-card">
+          <h3 class="w3-text-teal">CSV Templates</h3>
+          <p class="w3-text-grey">Download template files for bulk importing data:</p>
+          <button id="btn-download-students-template" class="w3-button w3-blue template-button">
+            <i class="fas fa-download"></i> Students Template
+          </button>
+          <button id="btn-download-staff-template" class="w3-button w3-blue template-button">
+            <i class="fas fa-download"></i> Staff Template
+          </button>
+          <button id="btn-download-parents-template" class="w3-button w3-blue template-button">
+            <i class="fas fa-download"></i> Parents Template
+          </button>
+          <button id="btn-download-schedule-template" class="w3-button w3-blue template-button">
+            <i class="fas fa-download"></i> Schedule Template
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: INTERVENTION TYPES -->
+    <div id="tab-interventions" class="w3-tab">
+      <div class="w3-row w3-margin-top w3-margin-bottom">
+        <div class="w3-col m8">
+          <h3>Intervention Types</h3>
+        </div>
+        <div class="w3-col m4 w3-right-align">
+          <button id="btn-add-intervention-type" class="w3-button w3-teal action-button">
+            <i class="fas fa-plus"></i> Add Type
+          </button>
+        </div>
+      </div>
+      <div class="w3-card w3-white w3-responsive">
+        <table id="interventionTypesTable" class="w3-table w3-striped w3-bordered">
+          <thead class="w3-teal">
+            <tr>
+              <th>Intervention Type</th>
+              <th>Max Level</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="intervention-types-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Add/Edit Student -->
+  <div id="studentModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form">
+      <header class="w3-container w3-teal">
+        <span class="w3-button w3-display-topright" onclick="closeStudentModal()">&times;</span>
+        <h3 id="student-modal-title">Add Student</h3>
+      </header>
+      <form id="studentForm" class="w3-padding">
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>First Name</b></label>
+            <input type="text" id="student-firstName" class="w3-input w3-border" required></div>
+          <div><label class="w3-text-teal"><b>Last Name</b></label>
+            <input type="text" id="student-lastName" class="w3-input w3-border" required></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Email</b></label>
+            <input type="email" id="student-email" class="w3-input w3-border" required></div>
+          <div><label class="w3-text-teal"><b>ChattState A#</b></label>
+            <input type="text" id="student-chattStateANumber" class="w3-input w3-border" required></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Graduation Year</b></label>
+            <select id="student-yearOfGraduation" class="w3-select w3-border" required>
+              <option value="">Select</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+              <option value="2029">2029</option>
+              <option value="2030">2030</option>
+            </select></div>
+          <div><label class="w3-text-teal"><b>House</b></label>
+            <select id="student-house" class="w3-select w3-border" required>
+              <option value="">Select</option>
+              <option value="Alpha">Alpha</option>
+              <option value="Beta">Beta</option>
+              <option value="Gamma">Gamma</option>
+              <option value="Delta">Delta</option>
+            </select></div>
+        </div>
+        <label class="w3-text-teal"><b>Google Calendar ID</b></label>
+        <input type="text" id="student-googleCalendarId" class="w3-input w3-border w3-margin-bottom">
+        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Add/Edit Staff -->
+  <div id="staffModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form">
+      <header class="w3-container w3-teal">
+        <span class="w3-button w3-display-topright" onclick="closeStaffModal()">&times;</span>
+        <h3 id="staff-modal-title">Add Staff</h3>
+      </header>
+      <form id="staffForm" class="w3-padding">
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>First Name</b></label>
+            <input type="text" id="staff-firstName" class="w3-input w3-border" required></div>
+          <div><label class="w3-text-teal"><b>Last Name</b></label>
+            <input type="text" id="staff-lastName" class="w3-input w3-border" required></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Position</b></label>
+            <input type="text" id="staff-position" class="w3-input w3-border" required></div>
+          <div><label class="w3-text-teal"><b>Email</b></label>
+            <input type="email" id="staff-email" class="w3-input w3-border" required></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Phone</b></label>
+            <input type="tel" id="staff-phoneNumber" class="w3-input w3-border"></div>
+          <div><label class="w3-text-teal"><b>ChattState A#</b></label>
+            <input type="text" id="staff-chattStateANumber" class="w3-input w3-border"></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Myers-Brigg</b></label>
+            <input type="text" id="staff-myersBrigg" class="w3-input w3-border"></div>
+          <div><label class="w3-text-teal"><b>House</b></label>
+            <select id="staff-house" class="w3-select w3-border">
+              <option value="">Select</option>
+              <option value="Alpha">Alpha</option>
+              <option value="Beta">Beta</option>
+              <option value="Gamma">Gamma</option>
+              <option value="Delta">Delta</option>
+            </select></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>House Grade</b></label>
+            <input type="text" id="staff-houseGrade" class="w3-input w3-border"></div>
+          <div><label class="w3-text-teal"><b>Status</b></label>
+            <select id="staff-status" class="w3-select w3-border">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select></div>
+        </div>
+        <label class="w3-text-teal"><b>Twitter Account</b></label>
+        <input type="text" id="staff-twitterAccount" class="w3-input w3-border w3-margin-bottom">
+        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Edit Parent -->
+  <div id="parentModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form">
+      <header class="w3-container w3-teal">
+        <span class="w3-button w3-display-topright" onclick="closeParentModal()">&times;</span>
+        <h3>Edit Parent Information</h3>
+      </header>
+      <form id="parentForm" class="w3-padding">
+        <p><b>Student: <span id="parent-modal-student-name"></span></b></p>
+        <hr>
+        <label class="w3-text-teal"><b>Guardianship</b></label>
+        <select id="parent-guardianship" class="w3-select w3-border w3-margin-bottom">
+          <option value="">Select</option>
+          <option value="Both Parents">Both Parents</option>
+          <option value="Mother Only">Mother Only</option>
+          <option value="Father Only">Father Only</option>
+          <option value="Guardian">Guardian</option>
+        </select>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Mother Name</b></label>
+            <input type="text" id="parent-motherName" class="w3-input w3-border"></div>
+          <div><label class="w3-text-teal"><b>Mother Email</b></label>
+            <input type="email" id="parent-motherEmail" class="w3-input w3-border"></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Father Name</b></label>
+            <input type="text" id="parent-fatherName" class="w3-input w3-border"></div>
+          <div><label class="w3-text-teal"><b>Father Email</b></label>
+            <input type="email" id="parent-fatherEmail" class="w3-input w3-border"></div>
+        </div>
+        <label class="w3-text-teal"><b>Guardian Email</b></label>
+        <input type="email" id="parent-guardianEmail" class="w3-input w3-border w3-margin-bottom">
+        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Add/Edit Intervention Type -->
+  <div id="interventionTypeModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width: 400px;">
+      <header class="w3-container w3-teal">
+        <span class="w3-button w3-display-topright" onclick="closeInterventionTypeModal()">&times;</span>
+        <h3 id="intervention-modal-title">Add Intervention Type</h3>
+      </header>
+      <form id="interventionTypeForm" class="w3-padding">
+        <label class="w3-text-teal"><b>Intervention Type</b></label>
+        <input type="text" id="intervention-interventionType" class="w3-input w3-border w3-margin-bottom" required>
+        <label class="w3-text-teal"><b>Max Level</b></label>
+        <input type="number" id="intervention-maxLevel" class="w3-input w3-border w3-margin-bottom" min="1" required>
+        <button type="submit" class="w3-button w3-teal w3-round">Save</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Delete Confirmation -->
+  <div id="deleteConfirmModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width: 400px;">
+      <header class="w3-container w3-red">
+        <span class="w3-button w3-display-topright" onclick="closeDeleteModal()">&times;</span>
+        <h3>Confirm Delete</h3>
+      </header>
+      <div class="w3-padding">
+        <p>Type <b>DELETE</b> to confirm:</p>
+        <input type="text" id="delete-confirm-input" class="w3-input w3-border w3-margin-bottom">
+        <button class="w3-button w3-red w3-round" onclick="confirmDelete()">Delete</button>
+        <button class="w3-button w3-gray w3-round" onclick="closeDeleteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, addDoc, updateDoc, deleteDoc, batchWrite } from './js/db.js';
+    import { exportCSV, showToast, generateId } from './js/utils.js';
+
+    let studentsData = [];
+    let staffData = [];
+    let parentsData = [];
+    let interventionTypesData = [];
+
+    let currentEditType = null;
+    let currentEditId = null;
+    let currentDeleteType = null;
+    let currentDeleteId = null;
+    let currentEditParentChattStateA = null;
+
+    window.openTab = openTab;
+    window.closeStudentModal = closeStudentModal;
+    window.closeStaffModal = closeStaffModal;
+    window.closeParentModal = closeParentModal;
+    window.closeInterventionTypeModal = closeInterventionTypeModal;
+    window.closeDeleteModal = closeDeleteModal;
+    window.editStudent = editStudent;
+    window.deleteStudent = deleteStudent;
+    window.editStaff = editStaff;
+    window.deleteStaff = deleteStaff;
+    window.editParent = editParent;
+    window.editInterventionType = editInterventionType;
+    window.deleteInterventionType = deleteInterventionType;
+    window.confirmDelete = confirmDelete;
+
+    initAuth().then(user => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      initNav('admin');
+      init();
+    });
+
+    async function init() {
+      await loadAllData();
+      setupEventListeners();
+      renderStudentsTable();
+      renderStaffTable();
+      renderParentsTable();
+      renderInterventionTypesTable();
+    }
+
+    async function loadAllData() {
+      try {
+        studentsData = await getAll('students');
+        staffData = await getAll('staff');
+        parentsData = await getAll('parents');
+        interventionTypesData = await getAll('interventionTypes');
+        
+        document.getElementById('student-count').textContent = studentsData.length;
+        document.getElementById('staff-count').textContent = staffData.length;
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showToast('Error loading data', 'error');
+      }
+    }
+
+    function openTab(evt, tabName) {
+      const tabs = document.querySelectorAll('.w3-tab');
+      tabs.forEach(tab => tab.classList.remove('active'));
+      
+      const buttons = document.querySelectorAll('.tab-button');
+      buttons.forEach(btn => btn.classList.remove('active'));
+      
+      document.getElementById(tabName).classList.add('active');
+      evt.currentTarget.classList.add('active');
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-add-student').addEventListener('click', () => openStudentModal());
+      document.getElementById('btn-download-students').addEventListener('click', downloadStudentsCSV);
+      document.getElementById('btn-upload-students').addEventListener('click', () => document.getElementById('file-upload-students').click());
+      document.getElementById('file-upload-students').addEventListener('change', (e) => handleFileUpload(e, 'students'));
+      document.getElementById('studentForm').addEventListener('submit', handleStudentFormSubmit);
+
+      document.getElementById('btn-add-staff').addEventListener('click', () => openStaffModal());
+      document.getElementById('btn-download-staff').addEventListener('click', downloadStaffCSV);
+      document.getElementById('btn-upload-staff').addEventListener('click', () => document.getElementById('file-upload-staff').click());
+      document.getElementById('file-upload-staff').addEventListener('change', (e) => handleFileUpload(e, 'staff'));
+      document.getElementById('staffForm').addEventListener('submit', handleStaffFormSubmit);
+
+      document.getElementById('btn-download-parents').addEventListener('click', downloadParentsCSV);
+      document.getElementById('btn-upload-parents').addEventListener('click', () => document.getElementById('file-upload-parents').click());
+      document.getElementById('file-upload-parents').addEventListener('change', (e) => handleFileUpload(e, 'parents'));
+      document.getElementById('parentForm').addEventListener('submit', handleParentFormSubmit);
+      document.getElementById('parents-search').addEventListener('keyup', filterParentsTable);
+
+      document.getElementById('btn-save-email-settings').addEventListener('click', saveEmailSettings);
+      document.getElementById('btn-copy-api-key').addEventListener('click', copyApiKey);
+      document.getElementById('btn-regenerate-api-key').addEventListener('click', regenerateApiKey);
+
+      document.getElementById('btn-download-students-template').addEventListener('click', downloadStudentsTemplate);
+      document.getElementById('btn-download-staff-template').addEventListener('click', downloadStaffTemplate);
+      document.getElementById('btn-download-parents-template').addEventListener('click', downloadParentsTemplate);
+      document.getElementById('btn-download-schedule-template').addEventListener('click', downloadScheduleTemplate);
+
+      document.getElementById('btn-add-intervention-type').addEventListener('click', () => openInterventionTypeModal());
+      document.getElementById('interventionTypeForm').addEventListener('submit', handleInterventionTypeFormSubmit);
+    }
+
+    function renderStudentsTable() {
+      const tbody = document.getElementById('students-tbody');
+      tbody.innerHTML = '';
+      studentsData.forEach(student => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${student.lastName}, ${student.firstName}</td>
+          <td>${student.email}</td>
+          <td>${student.yearOfGraduation}</td>
+          <td>${student.house}</td>
+          <td>${student.chattStateANumber}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue action-button" onclick="editStudent('${student.id}')">Edit</button>
+            <button class="w3-button w3-small w3-red action-button" onclick="deleteStudent('${student.id}')">Delete</button>
+          </td>
+        `;
+      });
+      if (document.getElementById('studentsTable').dataTable) {
+        document.getElementById('studentsTable').dataTable.destroy();
+      }
+      $('#studentsTable').DataTable({ paging: true, pageLength: 10, ordering: true });
+    }
+
+    function renderStaffTable() {
+      const tbody = document.getElementById('staff-tbody');
+      tbody.innerHTML = '';
+      staffData.forEach(staff => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${staff.lastName}, ${staff.firstName}</td>
+          <td>${staff.position}</td>
+          <td>${staff.email}</td>
+          <td>${staff.phoneNumber || ''}</td>
+          <td>${staff.house || ''}</td>
+          <td>${staff.status}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue action-button" onclick="editStaff('${staff.id}')">Edit</button>
+            <button class="w3-button w3-small w3-red action-button" onclick="deleteStaff('${staff.id}')">Delete</button>
+          </td>
+        `;
+      });
+      if (document.getElementById('staffTable').dataTable) {
+        document.getElementById('staffTable').dataTable.destroy();
+      }
+      $('#staffTable').DataTable({ paging: true, pageLength: 10, ordering: true });
+    }
+
+    function renderParentsTable() {
+      const tbody = document.getElementById('parents-tbody');
+      tbody.innerHTML = '';
+      
+      studentsData.forEach(student => {
+        const parentInfo = parentsData.find(p => p.chattStateANumber === student.chattStateANumber) || {};
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${student.lastName}, ${student.firstName}</td>
+          <td>${parentInfo.guardianship || ''}</td>
+          <td>${parentInfo.motherEmail || ''}</td>
+          <td>${parentInfo.fatherEmail || ''}</td>
+          <td>${parentInfo.guardianEmail || ''}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue action-button" onclick="editParent('${student.chattStateANumber}', '${student.lastName}, ${student.firstName}')">Edit</button>
+          </td>
+        `;
+      });
+      
+      if (document.getElementById('parentsTable').dataTable) {
+        document.getElementById('parentsTable').dataTable.destroy();
+      }
+      $('#parentsTable').DataTable({ paging: true, pageLength: 10, ordering: true, searching: false });
+    }
+
+    function renderInterventionTypesTable() {
+      const tbody = document.getElementById('intervention-types-tbody');
+      tbody.innerHTML = '';
+      interventionTypesData.forEach(type => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${type.interventionType}</td>
+          <td>${type.maxLevel}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue action-button" onclick="editInterventionType('${type.id}')">Edit</button>
+            <button class="w3-button w3-small w3-red action-button" onclick="deleteInterventionType('${type.id}')">Delete</button>
+          </td>
+        `;
+      });
+      if (document.getElementById('interventionTypesTable').dataTable) {
+        document.getElementById('interventionTypesTable').dataTable.destroy();
+      }
+      $('#interventionTypesTable').DataTable({ paging: true, pageLength: 10, ordering: true });
+    }
+
+    function openStudentModal() {
+      currentEditType = 'students';
+      currentEditId = null;
+      document.getElementById('student-modal-title').textContent = 'Add Student';
+      document.getElementById('studentForm').reset();
+      document.getElementById('studentModal').style.display = 'block';
+    }
+
+    function closeStudentModal() {
+      document.getElementById('studentModal').style.display = 'none';
+      currentEditId = null;
+    }
+
+    async function editStudent(id) {
+      currentEditType = 'students';
+      currentEditId = id;
+      const student = studentsData.find(s => s.id === id);
+      
+      document.getElementById('student-modal-title').textContent = 'Edit Student';
+      document.getElementById('student-firstName').value = student.firstName;
+      document.getElementById('student-lastName').value = student.lastName;
+      document.getElementById('student-email').value = student.email;
+      document.getElementById('student-chattStateANumber').value = student.chattStateANumber;
+      document.getElementById('student-yearOfGraduation').value = student.yearOfGraduation;
+      document.getElementById('student-house').value = student.house;
+      document.getElementById('student-googleCalendarId').value = student.googleCalendarId || '';
+      
+      document.getElementById('studentModal').style.display = 'block';
+    }
+
+    async function handleStudentFormSubmit(e) {
+      e.preventDefault();
+      const studentData = {
+        firstName: document.getElementById('student-firstName').value,
+        lastName: document.getElementById('student-lastName').value,
+        email: document.getElementById('student-email').value,
+        chattStateANumber: document.getElementById('student-chattStateANumber').value,
+        yearOfGraduation: document.getElementById('student-yearOfGraduation').value,
+        house: document.getElementById('student-house').value,
+        googleCalendarId: document.getElementById('student-googleCalendarId').value || null
+      };
+
+      try {
+        if (currentEditId) {
+          await updateDoc('students', currentEditId, studentData);
+          showToast('Student updated', 'success');
+        } else {
+          await addDoc('students', generateId(), studentData);
+          showToast('Student added', 'success');
+        }
+        closeStudentModal();
+        await loadAllData();
+        renderStudentsTable();
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Error saving student', 'error');
+      }
+    }
+
+    function deleteStudent(id) {
+      currentDeleteType = 'students';
+      currentDeleteId = id;
+      document.getElementById('delete-confirm-input').value = '';
+      document.getElementById('deleteConfirmModal').style.display = 'block';
+    }
+
+    function openStaffModal() {
+      currentEditType = 'staff';
+      currentEditId = null;
+      document.getElementById('staff-modal-title').textContent = 'Add Staff';
+      document.getElementById('staffForm').reset();
+      document.getElementById('staffModal').style.display = 'block';
+    }
+
+    function closeStaffModal() {
+      document.getElementById('staffModal').style.display = 'none';
+      currentEditId = null;
+    }
+
+    async function editStaff(id) {
+      currentEditType = 'staff';
+      currentEditId = id;
+      const staff = staffData.find(s => s.id === id);
+      
+      document.getElementById('staff-modal-title').textContent = 'Edit Staff';
+      document.getElementById('staff-firstName').value = staff.firstName;
+      document.getElementById('staff-lastName').value = staff.lastName;
+      document.getElementById('staff-position').value = staff.position;
+      document.getElementById('staff-email').value = staff.email;
+      document.getElementById('staff-phoneNumber').value = staff.phoneNumber || '';
+      document.getElementById('staff-chattStateANumber').value = staff.chattStateANumber || '';
+      document.getElementById('staff-myersBrigg').value = staff.myersBrigg || '';
+      document.getElementById('staff-house').value = staff.house || '';
+      document.getElementById('staff-houseGrade').value = staff.houseGrade || '';
+      document.getElementById('staff-twitterAccount').value = staff.twitterAccount || '';
+      document.getElementById('staff-status').value = staff.status;
+      
+      document.getElementById('staffModal').style.display = 'block';
+    }
+
+    async function handleStaffFormSubmit(e) {
+      e.preventDefault();
+      const staffData = {
+        firstName: document.getElementById('staff-firstName').value,
+        lastName: document.getElementById('staff-lastName').value,
+        position: document.getElementById('staff-position').value,
+        email: document.getElementById('staff-email').value,
+        phoneNumber: document.getElementById('staff-phoneNumber').value,
+        chattStateANumber: document.getElementById('staff-chattStateANumber').value,
+        myersBrigg: document.getElementById('staff-myersBrigg').value,
+        house: document.getElementById('staff-house').value,
+        houseGrade: document.getElementById('staff-houseGrade').value,
+        twitterAccount: document.getElementById('staff-twitterAccount').value,
+        status: document.getElementById('staff-status').value
+      };
+
+      try {
+        if (currentEditId) {
+          await updateDoc('staff', currentEditId, staffData);
+          showToast('Staff updated', 'success');
+        } else {
+          await addDoc('staff', generateId(), staffData);
+          showToast('Staff added', 'success');
+        }
+        closeStaffModal();
+        await loadAllData();
+        renderStaffTable();
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Error saving staff', 'error');
+      }
+    }
+
+    function deleteStaff(id) {
+      currentDeleteType = 'staff';
+      currentDeleteId = id;
+      document.getElementById('delete-confirm-input').value = '';
+      document.getElementById('deleteConfirmModal').style.display = 'block';
+    }
+
+    async function editParent(chattStateANumber, studentName) {
+      currentEditParentChattStateA = chattStateANumber;
+      const parentData = parentsData.find(p => p.chattStateANumber === chattStateANumber) || {};
+      
+      document.getElementById('parent-modal-student-name').textContent = studentName;
+      document.getElementById('parent-guardianship').value = parentData.guardianship || '';
+      document.getElementById('parent-motherName').value = parentData.motherName || '';
+      document.getElementById('parent-motherEmail').value = parentData.motherEmail || '';
+      document.getElementById('parent-fatherName').value = parentData.fatherName || '';
+      document.getElementById('parent-fatherEmail').value = parentData.fatherEmail || '';
+      document.getElementById('parent-guardianEmail').value = parentData.guardianEmail || '';
+      
+      document.getElementById('parentModal').style.display = 'block';
+    }
+
+    function closeParentModal() {
+      document.getElementById('parentModal').style.display = 'none';
+      currentEditParentChattStateA = null;
+    }
+
+    async function handleParentFormSubmit(e) {
+      e.preventDefault();
+      const parentData = {
+        chattStateANumber: currentEditParentChattStateA,
+        guardianship: document.getElementById('parent-guardianship').value,
+        motherName: document.getElementById('parent-motherName').value,
+        motherEmail: document.getElementById('parent-motherEmail').value,
+        fatherName: document.getElementById('parent-fatherName').value,
+        fatherEmail: document.getElementById('parent-fatherEmail').value,
+        guardianEmail: document.getElementById('parent-guardianEmail').value
+      };
+
+      try {
+        const existing = parentsData.find(p => p.chattStateANumber === currentEditParentChattStateA);
+        if (existing) {
+          await updateDoc('parents', existing.id, parentData);
+        } else {
+          await addDoc('parents', generateId(), parentData);
+        }
+        showToast('Parent info updated', 'success');
+        closeParentModal();
+        await loadAllData();
+        renderParentsTable();
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Error saving parent info', 'error');
+      }
+    }
+
+    function filterParentsTable() {
+      const searchValue = document.getElementById('parents-search').value.toLowerCase();
+      if (document.getElementById('parentsTable').dataTable) {
+        document.getElementById('parentsTable').dataTable.destroy();
+      }
+      $('#parentsTable').DataTable({ paging: true, pageLength: 10, ordering: true, searching: true });
+    }
+
+    async function openInterventionTypeModal() {
+      currentEditId = null;
+      document.getElementById('intervention-modal-title').textContent = 'Add Intervention Type';
+      document.getElementById('interventionTypeForm').reset();
+      document.getElementById('interventionTypeModal').style.display = 'block';
+    }
+
+    function closeInterventionTypeModal() {
+      document.getElementById('interventionTypeModal').style.display = 'none';
+      currentEditId = null;
+    }
+
+    async function editInterventionType(id) {
+      currentEditId = id;
+      const type = interventionTypesData.find(t => t.id === id);
+      
+      document.getElementById('intervention-modal-title').textContent = 'Edit Intervention Type';
+      document.getElementById('intervention-interventionType').value = type.interventionType;
+      document.getElementById('intervention-maxLevel').value = type.maxLevel;
+      
+      document.getElementById('interventionTypeModal').style.display = 'block';
+    }
+
+    async function handleInterventionTypeFormSubmit(e) {
+      e.preventDefault();
+      const typeData = {
+        interventionType: document.getElementById('intervention-interventionType').value,
+        maxLevel: parseInt(document.getElementById('intervention-maxLevel').value)
+      };
+
+      try {
+        if (currentEditId) {
+          await updateDoc('interventionTypes', currentEditId, typeData);
+          showToast('Intervention type updated', 'success');
+        } else {
+          await addDoc('interventionTypes', generateId(), typeData);
+          showToast('Intervention type added', 'success');
+        }
+        closeInterventionTypeModal();
+        await loadAllData();
+        renderInterventionTypesTable();
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Error saving intervention type', 'error');
+      }
+    }
+
+    function deleteInterventionType(id) {
+      currentDeleteType = 'interventionTypes';
+      currentDeleteId = id;
+      document.getElementById('delete-confirm-input').value = '';
+      document.getElementById('deleteConfirmModal').style.display = 'block';
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteConfirmModal').style.display = 'none';
+    }
+
+    async function confirmDelete() {
+      const input = document.getElementById('delete-confirm-input').value;
+      if (input !== 'DELETE') {
+        showToast('Type DELETE to confirm', 'warning');
+        return;
+      }
+
+      try {
+        await deleteDoc(currentDeleteType, currentDeleteId);
+        showToast('Record deleted', 'success');
+        closeDeleteModal();
+        await loadAllData();
+        
+        if (currentDeleteType === 'students') renderStudentsTable();
+        else if (currentDeleteType === 'staff') renderStaffTable();
+        else if (currentDeleteType === 'interventionTypes') renderInterventionTypesTable();
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Error deleting record', 'error');
+      }
+    }
+
+    async function downloadStudentsCSV() {
+      try {
+        const csvData = studentsData.map(s => ({
+          'First Name': s.firstName,
+          'Last Name': s.lastName,
+          'Email': s.email,
+          'ChattState A#': s.chattStateANumber,
+          'Graduation Year': s.yearOfGraduation,
+          'House': s.house,
+          'Google Calendar ID': s.googleCalendarId || ''
+        }));
+        exportCSV(csvData, 'students.csv');
+        showToast('Downloaded', 'success');
+      } catch (e) {
+        showToast('Download error', 'error');
+      }
+    }
+
+    async function downloadStaffCSV() {
+      try {
+        const csvData = staffData.map(s => ({
+          'First Name': s.firstName,
+          'Last Name': s.lastName,
+          'Position': s.position,
+          'Email': s.email,
+          'Phone': s.phoneNumber || '',
+          'ChattState A#': s.chattStateANumber || '',
+          'Myers-Brigg': s.myersBrigg || '',
+          'House': s.house || '',
+          'House Grade': s.houseGrade || '',
+          'Twitter': s.twitterAccount || '',
+          'Status': s.status
+        }));
+        exportCSV(csvData, 'staff.csv');
+        showToast('Downloaded', 'success');
+      } catch (e) {
+        showToast('Download error', 'error');
+      }
+    }
+
+    async function downloadParentsCSV() {
+      try {
+        const csvData = studentsData.map(student => {
+          const parent = parentsData.find(p => p.chattStateANumber === student.chattStateANumber) || {};
+          return {
+            'Student Name': `${student.lastName}, ${student.firstName}`,
+            'Guardianship': parent.guardianship || '',
+            'Mother Name': parent.motherName || '',
+            'Mother Email': parent.motherEmail || '',
+            'Father Name': parent.fatherName || '',
+            'Father Email': parent.fatherEmail || '',
+            'Guardian Email': parent.guardianEmail || ''
+          };
+        });
+        exportCSV(csvData, 'parents.csv');
+        showToast('Downloaded', 'success');
+      } catch (e) {
+        showToast('Download error', 'error');
+      }
+    }
+
+    function downloadStudentsTemplate() {
+      const template = [{
+        'First Name': 'John',
+        'Last Name': 'Doe',
+        'Email': 'john@example.com',
+        'ChattState A#': 'A12345',
+        'Graduation Year': '2025',
+        'House': 'Alpha',
+        'Google Calendar ID': ''
+      }];
+      exportCSV(template, 'students_template.csv');
+      showToast('Template downloaded', 'success');
+    }
+
+    function downloadStaffTemplate() {
+      const template = [{
+        'First Name': 'Jane',
+        'Last Name': 'Smith',
+        'Position': 'Teacher',
+        'Email': 'jane@example.com',
+        'Phone': '555-1234',
+        'ChattState A#': 'S12345',
+        'Myers-Brigg': 'ENFP',
+        'House': 'Beta',
+        'House Grade': '9',
+        'Twitter': '@janesmith',
+        'Status': 'Active'
+      }];
+      exportCSV(template, 'staff_template.csv');
+      showToast('Template downloaded', 'success');
+    }
+
+    function downloadParentsTemplate() {
+      const template = [{
+        'Student Name': 'Doe, John',
+        'Guardianship': 'Both Parents',
+        'Mother Name': 'Jane Doe',
+        'Mother Email': 'jane@example.com',
+        'Father Name': 'John Doe Sr',
+        'Father Email': 'john.sr@example.com',
+        'Guardian Email': ''
+      }];
+      exportCSV(template, 'parents_template.csv');
+      showToast('Template downloaded', 'success');
+    }
+
+    function downloadScheduleTemplate() {
+      const template = [{
+        'Student A#': 'A12345',
+        'Period 1': 'English 101',
+        'Period 2': 'Math 101',
+        'Period 3': 'History 101',
+        'Period 4': 'Science 101',
+        'Period 5': 'PE',
+        'Period 6': 'Lunch'
+      }];
+      exportCSV(template, 'schedule_template.csv');
+      showToast('Template downloaded', 'success');
+    }
+
+    async function saveEmailSettings() {
+      try {
+        const mode = document.querySelector('input[name="emailMode"]:checked').value;
+        const enableLive = document.getElementById('enable-live-email').checked;
+        
+        const settings = {
+          emailMode: mode,
+          enableLiveEmail: enableLive,
+          lastUpdated: new Date().toISOString()
+        };
+
+        await updateDoc('adminSettings', 'settings', settings);
+        showToast('Email settings saved', 'success');
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Error saving settings', 'error');
+      }
+    }
+
+    function copyApiKey() {
+      const apiKey = document.getElementById('api-key-display').textContent;
+      navigator.clipboard.writeText(apiKey).then(() => {
+        showToast('API key copied', 'success');
+      });
+    }
+
+    async function regenerateApiKey() {
+      try {
+        const newKey = 'sk_live_' + generateId();
+        document.getElementById('api-key-display').textContent = newKey;
+        
+        await updateDoc('adminSettings', 'settings', { apiKey: newKey });
+        showToast('API key regenerated', 'success');
+      } catch (error) {
+        console.error('Error:', error);
+        showToast('Error regenerating key', 'error');
+      }
+    }
+
+    async function handleFileUpload(e, type) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            showToast('Uploading...', 'info');
+            
+            const batch = [];
+            results.data.forEach(row => {
+              const docId = generateId();
+              
+              if (type === 'students') {
+                batch.push({
+                  docId,
+                  collection: 'students',
+                  data: {
+                    firstName: row['First Name'] || '',
+                    lastName: row['Last Name'] || '',
+                    email: row['Email'] || '',
+                    chattStateANumber: row['ChattState A#'] || '',
+                    yearOfGraduation: row['Graduation Year'] || '',
+                    house: row['House'] || '',
+                    googleCalendarId: row['Google Calendar ID'] || null
+                  }
+                });
+              } else if (type === 'staff') {
+                batch.push({
+                  docId,
+                  collection: 'staff',
+                  data: {
+                    firstName: row['First Name'] || '',
+                    lastName: row['Last Name'] || '',
+                    position: row['Position'] || '',
+                    email: row['Email'] || '',
+                    phoneNumber: row['Phone'] || '',
+                    chattStateANumber: row['ChattState A#'] || '',
+                    myersBrigg: row['Myers-Brigg'] || '',
+                    house: row['House'] || '',
+                    houseGrade: row['House Grade'] || '',
+                    twitterAccount: row['Twitter'] || '',
+                    status: row['Status'] || 'Active'
+                  }
+                });
+              } else if (type === 'parents') {
+                batch.push({
+                  docId,
+                  collection: 'parents',
+                  data: {
+                    guardianship: row['Guardianship'] || '',
+                    motherName: row['Mother Name'] || '',
+                    motherEmail: row['Mother Email'] || '',
+                    fatherName: row['Father Name'] || '',
+                    fatherEmail: row['Father Email'] || '',
+                    guardianEmail: row['Guardian Email'] || ''
+                  }
+                });
+              }
+            });
+
+            await batchWrite(batch);
+            showToast(`${batch.length} records uploaded`, 'success');
+            await loadAllData();
+            
+            if (type === 'students') renderStudentsTable();
+            else if (type === 'staff') renderStaffTable();
+            else if (type === 'parents') renderParentsTable();
+            
+            document.getElementById(`file-upload-${type}`).value = '';
+          } catch (error) {
+            console.error('Error:', error);
+            showToast('Upload error', 'error');
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,491 @@
+{% extends 'layout.html'%}
+{% block content %}
+
+{% macro macro_display_formfield(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+  {{ formfield.label(class="w3-text-green w3-large") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(class="w3-select w3-section") }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro macro_display_formfield_cellrow(formfield) %}
+<div class='w3-cell'>
+  {{ formfield.label(class="w3-text-green") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(class="w3-padding") }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro macro_display_checkbox(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+  {{ formfield.label(class="w3-text-green") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(class="w3-check") }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro macro_addTimeAndDays(idName,addTime,startTime,endTime,classDays) %}
+<fieldset class="w3-container w3-hover-border-green" id="fieldset{{idName}}">
+  <legend class="w3-medium">Add Time and Days</legend>
+  <div class="w3-cell-row w3-padding-small">
+    {{ macro_display_checkbox(addTime, "w3-cell") }}
+    {{ macro_display_formfield_cellrow(startTime) }}
+    {{ macro_display_formfield_cellrow(endTime) }}
+    <div class="w3-cell">
+      <div class="w3-cell">
+        {{ classDays.label(class="w3-text-green", id=idName ) }}
+        {% if classDays.errors %}
+        {{ classDays(class="w3-check is-invalid") }}
+        <div class="invalid-feedback">
+          {% for error in classDays.errors %}
+          <span>{{ error }}</span>
+          {% endfor %}
+        </div>
+        {% else %}
+        {% for choice in classDays %}
+        {{ choice(class="w3-check") }}
+        {{ choice.label(class="w3-text-black w3-medium") }}
+        {% endfor %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</fieldset>
+
+{% endmacro %}
+
+<div class="w3-container w3-green w3-row">
+  <div class="w3-third">
+    <h2>{{title}}</h2>
+  </div>
+  <div>
+    <input type="text" class="w3-third w3-margin w3-padding" size="25" id="searchFilter"
+      placeholder="Search by student name...">
+  </div>
+</div>
+
+<div class="w3-bar w3-blue">
+  <button id='button_LearningLabCreator' class="w3-bar-item w3-button tablink w3-black"
+    onclick="openTab(event, 'LearningLabCreator', 'LearningLab')">Learning Lab
+    Creator</button>
+  <button id='button_LearningLabManager' class="w3-bar-item w3-button tablink"
+    onclick="openTab(event, 'LearningLabManager', 'LearningLab')">Learning Lab
+    Manager</button>
+</div>
+
+{{ macro_display_flashed_messages() }}
+
+<div class="infoTab" id="LearningLabCreator">
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('learningLab_bp.displayLearningLab') }}" enctype="multipart/form-data">
+      {{ addSingleClassSchedule.hidden_tag() }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge">Add Learning Lab</legend>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(addSingleClassSchedule.teacherName, "w3-third") }}
+          {{ macro_display_formfield(addSingleClassSchedule.studentName, "w3-third") }}
+          {{ macro_display_formfield(addSingleClassSchedule.className, "w3-third") }}
+          {{ macro_display_formfield(addSingleClassSchedule.startDate, "w3-quarter") }}
+          {{ macro_display_formfield(addSingleClassSchedule.endDate, "w3-quarter") }}
+          {{ macro_display_formfield(addSingleClassSchedule.comment, "w3-half") }}
+        </div>
+
+        {{
+        macro_addTimeAndDays("_addTimeAndDays",addSingleClassSchedule.addTimeAndDays,addSingleClassSchedule.startTime,addSingleClassSchedule.endTime,addSingleClassSchedule.classDays)
+        }}
+        {{
+        macro_addTimeAndDays("_addTimeAndDays_2",addSingleClassSchedule.addTimeAndDays2,addSingleClassSchedule.startTime2,addSingleClassSchedule.endTime2,addSingleClassSchedule.classDays2)
+        }}
+        {{
+        macro_addTimeAndDays("_addTimeAndDays_3",addSingleClassSchedule.addTimeAndDays3,addSingleClassSchedule.startTime3,addSingleClassSchedule.endTime3,addSingleClassSchedule.classDays3)
+        }}
+        {{
+        macro_addTimeAndDays("_addTimeAndDays_4",addSingleClassSchedule.addTimeAndDays4,addSingleClassSchedule.startTime4,addSingleClassSchedule.endTime4,addSingleClassSchedule.classDays4)
+        }}
+        {{
+        macro_addTimeAndDays("_addTimeAndDays_5",addSingleClassSchedule.addTimeAndDays5,addSingleClassSchedule.startTime5,addSingleClassSchedule.endTime5,addSingleClassSchedule.classDays5)
+        }}
+
+        <div class="w3-row w3-padding-large">
+          {{ addSingleClassSchedule.submitAddSingleClassSchedule(class="w3-btn w3-blue w3-large") }}
+          <button class="w3-button w3-grey w3-large" onclick="resetForm(event)">Reset Form</button>
+        </div>
+      </fieldset>
+    </form>
+  </div>
+</div>
+
+<!-- Tab for LearningLab Manager -->
+
+<div class="infoTab" id="LearningLabManager" style="display:none">
+  <div class="w3-panel w3-light-grey"></div>
+  <table id="datatable" class="w3-table w3-bordered w3-striped w3-hoverable">
+    <thead>
+      <tr class="w3-blue">
+        <th scope="col">First Name</th>
+        <th scope="col">Last Name</th>
+        <th scope="col">Class Name</th>
+        <th scope="col">Teacher</th>
+        <th scope="col">Start Date</th>
+        <th scope="col">End Date</th>
+        <th scope="col">Days</th>
+        <th scope="col">Start Time</th>
+        <th scope="col">End Time</th>
+        <th scope="col">Comment</th>
+        <!-- <th scope="col">Actions</th>
+        <th scope="col"></th> -->
+      </tr>
+    </thead>
+    <tbody id="filteredTable">
+      {% for ClassSchedule in ClassSchedules %}
+      <tr>
+        <td>{{ ClassSchedule.Student.firstName }}</td>
+        <td>{{ ClassSchedule.Student.lastName }}</td>
+        <td>{{ ClassSchedule.className }}</td>
+        <td>{{ ClassSchedule.teacherLastName}}</td>
+        <td>{{ ClassSchedule.InterventionLog.startDate.strftime('%-m/%-d/%Y') }}</td>
+        <td>{{ ClassSchedule.InterventionLog.endDate.strftime('%-m/%-d/%Y') }}</td>
+        <td>{{ ClassSchedule.classDays }}</td>
+        <td>{{ ClassSchedule.startTime.strftime('%-I:%M') }}</td>
+        <td>{{ ClassSchedule.endTime.strftime('%-I:%M') }}</td>
+        <td>{{ ClassSchedule.comment }}</td>
+        <!-- <td>
+          <form action="{{ url_for('masterSchedule_bp.edit_ClassSchedule', log_id=ClassSchedule.id) }}" method="POST">
+            <input class="w3-button w3-green" type="submit" value="Edit">
+          </form>
+        </td>
+        <td><button type="button" class="w3-btn w3-red"
+            onclick="document.getElementById('deleteModal{{ClassSchedule.id}}').style.display='block'">Delete</button>
+        </td> -->
+      </tr>
+
+
+      <!-- Modal -->
+      <!-- <div class="w3-modal" id="deleteModal{{ClassSchedule.id}}">
+        <div class="w3-container">
+          <div class="w3-modal-content" style="width:50%">
+            <header class="w3-container w3-red">
+              <span onclick="document.getElementById('deleteModal{{ClassSchedule.id}}').style.display='none'"
+                class="w3-button w3-display-topright">&times;</span>
+              <h2>Delete This Class Schedule Item?</h2>
+            </header>
+            <footer class="w3-container w3-margin-top w3-white w3-center">
+              <div class="w3-bar">
+                <form action="{{ url_for('masterSchedule_bp.delete_ClassSchedule', log_id=ClassSchedule.id) }}"
+                  method="POST">
+                  <button type="button" class="w3-button w3-large"
+                    onclick="document.getElementById('deleteModal{{ClassSchedule.id}}').style.display='none'">Cancel</button>
+                  <input class="w3-button w3-red w3-large" type="submit" value="Delete">
+                </form>
+              </div>
+            </footer>
+          </div>
+        </div>
+      </div> -->
+
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+  $(document).ready(function () {
+    $('#datatable').DataTable({
+      "lengthMenu": [[-1, 10, 25, 50], ["All", 10, 25, 50]]
+    });
+  });
+</script>
+
+<script type="text/javascript" src="{{ url_for('static', filename='js/pageTabs.js') }}"></script>
+
+<script type='text/javascript'>
+  document.addEventListener("DOMContentLoaded", function (event) {
+    selected_tab = 'LearningLab_selected_tab';
+    var selectedTab = sessionStorage.getItem(selected_tab);
+    if (selectedTab) {
+      document.getElementById("button_" + selectedTab).click();
+    } else {
+      document.getElementById("button_LearningLabCreator").click();
+    }
+  });
+</script>
+
+<!-- Search Filter -->
+<script type="text/javascript" src="{{ url_for('static', filename='js/searchFilters.js') }}"></script>
+<script>
+  // Note: the table does not include the header rows
+  var tableBody = document.getElementById('filteredTable');
+  var searchFilter = document.getElementById('searchFilter');
+  searchFilter.firstNameCellPosition = 0;
+  searchFilter.lastNameCellPosition = 1;
+  searchFilter.addEventListener('keyup', filterFirstLastNames);
+</script>
+
+<script type='text/javascript'>
+  document.addEventListener("DOMContentLoaded", function (event) {
+    // For each Add Time and Days block, disable the time and day inputs
+    // First, see if there are saved settings stored in the session
+    var learningLabDetails_JSON = sessionStorage.getItem("SavedLearningLabDetails");
+    // If there are saved settings, use them to set the select field and input field values
+    if (learningLabDetails_JSON) {
+      if (learningLabDetails_JSON != "") {
+        // Convert the saved settings into a JSON
+        var learningLabDetails = JSON.parse(learningLabDetails_JSON);
+        // Loop through the JSON
+        for (property in learningLabDetails) {
+          // console.log(property + ' = ' + learningLabDetails[property]);
+          element = document.getElementById(property);
+          // Verify if element exists and then set values
+          if (element != null) {
+            // Set checkboxes to be checked or not checked
+            if (element.type == "checkbox") {
+              element.checked = learningLabDetails[property]["value"];
+
+              // Set other input values to their saved values
+              // Don't set values for labels since they don't have values
+            } else if (element.nodeName != "LABEL") {
+              element.value = learningLabDetails[property]["value"];
+            }
+            // Set the disabled and className properties of elements 
+            // Note: this also sets the className property on the labels with id=_addTimeAndDay, etc.
+            element.disabled = learningLabDetails[property]["disabled"];
+            element.className = learningLabDetails[property]["className"];
+            // console.log("element =" + element.id + learningLabDetails[property]["type"]);
+            // Set label className (which defines text color) except for the labels defined
+            // with id=_addTimeAndDay, etc.
+            if (learningLabDetails[property]["type"] != "LABEL") {
+              // console.log("Setting label className property for: " + element.id);
+              element_label = element.labels[0];
+              // Set the label className property if the label exists 
+              if (element_label) {
+                element_label.className = learningLabDetails[property]["label_className"];
+              }
+            } else {
+              // console.log("No label for element: " + element.id);
+            }
+          }
+        }
+      }
+    }
+
+
+    // if there aren't saved settings, reset the form
+    if (learningLabDetails_JSON == null || learningLabDetails_JSON == '') {
+      // Get the four fieldsets to disable
+      var addTimeAndDayFieldset = document.querySelectorAll("fieldset[id^=fieldset_addTimeAndDays_");
+      // console.log("addTimeAndDayFieldset.length = " + addTimeAndDayFieldset.length)
+      // Cycle through each fieldset
+      for (j = 0; j < addTimeAndDayFieldset.length; j++) {
+        // Find all child nodes of the fieldset
+        fieldSetChildNodes = addTimeAndDayFieldset[j].querySelectorAll("*");
+        // console.log('fieldSetChildNodes = ' + fieldSetChildNodes.length);
+        // For each childnode, disable the childnode unless it is the Add Time checkbox
+        for (i = 0; i < fieldSetChildNodes.length; i++) {
+          // console.log('fieldSetChildNodes = ' + fieldSetChildNodes[i].id);
+          if (fieldSetChildNodes[i].id.search('addTimeAndDays') < 0) {
+            fieldSetChildNodes[i].disabled = true;
+            // console.log('search result = ' + fieldSetChildNodes[i].id.search('addTimeAndDays'));
+            // If the childnode is the Add Time checkbox, uncheck the box
+          } else if (fieldSetChildNodes[i].id.search('addTimeAndDays') == 0) {
+            document.getElementById(fieldSetChildNodes[i].id).checked = false;
+            // console.log('Checkbox value =' + fieldSetChildNodes[i].checked);
+          }
+          // Change label color to dark grey
+          if (fieldSetChildNodes[i].nodeName == "LABEL") {
+            fieldSetChildNodes[i].className = fieldSetChildNodes[i].className.replace("w3-text-green", "w3-text-grey");
+          }
+        }
+      }
+    }
+  });
+</script>
+
+<script type='text/javascript'>
+  var addTimeCheckBoxes = document.querySelectorAll("input[id^=addTimeAndDays]");
+  for (i = 0; i < addTimeCheckBoxes.length; i++) {
+    addTimeCheckBoxes[i].addEventListener("change", function () { toggleAddTimeAndDays(event); });
+  }
+
+  function toggleAddTimeAndDays(evt) {
+    // Disable or enable "Add Time and Days" fieldsets when checking the "Add Time" checkbox
+    addTimeAndDayCheckBox = evt.target;
+    // console.log('addTimeAndDayCheckBox = ' + addTimeAndDayCheckBox.id);
+    // console.log('checkbox parent = ' + addTimeAndDayCheckBox.parentNode.nodeName);
+    child = addTimeAndDayCheckBox;
+    parent = child.parentNode;
+    // Traverse the DOM to find the fieldset parent of the checkbox
+    while (parent.nodeName != 'FIELDSET') {
+      parent = parent.parentNode;
+    }
+    addTimeAndDayFieldset = parent;
+    // fieldSetChildNodes = addTimeAndDayFieldset.childNodes;
+    fieldSetChildNodes = addTimeAndDayFieldset.querySelectorAll("*")
+    // console.log('fieldSetChildNodes = ' + fieldSetChildNodes.length);
+    for (i = 0; i < fieldSetChildNodes.length; i++) {
+      // console.log('fieldSetChildNodes = ' + fieldSetChildNodes[i].id);
+      if (fieldSetChildNodes[i] != addTimeAndDayCheckBox) {
+        if (addTimeAndDayCheckBox.checked) {
+          fieldSetChildNodes[i].disabled = false;
+          fieldSetChildNodes[i].className = fieldSetChildNodes[i].className.replace("w3-text-grey", "w3-text-green");
+        } else {
+          fieldSetChildNodes[i].disabled = true;
+          fieldSetChildNodes[i].className = fieldSetChildNodes[i].className.replace("w3-text-green", "w3-text-grey");
+        }
+      }
+    }
+  }
+</script>
+
+<script>
+  // Create event listener to save learning lab details in session variable on form submit
+  var submitLearningLab = document.querySelector("input[id=submitAddSingleClassSchedule]");
+  // var submitLearningLab = document.querySelector("input[id=addTimeAndDays5]");
+  submitLearningLab.addEventListener("click", function () { saveLearningLabValues(event); });
+
+  function saveLearningLabValues(evt) {
+    // Save the current learning lab values in a session variable for later reuse
+    // Get all of the select fields (e.g. teacherName, className, etc.)
+    selectFields = document.querySelectorAll("select");
+    // Get all of the input fields (e.g. class dates, class days, etc.)
+    inputFields = document.querySelectorAll("input");
+    // Get all of the label fields (needed to set the text color to green or grey)
+    labelFields = document.querySelectorAll("label[id^=_addTimeAndDays");
+    console.log("label count =" + labelFields.length);
+    // Initialize the JSON object to hold the properties and values
+    var object = {};
+    // Cycle through the selectfields
+    for (i = 0; i < selectFields.length; i++) {
+      // Don't save student name
+      if (selectFields[i].id != "studentName") {
+        // console.log('selectfield = ' + selectFields[i].id)
+        // Get the selectField id and value
+        input_name = selectFields[i].id;
+        input_type = selectFields[i].type;
+        input_value = selectFields[i].value;
+        input_disabled = selectFields[i].disabled;
+        input_className = selectFields[i].className;
+        input_label = selectFields[i].labels[0];
+        if (input_label) {
+          // console.log('label = ' + input_label.textContent);
+          input_label_className = input_label.className;
+        } else {
+          input_label_className = "";
+        }
+        // console.log(inputFields[i].type + " " + input_name + ' = ' + input_value);
+        // Store the select field id and value in the JSON object
+        // object[input_name] = input_value;
+        object[input_name] = { type: input_type, value: input_value, disabled: input_disabled, className: input_className, label_className: input_label_className };
+      }
+    }
+    // Cycle through the input fields
+    for (i = 0; i < inputFields.length; i++) {
+      // Don't save csrf_token
+      if (inputFields[i].id != "csrf_token") {
+        // If the input field is a checkbox, get it's 'checked' state
+        if (inputFields[i].type == "checkbox") {
+          input_value = inputFields[i].checked;
+          // Otherwise, get the value of the input field
+        } else {
+          input_value = inputFields[i].value;
+        }
+        input_name = inputFields[i].id;
+        input_type = inputFields[i].type;
+        input_disabled = inputFields[i].disabled;
+        input_className = inputFields[i].className;
+        input_label = inputFields[i].labels[0];
+        if (input_label) {
+          // console.log('label = ' + input_label.textContent);
+          input_label_className = input_label.className;
+        } else {
+          input_label_className = "";
+        }
+        // console.log(inputFields[i].type + " " + input_name + ' = ' + input_value);
+        // Store the input field id and value in the JSON object
+        // object[input_name] = input_value;
+        object[input_name] = { type: input_type, value: input_value, disabled: input_disabled, className: input_className, label_className: input_label_className };
+      }
+    }
+    // Cycle through the label fields
+    for (i = 0; i < labelFields.length; i++) {
+      label_name = labelFields[i].id;
+      console.log("label_name =" + label_name);
+      label_nodeName = labelFields[i].nodeName;
+      label_textContent = labelFields[i].textContent;
+      label_disabled = labelFields[i].disabled;
+      label_className = labelFields[i].className;
+      object[label_name] = { type: label_nodeName, textContent: label_textContent, disabled: label_disabled, className: label_className };
+    }
+    // Convert the JSON object to a string
+    myJSON = JSON.stringify(object);
+    console.log('myJSON =' + myJSON);
+    // Save the JSON object to the session variable
+    sessionStorage.setItem("SavedLearningLabDetails", myJSON);
+  }
+</script>
+
+<script>
+  // document.addEventListener("DOMContentLoaded", function (event) {
+  //   // On page load, check whether there are saved learning lab details in the session
+  //   // If there are, set the form values to the saved settings
+  //   var learningLabDetails_JSON = sessionStorage.getItem("SavedLearningLabDetails");
+  //   if (learningLabDetails_JSON) {
+  //     if (learningLabDetails_JSON != "") {
+  //       // Convert the saved settings into a JSON
+  //       var learningLabDetails = JSON.parse(learningLabDetails_JSON);
+  //       // Loop through the JSON
+  //       for (property in learningLabDetails) {
+  //         // console.log(property + ' = ' + learningLabDetails[property]);
+  //         element = document.getElementById(property);
+  //         // Verify if element exists and then set values
+  //         if (element != null) {
+  //           // Set checkboxes to be checked or not checked
+  //           if (element.type == "checkbox") {
+  //             element.checked = learningLabDetails[property];
+  //             // Set other input values to their saved values
+  //           } else {
+  //             element.value = learningLabDetails[property];
+  //           }
+  //         }
+  //       }
+  //     }
+  //   }
+  // });
+
+</script>
+
+<script>
+  function resetForm(evt) {
+    // On form reset, clear the saved learning lab details and reload the form
+    // console.log('Reset form pressed');
+    sessionStorage.setItem("SavedLearningLabDetails", "");
+    location.reload()
+  }
+</script>
+
+{% endblock content %}

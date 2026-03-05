@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Attendance Log - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .attendance-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      color: white;
+    }
+    .action-button { margin: 2px; font-size: 0.9rem; }
+    .filter-card { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .spinner { display: inline-block; margin-right: 8px; }
+    .attendance-row { padding: 12px; border-bottom: 1px solid #f0f0f0; }
+    .attendance-row:hover { background-color: #f9f9f9; }
+    .radio-group { display: flex; gap: 16px; align-items: center; margin-top: 8px; }
+    .radio-group label { margin: 0; display: flex; align-items: center; gap: 6px; }
+    .radio-group input[type="radio"] { width: auto; }
+    .class-info-card { background: #e3f2fd; padding: 16px; border-radius: 4px; margin-bottom: 16px; border-left: 4px solid #2196F3; }
+    .class-info-card h4 { margin: 0 0 8px 0; color: #1976D2; }
+    .class-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .class-info-item { font-size: 14px; }
+    .class-info-label { font-weight: 600; color: #555; }
+    .tab-buttons { display: flex; gap: 8px; margin-bottom: 16px; }
+    .tab-button { padding: 10px 20px; cursor: pointer; background: white; border: 1px solid #ddd; border-radius: 4px 4px 0 0; }
+    .tab-button.active { background: #2196F3; color: white; border-color: #2196F3; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .student-name { font-weight: 600; color: #333; }
+    .comment-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+    .save-button-row { padding: 16px; background: white; position: sticky; bottom: 0; border-top: 2px solid #ddd; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  
+  <div class="w3-container w3-padding" style="margin-top: 10px;">
+    <!-- Header -->
+    <div class="w3-row w3-margin-bottom">
+      <div class="w3-col m8">
+        <h2><i class="fas fa-graduation-cap"></i> Class Attendance Log</h2>
+      </div>
+      <div class="w3-col m4 w3-right-align w3-padding-top">
+        <button id="btn-download-csv" class="w3-button w3-blue action-button">
+          <i class="fas fa-download"></i> Download CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-card w3-padding w3-margin-bottom">
+      <div class="w3-row">
+        <div class="w3-col m3 w3-padding-small">
+          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Teacher</label>
+          <select id="filter-teacher" class="w3-select w3-border">
+            <option value="">-- Select Teacher --</option>
+          </select>
+        </div>
+        <div class="w3-col m3 w3-padding-small">
+          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Class</label>
+          <select id="filter-class" class="w3-select w3-border">
+            <option value="">-- Select Class --</option>
+          </select>
+        </div>
+        <div class="w3-col m3 w3-padding-small">
+          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Class Date</label>
+          <input type="date" id="filter-class-date" class="w3-input w3-border">
+        </div>
+        <div class="w3-col m3 w3-padding-small" style="padding-top: 30px;">
+          <button id="btn-apply-filters" class="w3-button w3-blue w3-block">
+            <i class="fas fa-filter"></i> Apply
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-buttons">
+      <button class="tab-button active" onclick="switchTab('attendance-tab')">
+        <i class="fas fa-users-check"></i> Take Attendance
+      </button>
+      <button class="tab-button" onclick="switchTab('absence-tab')">
+        <i class="fas fa-ban"></i> Absence Summary
+      </button>
+    </div>
+
+    <!-- Tab 1: Take Attendance -->
+    <div id="attendance-tab" class="tab-content active">
+      <!-- Class Info Card (appears after filters applied) -->
+      <div id="class-info-container" style="display: none;">
+        <div class="class-info-card">
+          <h4>Class Information</h4>
+          <div class="class-info-grid">
+            <div class="class-info-item">
+              <div class="class-info-label">Teacher</div>
+              <div id="class-teacher">-</div>
+            </div>
+            <div class="class-info-item">
+              <div class="class-info-label">Class</div>
+              <div id="class-name">-</div>
+            </div>
+            <div class="class-info-item">
+              <div class="class-info-label">Date</div>
+              <div id="class-date">-</div>
+            </div>
+            <div class="class-info-item">
+              <div class="class-info-label">Time</div>
+              <div id="class-time">-</div>
+            </div>
+            <div class="class-info-item">
+              <div class="class-info-label">Campus</div>
+              <div id="class-campus">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attendance Table Container -->
+      <div id="loading-container" class="loading-container" style="display: none;">
+        <div class="loading-text">
+          <div class="spinner"></div>
+          <span>Loading class attendance...</span>
+        </div>
+      </div>
+
+      <div id="no-selection-message" class="w3-card w3-white w3-padding w3-center w3-margin-bottom" style="color: #999;">
+        <p><i class="fas fa-filter" style="font-size: 40px; margin: 20px 0;"></i></p>
+        <p>Select teacher, class, and date above to begin taking attendance.</p>
+      </div>
+
+      <div id="attendance-container" style="display: none;">
+        <div class="w3-card w3-white">
+          <div class="save-button-row" style="position: sticky; top: 0; background: white; border-bottom: 2px solid #ddd; z-index: 10;">
+            <button id="btn-save-top" class="w3-button w3-green">
+              <i class="fas fa-save"></i> Save All Changes
+            </button>
+          </div>
+          <div id="attendance-students-list"></div>
+        </div>
+
+        <div class="save-button-row">
+          <button id="btn-save-bottom" class="w3-button w3-green w3-block w3-large">
+            <i class="fas fa-save"></i> Save All Changes
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Absence Summary -->
+    <div id="absence-tab" class="tab-content">
+      <!-- Absence Filters -->
+      <div class="filter-card w3-padding w3-margin-bottom">
+        <div class="w3-row">
+          <div class="w3-col m4 w3-padding-small">
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Teacher</label>
+            <select id="absence-filter-teacher" class="w3-select w3-border">
+              <option value="">All Teachers</option>
+            </select>
+          </div>
+          <div class="w3-col m4 w3-padding-small">
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Start Date</label>
+            <input type="date" id="absence-filter-start-date" class="w3-input w3-border">
+          </div>
+          <div class="w3-col m4 w3-padding-small">
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">End Date</label>
+            <input type="date" id="absence-filter-end-date" class="w3-input w3-border">
+          </div>
+        </div>
+        <div class="w3-row w3-margin-top">
+          <div class="w3-col m12 w3-padding-small">
+            <button id="btn-apply-absence-filters" class="w3-button w3-blue">
+              <i class="fas fa-filter"></i> Apply Filters
+            </button>
+            <button id="btn-download-absence-csv" class="w3-button w3-blue">
+              <i class="fas fa-download"></i> Download CSV
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Absence Table -->
+      <div id="absence-loading" class="loading-container" style="display: none;">
+        <div class="loading-text">
+          <div class="spinner"></div>
+          <span>Loading absence data...</span>
+        </div>
+      </div>
+
+      <div class="w3-card w3-white">
+        <table id="absenceTable" class="w3-table w3-striped w3-bordered">
+          <thead class="w3-blue">
+            <tr>
+              <th>Date</th>
+              <th>Class</th>
+              <th>Student Name</th>
+              <th>Code</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody id="absence-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth, getCurrentUser } from './js/auth.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import { initNav } from './js/nav.js';
+    import { formatDate, exportCSV, showToast, ATTENDANCE_CODES } from './js/utils.js';
+
+    let currentUser = null;
+    let allClassSchedules = [];
+    let allClassAttendanceLogs = [];
+    let allStudents = [];
+    let currentClassScheduleId = null;
+    let currentTeacher = null;
+    let currentClass = null;
+    let currentDate = null;
+    let attendanceChanges = {};
+    let absenceTable = null;
+
+    // Initialize page
+    initAuth().then(user => {
+      currentUser = user;
+      initNav('class-attendance');
+      init();
+    });
+
+    async function init() {
+      try {
+        await loadAllData();
+        populateTeacherDropdowns();
+        attachEventListeners();
+        initAbsenceTable();
+      } catch (error) {
+        console.error('Error initializing page:', error);
+        showToast('Error loading class data', 'error');
+      }
+    }
+
+    async function loadAllData() {
+      try {
+        allClassSchedules = await getAll('classSchedules');
+        allClassAttendanceLogs = await getAll('classAttendanceLogs');
+        allStudents = await getAll('students');
+      } catch (error) {
+        console.error('Error loading data:', error);
+        throw error;
+      }
+    }
+
+    function populateTeacherDropdowns() {
+      const uniqueTeachers = [...new Set(allClassSchedules.map(cs => cs.teacherLastName))].filter(Boolean).sort();
+      
+      const filterTeacher = document.getElementById('filter-teacher');
+      const absenceFilterTeacher = document.getElementById('absence-filter-teacher');
+      
+      uniqueTeachers.forEach(teacher => {
+        const option1 = document.createElement('option');
+        option1.value = teacher;
+        option1.textContent = teacher;
+        filterTeacher.appendChild(option1);
+
+        const option2 = document.createElement('option');
+        option2.value = teacher;
+        option2.textContent = teacher;
+        absenceFilterTeacher.appendChild(option2);
+      });
+    }
+
+    function populateClassDropdown() {
+      const selectedTeacher = document.getElementById('filter-teacher').value;
+      const filterClass = document.getElementById('filter-class');
+      
+      // Clear existing options
+      filterClass.innerHTML = '<option value="">-- Select Class --</option>';
+      
+      if (!selectedTeacher) return;
+
+      const classes = [...new Set(
+        allClassSchedules
+          .filter(cs => cs.teacherLastName === selectedTeacher)
+          .map(cs => cs.className)
+      )].sort();
+
+      classes.forEach(className => {
+        const option = document.createElement('option');
+        option.value = className;
+        option.textContent = className;
+        filterClass.appendChild(option);
+      });
+    }
+
+    function attachEventListeners() {
+      document.getElementById('filter-teacher').addEventListener('change', populateClassDropdown);
+      document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
+      document.getElementById('btn-download-csv').addEventListener('click', downloadAttendanceCSV);
+      document.getElementById('btn-save-top').addEventListener('click', saveAllChanges);
+      document.getElementById('btn-save-bottom').addEventListener('click', saveAllChanges);
+      document.getElementById('btn-apply-absence-filters').addEventListener('click', loadAbsenceData);
+      document.getElementById('btn-download-absence-csv').addEventListener('click', downloadAbsenceCSV);
+
+      // Set today as default date
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('filter-class-date').value = today;
+    }
+
+    async function applyFilters() {
+      const teacher = document.getElementById('filter-teacher').value;
+      const className = document.getElementById('filter-class').value;
+      const classDate = document.getElementById('filter-class-date').value;
+
+      if (!teacher || !className || !classDate) {
+        showToast('Please select teacher, class, and date', 'error');
+        return;
+      }
+
+      try {
+        document.getElementById('loading-container').style.display = 'flex';
+        document.getElementById('attendance-container').style.display = 'none';
+        document.getElementById('no-selection-message').style.display = 'block';
+
+        const schedule = allClassSchedules.find(cs => 
+          cs.teacherLastName === teacher && cs.className === className
+        );
+
+        if (!schedule) {
+          showToast('Class schedule not found', 'error');
+          document.getElementById('loading-container').style.display = 'none';
+          return;
+        }
+
+        currentClassScheduleId = schedule.id;
+        currentTeacher = teacher;
+        currentClass = className;
+        currentDate = classDate;
+        attendanceChanges = {};
+
+        // Load enrolled students (from classSchedules)
+        const enrolledStudents = [];
+        if (schedule.studentIds && Array.isArray(schedule.studentIds)) {
+          for (const studentId of schedule.studentIds) {
+            const student = allStudents.find(s => s.id === studentId);
+            if (student) enrolledStudents.push(student);
+          }
+        }
+
+        // Display class info
+        displayClassInfo(schedule);
+        document.getElementById('class-info-container').style.display = 'block';
+
+        // Load existing attendance logs for this date
+        const existingLogs = allClassAttendanceLogs.filter(log =>
+          log.classScheduleId === schedule.id && log.classDate === classDate
+        );
+
+        // Display attendance form
+        displayAttendanceForm(enrolledStudents, existingLogs, schedule);
+        document.getElementById('no-selection-message').style.display = 'none';
+        document.getElementById('attendance-container').style.display = 'block';
+        document.getElementById('loading-container').style.display = 'none';
+
+      } catch (error) {
+        console.error('Error applying filters:', error);
+        showToast('Error loading class attendance', 'error');
+        document.getElementById('loading-container').style.display = 'none';
+      }
+    }
+
+    function displayClassInfo(schedule) {
+      document.getElementById('class-teacher').textContent = schedule.teacherLastName || '-';
+      document.getElementById('class-name').textContent = schedule.className || '-';
+      document.getElementById('class-date').textContent = formatDate(currentDate);
+      document.getElementById('class-campus').textContent = schedule.campus || '-';
+      
+      const timeStr = schedule.startTime && schedule.endTime 
+        ? `${schedule.startTime} - ${schedule.endTime}`
+        : '-';
+      document.getElementById('class-time').textContent = timeStr;
+    }
+
+    function displayAttendanceForm(students, existingLogs, schedule) {
+      const container = document.getElementById('attendance-students-list');
+      container.innerHTML = '';
+
+      students.forEach(student => {
+        const log = existingLogs.find(l => l.chattStateANumber === student.chattStateANumber);
+        const currentCode = log?.attendanceCode || 'P';
+        const currentComment = log?.comment || '';
+        const assignTmi = log?.assignTmi || false;
+
+        const codeColor = ATTENDANCE_CODES[currentCode]?.color || '#4CAF50';
+
+        const studentRow = document.createElement('div');
+        studentRow.className = 'attendance-row';
+        studentRow.innerHTML = `
+          <div style="padding: 8px 0;">
+            <div style="margin-bottom: 8px;">
+              <span class="student-name">${student.lastName}, ${student.firstName}</span>
+              <span style="color: #999; font-size: 12px;">(${student.chattStateANumber})</span>
+            </div>
+            <div class="radio-group">
+              <label><input type="radio" name="code-${student.chattStateANumber}" value="P" ${currentCode === 'P' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">P</span></label>
+              <label><input type="radio" name="code-${student.chattStateANumber}" value="T" ${currentCode === 'T' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #FFC107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px;">T</span></label>
+              <label><input type="radio" name="code-${student.chattStateANumber}" value="E" ${currentCode === 'E' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">E</span></label>
+              <label><input type="radio" name="code-${student.chattStateANumber}" value="U" ${currentCode === 'U' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #F44336; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">U</span></label>
+              <label><input type="radio" name="code-${student.chattStateANumber}" value="?" ${currentCode === '?' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #999; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">?</span></label>
+            </div>
+            <div style="margin-top: 8px;">
+              <input type="text" class="comment-input" id="comment-${student.chattStateANumber}" placeholder="Comment..." value="${currentComment}" onchange="updateAttendanceComment('${student.chattStateANumber}', this.value)">
+              <label style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
+                <input type="checkbox" id="tmi-${student.chattStateANumber}" ${assignTmi ? 'checked' : ''} onchange="updateAttendanceTMI('${student.chattStateANumber}', this.checked)" style="width: auto;">
+                <span>Assign TMI</span>
+              </label>
+            </div>
+          </div>
+        `;
+        container.appendChild(studentRow);
+      });
+    }
+
+    window.updateAttendanceCode = function(studentId, code) {
+      if (!attendanceChanges[studentId]) {
+        attendanceChanges[studentId] = {};
+      }
+      attendanceChanges[studentId].code = code;
+    };
+
+    window.updateAttendanceComment = function(studentId, comment) {
+      if (!attendanceChanges[studentId]) {
+        attendanceChanges[studentId] = {};
+      }
+      attendanceChanges[studentId].comment = comment;
+    };
+
+    window.updateAttendanceTMI = function(studentId, checked) {
+      if (!attendanceChanges[studentId]) {
+        attendanceChanges[studentId] = {};
+      }
+      attendanceChanges[studentId].assignTmi = checked;
+    };
+
+    async function saveAllChanges() {
+      if (!currentClassScheduleId || !currentDate) {
+        showToast('No class selected', 'error');
+        return;
+      }
+
+      try {
+        const savePromises = [];
+
+        // Get all radio buttons to capture current state
+        const allRadios = document.querySelectorAll('input[type="radio"]:checked');
+        const allStudents = new Set();
+        allRadios.forEach(radio => {
+          const name = radio.name;
+          const studentId = name.replace('code-', '');
+          allStudents.add(studentId);
+        });
+
+        allStudents.forEach(studentId => {
+          const code = document.querySelector(`input[name="code-${studentId}"]:checked`)?.value || 'P';
+          const comment = document.getElementById(`comment-${studentId}`)?.value || '';
+          const assignTmi = document.getElementById(`tmi-${studentId}`)?.checked || false;
+
+          const student = allStudents.find(s => s.chattStateANumber === studentId);
+          const studentName = student ? `${student.lastName}, ${student.firstName}` : '';
+
+          // Check if log exists and upsert
+          const existingLog = allClassAttendanceLogs.find(l =>
+            l.classScheduleId === currentClassScheduleId &&
+            l.classDate === currentDate &&
+            l.chattStateANumber === studentId
+          );
+
+          if (existingLog) {
+            savePromises.push(
+              updateDoc('classAttendanceLogs', existingLog.id, {
+                attendanceCode: code,
+                comment,
+                assignTmi,
+                updatedAt: new Date().toISOString()
+              })
+            );
+          } else {
+            savePromises.push(
+              addDoc('classAttendanceLogs', {
+                classScheduleId: currentClassScheduleId,
+                classDate: currentDate,
+                chattStateANumber: studentId,
+                studentName: studentName,
+                attendanceCode: code,
+                comment,
+                assignTmi,
+                createdBy: currentUser.uid,
+                updatedAt: new Date().toISOString()
+              })
+            );
+          }
+        });
+
+        await Promise.all(savePromises);
+        showToast('Attendance saved successfully', 'success');
+        attendanceChanges = {};
+        await loadAllData();
+      } catch (error) {
+        console.error('Error saving attendance:', error);
+        showToast('Error saving attendance', 'error');
+      }
+    }
+
+    async function loadAbsenceData() {
+      try {
+        document.getElementById('absence-loading').style.display = 'flex';
+        
+        const teacher = document.getElementById('absence-filter-teacher').value;
+        const startDate = document.getElementById('absence-filter-start-date').value;
+        const endDate = document.getElementById('absence-filter-end-date').value;
+
+        let filtered = [...allClassAttendanceLogs];
+
+        if (teacher) {
+          const teacherClasses = allClassSchedules
+            .filter(cs => cs.teacherLastName === teacher)
+            .map(cs => cs.id);
+          filtered = filtered.filter(log => teacherClasses.includes(log.classScheduleId));
+        }
+
+        if (startDate) {
+          filtered = filtered.filter(log => log.classDate >= startDate);
+        }
+        if (endDate) {
+          filtered = filtered.filter(log => log.classDate <= endDate);
+        }
+
+        // Filter for non-P codes
+        filtered = filtered.filter(log => log.attendanceCode !== 'P' && log.attendanceCode !== '?');
+
+        if (absenceTable) {
+          absenceTable.destroy();
+        }
+
+        $('#absence-tbody').html('');
+        filtered.forEach(log => {
+          const schedule = allClassSchedules.find(cs => cs.id === log.classScheduleId);
+          const className = schedule?.className || 'Unknown';
+          const codeColor = ATTENDANCE_CODES[log.attendanceCode]?.color || '#666';
+          const codeBadge = `<span class="attendance-badge" style="background-color: ${codeColor};">${log.attendanceCode}</span>`;
+
+          $('#absence-tbody').append(`
+            <tr>
+              <td>${formatDate(log.classDate)}</td>
+              <td>${className}</td>
+              <td>${log.studentName}</td>
+              <td>${codeBadge}</td>
+              <td>${log.comment || '-'}</td>
+            </tr>
+          `);
+        });
+
+        absenceTable = $('#absenceTable').DataTable({
+          paging: true,
+          pageLength: 25,
+          ordering: true,
+          searching: true,
+          info: true,
+          lengthChange: true,
+          autoWidth: false,
+          destroy: true
+        });
+
+        document.getElementById('absence-loading').style.display = 'none';
+      } catch (error) {
+        console.error('Error loading absence data:', error);
+        showToast('Error loading absence data', 'error');
+        document.getElementById('absence-loading').style.display = 'none';
+      }
+    }
+
+    function initAbsenceTable() {
+      absenceTable = $('#absenceTable').DataTable({
+        paging: true,
+        pageLength: 25,
+        ordering: true,
+        searching: true,
+        info: true,
+        lengthChange: true,
+        autoWidth: false
+      });
+    }
+
+    function downloadAttendanceCSV() {
+      if (!currentClassScheduleId || !currentDate) {
+        showToast('Please apply filters first', 'error');
+        return;
+      }
+
+      try {
+        const logs = allClassAttendanceLogs.filter(log =>
+          log.classScheduleId === currentClassScheduleId && log.classDate === currentDate
+        );
+
+        const csvData = logs.map(log => ({
+          'Date': formatDate(log.classDate),
+          'Class': currentClass,
+          'Student': log.studentName,
+          'Code': log.attendanceCode,
+          'Comment': log.comment || '',
+          'TMI': log.assignTmi ? 'Yes' : 'No'
+        }));
+
+        if (csvData.length === 0) {
+          showToast('No attendance records to download', 'warning');
+          return;
+        }
+
+        exportCSV(csvData, `class-attendance-${currentClass}-${currentDate}.csv`);
+      } catch (error) {
+        console.error('Error downloading CSV:', error);
+        showToast('Error downloading CSV', 'error');
+      }
+    }
+
+    function downloadAbsenceCSV() {
+      try {
+        const rows = document.querySelectorAll('#absence-tbody tr');
+        if (rows.length === 0) {
+          showToast('No absence records to download', 'warning');
+          return;
+        }
+
+        const csvData = [];
+        rows.forEach(row => {
+          const cells = row.querySelectorAll('td');
+          csvData.push({
+            'Date': cells[0].textContent,
+            'Class': cells[1].textContent,
+            'Student': cells[2].textContent,
+            'Code': cells[3].textContent,
+            'Comment': cells[4].textContent
+          });
+        });
+
+        exportCSV(csvData, 'class-absence-summary.csv');
+      } catch (error) {
+        console.error('Error downloading absence CSV:', error);
+        showToast('Error downloading CSV', 'error');
+      }
+    }
+
+    window.switchTab = function(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      // Show selected tab
+      document.getElementById(tabName).classList.add('active');
+      event.target.classList.add('active');
+
+      // Load absence data when switching to absence tab
+      if (tabName === 'absence-tab') {
+        loadAbsenceData();
+      }
+    };
+  </script>
+</body>
+</html>

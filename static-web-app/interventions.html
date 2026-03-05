@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intervention Log - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .level-badge-1 { background-color: #4CAF50; color: white; }
+    .level-badge-2 { background-color: #8BC34A; color: white; }
+    .level-badge-3 { background-color: #FFEB3B; color: black; }
+    .level-badge-4 { background-color: #FF9800; color: white; }
+    .level-badge-5 { background-color: #F44336; color: white; }
+    .level-badge-6 { background-color: #8B0000; color: white; }
+    .modal-content { max-height: 90vh; overflow-y: auto; }
+    .action-btn { padding: 4px 8px; font-size: 12px; margin: 2px; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  <div class="w3-container w3-padding" style="margin-top:10px;">
+    
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h2><i class="fas fa-clipboard-list"></i> Intervention Log</h2>
+      <div class="w3-bar w3-margin-bottom">
+        <button class="w3-bar-item w3-button w3-blue w3-round" id="addBtn">
+          <i class="fas fa-plus"></i> Add Intervention
+        </button>
+        <button class="w3-bar-item w3-button w3-teal w3-round" id="downloadBtn">
+          <i class="fas fa-download"></i> Download CSV
+        </button>
+      </div>
+    </div>
+
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h4>Filters</h4>
+      <div class="w3-row">
+        <div class="w3-col m3">
+          <label>Student Name</label>
+          <input type="text" id="filterStudent" class="w3-input w3-border" placeholder="Search student...">
+        </div>
+        <div class="w3-col m3">
+          <label>Intervention Type</label>
+          <select id="filterType" class="w3-input w3-border">
+            <option value="">-- All Types --</option>
+          </select>
+        </div>
+        <div class="w3-col m3">
+          <label>Status</label>
+          <select id="filterStatus" class="w3-input w3-border">
+            <option value="">-- All Status --</option>
+            <option value="Active">Active</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
+        <div class="w3-col m3">
+          <label>Start Date Range</label>
+          <input type="date" id="filterStartDate" class="w3-input w3-border">
+          <input type="date" id="filterEndDate" class="w3-input w3-border" style="margin-top:4px;">
+        </div>
+      </div>
+      <div class="w3-margin-top">
+        <button class="w3-button w3-green w3-round" id="applyFiltersBtn">Apply Filters</button>
+        <button class="w3-button w3-light-grey w3-round" id="clearFiltersBtn">Clear</button>
+      </div>
+    </div>
+
+    <div class="w3-card w3-padding">
+      <div id="loadingSpinner" class="w3-center w3-padding" style="display:none;">
+        <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i> Loading...
+      </div>
+      <table id="interventionTable" class="w3-table w3-bordered w3-striped" style="width:100%;">
+        <thead>
+          <tr class="w3-blue">
+            <th>Student Name</th>
+            <th>ChattState A#</th>
+            <th>Intervention Type</th>
+            <th>Level</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Status</th>
+            <th>TMI Minutes</th>
+            <th>TMI Served</th>
+            <th>TMI Remaining</th>
+            <th>Staff</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="interventionTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add/Edit Intervention Modal -->
+  <div id="interventionModal" class="w3-modal" style="display:none;z-index:10;">
+    <div class="w3-modal-content w3-card-4 modal-content" style="max-width:600px;">
+      <header class="w3-container w3-blue">
+        <span class="w3-button w3-display-topright" onclick="closeModal('interventionModal')">&times;</span>
+        <h2 id="modalTitle">Add Intervention</h2>
+      </header>
+      <form id="interventionForm" class="w3-container w3-padding">
+        <label class="w3-text-blue"><b>Student *</b></label>
+        <select id="studentSelect" class="w3-input w3-border w3-margin-bottom" required>
+          <option value="">-- Select Student --</option>
+        </select>
+
+        <label class="w3-text-blue"><b>Intervention Type *</b></label>
+        <select id="typeSelect" class="w3-input w3-border w3-margin-bottom" required>
+          <option value="">-- Select Type --</option>
+        </select>
+
+        <label class="w3-text-blue"><b>Intervention Level *</b></label>
+        <select id="levelSelect" class="w3-input w3-border w3-margin-bottom" required>
+          <option value="">-- Select Level --</option>
+          <option value="1">1 - Green</option>
+          <option value="2">2 - Light Green</option>
+          <option value="3">3 - Yellow</option>
+          <option value="4">4 - Orange</option>
+          <option value="5">5 - Red</option>
+          <option value="6">6 - Dark Red</option>
+        </select>
+
+        <label class="w3-text-blue"><b>Start Date *</b></label>
+        <input type="date" id="startDateInput" class="w3-input w3-border w3-margin-bottom" required>
+
+        <label class="w3-text-blue"><b>End Date</b></label>
+        <input type="date" id="endDateInput" class="w3-input w3-border w3-margin-bottom">
+
+        <label class="w3-text-blue"><b>Comment</b></label>
+        <textarea id="commentInput" class="w3-input w3-border w3-margin-bottom" rows="3" placeholder="Add comment..."></textarea>
+
+        <label class="w3-text-blue"><b>TMI Minutes *</b></label>
+        <input type="number" id="tmiMinutesInput" class="w3-input w3-border w3-margin-bottom" min="0" required>
+
+        <label class="w3-text-blue"><b>Status *</b></label>
+        <select id="statusSelect" class="w3-input w3-border w3-margin-bottom" required>
+          <option value="Active">Active</option>
+          <option value="Closed">Closed</option>
+        </select>
+
+        <div class="w3-margin-bottom">
+          <label class="w3-checkbox">
+            <input type="checkbox" id="studentNotifInput"> Notify Student
+          </label>
+        </div>
+
+        <div class="w3-margin-bottom">
+          <label class="w3-checkbox">
+            <input type="checkbox" id="parentNotifInput"> Notify Parent
+          </label>
+        </div>
+
+        <div class="w3-bar w3-margin-top">
+          <button type="submit" class="w3-bar-item w3-button w3-green w3-round">Save</button>
+          <button type="button" class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('interventionModal')">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteModal" class="w3-modal" style="display:none;z-index:10;">
+    <div class="w3-modal-content w3-card-4" style="max-width:400px;">
+      <header class="w3-container w3-red">
+        <span class="w3-button w3-display-topright" onclick="closeModal('deleteModal')">&times;</span>
+        <h2>Confirm Delete</h2>
+      </header>
+      <div class="w3-container w3-padding">
+        <p>Are you sure you want to delete this intervention?</p>
+        <div class="w3-bar">
+          <button class="w3-bar-item w3-button w3-red w3-round" id="confirmDeleteBtn">Delete</button>
+          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('deleteModal')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Template Modal -->
+  <div id="notificationModal" class="w3-modal" style="display:none;z-index:10;">
+    <div class="w3-modal-content w3-card-4 modal-content" style="max-width:700px;">
+      <header class="w3-container w3-blue">
+        <span class="w3-button w3-display-topright" onclick="closeModal('notificationModal')">&times;</span>
+        <h2>Notification Template</h2>
+      </header>
+      <div class="w3-container w3-padding">
+        <div class="w3-panel w3-light-grey w3-round">
+          <p><b>To:</b> <span id="notifTo"></span></p>
+          <p><b>Subject:</b> <span id="notifSubject"></span></p>
+        </div>
+        <div class="w3-panel w3-white w3-border" style="min-height:200px;white-space:pre-wrap;">
+          <div id="notifContent"></div>
+        </div>
+        <div class="w3-bar">
+          <button class="w3-bar-item w3-button w3-blue w3-round" id="copyNotifBtn">
+            <i class="fas fa-copy"></i> Copy to Clipboard
+          </button>
+          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('notificationModal')">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, batchWrite } from './js/db.js';
+    import { formatDate, exportCSV, showToast, showModal } from './js/utils.js';
+
+    let interventionTable;
+    let interventionTypes = [];
+    let students = [];
+    let currentEditId = null;
+    let currentDeleteId = null;
+    let interventions = [];
+    let filteredInterventions = [];
+    let currentNotifData = null;
+
+    initAuth().then(user => {
+      initNav('interventions');
+      init();
+    });
+
+    async function init() {
+      try {
+        $('#loadingSpinner').show();
+        await loadInterventionTypes();
+        await loadStudents();
+        await loadInterventions();
+        initDataTable();
+        attachEventListeners();
+        applyUrlFilters();
+        $('#loadingSpinner').hide();
+      } catch (error) {
+        console.error('Init error:', error);
+        showToast('Error loading data', 'error');
+        $('#loadingSpinner').hide();
+      }
+    }
+
+    async function loadInterventionTypes() {
+      try {
+        interventionTypes = await getAll('interventionTypes');
+        let typeSelect = $('#typeSelect');
+        interventionTypes.forEach(type => {
+          typeSelect.append(`<option value="${type.id}">${type.interventionType}</option>`);
+        });
+        let filterType = $('#filterType');
+        interventionTypes.forEach(type => {
+          filterType.append(`<option value="${type.id}">${type.interventionType}</option>`);
+        });
+      } catch (error) {
+        console.error('Error loading intervention types:', error);
+      }
+    }
+
+    async function loadStudents() {
+      try {
+        students = await getAll('students');
+        let studentSelect = $('#studentSelect');
+        students.forEach(student => {
+          let displayName = `${student.lastName}, ${student.firstName}`;
+          studentSelect.append(`<option value="${student.id}" data-chattstate="${student.chattStateANumber}">${displayName}</option>`);
+        });
+      } catch (error) {
+        console.error('Error loading students:', error);
+      }
+    }
+
+    async function loadInterventions() {
+      try {
+        interventions = await getAll('interventionLogs');
+        filteredInterventions = [...interventions];
+      } catch (error) {
+        console.error('Error loading interventions:', error);
+        showToast('Error loading interventions', 'error');
+      }
+    }
+
+    function initDataTable() {
+      if (interventionTable) {
+        interventionTable.destroy();
+      }
+      $('#interventionTableBody').empty();
+      filteredInterventions.forEach(intervention => {
+        let levelBadge = `<span class="w3-badge level-badge-${intervention.interventionLevel}">${intervention.interventionLevel}</span>`;
+        let statusBadge = intervention.interventionStatus === 'Active' 
+          ? '<span class="w3-badge w3-green">Active</span>' 
+          : '<span class="w3-badge w3-gray">Closed</span>';
+        let row = `
+          <tr>
+            <td>${intervention.studentName || ''}</td>
+            <td>${intervention.chattStateANumber || ''}</td>
+            <td>${intervention.interventionType || ''}</td>
+            <td>${levelBadge}</td>
+            <td>${formatDate(intervention.startDate)}</td>
+            <td>${intervention.endDate ? formatDate(intervention.endDate) : '-'}</td>
+            <td>${statusBadge}</td>
+            <td>${intervention.tmiMinutes || 0}</td>
+            <td>${intervention.tmiMinutesServed || 0}</td>
+            <td>${intervention.tmiMinutesRemaining || 0}</td>
+            <td>${intervention.staffName || ''}</td>
+            <td>
+              <button class="w3-button w3-small w3-blue action-btn" onclick="editIntervention('${intervention.id}')">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="w3-button w3-small w3-red action-btn" onclick="deleteIntervention('${intervention.id}')">
+                <i class="fas fa-trash"></i>
+              </button>
+              <button class="w3-button w3-small w3-teal action-btn" onclick="showNotificationTemplate('${intervention.id}')">
+                <i class="fas fa-bell"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+        $('#interventionTableBody').append(row);
+      });
+
+      interventionTable = $('#interventionTable').DataTable({
+        paging: true,
+        pageLength: 25,
+        ordering: true,
+        searching: true,
+        responsive: false
+      });
+    }
+
+    function attachEventListeners() {
+      $('#addBtn').click(() => openAddModal());
+      $('#downloadBtn').click(() => downloadCSV());
+      $('#applyFiltersBtn').click(() => applyFilters());
+      $('#clearFiltersBtn').click(() => clearFilters());
+      
+      $('#interventionForm').submit(async (e) => {
+        e.preventDefault();
+        await saveIntervention();
+      });
+
+      $('#confirmDeleteBtn').click(async () => {
+        await performDelete();
+      });
+
+      $('#copyNotifBtn').click(() => copyNotificationToClipboard());
+    }
+
+    function openAddModal() {
+      currentEditId = null;
+      $('#modalTitle').text('Add Intervention');
+      $('#interventionForm')[0].reset();
+      $('#studentSelect').val('');
+      $('#typeSelect').val('');
+      $('#levelSelect').val('');
+      $('#statusSelect').val('Active');
+      $('#studentNotifInput').prop('checked', false);
+      $('#parentNotifInput').prop('checked', false);
+      $('#interventionModal').show();
+    }
+
+    async function editIntervention(id) {
+      try {
+        let intervention = await getById('interventionLogs', id);
+        currentEditId = id;
+        $('#modalTitle').text('Edit Intervention');
+        $('#studentSelect').val(intervention.studentId || '');
+        $('#typeSelect').val(intervention.interventionTypeId || '');
+        $('#levelSelect').val(intervention.interventionLevel);
+        $('#startDateInput').val(intervention.startDate ? intervention.startDate.split('T')[0] : '');
+        $('#endDateInput').val(intervention.endDate ? intervention.endDate.split('T')[0] : '');
+        $('#commentInput').val(intervention.comment || '');
+        $('#tmiMinutesInput').val(intervention.tmiMinutes || 0);
+        $('#statusSelect').val(intervention.interventionStatus);
+        $('#studentNotifInput').prop('checked', intervention.studentNotification || false);
+        $('#parentNotifInput').prop('checked', intervention.parentNotification || false);
+        $('#interventionModal').show();
+      } catch (error) {
+        console.error('Error loading intervention:', error);
+        showToast('Error loading intervention', 'error');
+      }
+    }
+
+    async function saveIntervention() {
+      try {
+        let studentSelect = $('#studentSelect');
+        let studentId = studentSelect.val();
+        let student = students.find(s => s.id === studentId);
+        
+        let typeSelect = $('#typeSelect');
+        let typeId = typeSelect.val();
+        let type = interventionTypes.find(t => t.id === typeId);
+
+        let data = {
+          studentId: studentId,
+          studentName: student ? `${student.lastName}, ${student.firstName}` : '',
+          chattStateANumber: student ? student.chattStateANumber : '',
+          interventionTypeId: typeId,
+          interventionType: type ? type.interventionType : '',
+          interventionLevel: parseInt($('#levelSelect').val()),
+          startDate: $('#startDateInput').val(),
+          endDate: $('#endDateInput').val() || null,
+          comment: $('#commentInput').val(),
+          tmiMinutes: parseInt($('#tmiMinutesInput').val()),
+          tmiMinutesServed: currentEditId ? (await getById('interventionLogs', currentEditId)).tmiMinutesServed || 0 : 0,
+          tmiMinutesRemaining: parseInt($('#tmiMinutesInput').val()),
+          interventionStatus: $('#statusSelect').val(),
+          studentNotification: $('#studentNotifInput').prop('checked'),
+          parentNotification: $('#parentNotifInput').prop('checked'),
+          createDate: currentEditId ? (await getById('interventionLogs', currentEditId)).createDate : new Date().toISOString()
+        };
+
+        if (currentEditId) {
+          await updateDoc('interventionLogs', currentEditId, data);
+          showToast('Intervention updated successfully', 'success');
+        } else {
+          data.createDate = new Date().toISOString();
+          await addDoc('interventionLogs', data);
+          showToast('Intervention added successfully', 'success');
+        }
+
+        closeModal('interventionModal');
+        await loadInterventions();
+        initDataTable();
+      } catch (error) {
+        console.error('Error saving intervention:', error);
+        showToast('Error saving intervention', 'error');
+      }
+    }
+
+    function deleteIntervention(id) {
+      currentDeleteId = id;
+      $('#deleteModal').show();
+    }
+
+    async function performDelete() {
+      try {
+        await deleteDoc('interventionLogs', currentDeleteId);
+        showToast('Intervention deleted successfully', 'success');
+        closeModal('deleteModal');
+        await loadInterventions();
+        initDataTable();
+      } catch (error) {
+        console.error('Error deleting intervention:', error);
+        showToast('Error deleting intervention', 'error');
+      }
+    }
+
+    async function showNotificationTemplate(id) {
+      try {
+        let intervention = await getById('interventionLogs', id);
+        let templates = await getWhere('p2mtTemplates', 'intervention_id', id);
+        
+        if (templates.length === 0) {
+          showToast('No notification template found', 'warning');
+          return;
+        }
+
+        let template = templates.find(t => t.interventionLevel === intervention.interventionLevel) || templates[0];
+        currentNotifData = {
+          id: id,
+          intervention: intervention,
+          template: template
+        };
+
+        $('#notifTo').text(template.sendToStudent ? intervention.studentName : 'Parent');
+        $('#notifSubject').text(template.emailSubject || '');
+        $('#notifContent').text(template.templateContent || '');
+        $('#notificationModal').show();
+      } catch (error) {
+        console.error('Error loading notification template:', error);
+        showToast('Error loading notification template', 'error');
+      }
+    }
+
+    function copyNotificationToClipboard() {
+      if (!currentNotifData) return;
+      let text = `To: ${$('#notifTo').text()}\nSubject: ${$('#notifSubject').text()}\n\n${$('#notifContent').text()}`;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard', 'success');
+      });
+    }
+
+    function applyFilters() {
+      filteredInterventions = interventions.filter(intervention => {
+        let studentFilter = $('#filterStudent').val().toLowerCase();
+        let typeFilter = $('#filterType').val();
+        let statusFilter = $('#filterStatus').val();
+        let startDateFilter = $('#filterStartDate').val();
+        let endDateFilter = $('#filterEndDate').val();
+
+        if (studentFilter && !intervention.studentName.toLowerCase().includes(studentFilter)) return false;
+        if (typeFilter && intervention.interventionTypeId !== typeFilter) return false;
+        if (statusFilter && intervention.interventionStatus !== statusFilter) return false;
+        
+        if (startDateFilter && intervention.startDate < startDateFilter) return false;
+        if (endDateFilter && intervention.startDate > endDateFilter) return false;
+
+        return true;
+      });
+
+      initDataTable();
+      showToast('Filters applied', 'success');
+    }
+
+    function clearFilters() {
+      $('#filterStudent').val('');
+      $('#filterType').val('');
+      $('#filterStatus').val('');
+      $('#filterStartDate').val('');
+      $('#filterEndDate').val('');
+      filteredInterventions = [...interventions];
+      initDataTable();
+      showToast('Filters cleared', 'success');
+    }
+
+    function applyUrlFilters() {
+      const params = new URLSearchParams(window.location.search);
+      const studentId = params.get('student');
+      if (studentId) {
+        let student = students.find(s => s.id === studentId);
+        if (student) {
+          $('#filterStudent').val(`${student.lastName}, ${student.firstName}`);
+          applyFilters();
+        }
+      }
+    }
+
+    function downloadCSV() {
+      try {
+        let csvData = filteredInterventions.map(intervention => ({
+          'Student Name': intervention.studentName,
+          'ChattState A#': intervention.chattStateANumber,
+          'Intervention Type': intervention.interventionType,
+          'Level': intervention.interventionLevel,
+          'Start Date': formatDate(intervention.startDate),
+          'End Date': intervention.endDate ? formatDate(intervention.endDate) : '-',
+          'Status': intervention.interventionStatus,
+          'TMI Minutes': intervention.tmiMinutes,
+          'TMI Served': intervention.tmiMinutesServed,
+          'TMI Remaining': intervention.tmiMinutesRemaining,
+          'Staff': intervention.staffName
+        }));
+        exportCSV(csvData, 'interventions.csv');
+        showToast('CSV downloaded successfully', 'success');
+      } catch (error) {
+        console.error('Error downloading CSV:', error);
+        showToast('Error downloading CSV', 'error');
+      }
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    window.editIntervention = editIntervention;
+    window.deleteIntervention = deleteIntervention;
+    window.showNotificationTemplate = showNotificationTemplate;
+    window.closeModal = closeModal;
+  </script>
+</body>
+</html>

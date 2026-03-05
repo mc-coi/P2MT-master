@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PBL Planner - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  <div class="w3-container w3-padding" style="margin-top:10px;">
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h2>PBL Planner</h2>
+    </div>
+
+    <div class="w3-bar w3-padding w3-margin-bottom">
+      <button class="w3-bar-item w3-button w3-teal" id="tab-projects">Projects</button>
+      <button class="w3-bar-item w3-button" id="tab-events">Events</button>
+      <button class="w3-bar-item w3-button" id="tab-teams">Teams</button>
+    </div>
+
+    <!-- Tab 1: PBL Projects -->
+    <div id="tab-content-projects" class="tab-content w3-card w3-padding">
+      <div class="w3-margin-bottom">
+        <button class="w3-button w3-green w3-margin" id="btn-add-pbl">
+          <i class="fas fa-plus"></i> Add PBL
+        </button>
+        <button class="w3-button w3-blue w3-margin" id="btn-download-pbls">
+          <i class="fas fa-download"></i> Download CSV
+        </button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="pbls-table" class="w3-table w3-striped w3-bordered">
+          <thead>
+            <tr class="w3-teal">
+              <th>Class</th>
+              <th>School Year</th>
+              <th>Quarter</th>
+              <th>PBL Name</th>
+              <th>Sponsor</th>
+              <th>Contact</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="pbls-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 2: PBL Events -->
+    <div id="tab-content-events" class="tab-content w3-card w3-padding" style="display:none;">
+      <div class="w3-row w3-margin-bottom">
+        <div class="w3-col m4 w3-padding-small">
+          <label>Filter by PBL Project</label>
+          <select id="filter-pbl-events" class="w3-select w3-border">
+            <option value="">All Projects</option>
+          </select>
+        </div>
+        <div class="w3-col m2 w3-padding-small">
+          <label>&nbsp;</label>
+          <button class="w3-button w3-blue w3-block" id="btn-filter-events">Filter</button>
+        </div>
+      </div>
+      <div class="w3-margin-bottom">
+        <button class="w3-button w3-green w3-margin" id="btn-add-event">
+          <i class="fas fa-plus"></i> Add Event
+        </button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="events-table" class="w3-table w3-striped w3-bordered">
+          <thead>
+            <tr class="w3-teal">
+              <th>PBL Project</th>
+              <th>Category</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Location</th>
+              <th>City/State</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab 3: PBL Teams -->
+    <div id="tab-content-teams" class="tab-content w3-card w3-padding" style="display:none;">
+      <div class="w3-row w3-margin-bottom">
+        <div class="w3-col m4 w3-padding-small">
+          <label>Filter by PBL Project</label>
+          <select id="filter-pbl-teams" class="w3-select w3-border">
+            <option value="">All Projects</option>
+          </select>
+        </div>
+        <div class="w3-col m2 w3-padding-small">
+          <label>&nbsp;</label>
+          <button class="w3-button w3-blue w3-block" id="btn-filter-teams">Filter</button>
+        </div>
+      </div>
+      <div class="w3-margin-bottom">
+        <button class="w3-button w3-green w3-margin" id="btn-add-student">
+          <i class="fas fa-plus"></i> Add Student to Project
+        </button>
+        <button class="w3-button w3-blue w3-margin" id="btn-download-teams">
+          <i class="fas fa-download"></i> Download Roster CSV
+        </button>
+      </div>
+      <div style="overflow-x:auto;">
+        <table id="teams-table" class="w3-table w3-striped w3-bordered">
+          <thead>
+            <tr class="w3-teal">
+              <th>Student Name</th>
+              <th>ChattState A#</th>
+              <th>Team Number</th>
+              <th>Grad Year</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="teams-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit PBL Modal -->
+  <div id="modal-pbl" class="w3-modal">
+    <div class="w3-modal-content w3-card w3-padding">
+      <span class="w3-closebtn" onclick="document.getElementById('modal-pbl').style.display='none'">&times;</span>
+      <h3 id="modal-pbl-title">Add PBL</h3>
+      <div>
+        <label>Class Name</label>
+        <input type="text" id="pbl-className" class="w3-input w3-border w3-margin-bottom">
+        <label>School Year</label>
+        <input type="text" id="pbl-schoolYear" class="w3-input w3-border w3-margin-bottom" placeholder="2024-2025">
+        <label>Quarter (1-4)</label>
+        <input type="number" id="pbl-quarter" class="w3-input w3-border w3-margin-bottom" min="1" max="4">
+        <label>PBL Name</label>
+        <input type="text" id="pbl-name" class="w3-input w3-border w3-margin-bottom">
+        <label>Sponsor</label>
+        <input type="text" id="pbl-sponsor" class="w3-input w3-border w3-margin-bottom">
+        <label>Sponsor Contact Name</label>
+        <input type="text" id="pbl-sponsorName" class="w3-input w3-border w3-margin-bottom">
+        <label>Phone</label>
+        <input type="tel" id="pbl-sponsorPhone" class="w3-input w3-border w3-margin-bottom">
+        <label>Email</label>
+        <input type="email" id="pbl-sponsorEmail" class="w3-input w3-border w3-margin-bottom">
+        <label>Comments</label>
+        <textarea id="pbl-comments" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
+        <button class="w3-button w3-green w3-margin-top" id="btn-save-pbl">Save</button>
+        <button class="w3-button w3-red w3-margin-top" onclick="document.getElementById('modal-pbl').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Event Modal -->
+  <div id="modal-event" class="w3-modal">
+    <div class="w3-modal-content w3-card w3-padding">
+      <span class="w3-closebtn" onclick="document.getElementById('modal-event').style.display='none'">&times;</span>
+      <h3>Add/Edit Event</h3>
+      <div>
+        <label>PBL Project</label>
+        <select id="event-pblId" class="w3-select w3-border w3-margin-bottom">
+          <option value="">Select PBL...</option>
+        </select>
+        <label>Category</label>
+        <select id="event-category" class="w3-select w3-border w3-margin-bottom">
+          <option value="Kickoff">Kickoff</option>
+          <option value="Final Presentation">Final Presentation</option>
+          <option value="Field Trip">Field Trip</option>
+          <option value="Other">Other</option>
+        </select>
+        <label>Date</label>
+        <input type="date" id="event-date" class="w3-input w3-border w3-margin-bottom">
+        <label>Start Time</label>
+        <input type="time" id="event-startTime" class="w3-input w3-border w3-margin-bottom">
+        <label>End Time</label>
+        <input type="time" id="event-endTime" class="w3-input w3-border w3-margin-bottom">
+        <label>Location</label>
+        <input type="text" id="event-location" class="w3-input w3-border w3-margin-bottom">
+        <label>Street Address 1</label>
+        <input type="text" id="event-address1" class="w3-input w3-border w3-margin-bottom">
+        <label>Street Address 2</label>
+        <input type="text" id="event-address2" class="w3-input w3-border w3-margin-bottom">
+        <label>City</label>
+        <input type="text" id="event-city" class="w3-input w3-border w3-margin-bottom">
+        <label>State</label>
+        <input type="text" id="event-state" class="w3-input w3-border w3-margin-bottom" maxlength="2">
+        <label>ZIP</label>
+        <input type="text" id="event-zip" class="w3-input w3-border w3-margin-bottom">
+        <label>Confirmed</label>
+        <input type="checkbox" id="event-confirmed" class="w3-check w3-margin-bottom">
+        <label>Comments</label>
+        <textarea id="event-comments" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
+        <button class="w3-button w3-green w3-margin-top" id="btn-save-event">Save</button>
+        <button class="w3-button w3-red w3-margin-top" onclick="document.getElementById('modal-event').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Student to Team Modal -->
+  <div id="modal-add-student" class="w3-modal">
+    <div class="w3-modal-content w3-card w3-padding">
+      <span class="w3-closebtn" onclick="document.getElementById('modal-add-student').style.display='none'">&times;</span>
+      <h3>Add Student to Project</h3>
+      <div>
+        <label>PBL Project</label>
+        <select id="team-add-pblId" class="w3-select w3-border w3-margin-bottom">
+          <option value="">Select PBL...</option>
+        </select>
+        <label>Student</label>
+        <select id="team-add-student" class="w3-select w3-border w3-margin-bottom">
+          <option value="">Select Student...</option>
+        </select>
+        <label>Team Number</label>
+        <input type="number" id="team-add-teamNumber" class="w3-input w3-border w3-margin-bottom">
+        <button class="w3-button w3-green w3-margin-top" id="btn-confirm-add-student">Add</button>
+        <button class="w3-button w3-red w3-margin-top" onclick="document.getElementById('modal-add-student').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import { showToast, exportCSV } from './js/utils.js';
+
+    let pbls = [];
+    let events = [];
+    let teams = [];
+    let students = [];
+    let currentEditingPblId = null;
+    let currentEditingEventId = null;
+
+    initAuth().then(user => {
+      initNav('pbl-planner');
+      init();
+    });
+
+    async function init() {
+      await loadAllData();
+      setupTabListeners();
+      setupEventListeners();
+      renderPbls();
+    }
+
+    async function loadAllData() {
+      try {
+        pbls = await getAll('pbls') || [];
+        events = await getAll('pblEvents') || [];
+        teams = await getAll('pblTeams') || [];
+        students = await getAll('students') || [];
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showToast('Error loading data', 'error');
+      }
+    }
+
+    function setupTabListeners() {
+      document.getElementById('tab-projects').addEventListener('click', () => {
+        switchTab('projects');
+      });
+      document.getElementById('tab-events').addEventListener('click', () => {
+        switchTab('events');
+      });
+      document.getElementById('tab-teams').addEventListener('click', () => {
+        switchTab('teams');
+      });
+    }
+
+    function switchTab(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.w3-bar-item').forEach(el => el.classList.remove('w3-teal'));
+
+      if (tab === 'projects') {
+        document.getElementById('tab-content-projects').style.display = 'block';
+        document.getElementById('tab-projects').classList.add('w3-teal');
+        renderPbls();
+      } else if (tab === 'events') {
+        document.getElementById('tab-content-events').style.display = 'block';
+        document.getElementById('tab-events').classList.add('w3-teal');
+        populatePblSelectForEvents();
+        renderEvents();
+      } else if (tab === 'teams') {
+        document.getElementById('tab-content-teams').style.display = 'block';
+        document.getElementById('tab-teams').classList.add('w3-teal');
+        populatePblSelectForTeams();
+        renderTeams();
+      }
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-add-pbl').addEventListener('click', openPblModal);
+      document.getElementById('btn-save-pbl').addEventListener('click', savePbl);
+      document.getElementById('btn-download-pbls').addEventListener('click', downloadPblsCSV);
+
+      document.getElementById('btn-add-event').addEventListener('click', openEventModal);
+      document.getElementById('btn-save-event').addEventListener('click', saveEvent);
+      document.getElementById('btn-filter-events').addEventListener('click', filterEvents);
+
+      document.getElementById('btn-add-student').addEventListener('click', openAddStudentModal);
+      document.getElementById('btn-confirm-add-student').addEventListener('click', addStudentToTeam);
+      document.getElementById('btn-filter-teams').addEventListener('click', filterTeams);
+      document.getElementById('btn-download-teams').addEventListener('click', downloadTeamsCSV);
+    }
+
+    function renderPbls() {
+      const tbody = document.getElementById('pbls-tbody');
+      tbody.innerHTML = '';
+
+      pbls.forEach(pbl => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${pbl.className}</td>
+          <td>${pbl.schoolYear}</td>
+          <td>Q${pbl.quarter}</td>
+          <td>${pbl.pblName}</td>
+          <td>${pbl.pblSponsor}</td>
+          <td>${pbl.pblSponsorPhone || pbl.pblSponsorEmail || ''}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue" onclick="editPbl('${pbl.id}')">Edit</button>
+            <button class="w3-button w3-small w3-red" onclick="deletePbl('${pbl.id}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openPblModal() {
+      currentEditingPblId = null;
+      document.getElementById('modal-pbl-title').textContent = 'Add PBL';
+      document.getElementById('pbl-className').value = '';
+      document.getElementById('pbl-schoolYear').value = '';
+      document.getElementById('pbl-quarter').value = '1';
+      document.getElementById('pbl-name').value = '';
+      document.getElementById('pbl-sponsor').value = '';
+      document.getElementById('pbl-sponsorName').value = '';
+      document.getElementById('pbl-sponsorPhone').value = '';
+      document.getElementById('pbl-sponsorEmail').value = '';
+      document.getElementById('pbl-comments').value = '';
+      document.getElementById('modal-pbl').style.display = 'block';
+    }
+
+    window.editPbl = function(pblId) {
+      const pbl = pbls.find(p => p.id === pblId);
+      if (!pbl) return;
+
+      currentEditingPblId = pblId;
+      document.getElementById('modal-pbl-title').textContent = 'Edit PBL';
+      document.getElementById('pbl-className').value = pbl.className || '';
+      document.getElementById('pbl-schoolYear').value = pbl.schoolYear || '';
+      document.getElementById('pbl-quarter').value = pbl.quarter || '1';
+      document.getElementById('pbl-name').value = pbl.pblName || '';
+      document.getElementById('pbl-sponsor').value = pbl.pblSponsor || '';
+      document.getElementById('pbl-sponsorName').value = pbl.pblSponsorPersonName || '';
+      document.getElementById('pbl-sponsorPhone').value = pbl.pblSponsorPhone || '';
+      document.getElementById('pbl-sponsorEmail').value = pbl.pblSponsorEmail || '';
+      document.getElementById('pbl-comments').value = pbl.pblComments || '';
+      document.getElementById('modal-pbl').style.display = 'block';
+    };
+
+    async function savePbl() {
+      const data = {
+        className: document.getElementById('pbl-className').value,
+        schoolYear: document.getElementById('pbl-schoolYear').value,
+        quarter: parseInt(document.getElementById('pbl-quarter').value),
+        pblName: document.getElementById('pbl-name').value,
+        pblSponsor: document.getElementById('pbl-sponsor').value,
+        pblSponsorPersonName: document.getElementById('pbl-sponsorName').value,
+        pblSponsorPhone: document.getElementById('pbl-sponsorPhone').value,
+        pblSponsorEmail: document.getElementById('pbl-sponsorEmail').value,
+        pblComments: document.getElementById('pbl-comments').value
+      };
+
+      if (!data.className || !data.pblName) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }
+
+      try {
+        if (currentEditingPblId) {
+          await updateDoc('pbls', currentEditingPblId, data);
+          const idx = pbls.findIndex(p => p.id === currentEditingPblId);
+          if (idx >= 0) pbls[idx] = { ...pbls[idx], ...data };
+          showToast('PBL updated successfully', 'success');
+        } else {
+          const docId = await addDoc('pbls', data);
+          pbls.push({ ...data, id: docId });
+          showToast('PBL added successfully', 'success');
+        }
+        document.getElementById('modal-pbl').style.display = 'none';
+        renderPbls();
+      } catch (error) {
+        console.error('Error saving PBL:', error);
+        showToast('Error saving PBL', 'error');
+      }
+    }
+
+    window.deletePbl = async function(pblId) {
+      if (!confirm('Are you sure you want to delete this PBL?')) return;
+
+      try {
+        await deleteDoc('pbls', pblId);
+        pbls = pbls.filter(p => p.id !== pblId);
+        renderPbls();
+        showToast('PBL deleted successfully', 'success');
+      } catch (error) {
+        console.error('Error deleting PBL:', error);
+        showToast('Error deleting PBL', 'error');
+      }
+    };
+
+    function downloadPblsCSV() {
+      const headers = ['Class', 'School Year', 'Quarter', 'PBL Name', 'Sponsor', 'Contact Name', 'Phone', 'Email', 'Comments'];
+      const rows = pbls.map(pbl => [
+        pbl.className,
+        pbl.schoolYear,
+        pbl.quarter,
+        pbl.pblName,
+        pbl.pblSponsor,
+        pbl.pblSponsorPersonName,
+        pbl.pblSponsorPhone,
+        pbl.pblSponsorEmail,
+        pbl.pblComments
+      ]);
+      exportCSV(headers, rows, 'pbls.csv');
+    }
+
+    function populatePblSelectForEvents() {
+      const select = document.getElementById('event-pblId');
+      const filterSelect = document.getElementById('filter-pbl-events');
+      select.innerHTML = '<option value="">Select PBL...</option>';
+      filterSelect.innerHTML = '<option value="">All Projects</option>';
+
+      pbls.forEach(pbl => {
+        const option = document.createElement('option');
+        option.value = pbl.id;
+        option.textContent = `${pbl.className} - ${pbl.pblName}`;
+        select.appendChild(option);
+
+        const filterOption = document.createElement('option');
+        filterOption.value = pbl.id;
+        filterOption.textContent = `${pbl.className} - ${pbl.pblName}`;
+        filterSelect.appendChild(filterOption);
+      });
+    }
+
+    function renderEvents(filteredEvents = null) {
+      const data = filteredEvents || events;
+      const tbody = document.getElementById('events-tbody');
+      tbody.innerHTML = '';
+
+      data.forEach(event => {
+        const pbl = pbls.find(p => p.id === event.pblId);
+        const pblName = pbl ? `${pbl.className} - ${pbl.pblName}` : 'Unknown';
+        const timeStr = `${event.startTime || ''} - ${event.endTime || ''}`.trim();
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${pblName}</td>
+          <td>${event.eventCategory}</td>
+          <td>${event.eventDate}</td>
+          <td>${timeStr}</td>
+          <td>${event.eventLocation}</td>
+          <td>${event.eventCity || ''}, ${event.eventState || ''}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue" onclick="editEvent('${event.id}')">Edit</button>
+            <button class="w3-button w3-small w3-red" onclick="deleteEvent('${event.id}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openEventModal() {
+      currentEditingEventId = null;
+      document.getElementById('event-pblId').value = '';
+      document.getElementById('event-category').value = 'Kickoff';
+      document.getElementById('event-date').value = '';
+      document.getElementById('event-startTime').value = '';
+      document.getElementById('event-endTime').value = '';
+      document.getElementById('event-location').value = '';
+      document.getElementById('event-address1').value = '';
+      document.getElementById('event-address2').value = '';
+      document.getElementById('event-city').value = '';
+      document.getElementById('event-state').value = '';
+      document.getElementById('event-zip').value = '';
+      document.getElementById('event-confirmed').checked = false;
+      document.getElementById('event-comments').value = '';
+      document.getElementById('modal-event').style.display = 'block';
+    }
+
+    window.editEvent = function(eventId) {
+      const event = events.find(e => e.id === eventId);
+      if (!event) return;
+
+      currentEditingEventId = eventId;
+      document.getElementById('event-pblId').value = event.pblId || '';
+      document.getElementById('event-category').value = event.eventCategory || '';
+      document.getElementById('event-date').value = event.eventDate || '';
+      document.getElementById('event-startTime').value = event.startTime || '';
+      document.getElementById('event-endTime').value = event.endTime || '';
+      document.getElementById('event-location').value = event.eventLocation || '';
+      document.getElementById('event-address1').value = event.eventStreetAddress1 || '';
+      document.getElementById('event-address2').value = event.eventStreetAddress2 || '';
+      document.getElementById('event-city').value = event.eventCity || '';
+      document.getElementById('event-state').value = event.eventState || '';
+      document.getElementById('event-zip').value = event.eventZip || '';
+      document.getElementById('event-confirmed').checked = event.confirmed || false;
+      document.getElementById('event-comments').value = event.eventComments || '';
+      document.getElementById('modal-event').style.display = 'block';
+    };
+
+    async function saveEvent() {
+      const data = {
+        pblId: document.getElementById('event-pblId').value,
+        eventCategory: document.getElementById('event-category').value,
+        eventDate: document.getElementById('event-date').value,
+        startTime: document.getElementById('event-startTime').value,
+        endTime: document.getElementById('event-endTime').value,
+        eventLocation: document.getElementById('event-location').value,
+        eventStreetAddress1: document.getElementById('event-address1').value,
+        eventStreetAddress2: document.getElementById('event-address2').value,
+        eventCity: document.getElementById('event-city').value,
+        eventState: document.getElementById('event-state').value,
+        eventZip: document.getElementById('event-zip').value,
+        confirmed: document.getElementById('event-confirmed').checked,
+        eventComments: document.getElementById('event-comments').value
+      };
+
+      if (!data.pblId || !data.eventDate) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }
+
+      try {
+        if (currentEditingEventId) {
+          await updateDoc('pblEvents', currentEditingEventId, data);
+          const idx = events.findIndex(e => e.id === currentEditingEventId);
+          if (idx >= 0) events[idx] = { ...events[idx], ...data };
+          showToast('Event updated successfully', 'success');
+        } else {
+          const docId = await addDoc('pblEvents', data);
+          events.push({ ...data, id: docId });
+          showToast('Event added successfully', 'success');
+        }
+        document.getElementById('modal-event').style.display = 'none';
+        renderEvents();
+      } catch (error) {
+        console.error('Error saving event:', error);
+        showToast('Error saving event', 'error');
+      }
+    }
+
+    window.deleteEvent = async function(eventId) {
+      if (!confirm('Are you sure you want to delete this event?')) return;
+
+      try {
+        await deleteDoc('pblEvents', eventId);
+        events = events.filter(e => e.id !== eventId);
+        renderEvents();
+        showToast('Event deleted successfully', 'success');
+      } catch (error) {
+        console.error('Error deleting event:', error);
+        showToast('Error deleting event', 'error');
+      }
+    };
+
+    function filterEvents() {
+      const pblId = document.getElementById('filter-pbl-events').value;
+      const filtered = pblId ? events.filter(e => e.pblId === pblId) : events;
+      renderEvents(filtered);
+    }
+
+    function populatePblSelectForTeams() {
+      const filterSelect = document.getElementById('filter-pbl-teams');
+      const addSelect = document.getElementById('team-add-pblId');
+      filterSelect.innerHTML = '<option value="">All Projects</option>';
+      addSelect.innerHTML = '<option value="">Select PBL...</option>';
+
+      pbls.forEach(pbl => {
+        const filterOption = document.createElement('option');
+        filterOption.value = pbl.id;
+        filterOption.textContent = `${pbl.className} - ${pbl.pblName}`;
+        filterSelect.appendChild(filterOption);
+
+        const addOption = document.createElement('option');
+        addOption.value = pbl.id;
+        addOption.textContent = `${pbl.className} - ${pbl.pblName}`;
+        addSelect.appendChild(addOption);
+      });
+    }
+
+    function renderTeams(filteredTeams = null) {
+      const data = filteredTeams || teams;
+      const tbody = document.getElementById('teams-tbody');
+      tbody.innerHTML = '';
+
+      data.forEach(team => {
+        const student = students.find(s => s.chattStateANumber === team.chattStateANumber);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${team.studentName}</td>
+          <td>${team.chattStateANumber}</td>
+          <td><input type="number" class="w3-input w3-small" value="${team.pblTeamNumber || ''}" data-team-id="${team.id}" onchange="updateTeamNumber('${team.id}', this.value)"></td>
+          <td>${student?.graduationYear || ''}</td>
+          <td>
+            <button class="w3-button w3-small w3-red" onclick="removeStudentFromTeam('${team.id}')">Remove</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openAddStudentModal() {
+      document.getElementById('team-add-pblId').value = '';
+      document.getElementById('team-add-student').value = '';
+      document.getElementById('team-add-teamNumber').value = '';
+
+      const select = document.getElementById('team-add-student');
+      select.innerHTML = '<option value="">Select Student...</option>';
+      students.forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.id;
+        option.textContent = `${student.firstName} ${student.lastName} (${student.chattStateANumber})`;
+        select.appendChild(option);
+      });
+
+      document.getElementById('modal-add-student').style.display = 'block';
+    }
+
+    async function addStudentToTeam() {
+      const pblId = document.getElementById('team-add-pblId').value;
+      const studentId = document.getElementById('team-add-student').value;
+      const teamNumber = document.getElementById('team-add-teamNumber').value;
+
+      if (!pblId || !studentId) {
+        showToast('Please select PBL and student', 'error');
+        return;
+      }
+
+      const student = students.find(s => s.id === studentId);
+      const pbl = pbls.find(p => p.id === pblId);
+
+      try {
+        const data = {
+          pblId: pblId,
+          className: pbl.className,
+          schoolYear: pbl.schoolYear,
+          semester: pbl.semester || '',
+          quarter: pbl.quarter,
+          pblTeamNumber: parseInt(teamNumber) || null,
+          chattStateANumber: student.chattStateANumber,
+          studentName: `${student.firstName} ${student.lastName}`
+        };
+
+        const docId = await addDoc('pblTeams', data);
+        teams.push({ ...data, id: docId });
+        renderTeams();
+        document.getElementById('modal-add-student').style.display = 'none';
+        showToast('Student added to team successfully', 'success');
+      } catch (error) {
+        console.error('Error adding student:', error);
+        showToast('Error adding student', 'error');
+      }
+    }
+
+    window.updateTeamNumber = async function(teamId, teamNumber) {
+      try {
+        await updateDoc('pblTeams', teamId, { pblTeamNumber: parseInt(teamNumber) || null });
+        const team = teams.find(t => t.id === teamId);
+        if (team) team.pblTeamNumber = parseInt(teamNumber) || null;
+        showToast('Team number updated', 'success');
+      } catch (error) {
+        console.error('Error updating team number:', error);
+        showToast('Error updating team number', 'error');
+      }
+    };
+
+    window.removeStudentFromTeam = async function(teamId) {
+      if (!confirm('Are you sure you want to remove this student from the team?')) return;
+
+      try {
+        await deleteDoc('pblTeams', teamId);
+        teams = teams.filter(t => t.id !== teamId);
+        renderTeams();
+        showToast('Student removed from team', 'success');
+      } catch (error) {
+        console.error('Error removing student:', error);
+        showToast('Error removing student', 'error');
+      }
+    };
+
+    function filterTeams() {
+      const pblId = document.getElementById('filter-pbl-teams').value;
+      const filtered = pblId ? teams.filter(t => t.pblId === pblId) : teams;
+      renderTeams(filtered);
+    }
+
+    function downloadTeamsCSV() {
+      const headers = ['Student Name', 'ChattState A#', 'Team Number', 'Class', 'PBL Name', 'Quarter'];
+      const rows = teams.map(team => {
+        const pbl = pbls.find(p => p.id === team.pblId);
+        return [
+          team.studentName,
+          team.chattStateANumber,
+          team.pblTeamNumber || '',
+          team.className,
+          pbl?.pblName || '',
+          team.quarter
+        ];
+      });
+      exportCSV(headers, rows, 'pbl-teams.csv');
+    }
+
+    window.addEventListener('click', (event) => {
+      const modalPbl = document.getElementById('modal-pbl');
+      const modalEvent = document.getElementById('modal-event');
+      const modalStudent = document.getElementById('modal-add-student');
+      if (event.target === modalPbl) modalPbl.style.display = 'none';
+      if (event.target === modalEvent) modalEvent.style.display = 'none';
+      if (event.target === modalStudent) modalStudent.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

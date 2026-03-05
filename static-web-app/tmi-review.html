@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TMI Teacher Review - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .attendance-radio { margin: 4px; }
+    .tmi-column { min-width: 60px; text-align: center; }
+    .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  <div class="w3-container w3-padding" style="margin-top:10px;">
+    
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h2><i class="fas fa-clock"></i> TMI Teacher Review</h2>
+      <p class="w3-text-grey">Review and confirm student TMI assignments for the current TMI period.</p>
+      <button class="w3-button w3-green w3-round" id="saveAllBtn">
+        <i class="fas fa-save"></i> Save All
+      </button>
+    </div>
+
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h4>Info</h4>
+      <div class="w3-panel w3-light-blue w3-round">
+        <p>
+          <strong>TMI (Time Management Intervention):</strong> During the designated TMI period, 
+          students with unexcused absences must attend. Teachers review their class attendance 
+          to confirm which students served their TMI time. Attendance codes: P (Present), 
+          T (Tardy), E (Early Dismissal), U (Unexcused Absence).
+        </p>
+      </div>
+    </div>
+
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h4>Filters</h4>
+      <div class="w3-row">
+        <div class="w3-col m4">
+          <label>Teacher Name</label>
+          <select id="filterTeacher" class="w3-input w3-border">
+            <option value="">-- Select Teacher --</option>
+          </select>
+        </div>
+        <div class="w3-col m4">
+          <label>Class Name</label>
+          <select id="filterClass" class="w3-input w3-border" disabled>
+            <option value="">-- Select Class --</option>
+          </select>
+        </div>
+        <div class="w3-col m4">
+          <label>TMI Period</label>
+          <div id="tmiPeriodInfo" class="w3-text-grey">Loading...</div>
+        </div>
+      </div>
+      <div class="w3-margin-top">
+        <button class="w3-button w3-green w3-round" id="loadAttendanceBtn" disabled>Load Attendance</button>
+      </div>
+    </div>
+
+    <div id="summaryCard" style="display:none;">
+      <div class="w3-row w3-margin-bottom">
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalStudents">0</div>
+            <div>Total Students in TMI</div>
+          </div>
+        </div>
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalMinutesAssigned">0</div>
+            <div>Total Minutes Assigned</div>
+          </div>
+        </div>
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalMinutesServed">0</div>
+            <div>Total Minutes Served</div>
+          </div>
+        </div>
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalMinutesRemaining">0</div>
+            <div>Total Minutes Remaining</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w3-card w3-padding">
+      <div id="loadingSpinner" class="w3-center w3-padding" style="display:none;">
+        <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i> Loading...
+      </div>
+      <div id="attendanceTableContainer" style="display:none;">
+        <h4>Attendance Review</h4>
+        <div style="overflow-x:auto;">
+          <table id="attendanceTable" class="w3-table w3-bordered w3-striped" style="width:100%;">
+            <thead>
+              <tr class="w3-blue">
+                <th>Student Name</th>
+                <th>A#</th>
+                <th>TMI Minutes Assigned</th>
+                <th>TMI Served</th>
+                <th>TMI Remaining</th>
+                <th>In TMI Now</th>
+                <th id="dateHeadersRow"></th>
+              </tr>
+            </thead>
+            <tbody id="attendanceTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="noDataMsg" class="w3-panel w3-light-grey w3-round w3-center">
+        Select teacher and class, then load attendance to review TMI assignments.
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script type="module">
+    import { initAuth } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, getWhere, updateDoc } from './js/db.js';
+    import { formatDate, showToast } from './js/utils.js';
+
+    let teachers = [];
+    let classes = [];
+    let students = [];
+    let interventions = [];
+    let classAttendance = [];
+    let tmiPeriodDates = [];
+    let selectedTeacher = null;
+    let selectedClass = null;
+    let attendanceData = [];
+
+    initAuth().then(user => {
+      initNav('tmi-review');
+      init();
+    });
+
+    async function init() {
+      try {
+        $('#loadingSpinner').show();
+        await loadTeachers();
+        await loadClasses();
+        await loadStudents();
+        await loadInterventions();
+        await loadTMIPeriod();
+        attachEventListeners();
+        $('#loadingSpinner').hide();
+      } catch (error) {
+        console.error('Init error:', error);
+        showToast('Error loading data', 'error');
+        $('#loadingSpinner').hide();
+      }
+    }
+
+    async function loadTeachers() {
+      try {
+        let allSchedules = await getAll('classSchedules');
+        let teacherMap = {};
+        allSchedules.forEach(schedule => {
+          if (schedule.teacherId && schedule.teacherName) {
+            teacherMap[schedule.teacherId] = schedule.teacherName;
+          }
+        });
+        Object.keys(teacherMap).forEach(teacherId => {
+          $('#filterTeacher').append(`<option value="${teacherId}">${teacherMap[teacherId]}</option>`);
+        });
+      } catch (error) {
+        console.error('Error loading teachers:', error);
+      }
+    }
+
+    async function loadClasses() {
+      try {
+        classes = await getAll('classSchedules');
+      } catch (error) {
+        console.error('Error loading classes:', error);
+      }
+    }
+
+    async function loadStudents() {
+      try {
+        students = await getAll('students');
+      } catch (error) {
+        console.error('Error loading students:', error);
+      }
+    }
+
+    async function loadInterventions() {
+      try {
+        interventions = await getAll('interventionLogs');
+      } catch (error) {
+        console.error('Error loading interventions:', error);
+      }
+    }
+
+    async function loadTMIPeriod() {
+      try {
+        let calendar = await getAll('schoolCalendar');
+        let tmiPeriod = calendar.find(day => day.startTmiPeriod === true || day.tmiDay === true);
+        
+        if (tmiPeriod) {
+          tmiPeriodDates = calendar.filter(day => {
+            let dayDate = new Date(day.date);
+            let startDate = new Date(tmiPeriod.date);
+            let endTmiDay = calendar.find(d => d.endTmiPeriod === true);
+            let endDate = endTmiDay ? new Date(endTmiDay.date) : new Date(startDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+            return dayDate >= startDate && dayDate <= endDate;
+          });
+          $('#tmiPeriodInfo').html(`<b>${formatDate(tmiPeriod.date)}</b> - Present`);
+        } else {
+          $('#tmiPeriodInfo').html('<span class="w3-text-red">No TMI period found</span>');
+        }
+      } catch (error) {
+        console.error('Error loading TMI period:', error);
+      }
+    }
+
+    function attachEventListeners() {
+      $('#filterTeacher').change(onTeacherChange);
+      $('#filterClass').change(onClassChange);
+      $('#loadAttendanceBtn').click(loadAttendance);
+      $('#saveAllBtn').click(saveAllAttendance);
+    }
+
+    function onTeacherChange() {
+      let teacherId = $('#filterTeacher').val();
+      $('#filterClass').empty();
+      $('#filterClass').append('<option value="">-- Select Class --</option>');
+      $('#filterClass').prop('disabled', !teacherId);
+
+      if (teacherId) {
+        let teacherClasses = classes.filter(c => c.teacherId === teacherId);
+        teacherClasses.forEach(cls => {
+          $('#filterClass').append(`<option value="${cls.id}">${cls.className}</option>`);
+        });
+      }
+      $('#loadAttendanceBtn').prop('disabled', !teacherId);
+    }
+
+    function onClassChange() {
+      let classId = $('#filterClass').val();
+      $('#loadAttendanceBtn').prop('disabled', !classId);
+    }
+
+    async function loadAttendance() {
+      try {
+        $('#loadingSpinner').show();
+        let teacherId = $('#filterTeacher').val();
+        let classId = $('#filterClass').val();
+
+        if (!teacherId || !classId) {
+          showToast('Please select teacher and class', 'warning');
+          $('#loadingSpinner').hide();
+          return;
+        }
+
+        selectedTeacher = teacherId;
+        selectedClass = classId;
+
+        let selectedClassObj = classes.find(c => c.id === classId);
+        let enrolledStudents = selectedClassObj.enrolledStudents || [];
+
+        attendanceData = [];
+        let totalAssigned = 0;
+        let totalServed = 0;
+        let totalRemaining = 0;
+
+        for (let studentId of enrolledStudents) {
+          let student = students.find(s => s.id === studentId);
+          if (!student) continue;
+
+          let intervention = interventions.find(i => i.studentId === studentId && (i.interventionStatus === 'Active' || i.inTmiNow === true));
+          let tmiMinutes = intervention ? intervention.tmiMinutes : 0;
+          let tmiServed = intervention ? (intervention.tmiMinutesServed || 0) : 0;
+          let tmiRemaining = intervention ? (intervention.tmiMinutesRemaining || tmiMinutes) : 0;
+
+          totalAssigned += tmiMinutes;
+          totalServed += tmiServed;
+          totalRemaining += tmiRemaining;
+
+          let studentAttendanceLog = await getWhere('classAttendanceLogs', 'studentId', studentId);
+          let tmiPeriodAttendance = studentAttendanceLog.filter(log => {
+            let logDate = new Date(log.attendanceDate);
+            return tmiPeriodDates.some(tmi => new Date(tmi.date).toDateString() === logDate.toDateString());
+          });
+
+          attendanceData.push({
+            id: studentId,
+            name: `${student.lastName}, ${student.firstName}`,
+            chattStateA: student.chattStateANumber,
+            tmiMinutes: tmiMinutes,
+            tmiServed: tmiServed,
+            tmiRemaining: tmiRemaining,
+            inTmiNow: intervention ? intervention.inTmiNow : false,
+            attendanceByDate: tmiPeriodDates.map(date => {
+              let logEntry = tmiPeriodAttendance.find(log => new Date(log.attendanceDate).toDateString() === new Date(date.date).toDateString());
+              return {
+                date: date.date,
+                code: logEntry ? logEntry.attendanceCode : 'P'
+              };
+            }),
+            interventionId: intervention ? intervention.id : null
+          });
+        }
+
+        renderAttendanceTable();
+        updateSummaryStats(attendanceData.length, totalAssigned, totalServed, totalRemaining);
+        $('#attendanceTableContainer').show();
+        $('#noDataMsg').hide();
+        $('#loadingSpinner').hide();
+        showToast('Attendance loaded successfully', 'success');
+      } catch (error) {
+        console.error('Error loading attendance:', error);
+        showToast('Error loading attendance', 'error');
+        $('#loadingSpinner').hide();
+      }
+    }
+
+    function renderAttendanceTable() {
+      $('#dateHeadersRow').empty();
+      tmiPeriodDates.forEach(date => {
+        $('#dateHeadersRow').append(`<th class="tmi-column">${new Date(date.date).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})}</th>`);
+      });
+
+      $('#attendanceTableBody').empty();
+      attendanceData.forEach((student, idx) => {
+        let dateColumns = student.attendanceByDate.map((att, dateIdx) => {
+          return `
+            <td class="tmi-column">
+              <label><input type="radio" name="att_${idx}_${dateIdx}" value="P" class="attendance-radio" ${att.code === 'P' ? 'checked' : ''}>P</label>
+              <label><input type="radio" name="att_${idx}_${dateIdx}" value="T" class="attendance-radio" ${att.code === 'T' ? 'checked' : ''}>T</label>
+              <label><input type="radio" name="att_${idx}_${dateIdx}" value="E" class="attendance-radio" ${att.code === 'E' ? 'checked' : ''}>E</label>
+              <label><input type="radio" name="att_${idx}_${dateIdx}" value="U" class="attendance-radio" ${att.code === 'U' ? 'checked' : ''}>U</label>
+            </td>
+          `;
+        }).join('');
+
+        let row = `
+          <tr>
+            <td>${student.name}</td>
+            <td>${student.chattStateA}</td>
+            <td>${student.tmiMinutes}</td>
+            <td><input type="number" class="w3-input w3-small tmi-served" value="${student.tmiServed}" min="0" data-index="${idx}"></td>
+            <td><span class="tmi-remaining" data-index="${idx}">${student.tmiRemaining}</span></td>
+            <td><input type="checkbox" class="in-tmi-now" data-index="${idx}" ${student.inTmiNow ? 'checked' : ''}></td>
+            ${dateColumns}
+          </tr>
+        `;
+        $('#attendanceTableBody').append(row);
+      });
+
+      $('.tmi-served').on('change', function() {
+        let idx = $(this).data('index');
+        let served = parseInt($(this).val()) || 0;
+        let assigned = attendanceData[idx].tmiMinutes;
+        let remaining = Math.max(0, assigned - served);
+        attendanceData[idx].tmiServed = served;
+        attendanceData[idx].tmiRemaining = remaining;
+        $(`.tmi-remaining[data-index="${idx}"]`).text(remaining);
+      });
+
+      $('.in-tmi-now').on('change', function() {
+        let idx = $(this).data('index');
+        attendanceData[idx].inTmiNow = $(this).prop('checked');
+      });
+    }
+
+    function updateSummaryStats(totalStudents, totalAssigned, totalServed, totalRemaining) {
+      $('#totalStudents').text(totalStudents);
+      $('#totalMinutesAssigned').text(totalAssigned);
+      $('#totalMinutesServed').text(totalServed);
+      $('#totalMinutesRemaining').text(totalRemaining);
+      $('#summaryCard').show();
+    }
+
+    async function saveAllAttendance() {
+      try {
+        $('#loadingSpinner').show();
+        
+        for (let i = 0; i < attendanceData.length; i++) {
+          let student = attendanceData[i];
+          
+          for (let j = 0; j < student.attendanceByDate.length; j++) {
+            let radioName = `att_${i}_${j}`;
+            let selectedCode = $(`input[name="${radioName}"]:checked`).val() || 'P';
+            student.attendanceByDate[j].code = selectedCode;
+
+            if (student.interventionId) {
+              let attendanceLogs = await getWhere('classAttendanceLogs', 'studentId', student.id);
+              let dateLog = attendanceLogs.find(log => 
+                new Date(log.attendanceDate).toDateString() === new Date(student.attendanceByDate[j].date).toDateString()
+              );
+              
+              if (dateLog) {
+                await updateDoc('classAttendanceLogs', dateLog.id, {
+                  attendanceCode: selectedCode
+                });
+              }
+            }
+          }
+
+          if (student.interventionId) {
+            await updateDoc('interventionLogs', student.interventionId, {
+              tmiMinutesServed: student.tmiServed,
+              tmiMinutesRemaining: student.tmiRemaining,
+              inTmiNow: student.inTmiNow
+            });
+          }
+        }
+
+        $('#loadingSpinner').hide();
+        showToast('All changes saved successfully', 'success');
+      } catch (error) {
+        console.error('Error saving attendance:', error);
+        showToast('Error saving attendance', 'error');
+        $('#loadingSpinner').hide();
+      }
+    }
+  </script>
+</body>
+</html>

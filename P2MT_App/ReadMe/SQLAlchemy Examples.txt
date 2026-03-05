@@ -1,0 +1,349 @@
+
+
+######################
+Example 1:
+######################
+
+Overview: 
+Executes a SQL query FROM Student with joins between ClassSchedule and Student  and between ClassSchedule and ClassAttendanceLog
+
+Note: the output produced distinct values even though distinct() was not included in the code. The output also differed from the output in DB Browser for SQLite which did not produce disctint results.  See Example 1a which is simular but does not limit results to disctint values.
+
+Code:
+
+tardyStudents = (
+    db.session.query(Student)
+    .join(ClassSchedule)
+    .join(ClassSchedule.ClassAttendanceLog)
+    .filter(
+        ClassAttendanceLog.classDate >= startTmiPeriod,
+        ClassAttendanceLog.classDate <= endTmiPeriod,
+        ClassAttendanceLog.attendanceCode == "T",
+    )
+).all()
+
+for tardyStudent in tardyStudents:
+        print(tardyStudent)
+
+SQL Output:
+SELECT "Student".id AS "Student_id", "Student"."chattStateANumber" AS "Student_chattStateANumber", "Student"."firstName" AS "Student_firstName", "Student"."lastName" AS "Student_lastName", "Student".email AS "Student_email", "Student"."yearOfGraduation" AS "Student_yearOfGraduation", "Student".house AS "Student_house", "Student"."googleCalendarId" AS "Student_googleCalendarId" 
+FROM "Student" JOIN "ClassSchedule" ON "Student"."chattStateANumber" = "ClassSchedule"."chattStateANumber" JOIN "ClassAttendanceLog" ON "ClassSchedule".id = "ClassAttendanceLog"."classSchedule_id" 
+WHERE "ClassAttendanceLog"."classDate" >= ? AND "ClassAttendanceLog"."classDate" <= ? AND "ClassAttendanceLog"."attendanceCode" = ?
+
+######################
+Example 1a:
+######################
+
+Overview: Almost identical to Example 1 except this query limits the results to only one column.  Unlike Example 1, this query includes all results and includes duplicates, not just distinct values.
+
+
+Code:
+
+tardyStudents = (
+        db.session.query(Student.chattStateANumber)
+        .join(ClassSchedule)
+        .join(ClassSchedule.ClassAttendanceLog)
+        .filter(
+            ClassAttendanceLog.classDate >= startTmiPeriod,
+            ClassAttendanceLog.classDate <= endTmiPeriod,
+            ClassAttendanceLog.attendanceCode == "T",
+        )
+    ).all()
+
+SQL Output:
+
+SELECT "Student"."chattStateANumber" AS "Student_chattStateANumber" 
+FROM "Student" JOIN "ClassSchedule" ON "Student"."chattStateANumber" = "ClassSchedule"."chattStateANumber" JOIN "ClassAttendanceLog" ON "ClassSchedule".id = "ClassAttendanceLog"."classSchedule_id" 
+WHERE "ClassAttendanceLog"."classDate" >= ? AND "ClassAttendanceLog"."classDate" <= ? AND "ClassAttendanceLog"."attendanceCode" = ?
+
+
+######################
+Example 2:
+######################
+
+Overview: 
+This example applies the query directly on the Student model rather than using db.session.query.  It produces the same output as Example 1.
+
+Code:
+
+tardyStudents = (
+        Student.query.join(ClassSchedule)
+        .join(ClassSchedule.ClassAttendanceLog)
+        .filter(
+            ClassAttendanceLog.classDate >= startTmiPeriod,
+            ClassAttendanceLog.classDate <= endTmiPeriod,
+            ClassAttendanceLog.attendanceCode == "T",
+        )
+    ).all()
+
+SQL Output:
+
+SELECT "Student".id AS "Student_id", "Student"."chattStateANumber" AS "Student_chattStateANumber", "Student"."firstName" AS "Student_firstName", "Student"."lastName" AS "Student_lastName", "Student".email AS "Student_email", "Student"."yearOfGraduation" AS "Student_yearOfGraduation", "Student".house AS "Student_house", "Student"."googleCalendarId" AS "Student_googleCalendarId" 
+FROM "Student" JOIN "ClassSchedule" ON "Student"."chattStateANumber" = "ClassSchedule"."chattStateANumber" JOIN "ClassAttendanceLog" ON "ClassSchedule".id = "ClassAttendanceLog"."classSchedule_id" 
+WHERE "ClassAttendanceLog"."classDate" >= ? AND "ClassAttendanceLog"."classDate" <= ? AND "ClassAttendanceLog"."attendanceCode" = ?
+
+
+
+
+######################
+Example 3:
+######################
+
+Overview: 
+Executes a SQL query FROM Student with joins between ClassSchedule and Student  and between ClassSchedule and ClassAttendanceLog.  This example outputs both Student and ClassSchedule.  
+
+Note: the distinct outputs can be accessed by subscript notation
+
+Code:
+
+tardyStudents = (
+        db.session.query(Student, ClassSchedule)
+        .join(ClassSchedule)
+        .join(ClassSchedule.ClassAttendanceLog)
+        .filter(
+            ClassAttendanceLog.classDate >= startTmiPeriod,
+            ClassAttendanceLog.classDate <= endTmiPeriod,
+            ClassAttendanceLog.attendanceCode == "T",
+        )
+    ).all()
+
+for tardyStudent in tardyStudents:
+        print(tardyStudent[0])
+        print(tardyStudent[1])
+
+SQL Output:
+
+SELECT "Student".id AS "Student_id", "Student"."chattStateANumber" AS "Student_chattStateANumber", "Student"."firstName" AS "Student_firstName", "Student"."lastName" AS "Student_lastName", "Student".email AS "Student_email", "Student"."yearOfGraduation" AS "Student_yearOfGraduation", "Student".house AS "Student_house", "Student"."googleCalendarId" AS "Student_googleCalendarId", "ClassSchedule".id AS "ClassSchedule_id", "ClassSchedule"."schoolYear" AS "ClassSchedule_schoolYear", "ClassSchedule".semester AS "ClassSchedule_semester", "ClassSchedule"."chattStateANumber" AS "ClassSchedule_chattStateANumber", "ClassSchedule".campus AS "ClassSchedule_campus", "ClassSchedule"."className" AS "ClassSchedule_className", "ClassSchedule"."teacherLastName" AS "ClassSchedule_teacherLastName", "ClassSchedule"."staffID" AS "ClassSchedule_staffID", "ClassSchedule".online AS "ClassSchedule_online", "ClassSchedule"."indStudy" AS "ClassSchedule_indStudy", "ClassSchedule"."classDays" AS "ClassSchedule_classDays", "ClassSchedule"."startTime" AS "ClassSchedule_startTime", "ClassSchedule"."endTime" AS "ClassSchedule_endTime", "ClassSchedule".comment AS "ClassSchedule_comment", "ClassSchedule"."googleCalendarEventID" AS "ClassSchedule_googleCalendarEventID" 
+FROM "Student" JOIN "ClassSchedule" ON "Student"."chattStateANumber" = "ClassSchedule"."chattStateANumber" JOIN "ClassAttendanceLog" ON "ClassSchedule".id = "ClassAttendanceLog"."classSchedule_id" 
+WHERE "ClassAttendanceLog"."classDate" >= ? AND "ClassAttendanceLog"."classDate" <= ? AND "ClassAttendanceLog"."attendanceCode" = ?
+
+######################
+Example 4:
+######################
+
+
+Overview:
+This example queries for specific columns from two tables (Student.chattStateANumber and ClassAttendanceLog.id).  It includes .select_from(Student).  Without this .select_from() method, it will result in this error message:
+
+sqlalchemy.exc.InvalidRequestError: Can't determine which FROM clause to join from, there are multiple FROMS which can join to this entity. Please use the .select_from() method to establish an explicit left side, as well as providing an explcit ON clause if not present already to help resolve the ambiguity.
+
+Code:
+
+tardyStudents = (
+        db.session.query(Student.chattStateANumber, ClassAttendanceLog.id)
+        .select_from(Student)
+        .join(ClassSchedule)
+        .join(ClassSchedule.ClassAttendanceLog)
+        .filter(
+            ClassAttendanceLog.classDate >= startTmiPeriod,
+            ClassAttendanceLog.classDate <= endTmiPeriod,
+            ClassAttendanceLog.attendanceCode == "T",
+        )
+    )
+
+SQL Output:
+
+SELECT "Student"."chattStateANumber" AS "Student_chattStateANumber", "ClassAttendanceLog".id AS "ClassAttendanceLog_id" 
+FROM "Student" JOIN "ClassSchedule" ON "Student"."chattStateANumber" = "ClassSchedule"."chattStateANumber" JOIN "ClassAttendanceLog" ON "ClassSchedule".id = "ClassAttendanceLog"."classSchedule_id" 
+WHERE "ClassAttendanceLog"."classDate" >= ? AND "ClassAttendanceLog"."classDate" <= ? AND "ClassAttendanceLog"."attendanceCode" = ?
+
+######################
+Example 5:
+######################
+
+
+Overview:
+This example uses SQL COUNT() aggregate function which also requires including a group_by() method.  You must import func from sqlalchemy.  The select_from() method is not necessary in this example since the results come from one table.
+
+
+Code:
+tardyStudents = (
+        db.session.query(
+            Student.chattStateANumber, func.count(Student.chattStateANumber)
+        )
+        .select_from(Student)
+        .join(ClassSchedule)
+        .join(ClassSchedule.ClassAttendanceLog)
+        .filter(
+            ClassAttendanceLog.classDate >= startTmiPeriod,
+            ClassAttendanceLog.classDate <= endTmiPeriod,
+            ClassAttendanceLog.attendanceCode == "T",
+        )
+        .group_by(Student.chattStateANumber).all()
+    )
+
+SQL Output:
+
+SELECT "Student"."chattStateANumber" AS "Student_chattStateANumber", count("Student"."chattStateANumber") AS count_1 
+FROM "Student" JOIN "ClassSchedule" ON "Student"."chattStateANumber" = "ClassSchedule"."chattStateANumber" JOIN "ClassAttendanceLog" ON "ClassSchedule".id = "ClassAttendanceLog"."classSchedule_id" 
+WHERE "ClassAttendanceLog"."classDate" >= ? AND "ClassAttendanceLog"."classDate" <= ? AND "ClassAttendanceLog"."attendanceCode" = ? GROUP BY "Student"."chattStateANumber"
+
+######################
+Example 6:
+######################
+
+
+Overview:
+This example selects specific columns including a column from a joined table. The join criteria only lists the table since the model already defines the relationship between the tables.
+
+
+Code:
+
+p2mtTemplatesFromDB = (
+        db.session.query(
+            p2mtTemplates.templateTitle,
+            p2mtTemplates.sendToStudent,
+            p2mtTemplates.sendToParent,
+            p2mtTemplates.sendToTeacher,
+            InterventionType.interventionType,
+            p2mtTemplates.interventionLevel,
+        )
+        .select_from(p2mtTemplates)
+        .join(InterventionType)
+        .order_by(
+            InterventionType.interventionType,
+            p2mtTemplates.interventionLevel,
+            p2mtTemplates.templateTitle,
+        )
+        .all()
+    )
+
+SQL Output:
+
+SELECT "p2mtTemplates"."templateTitle" AS "p2mtTemplates_templateTitle", "p2mtTemplates"."sendToStudent" AS "p2mtTemplates_sendToStudent", "p2mtTemplates"."sendToParent" AS "p2mtTemplates_sendToParent", "p2mtTemplates"."sendToTeacher" AS "p2mtTemplates_sendToTeacher", "InterventionType"."interventionType" AS "InterventionType_interventionType", "p2mtTemplates"."interventionLevel" AS "p2mtTemplates_interventionLevel" 
+FROM "p2mtTemplates" JOIN "InterventionType" ON "InterventionType".id = "p2mtTemplates".intervention_id ORDER BY "InterventionType"."interventionType", "p2mtTemplates"."interventionLevel", "p2mtTemplates"."templateTitle"
+
+
+
+######################
+Example 7:
+######################
+
+
+Overview:
+This example produces unexpected results.  See the next example for the proper solution.
+The target of the query is PblTeams in order to produce a list of all students and the event 
+details for their PBL.
+
+The filter is intended to limit the output to either kickoff or final events.
+However, using a dot notation to to access the event details resulted in randomly displaying 
+the wrong event type. 
+
+The key issue is that there is a one-to-many relationship from Pbls to PblEvents.  
+
+The event info is stored in a list object and it is necessary to use a subscript 
+notation.  However, when doing so, there is no guarantee to which event you will access.  Most
+likely, the events are ordered based on when they were created.
+
+For example, this notation there is no guarantee that this will produce a kickoff event:
+eventCategory = pblStudent.Pbls.PblEvents[0].eventCategory
+
+
+Code:
+
+pblStudents = (
+        PblTeams.query.join(Pbls)
+        .join(Pbls.PblEvents)
+        .join(Student)
+        .filter(Pbls.quarter == quarter, PblEvents.eventCategory == eventCategory)
+        .order_by(
+            Pbls.quarter,
+            PblEvents.eventDate,
+            PblEvents.startTime,
+            Pbls.pblName,
+            PblTeams.pblTeamNumber,
+            Student.lastName,
+        ).all()
+    )
+
+SQL Output:
+
+SELECT "PblTeams".id AS "PblTeams_id", "PblTeams"."className" AS "PblTeams_className", "PblTeams"."schoolYear" AS "PblTeams_schoolYear", "PblTeams"."academicYear" AS "PblTeams_academicYear", "PblTeams".semester AS "PblTeams_semester", "PblTeams".quarter AS "PblTeams_quarter", "PblTeams"."pblNumber" AS "PblTeams_pblNumber", "PblTeams"."pblTeamNumber" AS "PblTeams_pblTeamNumber", "PblTeams"."chattStateANumber" AS "PblTeams_chattStateANumber", "PblTeams".pbl_id AS "PblTeams_pbl_id" 
+FROM "PblTeams" JOIN "Pbls" ON "Pbls".id = "PblTeams".pbl_id JOIN "PblEvents" ON "Pbls".id = "PblEvents".pbl_id JOIN "Student" ON "Student"."chattStateANumber" = "PblTeams"."chattStateANumber" 
+WHERE "Pbls".quarter = ? AND "PblEvents"."eventCategory" = ? ORDER BY "Pbls".quarter, "PblEvents"."eventDate", "PblEvents"."startTime", "Pbls"."pblName", "PblTeams"."pblTeamNumber", "Student"."lastName"
+
+######################
+Example 8:
+######################
+
+Overview:
+This example is the correct approach to the problem described in the previous example.
+
+The key issue is that there is a one-to-many relationship from Pbls to PblEvents.
+
+The difference in this approach is that the query is performed on both PblTeams 
+and PblEvents. This approach ensures that the PblEvents returned satisfy the filter
+criteri for the event category.
+
+This approach also requires a different approach to access the data types.  For example:
+className = pblStudent[0].chattStateANumber
+        schoolYear = pblStudent[0].schoolYear
+        firstName = pblStudent[0].Student.firstName
+        pblName = pblStudent[0].Pbls.pblName
+        eventCategory = pblStudent[1].eventCategory
+
+Note the subscript 0 for PblTeam results and subscript 2 for PblEvents results.
+
+Code:
+
+pblStudents = (
+        db.session.query(PblTeams, PblEvents)
+        .select_from(PblTeams)
+        .join(Pbls)
+        .join(Pbls.PblEvents)
+        .join(Student)
+        .filter(Pbls.quarter == quarter, PblEvents.eventCategory == eventCategory)
+        .order_by(
+            Pbls.quarter,
+            PblEvents.eventDate,
+            PblEvents.startTime,
+            Pbls.pblName,
+            PblTeams.pblTeamNumber,
+            Student.lastName,
+        ).all()
+    )
+
+SQL Output:
+
+SELECT "PblTeams".id AS "PblTeams_id", "PblTeams"."className" AS "PblTeams_className", "PblTeams"."schoolYear" AS "PblTeams_schoolYear", "PblTeams"."academicYear" AS "PblTeams_academicYear", "PblTeams".semester AS "PblTeams_semester", "PblTeams".quarter AS "PblTeams_quarter", "PblTeams"."pblNumber" AS "PblTeams_pblNumber", "PblTeams"."pblTeamNumber" AS "PblTeams_pblTeamNumber", "PblTeams"."chattStateANumber" AS "PblTeams_chattStateANumber", "PblTeams".pbl_id AS "PblTeams_pbl_id", "PblEvents".id AS "PblEvents_id", "PblEvents".pbl_id AS "PblEvents_pbl_id", "PblEvents"."eventCategory" AS "PblEvents_eventCategory", "PblEvents".confirmed AS "PblEvents_confirmed", "PblEvents"."eventDate" AS "PblEvents_eventDate", "PblEvents"."startTime" AS "PblEvents_startTime", "PblEvents"."endTime" AS "PblEvents_endTime", "PblEvents"."eventLocation" AS "PblEvents_eventLocation", "PblEvents"."eventStreetAddress1" AS "PblEvents_eventStreetAddress1", "PblEvents"."eventStreetAddress2" AS "PblEvents_eventStreetAddress2", "PblEvents"."eventCity" AS "PblEvents_eventCity", "PblEvents"."eventState" AS "PblEvents_eventState", "PblEvents"."eventZip" AS "PblEvents_eventZip", "PblEvents"."eventComments" AS "PblEvents_eventComments", "PblEvents"."googleCalendarEventID" AS "PblEvents_googleCalendarEventID" 
+FROM "PblTeams" JOIN "Pbls" ON "Pbls".id = "PblTeams".pbl_id JOIN "PblEvents" ON "Pbls".id = "PblEvents".pbl_id JOIN "Student" ON "Student"."chattStateANumber" = "PblTeams"."chattStateANumber" 
+WHERE "Pbls".quarter = ? AND "PblEvents"."eventCategory" = ? ORDER BY "Pbls".quarter, "PblEvents"."eventDate", "PblEvents"."startTime", "Pbls"."pblName", "PblTeams"."pblTeamNumber", "Student"."lastName"
+
+######################
+Example 9:
+######################
+
+Overview: This example uses a left join involving three tables in order to produce the desired result.
+
+There are several notable points:
+-- the left join is identified as an outerjoin in the Python code
+-- the left join is identified as "LEFT OUTER JOIN" in the SQL query 
+-- the left join is specified by explicit reference to the joining tables
+-- there are two explicit references which are listed in () and linked with an &
+
+Code: 
+
+classAttendanceFixedFields = (
+        db.session.query(ClassAttendanceLog, ClassSchedule, DailyAttendanceLog)
+        .select_from(ClassAttendanceLog)
+        .join(ClassSchedule)
+        .join(ClassSchedule.Student)
+        .outerjoin(
+            DailyAttendanceLog,
+            (ClassAttendanceLog.classDate == DailyAttendanceLog.absenceDate)
+            & (ClassSchedule.chattStateANumber == DailyAttendanceLog.chattStateANumber),
+        )
+        .filter(ClassAttendanceLog.attendanceCode == "U",)
+        .order_by(
+            ClassAttendanceLog.classDate.desc(),
+            Student.lastName,
+            ClassSchedule.className,
+        )
+        .all()
+    )
+
+SQL Output:
+
+SELECT "ClassAttendanceLog".id AS "ClassAttendanceLog_id", "ClassAttendanceLog"."classSchedule_id" AS "ClassAttendanceLog_classSchedule_id", "ClassAttendanceLog"."classDate" AS "ClassAttendanceLog_classDate", "ClassAttendanceLog"."attendanceCode" AS "ClassAttendanceLog_attendanceCode", "ClassAttendanceLog".comment AS "ClassAttendanceLog_comment", "ClassAttendanceLog"."assignTmi" AS "ClassAttendanceLog_assignTmi", "ClassAttendanceLog"."interventionLog_id" AS "ClassAttendanceLog_interventionLog_id", "ClassSchedule".id AS "ClassSchedule_id", "ClassSchedule"."schoolYear" AS "ClassSchedule_schoolYear", "ClassSchedule".semester AS "ClassSchedule_semester", "ClassSchedule"."chattStateANumber" AS "ClassSchedule_chattStateANumber", "ClassSchedule".campus AS "ClassSchedule_campus", "ClassSchedule"."className" AS "ClassSchedule_className", "ClassSchedule"."teacherLastName" AS "ClassSchedule_teacherLastName", "ClassSchedule"."staffID" AS "ClassSchedule_staffID", "ClassSchedule".online AS "ClassSchedule_online", "ClassSchedule"."indStudy" AS "ClassSchedule_indStudy", "ClassSchedule"."classDays" AS "ClassSchedule_classDays", "ClassSchedule"."startTime" AS "ClassSchedule_startTime", "ClassSchedule"."endTime" AS "ClassSchedule_endTime", "ClassSchedule".comment AS "ClassSchedule_comment", "ClassSchedule"."googleCalendarEventID" AS "ClassSchedule_googleCalendarEventID", "ClassSchedule"."interventionLog_id" AS "ClassSchedule_interventionLog_id", "ClassSchedule"."learningLab" AS "ClassSchedule_learningLab", "DailyAttendanceLog".id AS "DailyAttendanceLog_id", "DailyAttendanceLog"."chattStateANumber" AS "DailyAttendanceLog_chattStateANumber", "DailyAttendanceLog"."absenceDate" AS "DailyAttendanceLog_absenceDate", "DailyAttendanceLog"."createDate" AS "DailyAttendanceLog_createDate", "DailyAttendanceLog"."attendanceCode" AS "DailyAttendanceLog_attendanceCode", "DailyAttendanceLog".comment AS "DailyAttendanceLog_comment", "DailyAttendanceLog"."staffID" AS "DailyAttendanceLog_staffID", "DailyAttendanceLog"."assignTmi" AS "DailyAttendanceLog_assignTmi" 
+FROM "ClassAttendanceLog" JOIN "ClassSchedule" ON "ClassSchedule".id = "ClassAttendanceLog"."classSchedule_id" JOIN "Student" ON "Student"."chattStateANumber" = "ClassSchedule"."chattStateANumber" LEFT OUTER JOIN "DailyAttendanceLog" ON "ClassAttendanceLog"."classDate" = "DailyAttendanceLog"."absenceDate" AND "ClassSchedule"."chattStateANumber" = "DailyAttendanceLog"."chattStateANumber" 
+WHERE "ClassAttendanceLog"."attendanceCode" = ? ORDER BY "ClassAttendanceLog"."classDate" DESC, "Student"."lastName", "ClassSchedule"."className"

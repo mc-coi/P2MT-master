@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TMI Final Approval - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .status-complete { background-color: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; }
+    .status-partial { background-color: #FF9800; color: white; padding: 4px 8px; border-radius: 4px; }
+    .status-notstarted { background-color: #F44336; color: white; padding: 4px 8px; border-radius: 4px; }
+    .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .action-btn { padding: 4px 8px; font-size: 12px; margin: 2px; }
+    .modal-content { max-height: 90vh; overflow-y: auto; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  <div class="w3-container w3-padding" style="margin-top:10px;">
+    
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h2><i class="fas fa-check-circle"></i> TMI Final Approval</h2>
+      <p class="w3-text-grey">Complete final TMI assignments and send notifications to students and parents.</p>
+      <div class="w3-bar">
+        <button class="w3-bar-item w3-button w3-green w3-round" id="processAllBtn">
+          <i class="fas fa-cogs"></i> Process All
+        </button>
+        <button class="w3-bar-item w3-button w3-teal w3-round" id="downloadReportBtn">
+          <i class="fas fa-download"></i> Download Report
+        </button>
+        <button class="w3-bar-item w3-button w3-blue w3-round" id="sendAllNotifBtn">
+          <i class="fas fa-envelope"></i> Send All Notifications
+        </button>
+      </div>
+    </div>
+
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h4>TMI Period Selection</h4>
+      <div class="w3-row">
+        <div class="w3-col m6">
+          <label>Start Date</label>
+          <input type="date" id="tmiStartDate" class="w3-input w3-border">
+        </div>
+        <div class="w3-col m6">
+          <label>End Date</label>
+          <input type="date" id="tmiEndDate" class="w3-input w3-border">
+        </div>
+      </div>
+      <div class="w3-margin-top">
+        <button class="w3-button w3-green w3-round" id="loadDataBtn">Load TMI Data</button>
+      </div>
+    </div>
+
+    <div id="summaryCards" style="display:none;">
+      <div class="w3-row w3-margin-bottom">
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalStudentsSummary">0</div>
+            <div>Total Students with TMI</div>
+          </div>
+        </div>
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalAssignedSummary">0</div>
+            <div>Total Minutes Assigned</div>
+          </div>
+        </div>
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalServedSummary">0</div>
+            <div>Total Minutes Served</div>
+          </div>
+        </div>
+        <div class="w3-col m3 w3-margin-bottom">
+          <div class="w3-card summary-card w3-padding w3-round">
+            <div class="w3-jumbo" id="totalRemainingSummary">0</div>
+            <div>Total Minutes Remaining</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="w3-card w3-padding">
+      <div id="loadingSpinner" class="w3-center w3-padding" style="display:none;">
+        <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i> Loading...
+      </div>
+      <div id="tmiTableContainer" style="display:none;">
+        <table id="tmiTable" class="w3-table w3-bordered w3-striped" style="width:100%;">
+          <thead>
+            <tr class="w3-blue">
+              <th>Student Name</th>
+              <th>ChattState A#</th>
+              <th>Grad Year</th>
+              <th>House</th>
+              <th>TMI Minutes Assigned</th>
+              <th>TMI Served</th>
+              <th>TMI Remaining</th>
+              <th>Status</th>
+              <th>Parent Notified</th>
+              <th>Student Notified</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tmiTableBody"></tbody>
+        </table>
+      </div>
+      <div id="noDataMsg" class="w3-panel w3-light-grey w3-round w3-center">
+        Select TMI period dates and load data to begin final approval process.
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Notification Modal -->
+  <div id="bulkNotificationModal" class="w3-modal" style="display:none;z-index:10;">
+    <div class="w3-modal-content w3-card-4 modal-content" style="max-width:800px;">
+      <header class="w3-container w3-blue">
+        <span class="w3-button w3-display-topright" onclick="closeModal('bulkNotificationModal')">&times;</span>
+        <h2>Bulk Notifications</h2>
+      </header>
+      <div class="w3-container w3-padding">
+        <div id="notificationsList" style="max-height:400px;overflow-y:auto;"></div>
+        <div class="w3-bar w3-margin-top">
+          <button class="w3-bar-item w3-button w3-blue w3-round" id="copyAllNotifBtn">
+            <i class="fas fa-copy"></i> Copy All
+          </button>
+          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('bulkNotificationModal')">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Single Notification Modal -->
+  <div id="singleNotificationModal" class="w3-modal" style="display:none;z-index:10;">
+    <div class="w3-modal-content w3-card-4 modal-content" style="max-width:700px;">
+      <header class="w3-container w3-blue">
+        <span class="w3-button w3-display-topright" onclick="closeModal('singleNotificationModal')">&times;</span>
+        <h2>Notification</h2>
+      </header>
+      <div class="w3-container w3-padding">
+        <div class="w3-panel w3-light-grey w3-round">
+          <p><b>To:</b> <span id="notifTo"></span></p>
+          <p><b>Subject:</b> <span id="notifSubject"></span></p>
+        </div>
+        <div class="w3-panel w3-white w3-border" style="min-height:200px;white-space:pre-wrap;">
+          <div id="notifContent"></div>
+        </div>
+        <div class="w3-bar">
+          <button class="w3-bar-item w3-button w3-blue w3-round" id="copySingleNotifBtn">
+            <i class="fas fa-copy"></i> Copy
+          </button>
+          <button class="w3-bar-item w3-button w3-light-grey w3-round" onclick="closeModal('singleNotificationModal')">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, getWhere, updateDoc } from './js/db.js';
+    import { formatDate, exportCSV, showToast } from './js/utils.js';
+
+    let interventions = [];
+    let students = [];
+    let parents = [];
+    let templates = [];
+    let tmiTable = null;
+    let tmiData = [];
+    let allNotifications = [];
+
+    initAuth().then(user => {
+      initNav('tmi-approval');
+      init();
+    });
+
+    async function init() {
+      try {
+        $('#loadingSpinner').show();
+        await loadInitialData();
+        attachEventListeners();
+        loadDefaultDates();
+        $('#loadingSpinner').hide();
+      } catch (error) {
+        console.error('Init error:', error);
+        showToast('Error loading data', 'error');
+        $('#loadingSpinner').hide();
+      }
+    }
+
+    async function loadInitialData() {
+      try {
+        interventions = await getAll('interventionLogs');
+        students = await getAll('students');
+        parents = await getAll('parents');
+        templates = await getAll('p2mtTemplates');
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        throw error;
+      }
+    }
+
+    function loadDefaultDates() {
+      let today = new Date();
+      let thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      $('#tmiStartDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
+      $('#tmiEndDate').val(today.toISOString().split('T')[0]);
+    }
+
+    function attachEventListeners() {
+      $('#loadDataBtn').click(loadTMIData);
+      $('#processAllBtn').click(processAllTMI);
+      $('#downloadReportBtn').click(downloadReport);
+      $('#sendAllNotifBtn').click(showBulkNotifications);
+      $('#copyAllNotifBtn').click(copyAllNotifications);
+      $('#copySingleNotifBtn').click(copySingleNotification);
+    }
+
+    async function loadTMIData() {
+      try {
+        $('#loadingSpinner').show();
+        let startDate = $('#tmiStartDate').val();
+        let endDate = $('#tmiEndDate').val();
+
+        if (!startDate || !endDate) {
+          showToast('Please select both dates', 'warning');
+          $('#loadingSpinner').hide();
+          return;
+        }
+
+        tmiData = [];
+        let totalAssigned = 0;
+        let totalServed = 0;
+        let totalRemaining = 0;
+
+        interventions.forEach(intervention => {
+          let interventionStartDate = new Date(intervention.startDate);
+          let searchStartDate = new Date(startDate);
+          let searchEndDate = new Date(endDate);
+
+          if (interventionStartDate >= searchStartDate && interventionStartDate <= searchEndDate) {
+            let student = students.find(s => s.id === intervention.studentId);
+            if (!student) return;
+
+            let tmiMinutes = intervention.tmiMinutes || 0;
+            let tmiServed = intervention.tmiMinutesServed || 0;
+            let tmiRemaining = intervention.tmiMinutesRemaining || tmiMinutes;
+
+            totalAssigned += tmiMinutes;
+            totalServed += tmiServed;
+            totalRemaining += tmiRemaining;
+
+            let status = 'Not Started';
+            if (tmiServed >= tmiMinutes) {
+              status = 'Complete';
+            } else if (tmiServed > 0) {
+              status = 'Partial';
+            }
+
+            tmiData.push({
+              id: intervention.id,
+              studentId: intervention.studentId,
+              studentName: intervention.studentName,
+              chattStateA: student.chattStateANumber,
+              gradYear: student.graduationYear || '',
+              house: student.house || '',
+              tmiMinutes: tmiMinutes,
+              tmiServed: tmiServed,
+              tmiRemaining: tmiRemaining,
+              status: status,
+              parentNotified: intervention.parentNotification || false,
+              studentNotified: intervention.studentNotification || false
+            });
+          }
+        });
+
+        renderTMITable();
+        updateSummaryStat(tmiData.length, totalAssigned, totalServed, totalRemaining);
+        $('#tmiTableContainer').show();
+        $('#noDataMsg').hide();
+        $('#loadingSpinner').hide();
+        showToast('TMI data loaded successfully', 'success');
+      } catch (error) {
+        console.error('Error loading TMI data:', error);
+        showToast('Error loading TMI data', 'error');
+        $('#loadingSpinner').hide();
+      }
+    }
+
+    function renderTMITable() {
+      if (tmiTable) {
+        tmiTable.destroy();
+      }
+      $('#tmiTableBody').empty();
+
+      tmiData.forEach(student => {
+        let statusBadge = '';
+        if (student.status === 'Complete') {
+          statusBadge = '<span class="status-complete">Complete</span>';
+        } else if (student.status === 'Partial') {
+          statusBadge = '<span class="status-partial">Partial</span>';
+        } else {
+          statusBadge = '<span class="status-notstarted">Not Started</span>';
+        }
+
+        let row = `
+          <tr>
+            <td>${student.studentName}</td>
+            <td>${student.chattStateA}</td>
+            <td>${student.gradYear}</td>
+            <td>${student.house}</td>
+            <td>${student.tmiMinutes}</td>
+            <td>${student.tmiServed}</td>
+            <td>${student.tmiRemaining}</td>
+            <td>${statusBadge}</td>
+            <td><input type="checkbox" class="parent-notified" data-id="${student.id}" ${student.parentNotified ? 'checked' : ''}></td>
+            <td><input type="checkbox" class="student-notified" data-id="${student.id}" ${student.studentNotified ? 'checked' : ''}></td>
+            <td>
+              <button class="w3-button w3-small w3-blue action-btn" onclick="showStudentNotification('${student.id}', '${student.studentName}')">
+                <i class="fas fa-envelope"></i>
+              </button>
+              <button class="w3-button w3-small w3-teal action-btn" onclick="showParentNotification('${student.id}', '${student.studentName}')">
+                <i class="fas fa-envelope-open"></i>
+              </button>
+              <button class="w3-button w3-small w3-green action-btn" onclick="markComplete('${student.id}')">
+                <i class="fas fa-check"></i>
+              </button>
+            </td>
+          </tr>
+        `;
+        $('#tmiTableBody').append(row);
+      });
+
+      $('.parent-notified').on('change', function() {
+        let id = $(this).data('id');
+        let student = tmiData.find(s => s.id === id);
+        if (student) student.parentNotified = $(this).prop('checked');
+      });
+
+      $('.student-notified').on('change', function() {
+        let id = $(this).data('id');
+        let student = tmiData.find(s => s.id === id);
+        if (student) student.studentNotified = $(this).prop('checked');
+      });
+
+      tmiTable = $('#tmiTable').DataTable({
+        paging: true,
+        pageLength: 25,
+        ordering: true,
+        searching: true
+      });
+    }
+
+    function updateSummaryStat(totalStudents, totalAssigned, totalServed, totalRemaining) {
+      $('#totalStudentsSummary').text(totalStudents);
+      $('#totalAssignedSummary').text(totalAssigned);
+      $('#totalServedSummary').text(totalServed);
+      $('#totalRemainingSummary').text(totalRemaining);
+      $('#summaryCards').show();
+    }
+
+    async function processAllTMI() {
+      try {
+        $('#loadingSpinner').show();
+        let updatedCount = 0;
+
+        for (let student of tmiData) {
+          if (student.tmiServed >= student.tmiMinutes) {
+            await updateDoc('interventionLogs', student.id, {
+              interventionStatus: 'Closed'
+            });
+            updatedCount++;
+          }
+        }
+
+        $('#loadingSpinner').hide();
+        showToast(`${updatedCount} interventions marked as completed`, 'success');
+        await loadTMIData();
+      } catch (error) {
+        console.error('Error processing TMI:', error);
+        showToast('Error processing TMI', 'error');
+        $('#loadingSpinner').hide();
+      }
+    }
+
+    async function markComplete(studentId) {
+      try {
+        let student = tmiData.find(s => s.id === studentId);
+        if (student) {
+          await updateDoc('interventionLogs', studentId, {
+            interventionStatus: 'Closed'
+          });
+          student.status = 'Complete';
+          showToast('Marked as complete', 'success');
+          await loadTMIData();
+        }
+      } catch (error) {
+        console.error('Error marking complete:', error);
+        showToast('Error marking complete', 'error');
+      }
+    }
+
+    async function showStudentNotification(studentId, studentName) {
+      let student = tmiData.find(s => s.id === studentId);
+      if (!student) return;
+
+      let template = templates.find(t => t.sendToStudent === true) || templates[0];
+      if (!template) {
+        showToast('No notification template found', 'warning');
+        return;
+      }
+
+      $('#notifTo').text(studentName);
+      $('#notifSubject').text(template.emailSubject || 'TMI Notification');
+      $('#notifContent').text(template.templateContent || '');
+      $('#copySingleNotifBtn').off('click').on('click', () => {
+        copySingleNotification();
+      });
+      $('#singleNotificationModal').show();
+    }
+
+    async function showParentNotification(studentId, studentName) {
+      let student = students.find(s => s.id === studentId);
+      if (!student) return;
+
+      let parent = parents.find(p => p.studentId === studentId);
+      let template = templates.find(t => t.sendToParent === true) || templates[0];
+      if (!template) {
+        showToast('No notification template found', 'warning');
+        return;
+      }
+
+      let parentName = parent ? parent.firstName : 'Parent';
+      $('#notifTo').text(parentName);
+      $('#notifSubject').text(template.emailSubject || 'TMI Notification');
+      $('#notifContent').text(template.templateContent || '');
+      $('#copySingleNotifBtn').off('click').on('click', () => {
+        copySingleNotification();
+      });
+      $('#singleNotificationModal').show();
+    }
+
+    async function showBulkNotifications() {
+      try {
+        allNotifications = [];
+        $('#notificationsList').empty();
+
+        for (let student of tmiData) {
+          if (!student.studentNotified && !student.parentNotified) continue;
+
+          if (student.studentNotified) {
+            let template = templates.find(t => t.sendToStudent === true) || templates[0];
+            if (template) {
+              let notifHtml = `
+                <div class="w3-card w3-padding w3-margin-bottom">
+                  <h5>${student.studentName} (Student)</h5>
+                  <p><b>Subject:</b> ${template.emailSubject || ''}</p>
+                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.templateContent || ''}</p>
+                </div>
+              `;
+              $('#notificationsList').append(notifHtml);
+              allNotifications.push({
+                to: student.studentName,
+                subject: template.emailSubject,
+                content: template.templateContent
+              });
+            }
+          }
+
+          if (student.parentNotified) {
+            let parent = parents.find(p => p.studentId === student.studentId);
+            let template = templates.find(t => t.sendToParent === true) || templates[0];
+            if (template && parent) {
+              let notifHtml = `
+                <div class="w3-card w3-padding w3-margin-bottom">
+                  <h5>${parent.firstName} (Parent of ${student.studentName})</h5>
+                  <p><b>Subject:</b> ${template.emailSubject || ''}</p>
+                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.templateContent || ''}</p>
+                </div>
+              `;
+              $('#notificationsList').append(notifHtml);
+              allNotifications.push({
+                to: parent.firstName,
+                subject: template.emailSubject,
+                content: template.templateContent
+              });
+            }
+          }
+        }
+
+        if (allNotifications.length === 0) {
+          showToast('No notifications to send', 'warning');
+          return;
+        }
+
+        $('#bulkNotificationModal').show();
+      } catch (error) {
+        console.error('Error preparing bulk notifications:', error);
+        showToast('Error preparing notifications', 'error');
+      }
+    }
+
+    function copySingleNotification() {
+      let text = `To: ${$('#notifTo').text()}\nSubject: ${$('#notifSubject').text()}\n\n${$('#notifContent').text()}`;
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('Copied to clipboard', 'success');
+      });
+    }
+
+    function copyAllNotifications() {
+      let allText = allNotifications.map((notif, idx) => 
+        `${idx + 1}. To: ${notif.to}\nSubject: ${notif.subject}\n\n${notif.content}\n${'='.repeat(60)}\n`
+      ).join('\n');
+      navigator.clipboard.writeText(allText).then(() => {
+        showToast('All notifications copied to clipboard', 'success');
+      });
+    }
+
+    function downloadReport() {
+      try {
+        let csvData = tmiData.map(student => ({
+          'Student Name': student.studentName,
+          'ChattState A#': student.chattStateA,
+          'Grad Year': student.gradYear,
+          'House': student.house,
+          'TMI Minutes Assigned': student.tmiMinutes,
+          'TMI Served': student.tmiServed,
+          'TMI Remaining': student.tmiRemaining,
+          'Status': student.status,
+          'Parent Notified': student.parentNotified ? 'Yes' : 'No',
+          'Student Notified': student.studentNotified ? 'Yes' : 'No'
+        }));
+        exportCSV(csvData, 'tmi-approval-report.csv');
+        showToast('Report downloaded successfully', 'success');
+      } catch (error) {
+        console.error('Error downloading report:', error);
+        showToast('Error downloading report', 'error');
+      }
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).style.display = 'none';
+    }
+
+    window.showStudentNotification = showStudentNotification;
+    window.showParentNotification = showParentNotification;
+    window.markComplete = markComplete;
+    window.closeModal = closeModal;
+  </script>
+</body>
+</html>

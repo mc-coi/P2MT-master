@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Parent Information - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .action-button { margin: 2px; font-size: 0.9rem; }
+    .modal-form { max-width: 700px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .form-full { grid-column: 1 / -1; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  
+  <div class="w3-container w3-padding" style="margin-top: 10px;">
+    <!-- Header -->
+    <div class="w3-row w3-margin-bottom">
+      <div class="w3-col m8">
+        <h2><i class="fas fa-user-tie"></i> Parent Information</h2>
+      </div>
+      <div class="w3-col m4 w3-right-align w3-padding-top">
+        <button id="btn-download-csv" class="w3-button w3-blue action-button">
+          <i class="fas fa-download"></i> Download CSV
+        </button>
+        <button id="btn-upload-csv" class="w3-button w3-orange action-button">
+          <i class="fas fa-upload"></i> Upload CSV
+        </button>
+        <input type="file" id="file-upload" style="display:none;" accept=".csv">
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="w3-card w3-light-grey w3-padding w3-margin-bottom">
+      <input type="text" id="search-input" class="w3-input w3-border" placeholder="Search by student name or email...">
+    </div>
+
+    <!-- DataTable -->
+    <div class="w3-card w3-white w3-responsive">
+      <table id="parentsTable" class="w3-table w3-striped w3-bordered">
+        <thead class="w3-teal">
+          <tr>
+            <th>Student Name</th>
+            <th>Guardianship</th>
+            <th>Mother Name</th>
+            <th>Mother Email</th>
+            <th>Mother Phone</th>
+            <th>Father Name</th>
+            <th>Father Email</th>
+            <th>Father Phone</th>
+            <th>Guardian Email</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="parents-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Edit Parent Modal -->
+  <div id="editModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form">
+      <header class="w3-container w3-teal">
+        <span class="w3-button w3-display-topright" onclick="closeEditModal()">&times;</span>
+        <h3>Edit Parent Information</h3>
+      </header>
+      <form id="parentForm" class="w3-padding">
+        <p><b>Student: <span id="modal-student-name"></span></b></p>
+        <hr>
+        
+        <h4 class="w3-text-teal">Contact Type</h4>
+        <label class="w3-text-teal"><b>Guardianship Type</b></label>
+        <select id="guardianship" class="w3-select w3-border w3-margin-bottom">
+          <option value="">Select Type</option>
+          <option value="Both Parents">Both Parents</option>
+          <option value="Mother Only">Mother Only</option>
+          <option value="Father Only">Father Only</option>
+          <option value="Guardian">Guardian</option>
+        </select>
+
+        <h4 class="w3-text-teal">Mother Information</h4>
+        <div class="form-row">
+          <div>
+            <label class="w3-text-teal"><b>Mother Name</b></label>
+            <input type="text" id="motherName" class="w3-input w3-border">
+          </div>
+          <div>
+            <label class="w3-text-teal"><b>Mother Email</b></label>
+            <input type="email" id="motherEmail" class="w3-input w3-border">
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label class="w3-text-teal"><b>Mother Home Phone</b></label>
+            <input type="tel" id="motherHomePhone" class="w3-input w3-border">
+          </div>
+          <div>
+            <label class="w3-text-teal"><b>Mother Day Phone</b></label>
+            <input type="tel" id="motherDayPhone" class="w3-input w3-border">
+          </div>
+        </div>
+
+        <h4 class="w3-text-teal">Father Information</h4>
+        <div class="form-row">
+          <div>
+            <label class="w3-text-teal"><b>Father Name</b></label>
+            <input type="text" id="fatherName" class="w3-input w3-border">
+          </div>
+          <div>
+            <label class="w3-text-teal"><b>Father Email</b></label>
+            <input type="email" id="fatherEmail" class="w3-input w3-border">
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label class="w3-text-teal"><b>Father Home Phone</b></label>
+            <input type="tel" id="fatherHomePhone" class="w3-input w3-border">
+          </div>
+          <div>
+            <label class="w3-text-teal"><b>Father Day Phone</b></label>
+            <input type="tel" id="fatherDayPhone" class="w3-input w3-border">
+          </div>
+        </div>
+
+        <h4 class="w3-text-teal">Guardian Information</h4>
+        <label class="w3-text-teal"><b>Guardian Email</b></label>
+        <input type="email" id="guardianEmail" class="w3-input w3-border w3-margin-bottom">
+
+        <label class="w3-text-teal"><b>Comment</b></label>
+        <textarea id="comment" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
+
+        <button type="submit" class="w3-button w3-teal w3-round">Save Changes</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth, getCurrentUser } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, updateDoc, batchWrite } from './js/db.js';
+    import { formatDate, exportCSV, showToast, generateId } from './js/utils.js';
+
+    let studentsData = [];
+    let parentsData = [];
+    let joinedData = [];
+    let dataTable;
+    let currentEditChattStateA = null;
+
+    window.closeEditModal = closeEditModal;
+    window.editParent = editParent;
+
+    initAuth().then(user => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      initNav('parents');
+      init();
+    });
+
+    async function init() {
+      await loadData();
+      setupEventListeners();
+      joinData();
+      renderTable();
+    }
+
+    async function loadData() {
+      try {
+        showToast('Loading parent information...', 'info');
+        studentsData = await getAll('students');
+        parentsData = await getAll('parents');
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showToast('Error loading parent information', 'error');
+      }
+    }
+
+    function joinData() {
+      joinedData = studentsData.map(student => {
+        const parentInfo = parentsData.find(p => p.chattStateANumber === student.chattStateANumber) || {};
+        return {
+          ...parentInfo,
+          studentId: student.id,
+          studentName: `${student.lastName}, ${student.firstName}`,
+          chattStateANumber: student.chattStateANumber
+        };
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('parents-tbody');
+      tbody.innerHTML = '';
+
+      joinedData.forEach(data => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${data.studentName}</td>
+          <td>${data.guardianship || ''}</td>
+          <td>${data.motherName || ''}</td>
+          <td>${data.motherEmail || ''}</td>
+          <td>${data.motherHomePhone || ''}</td>
+          <td>${data.fatherName || ''}</td>
+          <td>${data.fatherEmail || ''}</td>
+          <td>${data.fatherHomePhone || ''}</td>
+          <td>${data.guardianEmail || ''}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue action-button" onclick="editParent('${data.chattStateANumber}')">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+          </td>
+        `;
+      });
+
+      if (dataTable) {
+        dataTable.destroy();
+      }
+
+      dataTable = $('#parentsTable').DataTable({
+        paging: true,
+        pageLength: 25,
+        ordering: true,
+        searching: false
+      });
+
+      applyFilters();
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
+      document.getElementById('btn-upload-csv').addEventListener('click', () => {
+        document.getElementById('file-upload').click();
+      });
+      document.getElementById('file-upload').addEventListener('change', handleFileUpload);
+      document.getElementById('parentForm').addEventListener('submit', handleParentFormSubmit);
+      document.getElementById('search-input').addEventListener('keyup', applyFilters);
+    }
+
+    async function editParent(chattStateANumber) {
+      currentEditChattStateA = chattStateANumber;
+      const parentData = joinedData.find(p => p.chattStateANumber === chattStateANumber);
+
+      document.getElementById('modal-student-name').textContent = parentData.studentName;
+      document.getElementById('guardianship').value = parentData.guardianship || '';
+      document.getElementById('motherName').value = parentData.motherName || '';
+      document.getElementById('motherEmail').value = parentData.motherEmail || '';
+      document.getElementById('motherHomePhone').value = parentData.motherHomePhone || '';
+      document.getElementById('motherDayPhone').value = parentData.motherDayPhone || '';
+      document.getElementById('fatherName').value = parentData.fatherName || '';
+      document.getElementById('fatherEmail').value = parentData.fatherEmail || '';
+      document.getElementById('fatherHomePhone').value = parentData.fatherHomePhone || '';
+      document.getElementById('fatherDayPhone').value = parentData.fatherDayPhone || '';
+      document.getElementById('guardianEmail').value = parentData.guardianEmail || '';
+      document.getElementById('comment').value = parentData.comment || '';
+
+      document.getElementById('editModal').style.display = 'block';
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').style.display = 'none';
+      currentEditChattStateA = null;
+    }
+
+    async function handleParentFormSubmit(e) {
+      e.preventDefault();
+
+      const parentData = {
+        chattStateANumber: currentEditChattStateA,
+        guardianship: document.getElementById('guardianship').value,
+        motherName: document.getElementById('motherName').value,
+        motherEmail: document.getElementById('motherEmail').value,
+        motherHomePhone: document.getElementById('motherHomePhone').value,
+        motherDayPhone: document.getElementById('motherDayPhone').value,
+        fatherName: document.getElementById('fatherName').value,
+        fatherEmail: document.getElementById('fatherEmail').value,
+        fatherHomePhone: document.getElementById('fatherHomePhone').value,
+        fatherDayPhone: document.getElementById('fatherDayPhone').value,
+        guardianEmail: document.getElementById('guardianEmail').value,
+        comment: document.getElementById('comment').value
+      };
+
+      try {
+        const existingParent = parentsData.find(p => p.chattStateANumber === currentEditChattStateA);
+        
+        if (existingParent) {
+          await updateDoc('parents', existingParent.id, parentData);
+        } else {
+          const docId = generateId();
+          await addDoc('parents', docId, parentData);
+        }
+        
+        showToast('Parent information saved successfully', 'success');
+        closeEditModal();
+        await loadData();
+        joinData();
+        renderTable();
+      } catch (error) {
+        console.error('Error saving parent info:', error);
+        showToast('Error saving parent information', 'error');
+      }
+    }
+
+    function applyFilters() {
+      const searchValue = document.getElementById('search-input').value.toLowerCase();
+
+      dataTable.rows().every(function() {
+        const data = this.data();
+        const studentName = data[0].toLowerCase();
+        const emails = `${data[3]} ${data[6]} ${data[8]}`.toLowerCase();
+        
+        const match = studentName.includes(searchValue) || emails.includes(searchValue);
+
+        if (match) {
+          $(this.node()).show();
+        } else {
+          $(this.node()).hide();
+        }
+      });
+    }
+
+    async function downloadCSV() {
+      try {
+        const csvData = joinedData.map(data => ({
+          'Student Name': data.studentName,
+          'Guardianship': data.guardianship || '',
+          'Mother Name': data.motherName || '',
+          'Mother Email': data.motherEmail || '',
+          'Mother Home Phone': data.motherHomePhone || '',
+          'Mother Day Phone': data.motherDayPhone || '',
+          'Father Name': data.fatherName || '',
+          'Father Email': data.fatherEmail || '',
+          'Father Home Phone': data.fatherHomePhone || '',
+          'Father Day Phone': data.fatherDayPhone || '',
+          'Guardian Email': data.guardianEmail || '',
+          'Comment': data.comment || ''
+        }));
+        exportCSV(csvData, 'parents.csv');
+        showToast('CSV downloaded successfully', 'success');
+      } catch (error) {
+        console.error('Error downloading CSV:', error);
+        showToast('Error downloading CSV', 'error');
+      }
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            showToast('Uploading parent information...', 'info');
+            
+            const batch = [];
+            results.data.forEach(row => {
+              const chattStateA = row['ChattState A#'] || row['chattStateANumber'] || '';
+              const existingParent = parentsData.find(p => p.chattStateANumber === chattStateA);
+              
+              const parentData = {
+                chattStateANumber: chattStateA,
+                guardianship: row['Guardianship'] || row['guardianship'] || '',
+                motherName: row['Mother Name'] || row['motherName'] || '',
+                motherEmail: row['Mother Email'] || row['motherEmail'] || '',
+                motherHomePhone: row['Mother Home Phone'] || row['motherHomePhone'] || '',
+                motherDayPhone: row['Mother Day Phone'] || row['motherDayPhone'] || '',
+                fatherName: row['Father Name'] || row['fatherName'] || '',
+                fatherEmail: row['Father Email'] || row['fatherEmail'] || '',
+                fatherHomePhone: row['Father Home Phone'] || row['fatherHomePhone'] || '',
+                fatherDayPhone: row['Father Day Phone'] || row['fatherDayPhone'] || '',
+                guardianEmail: row['Guardian Email'] || row['guardianEmail'] || '',
+                comment: row['Comment'] || row['comment'] || ''
+              };
+
+              if (existingParent) {
+                batch.push({
+                  docId: existingParent.id,
+                  collection: 'parents',
+                  data: parentData,
+                  operation: 'update'
+                });
+              } else {
+                batch.push({
+                  docId: generateId(),
+                  collection: 'parents',
+                  data: parentData,
+                  operation: 'set'
+                });
+              }
+            });
+
+            await batchWrite(batch);
+            showToast(`${batch.length} parent records processed successfully`, 'success');
+            await loadData();
+            joinData();
+            renderTable();
+            document.getElementById('file-upload').value = '';
+          } catch (error) {
+            console.error('Error uploading CSV:', error);
+            showToast('Error uploading CSV', 'error');
+          }
+        },
+        error: (error) => {
+          console.error('CSV parsing error:', error);
+          showToast('Error parsing CSV file', 'error');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

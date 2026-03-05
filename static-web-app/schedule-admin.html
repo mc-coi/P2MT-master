@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedule Administration - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .tab-button { cursor: pointer; padding: 12px 24px; background-color: #ddd; border: none; outline: none; transition: 0.3s; }
+    .tab-button.active { background-color: #2196F3; color: white; }
+    .tab-button:hover { background-color: #999; }
+    .tab-button.active:hover { background-color: #2196F3; }
+    .tab-content { display: none; padding: 20px; }
+    .tab-content.active { display: block; }
+    .upload-area { border: 2px dashed #2196F3; border-radius: 8px; padding: 40px; text-align: center; background-color: #f0f8ff; }
+    .upload-area.drag-over { background-color: #e0e7ff; border-color: #1976D2; }
+    .checkbox-group { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+    .checkbox-group label { margin: 0; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .form-row-full { grid-column: 1 / -1; }
+    .warning-section { background-color: #ffebee; border: 2px solid #f44336; border-radius: 4px; padding: 20px; margin-bottom: 20px; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2196F3; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  <div class="w3-container w3-padding" style="margin-top:10px;">
+    <h1><i class="fas fa-cogs"></i> Schedule Administration</h1>
+
+    <!-- Tab Buttons -->
+    <div class="w3-bar w3-margin-bottom" style="overflow-x: auto;">
+      <button class="tab-button active" onclick="switchTab('upload')"><i class="fas fa-upload"></i> Upload Schedule</button>
+      <button class="tab-button" onclick="switchTab('add')"><i class="fas fa-plus"></i> Add Single Class</button>
+      <button class="tab-button" onclick="switchTab('propagate')"><i class="fas fa-clock"></i> Propagate Attendance</button>
+      <button class="tab-button" onclick="switchTab('delete')"><i class="fas fa-trash"></i> Delete Schedule</button>
+      <button class="tab-button" onclick="switchTab('reports')"><i class="fas fa-file-download"></i> Download Reports</button>
+    </div>
+
+    <!-- TAB 1: Upload Schedule -->
+    <div id="tab-upload" class="tab-content active">
+      <h2>Upload Schedule CSV</h2>
+      <p class="w3-text-grey">Import class schedules in bulk from a CSV file.</p>
+
+      <div class="upload-area" id="uploadArea" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+        <i class="fas fa-cloud-upload-alt" style="font-size:48px; color:#2196F3;"></i>
+        <p><strong>Drag and drop CSV file here</strong> or click to select</p>
+        <input type="file" id="csvFile" accept=".csv" onchange="previewCSV()" style="display:none;">
+        <button class="w3-button w3-blue" onclick="document.getElementById('csvFile').click()"><i class="fas fa-folder-open"></i> Select File</button>
+      </div>
+
+      <p class="w3-margin-top"><button class="w3-button w3-green" onclick="downloadTemplate()"><i class="fas fa-download"></i> Download Template</button></p>
+
+      <div id="csvPreview" style="margin-top:20px;"></div>
+
+      <div id="uploadProgress" style="margin-top:20px;"></div>
+
+      <button class="w3-button w3-blue w3-margin-top" id="importBtn" onclick="importCSVData()" style="display:none;"><i class="fas fa-upload"></i> Import Data</button>
+    </div>
+
+    <!-- TAB 2: Add Single Class -->
+    <div id="tab-add" class="tab-content">
+      <h2>Add Single Class Schedule</h2>
+      
+      <div class="form-row">
+        <div><label>School Year:<input class="w3-input w3-border" type="text" id="addSchoolYear"></label></div>
+        <div><label>Semester:<select class="w3-input w3-border" id="addSemester"><option>Fall</option><option>Spring</option></select></label></div>
+      </div>
+
+      <div class="form-row">
+        <div><label>Campus:<input class="w3-input w3-border" type="text" id="addCampus"></label></div>
+        <div><label>Student (searchable):<br>
+          <input class="w3-input w3-border" type="text" id="addStudentSearch" placeholder="Search student" onkeyup="searchAddStudents()">
+          <div id="addStudentDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:300px; max-height:200px; overflow-y:auto; z-index:100;"></div>
+          <input type="hidden" id="addStudentId">
+          <div id="addStudentDisplay"></div>
+        </label></div>
+      </div>
+
+      <div class="form-row-full"><label>Class Name:<input class="w3-input w3-border" type="text" id="addClassName"></label></div>
+      <div class="form-row-full"><label>Teacher Last Name:<input class="w3-input w3-border" type="text" id="addTeacherLastName"></label></div>
+
+      <label>Class Days:</label>
+      <div class="checkbox-group w3-margin-bottom">
+        <label><input type="checkbox" id="addDayM" value="M"> M</label>
+        <label><input type="checkbox" id="addDayT" value="T"> T</label>
+        <label><input type="checkbox" id="addDayW" value="W"> W</label>
+        <label><input type="checkbox" id="addDayTh" value="Th"> Th</label>
+        <label><input type="checkbox" id="addDayF" value="F"> F</label>
+      </div>
+
+      <div class="form-row">
+        <div><label>Start Time:<input class="w3-input w3-border" type="time" id="addStartTime"></label></div>
+        <div><label>End Time:<input class="w3-input w3-border" type="time" id="addEndTime"></label></div>
+      </div>
+
+      <label class="w3-margin-top"><input type="checkbox" id="addOnline"> Online</label><br>
+      <label><input type="checkbox" id="addIndStudy"> Independent Study</label><br>
+      <label><input type="checkbox" id="addLearningLab"> Learning Lab</label><br>
+
+      <label class="w3-margin-top">Comment:<textarea class="w3-input w3-border" id="addComment" rows="3"></textarea></label>
+
+      <button class="w3-button w3-blue w3-margin-top" onclick="addSingleClass()"><i class="fas fa-save"></i> Add Class</button>
+      <div id="addResult" style="margin-top:20px;"></div>
+    </div>
+
+    <!-- TAB 3: Propagate Attendance -->
+    <div id="tab-propagate" class="tab-content">
+      <h2>Propagate Attendance Logs</h2>
+      <p class="w3-text-grey">Create attendance log records for all scheduled classes within a date range.</p>
+
+      <div class="form-row">
+        <div><label>School Year:<input class="w3-input w3-border" type="text" id="propSchoolYear"></label></div>
+        <div><label>Semester:<select class="w3-input w3-border" id="propSemester"><option>Fall</option><option>Spring</option></select></label></div>
+      </div>
+
+      <div class="form-row">
+        <div><label>Start Date:<input class="w3-input w3-border" type="date" id="propStartDate"></label></div>
+        <div><label>End Date:<input class="w3-input w3-border" type="date" id="propEndDate"></label></div>
+      </div>
+
+      <button class="w3-button w3-blue w3-margin-top" onclick="propagateAttendance()"><i class="fas fa-play"></i> Propagate</button>
+      <div id="propagateProgress" style="margin-top:20px;"></div>
+    </div>
+
+    <!-- TAB 4: Delete Schedule -->
+    <div id="tab-delete" class="tab-content">
+      <h2>Delete Schedule Records</h2>
+      
+      <div class="warning-section">
+        <h3 style="color:#f44336; margin-top:0;"><i class="fas fa-exclamation-triangle"></i> WARNING: Destructive Operation</h3>
+        <p>This action will permanently delete schedule records from the database. This cannot be undone.</p>
+      </div>
+
+      <div class="form-row">
+        <div><label>School Year (required):<input class="w3-input w3-border" type="text" id="delSchoolYear"></label></div>
+        <div><label>Semester (required):<select class="w3-input w3-border" id="delSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
+      </div>
+
+      <div class="form-row-full"><label>Graduation Year (optional):<input class="w3-input w3-border" type="text" id="delGraduationYear" placeholder="e.g., 2026"></label></div>
+
+      <div id="deletePreview" style="margin-top:20px;"></div>
+
+      <label class="w3-margin-top">Type "DELETE" to confirm:<input class="w3-input w3-border" type="text" id="deleteConfirmText" placeholder="DELETE"></label>
+
+      <button class="w3-button w3-red w3-margin-top" onclick="previewDelete()"><i class="fas fa-search"></i> Preview Delete</button>
+      <button class="w3-button w3-red w3-margin-top" id="deleteBtn" onclick="confirmDeleteSchedules()" style="display:none;"><i class="fas fa-trash"></i> Delete Records</button>
+    </div>
+
+    <!-- TAB 5: Download Reports -->
+    <div id="tab-reports" class="tab-content">
+      <h2>Download Reports</h2>
+
+      <div class="w3-card w3-padding w3-margin-bottom">
+        <h3>Download Class Schedule</h3>
+        <p class="w3-text-grey">Export class schedule records filtered by criteria.</p>
+        <div class="form-row">
+          <div><label>School Year:<input class="w3-input w3-border" type="text" id="repSchoolYear"></label></div>
+          <div><label>Semester:<select class="w3-input w3-border" id="repSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
+        </div>
+        <label>Teacher Last Name (optional):<input class="w3-input w3-border" type="text" id="repTeacher"></label>
+        <button class="w3-button w3-green w3-margin-top" onclick="downloadScheduleReport()"><i class="fas fa-download"></i> Download Schedule CSV</button>
+      </div>
+
+      <div class="w3-card w3-padding">
+        <h3>Download Class Attendance</h3>
+        <p class="w3-text-grey">Export attendance records for a date range and teacher.</p>
+        <div class="form-row">
+          <div><label>School Year:<input class="w3-input w3-border" type="text" id="attSchoolYear"></label></div>
+          <div><label>Semester:<select class="w3-input w3-border" id="attSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
+        </div>
+        <div class="form-row">
+          <div><label>Start Date:<input class="w3-input w3-border" type="date" id="attStartDate"></label></div>
+          <div><label>End Date:<input class="w3-input w3-border" type="date" id="attEndDate"></label></div>
+        </div>
+        <label>Teacher Last Name (optional):<input class="w3-input w3-border" type="text" id="attTeacher"></label>
+        <button class="w3-button w3-green w3-margin-top" onclick="downloadAttendanceReport()"><i class="fas fa-download"></i> Download Attendance CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth, getCurrentUser } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
+    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
+
+    window.getAll = getAll;
+    window.getById = getById;
+    window.addDoc = addDoc;
+    window.updateDoc = updateDoc;
+    window.deleteDoc = deleteDoc;
+    window.getWhere = getWhere;
+    window.getWhereMultiple = getWhereMultiple;
+    window.batchWrite = batchWrite;
+    window.formatDate = formatDate;
+    window.exportCSV = exportCSV;
+    window.importCSV = importCSV;
+    window.showToast = showToast;
+    window.showModal = showModal;
+    window.getCurrentSchoolYear = getCurrentSchoolYear;
+    window.getCurrentSemester = getCurrentSemester;
+
+    let allSchedules = [];
+    let allStudents = [];
+    let allStaff = [];
+    let csvData = [];
+    let deletePreviewCount = 0;
+
+    initAuth().then(user => {
+      if (!user) window.location.href = 'index.html';
+      initNav('schedule-admin');
+      init();
+    });
+
+    async function init() {
+      try {
+        document.getElementById('addSchoolYear').value = getCurrentSchoolYear();
+        document.getElementById('addSemester').value = getCurrentSemester();
+        document.getElementById('addCampus').value = 'STEM School';
+        document.getElementById('propSchoolYear').value = getCurrentSchoolYear();
+        document.getElementById('propSemester').value = getCurrentSemester();
+        document.getElementById('repSchoolYear').value = getCurrentSchoolYear();
+        document.getElementById('attSchoolYear').value = getCurrentSchoolYear();
+
+        allSchedules = await getAll('classSchedules');
+        allStudents = await getAll('students');
+        try {
+          allStaff = await getAll('staff');
+        } catch (e) {
+          allStaff = [];
+        }
+      } catch (error) {
+        console.error('Init error:', error);
+        showToast('Error loading data', 'error');
+      }
+    }
+
+    window.switchTab = function(tab) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-button').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      event.target.classList.add('active');
+    };
+
+    window.handleDragOver = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById('uploadArea').classList.add('drag-over');
+    };
+
+    window.handleDragLeave = function(e) {
+      e.preventDefault();
+      document.getElementById('uploadArea').classList.remove('drag-over');
+    };
+
+    window.handleDrop = function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.getElementById('uploadArea').classList.remove('drag-over');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        document.getElementById('csvFile').files = files;
+        previewCSV();
+      }
+    };
+
+    window.downloadTemplate = function() {
+      const headers = ['Student Name', 'ChattState A#', 'School Year', 'Semester', 'Campus', 'Class Name', 'Teacher Last Name', 'Days (comma separated: M,T,W,Th,F)', 'Start Time (HH:MM)', 'End Time (HH:MM)', 'Online (Yes/No)', 'Ind Study (Yes/No)', 'Learning Lab (Yes/No)', 'Comment'];
+      const rows = [['John Doe', 'A123456', '2025-2026', 'Fall', 'STEM School', 'Math 101', 'Smith', 'M,W,F', '09:00', '10:00', 'No', 'No', 'No', '']];
+      exportCSV(headers, rows, 'schedule-template.csv');
+    };
+
+    window.previewCSV = function() {
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) return;
+
+      Papa.parse(file, {
+        header: true,
+        complete: function(results) {
+          csvData = results.data.filter(row => row['Student Name']);
+          const preview = document.getElementById('csvPreview');
+          let html = '<h3>Preview (first 5 rows):</h3><div style="overflow-x:auto;"><table class="w3-table w3-bordered w3-striped">';
+          
+          if (csvData.length > 0) {
+            html += '<tr class="w3-blue"><th>' + Object.keys(csvData[0]).join('</th><th>') + '</th></tr>';
+            csvData.slice(0, 5).forEach(row => {
+              html += '<tr><td>' + Object.values(row).map(v => (v || '').substring(0, 20)).join('</td><td>') + '</td></tr>';
+            });
+          }
+          html += '</table></div><p class="w3-text-grey"><strong>Total rows to import: ' + csvData.length + '</strong></p>';
+          preview.innerHTML = html;
+          document.getElementById('importBtn').style.display = 'block';
+        }
+      });
+    };
+
+    window.importCSVData = async function() {
+      try {
+        if (csvData.length === 0) {
+          showToast('No data to import', 'error');
+          return;
+        }
+
+        const progress = document.getElementById('uploadProgress');
+        progress.innerHTML = '<p>Importing...</p>';
+        
+        let successful = 0;
+        let errors = 0;
+
+        for (let i = 0; i < csvData.length; i++) {
+          try {
+            const row = csvData[i];
+            const studentName = row['Student Name'];
+            const student = allStudents.find(s => (s.firstName + ' ' + s.lastName).toLowerCase() === studentName.toLowerCase());
+
+            if (!student) {
+              errors++;
+              continue;
+            }
+
+            const days = (row['Days (comma separated: M,T,W,Th,F)'] || '').split(',').map(d => d.trim()).filter(d => d);
+            
+            const data = {
+              studentId: student.id,
+              studentName: studentName,
+              chattStateANumber: row['ChattState A#'] || student.chattStateANumber,
+              schoolYear: row['School Year'],
+              semester: row['Semester'],
+              campus: row['Campus'],
+              className: row['Class Name'],
+              teacherLastName: row['Teacher Last Name'],
+              classDays: days,
+              startTime: row['Start Time (HH:MM)'],
+              endTime: row['End Time (HH:MM)'],
+              online: row['Online (Yes/No)']?.toLowerCase() === 'yes',
+              indStudy: row['Ind Study (Yes/No)']?.toLowerCase() === 'yes',
+              learningLab: row['Learning Lab (Yes/No)']?.toLowerCase() === 'yes',
+              comment: row['Comment'] || ''
+            };
+
+            await addDoc('classSchedules', data);
+            successful++;
+          } catch (err) {
+            console.error('Row error:', err);
+            errors++;
+          }
+
+          const pct = Math.round((i + 1) / csvData.length * 100);
+          progress.innerHTML = `<div class="w3-light-grey" style="margin:10px 0;"><div class="w3-blue" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed</p>`;
+        }
+
+        progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Import Complete!</strong><br>Successful: ${successful}<br>Errors: ${errors}</div>`;
+        allSchedules = await getAll('classSchedules');
+        showToast('Import completed', 'success');
+      } catch (error) {
+        console.error('Import error:', error);
+        showToast('Error importing data', 'error');
+      }
+    };
+
+    window.searchAddStudents = function() {
+      const query = document.getElementById('addStudentSearch').value.toLowerCase();
+      const dropdown = document.getElementById('addStudentDropdown');
+      
+      if (query.length < 1) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      const filtered = allStudents.filter(s => 
+        (s.firstName || '').toLowerCase().includes(query) || 
+        (s.lastName || '').toLowerCase().includes(query) || 
+        (s.chattStateANumber || '').includes(query)
+      ).slice(0, 10);
+
+      if (filtered.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      dropdown.innerHTML = filtered.map(s => 
+        `<a onclick="selectAddStudent('${s.id}', '${s.firstName} ${s.lastName}', '${s.chattStateANumber}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.firstName} ${s.lastName} (${s.chattStateANumber})</a>`
+      ).join('');
+      dropdown.style.display = 'block';
+    };
+
+    window.selectAddStudent = function(id, name, aNum) {
+      document.getElementById('addStudentId').value = id;
+      document.getElementById('addStudentDisplay').innerHTML = `<div class="w3-text-blue"><strong>${name}</strong> (${aNum})</div>`;
+      document.getElementById('addStudentSearch').value = '';
+      document.getElementById('addStudentDropdown').style.display = 'none';
+    };
+
+    window.addSingleClass = async function() {
+      try {
+        const studentId = document.getElementById('addStudentId').value;
+        if (!studentId) {
+          showToast('Please select a student', 'error');
+          return;
+        }
+
+        const classDays = [];
+        if (document.getElementById('addDayM').checked) classDays.push('M');
+        if (document.getElementById('addDayT').checked) classDays.push('T');
+        if (document.getElementById('addDayW').checked) classDays.push('W');
+        if (document.getElementById('addDayTh').checked) classDays.push('Th');
+        if (document.getElementById('addDayF').checked) classDays.push('F');
+
+        if (classDays.length === 0) {
+          showToast('Please select at least one day', 'error');
+          return;
+        }
+
+        const student = allStudents.find(s => s.id === studentId);
+        const data = {
+          studentId: studentId,
+          studentName: document.getElementById('addStudentDisplay').innerText.split('\n')[0],
+          chattStateANumber: student.chattStateANumber,
+          schoolYear: document.getElementById('addSchoolYear').value,
+          semester: document.getElementById('addSemester').value,
+          campus: document.getElementById('addCampus').value,
+          className: document.getElementById('addClassName').value,
+          teacherLastName: document.getElementById('addTeacherLastName').value,
+          classDays: classDays,
+          startTime: document.getElementById('addStartTime').value,
+          endTime: document.getElementById('addEndTime').value,
+          online: document.getElementById('addOnline').checked,
+          indStudy: document.getElementById('addIndStudy').checked,
+          learningLab: document.getElementById('addLearningLab').checked,
+          comment: document.getElementById('addComment').value
+        };
+
+        await addDoc('classSchedules', data);
+        showToast('Class schedule added successfully', 'success');
+        
+        document.getElementById('addStudentId').value = '';
+        document.getElementById('addStudentDisplay').innerHTML = '';
+        document.getElementById('addClassName').value = '';
+        document.getElementById('addTeacherLastName').value = '';
+        document.getElementById('addComment').value = '';
+        document.getElementById('addOnline').checked = false;
+        document.getElementById('addIndStudy').checked = false;
+        document.getElementById('addLearningLab').checked = false;
+        document.getElementById('addDayM').checked = false;
+        document.getElementById('addDayT').checked = false;
+        document.getElementById('addDayW').checked = false;
+        document.getElementById('addDayTh').checked = false;
+        document.getElementById('addDayF').checked = false;
+        document.getElementById('addStartTime').value = '';
+        document.getElementById('addEndTime').value = '';
+        
+        allSchedules = await getAll('classSchedules');
+      } catch (error) {
+        console.error('Add class error:', error);
+        showToast('Error adding class', 'error');
+      }
+    };
+
+    window.propagateAttendance = async function() {
+      try {
+        const schoolYear = document.getElementById('propSchoolYear').value;
+        const semester = document.getElementById('propSemester').value;
+        const startDate = new Date(document.getElementById('propStartDate').value);
+        const endDate = new Date(document.getElementById('propEndDate').value);
+
+        if (!schoolYear || !semester || isNaN(startDate) || isNaN(endDate)) {
+          showToast('Please fill in all fields', 'error');
+          return;
+        }
+
+        const progress = document.getElementById('propagateProgress');
+        progress.innerHTML = '<p>Processing...</p>';
+
+        const matchingSchedules = allSchedules.filter(s => 
+          s.schoolYear === schoolYear && s.semester === semester
+        );
+
+        const attendanceLogs = [];
+        let current = new Date(startDate);
+
+        while (current <= endDate) {
+          const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][current.getDay()];
+
+          matchingSchedules.forEach(schedule => {
+            if ((schedule.classDays || []).includes(dayAbbr)) {
+              attendanceLogs.push({
+                studentId: schedule.studentId,
+                studentName: schedule.studentName,
+                chattStateANumber: schedule.chattStateANumber,
+                classScheduleId: schedule.id,
+                className: schedule.className,
+                teacherLastName: schedule.teacherLastName,
+                date: current.toISOString().split('T')[0],
+                schoolYear: schoolYear,
+                semester: semester,
+                status: 'unmarked'
+              });
+            }
+          });
+
+          current.setDate(current.getDate() + 1);
+        }
+
+        if (attendanceLogs.length === 0) {
+          progress.innerHTML = '<p class="w3-text-red">No matching schedules found for the date range.</p>';
+          return;
+        }
+
+        const batchSize = 500;
+        for (let i = 0; i < attendanceLogs.length; i += batchSize) {
+          const batch = attendanceLogs.slice(i, i + batchSize);
+          const batch_data = {};
+          batch.forEach((log, idx) => {
+            batch_data[`doc_${i + idx}`] = log;
+          });
+          await batchWrite('classAttendanceLogs', batch_data);
+          
+          const pct = Math.round((i + batchSize) / attendanceLogs.length * 100);
+          progress.innerHTML = `<div class="w3-light-grey" style="margin:10px 0;"><div class="w3-blue" style="width:${Math.min(pct, 100)}%; text-align:center; color:white; height:25px; line-height:25px;">${Math.min(pct, 100)}%</div></div><p>Created ${Math.min(i + batchSize, attendanceLogs.length)}/${attendanceLogs.length} attendance logs</p>`;
+        }
+
+        progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Propagation Complete!</strong><br>Created ${attendanceLogs.length} attendance logs</div>`;
+        showToast('Attendance logs propagated', 'success');
+      } catch (error) {
+        console.error('Propagate error:', error);
+        showToast('Error propagating attendance logs', 'error');
+      }
+    };
+
+    window.previewDelete = async function() {
+      try {
+        const schoolYear = document.getElementById('delSchoolYear').value;
+        const semester = document.getElementById('delSemester').value;
+        const graduationYear = document.getElementById('delGraduationYear').value;
+
+        if (!schoolYear || !semester) {
+          showToast('School Year and Semester are required', 'error');
+          return;
+        }
+
+        let toDelete = allSchedules.filter(s => 
+          s.schoolYear === schoolYear && s.semester === semester
+        );
+
+        if (graduationYear) {
+          const studentsInYear = allStudents.filter(s => s.graduationYear === graduationYear);
+          const studentIds = studentsInYear.map(s => s.id);
+          toDelete = toDelete.filter(s => studentIds.includes(s.studentId));
+        }
+
+        deletePreviewCount = toDelete.length;
+        const preview = document.getElementById('deletePreview');
+        preview.innerHTML = `<div class="w3-panel w3-light-yellow w3-border"><p><strong>Records that will be deleted:</strong></p><p class="w3-jumbo w3-text-red">${toDelete.length}</p></div>`;
+        document.getElementById('deleteBtn').style.display = 'block';
+      } catch (error) {
+        console.error('Preview error:', error);
+        showToast('Error previewing delete', 'error');
+      }
+    };
+
+    window.confirmDeleteSchedules = async function() {
+      try {
+        const confirmText = document.getElementById('deleteConfirmText').value;
+        if (confirmText !== 'DELETE') {
+          showToast('Please type "DELETE" to confirm', 'error');
+          return;
+        }
+
+        const schoolYear = document.getElementById('delSchoolYear').value;
+        const semester = document.getElementById('delSemester').value;
+        const graduationYear = document.getElementById('delGraduationYear').value;
+
+        let toDelete = allSchedules.filter(s => 
+          s.schoolYear === schoolYear && s.semester === semester
+        );
+
+        if (graduationYear) {
+          const studentsInYear = allStudents.filter(s => s.graduationYear === graduationYear);
+          const studentIds = studentsInYear.map(s => s.id);
+          toDelete = toDelete.filter(s => studentIds.includes(s.studentId));
+        }
+
+        const preview = document.getElementById('deletePreview');
+        preview.innerHTML = '<p>Deleting...</p>';
+
+        for (let i = 0; i < toDelete.length; i++) {
+          await deleteDoc('classSchedules', toDelete[i].id);
+          const pct = Math.round((i + 1) / toDelete.length * 100);
+          preview.innerHTML = `<div class="w3-light-grey" style="margin:10px 0;"><div class="w3-red" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>Deleted ${i + 1}/${toDelete.length} records</p>`;
+        }
+
+        preview.innerHTML = `<div class="w3-panel w3-light-red w3-border"><strong>Deletion Complete!</strong><br>Deleted ${toDelete.length} schedule records</div>`;
+        document.getElementById('deleteConfirmText').value = '';
+        document.getElementById('deleteBtn').style.display = 'none';
+        allSchedules = await getAll('classSchedules');
+        showToast('Schedules deleted successfully', 'success');
+      } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Error deleting schedules', 'error');
+      }
+    };
+
+    window.downloadScheduleReport = async function() {
+      try {
+        const schoolYear = document.getElementById('repSchoolYear').value;
+        const semester = document.getElementById('repSemester').value;
+        const teacher = document.getElementById('repTeacher').value.toLowerCase();
+
+        let filtered = allSchedules;
+        if (schoolYear) filtered = filtered.filter(s => s.schoolYear === schoolYear);
+        if (semester) filtered = filtered.filter(s => s.semester === semester);
+        if (teacher) filtered = filtered.filter(s => (s.teacherLastName || '').toLowerCase().includes(teacher));
+
+        const headers = ['Student Name', 'ChattState A#', 'School Year', 'Semester', 'Campus', 'Class Name', 'Teacher', 'Days', 'Start Time', 'End Time', 'Online', 'Ind Study', 'Learning Lab', 'Comment'];
+        const rows = filtered.map(s => [
+          s.studentName || '',
+          s.chattStateANumber || '',
+          s.schoolYear || '',
+          s.semester || '',
+          s.campus || '',
+          s.className || '',
+          s.teacherLastName || '',
+          (s.classDays || []).join(', '),
+          s.startTime || '',
+          s.endTime || '',
+          s.online ? 'Yes' : 'No',
+          s.indStudy ? 'Yes' : 'No',
+          s.learningLab ? 'Yes' : 'No',
+          s.comment || ''
+        ]);
+        exportCSV(headers, rows, 'schedule-report.csv');
+        showToast('Schedule report downloaded', 'success');
+      } catch (error) {
+        console.error('Report error:', error);
+        showToast('Error downloading report', 'error');
+      }
+    };
+
+    window.downloadAttendanceReport = async function() {
+      try {
+        const schoolYear = document.getElementById('attSchoolYear').value;
+        const semester = document.getElementById('attSemester').value;
+        const startDate = document.getElementById('attStartDate').value;
+        const endDate = document.getElementById('attEndDate').value;
+        const teacher = document.getElementById('attTeacher').value.toLowerCase();
+
+        if (!schoolYear || !semester || !startDate || !endDate) {
+          showToast('Please fill in all required fields', 'error');
+          return;
+        }
+
+        try {
+          const allLogs = await getAll('classAttendanceLogs');
+          let filtered = allLogs.filter(log =>
+            log.schoolYear === schoolYear && 
+            log.semester === semester &&
+            log.date >= startDate &&
+            log.date <= endDate
+          );
+
+          if (teacher) {
+            filtered = filtered.filter(log => (log.teacherLastName || '').toLowerCase().includes(teacher));
+          }
+
+          const headers = ['Student Name', 'ChattState A#', 'Class Name', 'Teacher', 'Date', 'Status'];
+          const rows = filtered.map(log => [
+            log.studentName || '',
+            log.chattStateANumber || '',
+            log.className || '',
+            log.teacherLastName || '',
+            log.date || '',
+            log.status || 'unmarked'
+          ]);
+
+          exportCSV(headers, rows, 'attendance-report.csv');
+          showToast('Attendance report downloaded', 'success');
+        } catch (e) {
+          showToast('Error retrieving attendance logs', 'error');
+        }
+      } catch (error) {
+        console.error('Report error:', error);
+        showToast('Error downloading report', 'error');
+      }
+    };
+  </script>
+</body>
+</html>

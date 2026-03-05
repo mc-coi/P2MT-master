@@ -1,0 +1,14 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="w3-container w3-green w3-row">
+    <div class="w3-third">
+        <h2>{{title}}</h2>
+    </div>
+</div>
+<div class="w3-container">
+    <h1>You don't have permission to do that (401)</h1>
+    <p>The server could not verify that you are authorized to access the URL requested. You either supplied the wrong
+        credentials (e.g. a bad password), or your browser doesn't understand how to supply the credentials required.
+    </p>
+</div>
+{% endblock content %}

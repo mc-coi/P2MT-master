@@ -1,0 +1,1 @@
+year, semester, Chatt_State_A_Number, CSname (optional), firstName (optional),lastName (optional), HSclass (optional),campus, courseNumber (optional),courseName, sectionID (optional),teacher (optional), online (1 if true), indStudy (1 if true),days, times (optional), startTime, endTime, comment (optional),googleCalendarEventID (optional)

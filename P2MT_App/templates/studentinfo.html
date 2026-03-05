@@ -1,0 +1,258 @@
+{% extends 'layout.html'%}
+{% block content %}
+
+{% macro macro_display_formfield(formfield, w3ResponsiveGridClass, uniqueId) %}
+<div class="{{w3ResponsiveGridClass}}">
+  {{ formfield.label(class="w3-text-blue-gray w3-large") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(id=uniqueId, class="w3-select") }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+<div class="w3-container w3-green w3-row">
+  <div class="w3-third">
+    <h2>{{title}}</h2>
+  </div>
+</div>
+
+{{ macro_display_flashed_messages() }}
+
+<table class="w3-table w3-bordered w3-striped w3-hoverable">
+  <thead>
+    <tr class="w3-blue">
+      <th scope="col">A#</th>
+      <th scope="col">First</th>
+      <th scope="col">Last</th>
+      <th scope="col">Email</th>
+      <th scope="col">Year of Graduation</th>
+      <th scope="col">House</th>
+    </tr>
+  </thead>
+  <tbody class="w3-main">
+    {% for student in students %}
+    <tr>
+      <td scope="row">{{ student.chattStateANumber }}</td>
+      <td>{{ student.firstName }}</td>
+      <td>{{ student.lastName }}</td>
+      <td>{{ student.email }}</td>
+      <td>{{ student.yearOfGraduation }}</td>
+      <td>{{ student.house }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div style="overflow-x:auto;">
+  <table class="w3-table w3-striped w3-hoverable">
+    <thead>
+      <tr class="w3-blue">
+
+        <th></th>
+        <th colspan="4" class="w3-center w3-border-left w3-border-right">Mother</th>
+        <th colspan="4" class="w3-center w3-border-right">Father</th>
+        <th></th>
+        <th></th>
+      </tr>
+      <tr class="w3-blue">
+
+        <th>Guardianship</th>
+        <th class="w3-border-left">Name</th>
+        <th>Email</th>
+        <th>Home</th>
+        <th>Day</th>
+        <th class="w3-border-left">Name</th>
+        <th>Email</th>
+        <th>Home</th>
+        <th class="w3-border-right">Day</th>
+        <th>Guardian Email</th>
+        <th>Comment</th>
+      </tr>
+    </thead>
+    <tbody class="w3-main">
+      {% for parent in parents %}
+      <tr style="white-space: nowrap;">
+
+        <td class="w3-border-right">{{ parent.guardianship }}</td>
+        <td>{{ parent.motherName }}</td>
+        <td>{{ parent.motherEmail }}</td>
+        <td>{{ parent.motherHomePhone }}</td>
+        <td class="w3-border-right">{{ parent.motherDayPhone }}</td>
+        <td>{{ parent.fatherName }}</td>
+        <td>{{ parent.fatherEmail }}</td>
+        <td>{{ parent.fatherHomePhone }}</td>
+        <td class="w3-border-right">{{ parent.fatherDayPhone }}</td>
+        <td>{{ parent.guardianEmail }}</td>
+        <td>{{ parent.comment }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+
+<div class="w3-container w3-gray w3-center">
+  <p class="w3-large"><strong>School Absences</strong></p>
+</div>
+<table class="w3-table w3-bordered w3-striped w3-hoverable">
+  <thead>
+    <tr class="w3-blue">
+      <th scope="col">Absence Date</th>
+      <th scope="col">Attendance Code</th>
+      <th scope="col">Comment</th>
+      <th scope="col">Log Entry Date</th>
+      <th scope="col">Staff Last Name</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for DailyAttendanceLog in DailyAttendanceLogs %}
+    <tr>
+      <td>{{ DailyAttendanceLog.absenceDate.strftime('%-m/%-d/%Y') }}</td>
+      <td>{{ DailyAttendanceLog.attendanceCode }}</td>
+      <td>{{ DailyAttendanceLog.comment }}</td>
+      <td>{{ DailyAttendanceLog.createDate.strftime('%-m/%-d/%Y') }}</td>
+      <td>{{ DailyAttendanceLog.FacultyAndStaff.lastName}}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="w3-container w3-gray w3-center">
+  <p class="w3-large"><strong>Class Attendance</strong></p>
+</div>
+<table class="w3-table w3-bordered w3-striped w3-hoverable">
+  <thead>
+    <tr class="w3-blue">
+      <th>Class:</th>
+      <th>Date:</th>
+      <th>Attendance:</th>
+      <th>Teacher:</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for studentFixedFields in classAttendanceFixedFields %}
+    <tr>
+      <td>{{ studentFixedFields.ClassSchedule.className }}</td>
+      <td>{{ studentFixedFields.classDate.strftime('%a %b %-d') }}</td>
+      <td>{{ studentFixedFields.attendanceCode }}</td>
+      <td>{{ studentFixedFields.ClassSchedule.teacherLastName }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="w3-container w3-gray w3-center">
+  <p class="w3-large"><strong>Interventions</strong></p>
+</div>
+<table class="w3-table w3-bordered w3-striped w3-hoverable">
+  <thead>
+    <tr class="w3-blue">
+      <th scope="col">Intervention Type</th>
+      <th scope="col">Intervention Level</th>
+      <th scope="col">Create Date</th>
+      <th scope="col">Start Date</th>
+      <th scope="col">End Date</th>
+      <th scope="col">Teacher</th>
+      <th scope="col">Comment</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for InterventionLog in InterventionLogs %}
+    <tr>
+      <td>{{ InterventionLog.InterventionType.interventionType }}</td>
+      <td>{{ InterventionLog.interventionLevel }}</td>
+      <td>{{ InterventionLog.createDate.strftime('%-m/%-d/%Y') }}</td>
+      <td>{{ InterventionLog.startDate.strftime('%-m/%-d/%Y') }}</td>
+      <td>{{ InterventionLog.endDate.strftime('%-m/%-d/%Y') }}</td>
+      <td>{{ InterventionLog.FacultyAndStaff.lastName}}</td>
+      <td>{{ InterventionLog.comment }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+<div class="w3-container w3-gray w3-center">
+  <p class="w3-large"><strong>Learning Labs</strong></p>
+</div>
+<table class="w3-table w3-bordered w3-striped w3-hoverable">
+  <thead>
+    <tr class="w3-blue">
+      <th scope="col">Class Name</th>
+      <th scope="col">Teacher</th>
+      <th scope="col">Start Date</th>
+      <th scope="col">End Date</th>
+      <th scope="col">Days</th>
+      <th scope="col">Start Time</th>
+      <th scope="col">End Time</th>
+      <th scope="col">Comment</th>
+    </tr>
+  </thead>
+  <tbody id="filteredTable">
+    {% for ClassSchedule in LearningLabSchedules %}
+    <tr>
+      <td>{{ ClassSchedule.className }}</td>
+      <td>{{ ClassSchedule.teacherLastName}}</td>
+      <td>{{ ClassSchedule.InterventionLog.startDate.strftime('%-m/%-d/%Y') }}</td>
+      <td>{{ ClassSchedule.InterventionLog.endDate.strftime('%-m/%-d/%Y') }}</td>
+      <td>{{ ClassSchedule.classDays }}</td>
+      <td>{{ ClassSchedule.startTime.strftime('%-I:%M') }}</td>
+      <td>{{ ClassSchedule.endTime.strftime('%-I:%M') }}</td>
+      <td>{{ ClassSchedule.comment }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="w3-container w3-gray w3-center">
+  {% for student in students %}
+  <p class="w3-large"><strong>Schedule <a
+        href="https://calendar.google.com/calendar/embed?src={{ student.googleCalendarId }}" target="_blank"><i
+          class="fa fa-external-link" aria-hidden="true"></i></a></strong></p>
+  {% endfor %}
+</div>
+<table class="w3-table w3-bordered w3-striped w3-hoverable">
+  <thead>
+    <tr class="w3-blue">
+      <th scope="col">Year</th>
+      <th scope="col">Semester</th>
+      <th scope="col">Campus</th>
+      <th scope="col">Class Name</th>
+      <th scope="col">Teacher</th>
+      <th scope="col">Online</th>
+      <th scope="col">Ind Study</th>
+      <th scope="col">Days</th>
+      <th scope="col">Start Time</th>
+      <th scope="col">End Time</th>
+      <th scope="col">Comment</th>
+    </tr>
+  </thead>
+  <tbody id="filteredTable">
+    {% for ClassSchedule in ClassSchedules %}
+    <tr>
+      <td scope="row">{{ ClassSchedule.schoolYear }}</td>
+      <td>{{ ClassSchedule.semester }}</td>
+      <td>{{ ClassSchedule.campus }}</td>
+      <td>{{ ClassSchedule.className }}</td>
+      <td>{{ ClassSchedule.teacherLastName}}</td>
+      <td>{{ ClassSchedule.online }}</td>
+      <td>{{ ClassSchedule.indStudy }}</td>
+      <td>{{ ClassSchedule.classDays }}</td>
+      <td>{{ ClassSchedule.startTime.strftime('%-I:%M') }}</td>
+      <td>{{ ClassSchedule.endTime.strftime('%-I:%M') }}</td>
+      <td>{{ ClassSchedule.comment }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+
+
+{% endblock content %}

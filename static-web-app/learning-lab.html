@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Learning Lab Manager - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .day-badge { display: inline-block; width: 24px; height: 24px; border-radius: 3px; text-align: center; line-height: 24px; font-size: 11px; font-weight: bold; color: white; margin: 2px; }
+    .day-m { background-color: #2196F3; }
+    .day-t { background-color: #009688; }
+    .day-w { background-color: #4CAF50; }
+    .day-th { background-color: #FF9800; }
+    .day-f { background-color: #9C27B0; }
+    .session-section { background-color: #f5f5f5; padding: 15px; border-radius: 4px; margin: 15px 0; border-left: 4px solid #2196F3; }
+    .modal-form { max-width: 700px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+    .form-row-full { grid-column: 1 / -1; }
+    .checkbox-group { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+    .checkbox-group label { margin: 0; }
+    .session-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 0.5fr; gap: 10px; align-items: center; margin-bottom: 10px; }
+    .session-toggle { cursor: pointer; padding: 10px; background-color: #f0f0f0; border-radius: 4px; border-left: 3px solid #2196F3; transition: 0.3s; }
+    .session-toggle.enabled { background-color: #e3f2fd; border-left-color: #2196F3; }
+    .session-toggle.disabled { background-color: #f5f5f5; border-left-color: #ccc; opacity: 0.6; }
+    .session-content { margin-left: 20px; padding: 15px; background-color: white; border-radius: 4px; display: none; }
+    .session-content.active { display: block; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2196F3; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  <div class="w3-container w3-padding" style="margin-top:10px;">
+    <h1><i class="fas fa-book"></i> Learning Lab Manager</h1>
+    
+    <!-- Action Buttons -->
+    <div class="w3-bar w3-margin-bottom">
+      <button class="w3-button w3-blue" onclick="openAddLabModal()"><i class="fas fa-plus"></i> Add Learning Lab</button>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <div class="w3-row">
+        <div class="w3-col s12 m3"><label>School Year:<input class="w3-input w3-border" type="text" id="filterSchoolYear" placeholder="e.g., 2025-2026"></label></div>
+        <div class="w3-col s12 m3"><label>Semester:<select class="w3-input w3-border" id="filterSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
+        <div class="w3-col s12 m3"><label>Student:<input class="w3-input w3-border" type="text" id="filterStudent" placeholder="Name or A#"></label></div>
+        <div class="w3-col s12 m3"><label>Teacher:<input class="w3-input w3-border" type="text" id="filterTeacher" placeholder="Last Name"></label></div>
+      </div>
+      <div class="w3-row w3-margin-top">
+        <div class="w3-col s12"><button class="w3-button w3-blue" onclick="applyFilters()"><i class="fas fa-filter"></i> Apply Filters</button></div>
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div style="overflow-x: auto;">
+      <table id="labTable" class="w3-table-all w3-striped w3-bordered">
+        <thead>
+          <tr class="w3-blue">
+            <th>Student Name</th>
+            <th>ChattState A#</th>
+            <th>Class Name</th>
+            <th>Teacher</th>
+            <th>Days</th>
+            <th>Time</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Linked Intervention</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add/Edit Learning Lab Modal -->
+  <div id="labModal" class="w3-modal" onclick="if(event.target===this)closeLabModal()">
+    <div class="w3-modal-content w3-card modal-form">
+      <span class="w3-button w3-large w3-display-topright" onclick="closeLabModal()">&times;</span>
+      <div class="w3-container w3-padding-16">
+        <h2 id="labModalTitle">Add Learning Lab</h2>
+        
+        <div class="form-row">
+          <div><label>Student (searchable):<br>
+            <input class="w3-input w3-border" type="text" id="labStudentSearch" placeholder="Search student" onkeyup="searchLabStudents()">
+            <div id="labStudentDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:250px; max-height:200px; overflow-y:auto; z-index:100;"></div>
+            <input type="hidden" id="labStudentId">
+            <div id="labStudentDisplay"></div>
+          </label></div>
+          <div><label>School Year<input class="w3-input w3-border" type="text" id="labSchoolYear"></label></div>
+        </div>
+
+        <div class="form-row">
+          <div><label>Semester<select class="w3-input w3-border" id="labSemester"><option>Fall</option><option>Spring</option></select></label></div>
+          <div><label>Campus<input class="w3-input w3-border" type="text" id="labCampus" value="STEM School"></label></div>
+        </div>
+
+        <div class="form-row-full"><label>Class Name<input class="w3-input w3-border" type="text" id="labClassName"></label></div>
+        <div class="form-row-full"><label>Teacher (searchable):<br>
+          <input class="w3-input w3-border" type="text" id="labTeacherSearch" placeholder="Search teacher" onkeyup="searchLabTeachers()">
+          <div id="labTeacherDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:250px; max-height:150px; overflow-y:auto; z-index:100;"></div>
+          <input type="hidden" id="labTeacherId">
+          <div id="labTeacherDisplay"></div>
+        </label></div>
+
+        <div class="form-row">
+          <div><label>Start Date<input class="w3-input w3-border" type="date" id="labStartDate"></label></div>
+          <div><label>End Date<input class="w3-input w3-border" type="date" id="labEndDate"></label></div>
+        </div>
+
+        <!-- Sessions -->
+        <h3 style="margin-top:20px; border-bottom:2px solid #2196F3; padding-bottom:10px;">Sessions</h3>
+        <p class="w3-text-grey">Add 1-5 learning lab sessions. Each session will be created as a separate class schedule.</p>
+
+        <!-- Session 1 -->
+        <div class="session-toggle enabled" id="session1Toggle" onclick="toggleSession(1)">
+          <strong>Session 1</strong> <span style="float:right; color:#2196F3;"><i class="fas fa-chevron-down"></i></span>
+        </div>
+        <div class="session-content active" id="session1Content">
+          <label>Days:</label>
+          <div class="checkbox-group w3-margin-bottom">
+            <label><input type="checkbox" class="session1Days" value="M"> M</label>
+            <label><input type="checkbox" class="session1Days" value="T"> T</label>
+            <label><input type="checkbox" class="session1Days" value="W"> W</label>
+            <label><input type="checkbox" class="session1Days" value="Th"> Th</label>
+            <label><input type="checkbox" class="session1Days" value="F"> F</label>
+          </div>
+          <div class="form-row">
+            <div><label>Start Time<input class="w3-input w3-border" type="time" id="session1Start"></label></div>
+            <div><label>End Time<input class="w3-input w3-border" type="time" id="session1End"></label></div>
+          </div>
+        </div>
+
+        <!-- Session 2 -->
+        <div class="session-toggle disabled" id="session2Toggle" onclick="toggleSession(2)">
+          <strong>Session 2 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
+        </div>
+        <div class="session-content" id="session2Content">
+          <label>Days:</label>
+          <div class="checkbox-group w3-margin-bottom">
+            <label><input type="checkbox" class="session2Days" value="M"> M</label>
+            <label><input type="checkbox" class="session2Days" value="T"> T</label>
+            <label><input type="checkbox" class="session2Days" value="W"> W</label>
+            <label><input type="checkbox" class="session2Days" value="Th"> Th</label>
+            <label><input type="checkbox" class="session2Days" value="F"> F</label>
+          </div>
+          <div class="form-row">
+            <div><label>Start Time<input class="w3-input w3-border" type="time" id="session2Start"></label></div>
+            <div><label>End Time<input class="w3-input w3-border" type="time" id="session2End"></label></div>
+          </div>
+        </div>
+
+        <!-- Session 3 -->
+        <div class="session-toggle disabled" id="session3Toggle" onclick="toggleSession(3)">
+          <strong>Session 3 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
+        </div>
+        <div class="session-content" id="session3Content">
+          <label>Days:</label>
+          <div class="checkbox-group w3-margin-bottom">
+            <label><input type="checkbox" class="session3Days" value="M"> M</label>
+            <label><input type="checkbox" class="session3Days" value="T"> T</label>
+            <label><input type="checkbox" class="session3Days" value="W"> W</label>
+            <label><input type="checkbox" class="session3Days" value="Th"> Th</label>
+            <label><input type="checkbox" class="session3Days" value="F"> F</label>
+          </div>
+          <div class="form-row">
+            <div><label>Start Time<input class="w3-input w3-border" type="time" id="session3Start"></label></div>
+            <div><label>End Time<input class="w3-input w3-border" type="time" id="session3End"></label></div>
+          </div>
+        </div>
+
+        <!-- Session 4 -->
+        <div class="session-toggle disabled" id="session4Toggle" onclick="toggleSession(4)">
+          <strong>Session 4 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
+        </div>
+        <div class="session-content" id="session4Content">
+          <label>Days:</label>
+          <div class="checkbox-group w3-margin-bottom">
+            <label><input type="checkbox" class="session4Days" value="M"> M</label>
+            <label><input type="checkbox" class="session4Days" value="T"> T</label>
+            <label><input type="checkbox" class="session4Days" value="W"> W</label>
+            <label><input type="checkbox" class="session4Days" value="Th"> Th</label>
+            <label><input type="checkbox" class="session4Days" value="F"> F</label>
+          </div>
+          <div class="form-row">
+            <div><label>Start Time<input class="w3-input w3-border" type="time" id="session4Start"></label></div>
+            <div><label>End Time<input class="w3-input w3-border" type="time" id="session4End"></label></div>
+          </div>
+        </div>
+
+        <!-- Session 5 -->
+        <div class="session-toggle disabled" id="session5Toggle" onclick="toggleSession(5)">
+          <strong>Session 5 (Optional)</strong> <span style="float:right; color:#999;"><i class="fas fa-chevron-right"></i></span>
+        </div>
+        <div class="session-content" id="session5Content">
+          <label>Days:</label>
+          <div class="checkbox-group w3-margin-bottom">
+            <label><input type="checkbox" class="session5Days" value="M"> M</label>
+            <label><input type="checkbox" class="session5Days" value="T"> T</label>
+            <label><input type="checkbox" class="session5Days" value="W"> W</label>
+            <label><input type="checkbox" class="session5Days" value="Th"> Th</label>
+            <label><input type="checkbox" class="session5Days" value="F"> F</label>
+          </div>
+          <div class="form-row">
+            <div><label>Start Time<input class="w3-input w3-border" type="time" id="session5Start"></label></div>
+            <div><label>End Time<input class="w3-input w3-border" type="time" id="session5End"></label></div>
+          </div>
+        </div>
+
+        <h3 style="margin-top:20px; border-bottom:2px solid #2196F3; padding-bottom:10px;">Options</h3>
+        <label class="w3-margin-top"><input type="checkbox" id="labOnline"> Online</label><br>
+        <label><input type="checkbox" id="labIndStudy"> Independent Study</label><br>
+
+        <label class="w3-margin-top">Comment<textarea class="w3-input w3-border" id="labComment" rows="3"></textarea></label>
+
+        <h3 style="margin-top:20px; border-bottom:2px solid #2196F3; padding-bottom:10px;">Link to Intervention</h3>
+        <label>Linked Intervention (optional):<br>
+          <input class="w3-input w3-border" type="text" id="labInterventionSearch" placeholder="Search intervention" onkeyup="searchLabInterventions()">
+          <div id="labInterventionDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:300px; max-height:200px; overflow-y:auto; z-index:100;"></div>
+          <input type="hidden" id="labInterventionId">
+          <div id="labInterventionDisplay"></div>
+        </label>
+
+        <div class="w3-row w3-margin-top">
+          <button class="w3-button w3-blue w3-half" onclick="saveLabSchedule()"><i class="fas fa-save"></i> Save Learning Lab</button>
+          <button class="w3-button w3-red w3-half" onclick="closeLabModal()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Schedule Modal -->
+  <div id="viewScheduleModal" class="w3-modal" onclick="if(event.target===this)closeViewScheduleModal()">
+    <div class="w3-modal-content w3-card" style="max-width:600px;">
+      <span class="w3-button w3-large w3-display-topright" onclick="closeViewScheduleModal()">&times;</span>
+      <div class="w3-container w3-padding-16">
+        <h2>Learning Lab Schedule</h2>
+        <div id="scheduleList"></div>
+        <button class="w3-button w3-red w3-margin-top" onclick="closeViewScheduleModal()"><i class="fas fa-times"></i> Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Modal -->
+  <div id="deleteModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width:400px;">
+      <span class="w3-button w3-large w3-display-topright" onclick="closeDeleteModal()">&times;</span>
+      <div class="w3-container w3-padding-16">
+        <h2>Delete Learning Lab</h2>
+        <p>Are you sure you want to delete this learning lab and all its sessions?</p>
+        <div class="w3-row w3-margin-top">
+          <button class="w3-button w3-red w3-half" onclick="confirmDeleteLab()"><i class="fas fa-trash"></i> Delete</button>
+          <button class="w3-button w3-grey w3-half" onclick="closeDeleteModal()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script type="module">
+    import { initAuth, getCurrentUser } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
+    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
+
+    window.getAll = getAll;
+    window.getById = getById;
+    window.addDoc = addDoc;
+    window.updateDoc = updateDoc;
+    window.deleteDoc = deleteDoc;
+    window.getWhere = getWhere;
+    window.getWhereMultiple = getWhereMultiple;
+    window.batchWrite = batchWrite;
+    window.formatDate = formatDate;
+    window.exportCSV = exportCSV;
+    window.importCSV = importCSV;
+    window.showToast = showToast;
+    window.showModal = showModal;
+    window.getCurrentSchoolYear = getCurrentSchoolYear;
+    window.getCurrentSemester = getCurrentSemester;
+
+    let allSchedules = [];
+    let allInterventions = [];
+    let allStudents = [];
+    let allStaff = [];
+    let filteredSchedules = [];
+    let currentEditId = null;
+    let currentDeleteIds = [];
+    let sessionStates = { 1: true, 2: false, 3: false, 4: false, 5: false };
+
+    initAuth().then(user => {
+      if (!user) window.location.href = 'index.html';
+      initNav('learning-lab');
+      init();
+    });
+
+    async function init() {
+      try {
+        document.getElementById('labSchoolYear').value = getCurrentSchoolYear();
+        document.getElementById('labSemester').value = getCurrentSemester();
+        
+        allSchedules = await getAll('classSchedules');
+        allInterventions = await getAll('interventionLogs');
+        allStudents = await getAll('students');
+        try {
+          allStaff = await getAll('staff');
+        } catch (e) {
+          allStaff = [];
+        }
+        
+        filteredSchedules = allSchedules.filter(s => s.learningLab);
+        renderTable();
+      } catch (error) {
+        console.error('Init error:', error);
+        showToast('Error loading data', 'error');
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = '';
+      filteredSchedules.forEach(schedule => {
+        const daysHtml = (schedule.classDays || []).map(day => `<span class="day-badge day-${day.toLowerCase()}">${day}</span>`).join('');
+        const timeRange = `${schedule.startTime || ''}-${schedule.endTime || ''}`;
+        const intervention = allInterventions.find(i => (i.linkedScheduleIds || []).includes(schedule.id));
+        
+        tbody.innerHTML += `
+          <tr>
+            <td>${schedule.studentName || ''}</td>
+            <td>${schedule.chattStateANumber || ''}</td>
+            <td>${schedule.className || ''}</td>
+            <td>${schedule.teacherLastName || ''}</td>
+            <td>${daysHtml}</td>
+            <td>${timeRange}</td>
+            <td>${schedule.startDate || ''}</td>
+            <td>${schedule.endDate || ''}</td>
+            <td>${intervention ? intervention.interventionType || 'Linked' : '-'}</td>
+            <td>
+              <button class="w3-button w3-blue w3-small" onclick="openEditLabModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
+              <button class="w3-button w3-green w3-small" onclick="openViewSchedule('${schedule.id}')"><i class="fas fa-eye"></i></button>
+              <button class="w3-button w3-red w3-small" onclick="openDeleteLabModal('${schedule.id}')"><i class="fas fa-trash"></i></button>
+            </td>
+          </tr>
+        `;
+      });
+      if ($.fn.DataTable.isDataTable('#labTable')) {
+        $('#labTable').DataTable().destroy();
+      }
+      $('#labTable').DataTable({
+        pageLength: 25,
+        order: [[0, 'asc']]
+      });
+    }
+
+    window.applyFilters = function() {
+      const year = document.getElementById('filterSchoolYear').value;
+      const semester = document.getElementById('filterSemester').value;
+      const student = document.getElementById('filterStudent').value.toLowerCase();
+      const teacher = document.getElementById('filterTeacher').value.toLowerCase();
+      
+      filteredSchedules = allSchedules.filter(s => {
+        if (!s.learningLab) return false;
+        const matchYear = !year || s.schoolYear === year;
+        const matchSemester = !semester || s.semester === semester;
+        const matchStudent = !student || (s.studentName || '').toLowerCase().includes(student) || (s.chattStateANumber || '').includes(student);
+        const matchTeacher = !teacher || (s.teacherLastName || '').toLowerCase().includes(teacher);
+        return matchYear && matchSemester && matchStudent && matchTeacher;
+      });
+      renderTable();
+    };
+
+    window.toggleSession = function(num) {
+      const toggle = document.getElementById(`session${num}Toggle`);
+      const content = document.getElementById(`session${num}Content`);
+      
+      sessionStates[num] = !sessionStates[num];
+      
+      if (sessionStates[num]) {
+        toggle.classList.remove('disabled');
+        toggle.classList.add('enabled');
+        toggle.querySelector('i').className = 'fas fa-chevron-down';
+        content.classList.add('active');
+      } else {
+        toggle.classList.add('disabled');
+        toggle.classList.remove('enabled');
+        toggle.querySelector('i').className = 'fas fa-chevron-right';
+        content.classList.remove('active');
+      }
+    };
+
+    window.openAddLabModal = function() {
+      currentEditId = null;
+      currentDeleteIds = [];
+      document.getElementById('labModalTitle').textContent = 'Add Learning Lab';
+      document.getElementById('labStudentId').value = '';
+      document.getElementById('labStudentDisplay').innerHTML = '';
+      document.getElementById('labTeacherId').value = '';
+      document.getElementById('labTeacherDisplay').innerHTML = '';
+      document.getElementById('labClassName').value = '';
+      document.getElementById('labComment').value = '';
+      document.getElementById('labOnline').checked = false;
+      document.getElementById('labIndStudy').checked = false;
+      document.getElementById('labInterventionId').value = '';
+      document.getElementById('labInterventionDisplay').innerHTML = '';
+      document.getElementById('labSchoolYear').value = getCurrentSchoolYear();
+      document.getElementById('labSemester').value = getCurrentSemester();
+      document.getElementById('labStartDate').value = '';
+      document.getElementById('labEndDate').value = '';
+      
+      // Reset all sessions
+      for (let i = 1; i <= 5; i++) {
+        document.querySelectorAll(`.session${i}Days`).forEach(el => el.checked = false);
+        document.getElementById(`session${i}Start`).value = '';
+        document.getElementById(`session${i}End`).value = '';
+      }
+      
+      sessionStates = { 1: true, 2: false, 3: false, 4: false, 5: false };
+      for (let i = 1; i <= 5; i++) {
+        const toggle = document.getElementById(`session${i}Toggle`);
+        const content = document.getElementById(`session${i}Content`);
+        if (sessionStates[i]) {
+          toggle.classList.remove('disabled');
+          toggle.classList.add('enabled');
+          toggle.querySelector('i').className = 'fas fa-chevron-down';
+          content.classList.add('active');
+        } else {
+          toggle.classList.add('disabled');
+          toggle.classList.remove('enabled');
+          toggle.querySelector('i').className = 'fas fa-chevron-right';
+          content.classList.remove('active');
+        }
+      }
+      
+      document.getElementById('labModal').style.display = 'block';
+    };
+
+    window.openEditLabModal = async function(id) {
+      try {
+        const schedule = await getById('classSchedules', id);
+        if (!schedule) return;
+        
+        currentEditId = id;
+        document.getElementById('labModalTitle').textContent = 'Edit Learning Lab';
+        document.getElementById('labStudentId').value = schedule.studentId || '';
+        document.getElementById('labStudentDisplay').innerHTML = `<div class="w3-text-blue"><strong>${schedule.studentName}</strong> (${schedule.chattStateANumber})</div>`;
+        document.getElementById('labTeacherId').value = '';
+        document.getElementById('labTeacherDisplay').innerHTML = `<div class="w3-text-blue"><strong>${schedule.teacherLastName}</strong></div>`;
+        document.getElementById('labClassName').value = schedule.className || '';
+        document.getElementById('labComment').value = schedule.comment || '';
+        document.getElementById('labOnline').checked = schedule.online || false;
+        document.getElementById('labIndStudy').checked = schedule.indStudy || false;
+        document.getElementById('labSchoolYear').value = schedule.schoolYear || '';
+        document.getElementById('labSemester').value = schedule.semester || '';
+        document.getElementById('labStartDate').value = schedule.startDate || '';
+        document.getElementById('labEndDate').value = schedule.endDate || '';
+        
+        // Load first session
+        document.querySelectorAll('.session1Days').forEach(el => el.checked = (schedule.classDays || []).includes(el.value));
+        document.getElementById('session1Start').value = schedule.startTime || '';
+        document.getElementById('session1End').value = schedule.endTime || '';
+        
+        // Find linked intervention
+        const intervention = allInterventions.find(i => (i.linkedScheduleIds || []).includes(id));
+        if (intervention) {
+          document.getElementById('labInterventionId').value = intervention.id;
+          document.getElementById('labInterventionDisplay').innerHTML = `<div class="w3-text-blue"><strong>${intervention.interventionType}</strong></div>`;
+        }
+        
+        document.getElementById('labModal').style.display = 'block';
+      } catch (error) {
+        console.error('Edit modal error:', error);
+        showToast('Error loading learning lab', 'error');
+      }
+    };
+
+    window.closeLabModal = function() {
+      document.getElementById('labModal').style.display = 'none';
+      currentEditId = null;
+    };
+
+    window.searchLabStudents = function() {
+      const query = document.getElementById('labStudentSearch').value.toLowerCase();
+      const dropdown = document.getElementById('labStudentDropdown');
+      
+      if (query.length < 1) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      const filtered = allStudents.filter(s => 
+        (s.firstName || '').toLowerCase().includes(query) || 
+        (s.lastName || '').toLowerCase().includes(query) || 
+        (s.chattStateANumber || '').includes(query)
+      ).slice(0, 10);
+
+      if (filtered.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      dropdown.innerHTML = filtered.map(s => 
+        `<a onclick="selectLabStudent('${s.id}', '${s.firstName} ${s.lastName}', '${s.chattStateANumber}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.firstName} ${s.lastName} (${s.chattStateANumber})</a>`
+      ).join('');
+      dropdown.style.display = 'block';
+    };
+
+    window.selectLabStudent = function(id, name, aNum) {
+      document.getElementById('labStudentId').value = id;
+      document.getElementById('labStudentDisplay').innerHTML = `<div class="w3-text-blue"><strong>${name}</strong> (${aNum})</div>`;
+      document.getElementById('labStudentSearch').value = '';
+      document.getElementById('labStudentDropdown').style.display = 'none';
+    };
+
+    window.searchLabTeachers = function() {
+      const query = document.getElementById('labTeacherSearch').value.toLowerCase();
+      const dropdown = document.getElementById('labTeacherDropdown');
+      
+      if (query.length < 1) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      const filtered = allStaff.filter(s => 
+        (s.lastName || '').toLowerCase().includes(query) || 
+        (s.firstName || '').toLowerCase().includes(query)
+      ).slice(0, 10);
+
+      if (filtered.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      dropdown.innerHTML = filtered.map(s => 
+        `<a onclick="selectLabTeacher('${s.id}', '${s.lastName}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.lastName}, ${s.firstName}</a>`
+      ).join('');
+      dropdown.style.display = 'block';
+    };
+
+    window.selectLabTeacher = function(id, lastName) {
+      document.getElementById('labTeacherId').value = id;
+      document.getElementById('labTeacherDisplay').innerHTML = `<div class="w3-text-blue"><strong>${lastName}</strong></div>`;
+      document.getElementById('labTeacherSearch').value = '';
+      document.getElementById('labTeacherDropdown').style.display = 'none';
+    };
+
+    window.searchLabInterventions = function() {
+      const query = document.getElementById('labInterventionSearch').value.toLowerCase();
+      const dropdown = document.getElementById('labInterventionDropdown');
+      const studentId = document.getElementById('labStudentId').value;
+      
+      if (query.length < 1) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      const filtered = allInterventions.filter(i => {
+        const matchStudent = !studentId || i.studentId === studentId;
+        const matchQuery = (i.interventionType || '').toLowerCase().includes(query);
+        return matchStudent && matchQuery;
+      }).slice(0, 10);
+
+      if (filtered.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      dropdown.innerHTML = filtered.map(i => 
+        `<a onclick="selectLabIntervention('${i.id}', '${i.interventionType}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${i.interventionType}</a>`
+      ).join('');
+      dropdown.style.display = 'block';
+    };
+
+    window.selectLabIntervention = function(id, type) {
+      document.getElementById('labInterventionId').value = id;
+      document.getElementById('labInterventionDisplay').innerHTML = `<div class="w3-text-blue"><strong>${type}</strong></div>`;
+      document.getElementById('labInterventionSearch').value = '';
+      document.getElementById('labInterventionDropdown').style.display = 'none';
+    };
+
+    window.saveLabSchedule = async function() {
+      try {
+        const studentId = document.getElementById('labStudentId').value;
+        if (!studentId) {
+          showToast('Please select a student', 'error');
+          return;
+        }
+
+        const student = allStudents.find(s => s.id === studentId);
+        const schoolYear = document.getElementById('labSchoolYear').value;
+        const semester = document.getElementById('labSemester').value;
+        const campus = document.getElementById('labCampus').value;
+        const className = document.getElementById('labClassName').value;
+        const teacherLastName = document.getElementById('labTeacherDisplay').innerText.split('\n')[0].trim();
+        const startDate = document.getElementById('labStartDate').value;
+        const endDate = document.getElementById('labEndDate').value;
+        const online = document.getElementById('labOnline').checked;
+        const indStudy = document.getElementById('labIndStudy').checked;
+        const comment = document.getElementById('labComment').value;
+        const interventionId = document.getElementById('labInterventionId').value;
+
+        const scheduleIds = [];
+        const createdSchedules = [];
+
+        // Create schedules for each session
+        for (let i = 1; i <= 5; i++) {
+          const dayCheckboxes = document.querySelectorAll(`.session${i}Days`);
+          const days = Array.from(dayCheckboxes).filter(el => el.checked).map(el => el.value);
+          const startTime = document.getElementById(`session${i}Start`).value;
+          const endTime = document.getElementById(`session${i}End`).value;
+
+          if (days.length === 0 || !startTime || !endTime) continue;
+
+          const data = {
+            studentId: studentId,
+            studentName: student.firstName + ' ' + student.lastName,
+            chattStateANumber: student.chattStateANumber,
+            schoolYear: schoolYear,
+            semester: semester,
+            campus: campus,
+            className: className,
+            teacherLastName: teacherLastName,
+            classDays: days,
+            startTime: startTime,
+            endTime: endTime,
+            online: online,
+            indStudy: indStudy,
+            learningLab: true,
+            comment: comment,
+            startDate: startDate,
+            endDate: endDate
+          };
+
+          if (currentEditId && i === 1) {
+            await updateDoc('classSchedules', currentEditId, data);
+            scheduleIds.push(currentEditId);
+          } else if (!currentEditId) {
+            const docRef = await addDoc('classSchedules', data);
+            scheduleIds.push(docRef.id);
+          }
+        }
+
+        // Update intervention link
+        if (interventionId) {
+          const intervention = await getById('interventionLogs', interventionId);
+          const linkedIds = intervention.linkedScheduleIds || [];
+          const newIds = [...linkedIds, ...scheduleIds].filter((v, i, a) => a.indexOf(v) === i);
+          await updateDoc('interventionLogs', interventionId, { linkedScheduleIds: newIds });
+        }
+
+        // Propagate attendance logs
+        if (startDate && endDate && startDate <= endDate) {
+          const attendanceLogs = [];
+          let current = new Date(startDate);
+          
+          while (current <= new Date(endDate)) {
+            const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][current.getDay()];
+            
+            scheduleIds.forEach(schedId => {
+              const sched = createdSchedules.find(s => s.id === schedId) || { classDays: [], startTime, endTime };
+              if ((sched.classDays || []).includes(dayAbbr)) {
+                attendanceLogs.push({
+                  studentId: studentId,
+                  studentName: student.firstName + ' ' + student.lastName,
+                  chattStateANumber: student.chattStateANumber,
+                  classScheduleId: schedId,
+                  className: className,
+                  teacherLastName: teacherLastName,
+                  date: current.toISOString().split('T')[0],
+                  schoolYear: schoolYear,
+                  semester: semester,
+                  status: 'unmarked'
+                });
+              }
+            });
+            
+            current.setDate(current.getDate() + 1);
+          }
+
+          if (attendanceLogs.length > 0) {
+            const batchSize = 500;
+            for (let i = 0; i < attendanceLogs.length; i += batchSize) {
+              const batch = attendanceLogs.slice(i, i + batchSize);
+              const batch_data = {};
+              batch.forEach((log, idx) => {
+                batch_data[`doc_${i + idx}`] = log;
+              });
+              await batchWrite('classAttendanceLogs', batch_data);
+            }
+          }
+        }
+
+        showToast('Learning lab saved successfully', 'success');
+        closeLabModal();
+        allSchedules = await getAll('classSchedules');
+        allInterventions = await getAll('interventionLogs');
+        filteredSchedules = allSchedules.filter(s => s.learningLab);
+        renderTable();
+      } catch (error) {
+        console.error('Save error:', error);
+        showToast('Error saving learning lab', 'error');
+      }
+    };
+
+    window.openViewSchedule = async function(id) {
+      try {
+        const labSchedules = allSchedules.filter(s => {
+          if (!s.learningLab) return false;
+          const base = allSchedules.find(x => x.id === id);
+          return s.studentId === base.studentId && 
+                 s.schoolYear === base.schoolYear && 
+                 s.className === base.className;
+        });
+
+        let html = '<table class="w3-table w3-bordered w3-striped">';
+        html += '<tr class="w3-blue"><th>Days</th><th>Start Time</th><th>End Time</th><th>Start Date</th><th>End Date</th></tr>';
+        
+        labSchedules.forEach(s => {
+          const days = (s.classDays || []).join(', ');
+          html += `<tr><td>${days}</td><td>${s.startTime || ''}</td><td>${s.endTime || ''}</td><td>${s.startDate || ''}</td><td>${s.endDate || ''}</td></tr>`;
+        });
+        html += '</table>';
+
+        document.getElementById('scheduleList').innerHTML = html;
+        document.getElementById('viewScheduleModal').style.display = 'block';
+      } catch (error) {
+        console.error('View error:', error);
+        showToast('Error loading schedule', 'error');
+      }
+    };
+
+    window.closeViewScheduleModal = function() {
+      document.getElementById('viewScheduleModal').style.display = 'none';
+    };
+
+    window.openDeleteLabModal = function(id) {
+      currentDeleteIds = [id];
+      document.getElementById('deleteModal').style.display = 'block';
+    };
+
+    window.closeDeleteModal = function() {
+      document.getElementById('deleteModal').style.display = 'none';
+      currentDeleteIds = [];
+    };
+
+    window.confirmDeleteLab = async function() {
+      try {
+        if (currentDeleteIds.length === 0) return;
+        
+        const baseId = currentDeleteIds[0];
+        const baseSchedule = allSchedules.find(s => s.id === baseId);
+        
+        const relatedSchedules = allSchedules.filter(s =>
+          s.learningLab &&
+          s.studentId === baseSchedule.studentId &&
+          s.schoolYear === baseSchedule.schoolYear &&
+          s.className === baseSchedule.className
+        );
+
+        for (const schedule of relatedSchedules) {
+          await deleteDoc('classSchedules', schedule.id);
+        }
+
+        showToast('Learning lab deleted successfully', 'success');
+        closeDeleteModal();
+        allSchedules = await getAll('classSchedules');
+        filteredSchedules = allSchedules.filter(s => s.learningLab);
+        renderTable();
+      } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Error deleting learning lab', 'error');
+      }
+    };
+  </script>
+</body>
+</html>

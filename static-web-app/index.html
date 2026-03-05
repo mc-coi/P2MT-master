@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="P2MT — School Management System">
+  <title>P2MT — Sign In</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --primary:       #4F46E5;
+      --primary-dark:  #3730A3;
+      --primary-light: #EEF2FF;
+      --accent:        #06B6D4;
+      --danger:        #EF4444;
+      --danger-light:  #FEE2E2;
+      --border:        #E2E8F0;
+      --text-primary:  #0F172A;
+      --text-secondary:#475569;
+      --text-muted:    #94A3B8;
+      --bg:            #F1F5F9;
+      --surface:       #FFFFFF;
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      display: flex;
+      min-height: 100vh;
+      background: #0F172A;
+      overflow: hidden;
+    }
+
+    /* ── Left panel (branding) ── */
+    .login-left {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px;
+      background: linear-gradient(145deg, #1E1B4B 0%, #312E81 40%, #0F172A 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    @media (min-width: 900px) {
+      .login-left { display: flex; }
+    }
+
+    /* Decorative circles */
+    .login-left::before {
+      content: '';
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(79,70,229,0.25) 0%, transparent 70%);
+      top: -100px;
+      right: -100px;
+      border-radius: 50%;
+    }
+    .login-left::after {
+      content: '';
+      position: absolute;
+      width: 350px;
+      height: 350px;
+      background: radial-gradient(circle, rgba(6,182,212,0.18) 0%, transparent 70%);
+      bottom: -80px;
+      left: -60px;
+      border-radius: 50%;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 60px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .brand-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, #4F46E5, #06B6D4);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      box-shadow: 0 8px 24px rgba(79,70,229,0.4);
+    }
+
+    .brand-name {
+      font-size: 22px;
+      font-weight: 700;
+      color: white;
+      letter-spacing: -0.3px;
+    }
+
+    .brand-tagline {
+      font-size: 13px;
+      color: rgba(255,255,255,0.5);
+      font-weight: 400;
+    }
+
+    .left-headline {
+      position: relative;
+      z-index: 1;
+    }
+
+    .left-headline h1 {
+      font-size: 38px;
+      font-weight: 800;
+      color: white;
+      line-height: 1.2;
+      letter-spacing: -1px;
+      margin: 0 0 16px;
+    }
+
+    .left-headline h1 span {
+      background: linear-gradient(90deg, #818CF8, #67E8F9);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .left-headline p {
+      font-size: 15px;
+      color: rgba(255,255,255,0.55);
+      max-width: 340px;
+      line-height: 1.7;
+      margin: 0 0 40px;
+    }
+
+    .feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: rgba(255,255,255,0.75);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .feature-icon {
+      width: 32px;
+      height: 32px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      color: #A5B4FC;
+    }
+
+    /* ── Right panel (form) ── */
+    .login-right {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 40px 32px;
+      background: var(--bg);
+      overflow-y: auto;
+    }
+
+    @media (min-width: 900px) {
+      .login-right {
+        padding: 60px 48px;
+      }
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      box-shadow: var(--shadow-xl);
+      max-width: 380px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .login-card-icon {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, #4F46E5, #06B6D4);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      font-weight: 800;
+      color: white;
+      letter-spacing: -0.5px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 24px rgba(79,70,229,0.35);
+    }
+
+    .login-card h2 {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+      margin: 0 0 4px;
+    }
+
+    .login-card .subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0 0 28px;
+    }
+
+    /* Info box */
+    .info-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #EEF2FF;
+      border: 1px solid #C7D2FE;
+      color: #3730A3;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .info-box i { flex-shrink: 0; margin-top: 2px; font-size: 13px; }
+
+    /* Error box */
+    .error-box {
+      display: none;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--danger-light);
+      border: 1px solid #FECACA;
+      color: #991B1B;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      font-size: 12.5px;
+      line-height: 1.5;
+      font-weight: 500;
+    }
+
+    .error-box.show { display: flex; }
+    .error-box i { flex-shrink: 0; margin-top: 2px; font-size: 13px; }
+
+    /* Google button */
+    .google-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 11px 20px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+      letter-spacing: 0.1px;
+    }
+
+    .google-btn:hover {
+      background: var(--bg);
+      border-color: #CBD5E1;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .google-btn:active { transform: scale(0.99); }
+
+    .google-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    /* Divider */
+    .divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .divider::before, .divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    .divider span {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Spinner */
+    .loading-wrap {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 20px 0;
+    }
+
+    .loading-wrap.active { display: flex; }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid var(--border);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-wrap p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    /* Footer */
+    .login-footer {
+      margin-top: 28px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Mobile brand bar */
+    .mobile-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .mobile-brand-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #4F46E5, #06B6D4);
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .mobile-brand-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.4px;
+    }
+
+    @media (min-width: 900px) {
+      .mobile-brand { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Left panel — branding (desktop only) -->
+  <div class="login-left">
+    <div class="brand-logo">
+      <div class="brand-icon">P2</div>
+      <div>
+        <div class="brand-name">P2MT</div>
+        <div class="brand-tagline">School Management System</div>
+      </div>
+    </div>
+
+    <div class="left-headline">
+      <h1>Every student,<br><span>every day.</span></h1>
+      <p>A unified platform for attendance, interventions, scheduling, and more — built for educators.</p>
+
+      <ul class="feature-list">
+        <li>
+          <span class="feature-icon"><i class="fas fa-clipboard-list"></i></span>
+          Daily &amp; class attendance tracking
+        </li>
+        <li>
+          <span class="feature-icon"><i class="fas fa-handshake"></i></span>
+          Student intervention management
+        </li>
+        <li>
+          <span class="feature-icon"><i class="fas fa-calendar-alt"></i></span>
+          Master schedule &amp; calendar
+        </li>
+        <li>
+          <span class="feature-icon"><i class="fas fa-lightbulb"></i></span>
+          PBL planner &amp; learning lab
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Right panel — sign-in form -->
+  <div class="login-right">
+    <div class="login-card">
+      <!-- Mobile brand -->
+      <div class="mobile-brand">
+        <div class="mobile-brand-icon">P2</div>
+        <span class="mobile-brand-name">P2MT</span>
+      </div>
+
+      <div class="login-card-icon">P2</div>
+      <h2>Welcome back</h2>
+      <p class="subtitle">Sign in to your school account to continue.</p>
+
+      <div class="info-box">
+        <i class="fas fa-shield-alt"></i>
+        Use your school-issued Google account. Access is restricted to authorized staff only.
+      </div>
+
+      <div class="error-box" id="error-box">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="error-text">An error occurred. Please try again.</span>
+      </div>
+
+      <div id="login-form">
+        <button type="button" class="google-btn" id="google-signin-btn" onclick="handleGoogleSignIn()">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          <span>Continue with Google</span>
+        </button>
+      </div>
+
+      <div class="loading-wrap" id="loading-wrap">
+        <div class="spinner"></div>
+        <p>Signing in…</p>
+      </div>
+
+      <div class="login-footer">
+        Need help? Contact your school administrator.
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase / Auth logic -->
+  <script type="module">
+    import { initAuth, signInWithGoogle, getCurrentUser } from './js/auth.js';
+    import { getById } from './js/db.js';
+
+    // ── Helpers ──────────────────────────────────────────────────
+    function showError(message) {
+      const box  = document.getElementById('error-box');
+      const text = document.getElementById('error-text');
+      text.textContent = message;
+      box.classList.add('show');
+    }
+
+    function hideError() {
+      document.getElementById('error-box').classList.remove('show');
+    }
+
+    function setLoading(on) {
+      const form    = document.getElementById('login-form');
+      const spinner = document.getElementById('loading-wrap');
+      const btn     = document.getElementById('google-signin-btn');
+      form.style.display    = on ? 'none' : '';
+      spinner.classList.toggle('active', on);
+      if (btn) btn.disabled = on;
+    }
+
+    // ── Auto-redirect if already signed in ───────────────────────
+    initAuth().then(async (user) => {
+      if (!user) return;
+      setLoading(true);
+      try {
+        const staff = await getById('staff', user.uid);
+        if (staff) {
+          window.location.href = './students.html';
+        } else {
+          setLoading(false);
+          showError('Access denied. Your account is not authorized to use this system. Please contact your administrator.');
+          document.getElementById('google-signin-btn').disabled = true;
+        }
+      } catch (err) {
+        console.error('Authorization check failed:', err);
+        setLoading(false);
+        showError('Unable to verify your authorization. Please try signing in again.');
+      }
+    });
+
+    // ── Sign-in handler ───────────────────────────────────────────
+    window.handleGoogleSignIn = async function() {
+      hideError();
+      setLoading(true);
+
+      try {
+        const user  = await signInWithGoogle();
+        const staff = await getById('staff', user.uid);
+
+        if (staff) {
+          window.location.href = './students.html';
+        } else {
+          setLoading(false);
+          showError('Access denied. Your account is not authorized. Please contact your administrator.');
+        }
+      } catch (error) {
+        console.error('Sign-in error:', error);
+        setLoading(false);
+
+        if (error.code === 'auth/popup-blocked') {
+          showError('Pop-up was blocked by your browser. Please allow pop-ups for this site and try again.');
+        } else if (error.code === 'auth/popup-closed-by-user') {
+          showError('Sign-in was cancelled. Please try again.');
+        } else {
+          showError('Failed to sign in. Please check your connection and try again.');
+        }
+      }
+    };
+  </script>
+</body>
+</html>

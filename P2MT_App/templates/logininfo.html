@@ -1,0 +1,65 @@
+{% extends 'layout.html'%}
+{% block content %}
+<div class="w3-container w3-green w3-row">
+    <div class="w3-third">
+        <h2>{{title}}</h2>
+    </div>
+</div>
+
+<div class="w3-panel"></div>
+
+{{ macro_display_flashed_messages() }}
+
+<div class="w3-container">
+    {% if user %}
+    <h2 class='w3-center'>Your user details are:</h2>
+    <div class='w3-panel'></div>
+    <div class="w3-display-container">
+        <div class='w3-display-topmiddle'>
+            <div class='w3-card-4'>
+                <table class="w3-table-all">
+                    <tr>
+                        <th>First Name</th>
+                        <td>{{ user.firstName }}</td>
+                    </tr>
+                    <tr>
+                        <th>Last Name</th>
+                        <td>{{ user.lastName }}</td>
+                    </tr>
+                    <tr>
+                        <th>Position</th>
+                        <td>{{ user.position }}</td>
+                    </tr>
+                    <tr>
+                        <th>Email</th>
+                        <td>{{ user.email }}</td>
+                    </tr>
+                </table>
+            </div>
+            <div class='w3-panel'></div>
+            <a class="w3-button w3-blue" href="/logout">Logout</a>
+        </div>
+    </div>
+
+    {% else %}
+    <h2 class="w3-center">You did not successfully login. These solutions might help.</h2>
+    <table class="w3-table-all">
+        <tr>
+            <th>Possible Reason</th>
+            <th>Solution</th>
+        </tr>
+        <tr>
+            <td>You are not listed in the P2MT staff member list</td>
+            <td>Go to Menu <i class='fa fa-arrow-right'></i> P2MT Admin <i class='fa fa-arrow-right'></i> Staff Info
+                <i class='fa fa-arrow-right'></i> Add Staff Member and
+                add yourself</td>
+        </tr>
+        <tr>
+            <td>You logged in with a different Google account</td>
+            <td>Use your HCDE email account to log in</td>
+        </tr>
+    </table>
+    {% endif %}
+</div>
+
+{% endblock content %}

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Templates - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  <div class="w3-container w3-padding" style="margin-top:10px;">
+    <div class="w3-card w3-padding w3-margin-bottom">
+      <h2>Email Templates</h2>
+      <button class="w3-button w3-green w3-margin" id="btn-add-template">
+        <i class="fas fa-plus"></i> Add Template
+      </button>
+    </div>
+
+    <div class="w3-card w3-padding">
+      <div style="overflow-x:auto;">
+        <table id="templates-table" class="w3-table w3-striped w3-bordered">
+          <thead>
+            <tr class="w3-teal">
+              <th>Template Title</th>
+              <th>Intervention Type</th>
+              <th>Level</th>
+              <th>Recipients</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="templates-tbody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Template Modal -->
+  <div id="modal-template" class="w3-modal">
+    <div class="w3-modal-content w3-card w3-padding" style="max-width:700px;">
+      <span class="w3-closebtn" onclick="document.getElementById('modal-template').style.display='none'">&times;</span>
+      <h3 id="modal-template-title">Add Email Template</h3>
+      <div>
+        <label>Template Title</label>
+        <input type="text" id="template-title" class="w3-input w3-border w3-margin-bottom">
+        
+        <label>Intervention Type</label>
+        <select id="template-intervention" class="w3-select w3-border w3-margin-bottom">
+          <option value="">Select Type...</option>
+        </select>
+
+        <label>Intervention Level (1-6)</label>
+        <select id="template-level" class="w3-select w3-border w3-margin-bottom">
+          <option value="">Select Level...</option>
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4">4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+        </select>
+
+        <label>Email Subject</label>
+        <input type="text" id="template-subject" class="w3-input w3-border w3-margin-bottom">
+
+        <label>Email Body</label>
+        <textarea id="template-content" class="w3-input w3-border w3-margin-bottom" rows="8" placeholder="Available variables: {{studentName}}, {{parentName}}, {{interventionType}}, {{level}}, {{startDate}}, {{tmiMinutes}}, {{staffName}}, {{schoolYear}}"></textarea>
+
+        <div class="w3-margin-bottom">
+          <label><input type="checkbox" id="template-sendStudent" class="w3-check"> Send to Student</label><br>
+          <label><input type="checkbox" id="template-sendParent" class="w3-check"> Send to Parent</label><br>
+          <label><input type="checkbox" id="template-sendTeacher" class="w3-check"> Send to Teacher</label>
+        </div>
+
+        <button class="w3-button w3-blue w3-margin" id="btn-preview-template">
+          <i class="fas fa-eye"></i> Preview
+        </button>
+        <button class="w3-button w3-green w3-margin" id="btn-save-template">Save</button>
+        <button class="w3-button w3-red w3-margin" onclick="document.getElementById('modal-template').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview Modal -->
+  <div id="modal-preview" class="w3-modal">
+    <div class="w3-modal-content w3-card w3-padding" style="max-width:600px;">
+      <span class="w3-closebtn" onclick="document.getElementById('modal-preview').style.display='none'">&times;</span>
+      <h3>Email Preview</h3>
+      <div class="w3-light-gray w3-padding w3-margin-bottom" style="border-left:4px solid #2196F3;">
+        <strong>To:</strong> <span id="preview-to"></span><br>
+        <strong>Subject:</strong> <span id="preview-subject"></span>
+      </div>
+      <div class="w3-light-gray w3-padding" style="border-left:4px solid #4CAF50; min-height:200px;">
+        <div id="preview-body"></div>
+      </div>
+      <button class="w3-button w3-blue w3-margin-top" onclick="document.getElementById('modal-preview').style.display='none'">Close</button>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script type="module">
+    import { initAuth } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
+    import { showToast } from './js/utils.js';
+
+    let templates = [];
+    let interventionTypes = [];
+    let currentEditingTemplateId = null;
+
+    initAuth().then(user => {
+      initNav('admin');
+      init();
+    });
+
+    async function init() {
+      await loadData();
+      await populateInterventionTypes();
+      setupEventListeners();
+      renderTemplates();
+    }
+
+    async function loadData() {
+      try {
+        templates = await getAll('p2mtTemplates') || [];
+        interventionTypes = await getAll('interventionTypes') || [];
+      } catch (error) {
+        console.error('Error loading data:', error);
+        showToast('Error loading data', 'error');
+      }
+    }
+
+    async function populateInterventionTypes() {
+      const select = document.getElementById('template-intervention');
+      select.innerHTML = '<option value="">Select Type...</option>';
+      
+      interventionTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type.id;
+        option.textContent = type.interventionName || type.name || '';
+        select.appendChild(option);
+      });
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-add-template').addEventListener('click', openTemplateModal);
+      document.getElementById('btn-save-template').addEventListener('click', saveTemplate);
+      document.getElementById('btn-preview-template').addEventListener('click', previewTemplate);
+    }
+
+    function renderTemplates() {
+      const tbody = document.getElementById('templates-tbody');
+      tbody.innerHTML = '';
+
+      templates.forEach(template => {
+        const interventionType = interventionTypes.find(t => t.id === template.intervention_id);
+        const recipients = [];
+        if (template.sendToStudent) recipients.push('Student');
+        if (template.sendToParent) recipients.push('Parent');
+        if (template.sendToTeacher) recipients.push('Teacher');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${template.templateTitle}</td>
+          <td>${interventionType?.interventionName || interventionType?.name || 'N/A'}</td>
+          <td>${template.interventionLevel || ''}</td>
+          <td>${recipients.join(', ')}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue" onclick="editTemplate('${template.id}')">Edit</button>
+            <button class="w3-button w3-small w3-orange" onclick="previewFromTable('${template.id}')">Preview</button>
+            <button class="w3-button w3-small w3-red" onclick="deleteTemplate('${template.id}')">Delete</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function openTemplateModal() {
+      currentEditingTemplateId = null;
+      document.getElementById('modal-template-title').textContent = 'Add Email Template';
+      document.getElementById('template-title').value = '';
+      document.getElementById('template-intervention').value = '';
+      document.getElementById('template-level').value = '';
+      document.getElementById('template-subject').value = '';
+      document.getElementById('template-content').value = '';
+      document.getElementById('template-sendStudent').checked = false;
+      document.getElementById('template-sendParent').checked = false;
+      document.getElementById('template-sendTeacher').checked = false;
+      document.getElementById('modal-template').style.display = 'block';
+    }
+
+    window.editTemplate = function(templateId) {
+      const template = templates.find(t => t.id === templateId);
+      if (!template) return;
+
+      currentEditingTemplateId = templateId;
+      document.getElementById('modal-template-title').textContent = 'Edit Email Template';
+      document.getElementById('template-title').value = template.templateTitle || '';
+      document.getElementById('template-intervention').value = template.intervention_id || '';
+      document.getElementById('template-level').value = template.interventionLevel || '';
+      document.getElementById('template-subject').value = template.emailSubject || '';
+      document.getElementById('template-content').value = template.templateContent || '';
+      document.getElementById('template-sendStudent').checked = template.sendToStudent || false;
+      document.getElementById('template-sendParent').checked = template.sendToParent || false;
+      document.getElementById('template-sendTeacher').checked = template.sendToTeacher || false;
+      document.getElementById('modal-template').style.display = 'block';
+    };
+
+    async function saveTemplate() {
+      const data = {
+        templateTitle: document.getElementById('template-title').value,
+        emailSubject: document.getElementById('template-subject').value,
+        templateContent: document.getElementById('template-content').value,
+        intervention_id: document.getElementById('template-intervention').value,
+        interventionLevel: document.getElementById('template-level').value,
+        sendToStudent: document.getElementById('template-sendStudent').checked,
+        sendToParent: document.getElementById('template-sendParent').checked,
+        sendToTeacher: document.getElementById('template-sendTeacher').checked
+      };
+
+      if (!data.templateTitle || !data.emailSubject || !data.templateContent) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }
+
+      try {
+        if (currentEditingTemplateId) {
+          await updateDoc('p2mtTemplates', currentEditingTemplateId, data);
+          const idx = templates.findIndex(t => t.id === currentEditingTemplateId);
+          if (idx >= 0) templates[idx] = { ...templates[idx], ...data };
+          showToast('Template updated successfully', 'success');
+        } else {
+          const docId = await addDoc('p2mtTemplates', data);
+          templates.push({ ...data, id: docId });
+          showToast('Template added successfully', 'success');
+        }
+        document.getElementById('modal-template').style.display = 'none';
+        renderTemplates();
+      } catch (error) {
+        console.error('Error saving template:', error);
+        showToast('Error saving template', 'error');
+      }
+    }
+
+    window.deleteTemplate = async function(templateId) {
+      if (!confirm('Are you sure you want to delete this template?')) return;
+
+      try {
+        await deleteDoc('p2mtTemplates', templateId);
+        templates = templates.filter(t => t.id !== templateId);
+        renderTemplates();
+        showToast('Template deleted successfully', 'success');
+      } catch (error) {
+        console.error('Error deleting template:', error);
+        showToast('Error deleting template', 'error');
+      }
+    };
+
+    function previewTemplate() {
+      const content = document.getElementById('template-content').value;
+      const subject = document.getElementById('template-subject').value;
+
+      if (!content || !subject) {
+        showToast('Please fill in subject and content', 'error');
+        return;
+      }
+
+      displayPreview(subject, content);
+    }
+
+    window.previewFromTable = function(templateId) {
+      const template = templates.find(t => t.id === templateId);
+      if (!template) return;
+
+      displayPreview(template.emailSubject, template.templateContent);
+    };
+
+    function displayPreview(subject, content) {
+      const sampleData = {
+        studentName: 'John Smith',
+        parentName: 'Jane Smith',
+        interventionType: 'Attendance',
+        level: '2',
+        startDate: '2026-03-04',
+        tmiMinutes: '240',
+        staffName: 'Dr. Johnson',
+        schoolYear: '2025-2026'
+      };
+
+      let previewContent = content;
+      Object.keys(sampleData).forEach(key => {
+        const regex = new RegExp(`{{${key}}}`, 'g');
+        previewContent = previewContent.replace(regex, sampleData[key]);
+      });
+
+      let previewSubject = subject;
+      Object.keys(sampleData).forEach(key => {
+        const regex = new RegExp(`{{${key}}}`, 'g');
+        previewSubject = previewSubject.replace(regex, sampleData[key]);
+      });
+
+      document.getElementById('preview-to').textContent = 'student@example.com, parent@example.com, teacher@example.com';
+      document.getElementById('preview-subject').textContent = previewSubject;
+      document.getElementById('preview-body').innerHTML = previewContent.replace(/\n/g, '<br>');
+      document.getElementById('modal-preview').style.display = 'block';
+    }
+
+    window.addEventListener('click', (event) => {
+      const modalTemplate = document.getElementById('modal-template');
+      const modalPreview = document.getElementById('modal-preview');
+      if (event.target === modalTemplate) modalTemplate.style.display = 'none';
+      if (event.target === modalPreview) modalPreview.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

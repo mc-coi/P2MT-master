@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Students - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .student-badge { font-size: 0.85rem; padding: 4px 8px; }
+    .action-button { margin: 2px; font-size: 0.9rem; }
+    .modal-form { max-width: 600px; }
+    .spinner { display: inline-block; margin-right: 8px; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  
+  <div class="w3-container w3-padding" style="margin-top: 10px;">
+    <!-- Header -->
+    <div class="w3-row w3-margin-bottom">
+      <div class="w3-col m8">
+        <h2><i class="fas fa-users"></i> Students 
+          <span class="w3-badge w3-round student-badge" id="student-count">0</span>
+        </h2>
+      </div>
+      <div class="w3-col m4 w3-right-align w3-padding-top">
+        <button id="btn-add-student" class="w3-button w3-teal action-button">
+          <i class="fas fa-plus"></i> Add Student
+        </button>
+        <button id="btn-download-csv" class="w3-button w3-blue action-button">
+          <i class="fas fa-download"></i> Download CSV
+        </button>
+        <button id="btn-upload-csv" class="w3-button w3-orange action-button">
+          <i class="fas fa-upload"></i> Upload CSV
+        </button>
+        <input type="file" id="file-upload" style="display:none;" accept=".csv">
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="w3-card w3-light-grey w3-padding w3-margin-bottom">
+      <div class="w3-row">
+        <div class="w3-col m4 w3-padding-small">
+          <input type="text" id="search-input" class="w3-input w3-border" placeholder="Search name or email...">
+        </div>
+        <div class="w3-col m4 w3-padding-small">
+          <select id="grad-year-filter" class="w3-select w3-border">
+            <option value="">All Graduation Years</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+            <option value="2028">2028</option>
+            <option value="2029">2029</option>
+            <option value="2030">2030</option>
+          </select>
+        </div>
+        <div class="w3-col m4 w3-padding-small">
+          <select id="house-filter" class="w3-select w3-border">
+            <option value="">All Houses</option>
+            <option value="Alpha">Alpha</option>
+            <option value="Beta">Beta</option>
+            <option value="Gamma">Gamma</option>
+            <option value="Delta">Delta</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- DataTable -->
+    <div class="w3-card w3-white">
+      <table id="studentsTable" class="w3-table w3-striped w3-bordered">
+        <thead class="w3-teal">
+          <tr>
+            <th>Name</th>
+            <th>Grad Year</th>
+            <th>House</th>
+            <th>Email</th>
+            <th>ChattState A#</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="students-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add/Edit Student Modal -->
+  <div id="addEditModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form">
+      <header class="w3-container w3-teal">
+        <span class="w3-button w3-display-topright" onclick="closeAddEditModal()">&times;</span>
+        <h3 id="modal-title">Add Student</h3>
+      </header>
+      <form id="studentForm" class="w3-padding">
+        <label class="w3-text-teal"><b>First Name</b></label>
+        <input type="text" id="firstName" class="w3-input w3-border w3-margin-bottom" required>
+        
+        <label class="w3-text-teal"><b>Last Name</b></label>
+        <input type="text" id="lastName" class="w3-input w3-border w3-margin-bottom" required>
+        
+        <label class="w3-text-teal"><b>Email</b></label>
+        <input type="email" id="email" class="w3-input w3-border w3-margin-bottom" required>
+        
+        <label class="w3-text-teal"><b>ChattState A#</b></label>
+        <input type="text" id="chattStateANumber" class="w3-input w3-border w3-margin-bottom" required>
+        
+        <label class="w3-text-teal"><b>Year of Graduation</b></label>
+        <select id="yearOfGraduation" class="w3-select w3-border w3-margin-bottom" required>
+          <option value="">Select Year</option>
+          <option value="2025">2025</option>
+          <option value="2026">2026</option>
+          <option value="2027">2027</option>
+          <option value="2028">2028</option>
+          <option value="2029">2029</option>
+          <option value="2030">2030</option>
+        </select>
+        
+        <label class="w3-text-teal"><b>House</b></label>
+        <select id="house" class="w3-select w3-border w3-margin-bottom" required>
+          <option value="">Select House</option>
+          <option value="Alpha">Alpha</option>
+          <option value="Beta">Beta</option>
+          <option value="Gamma">Gamma</option>
+          <option value="Delta">Delta</option>
+        </select>
+        
+        <label class="w3-text-teal"><b>Google Calendar ID (Optional)</b></label>
+        <input type="text" id="googleCalendarId" class="w3-input w3-border w3-margin-bottom">
+        
+        <button type="submit" class="w3-button w3-teal w3-round">Save Student</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div id="deleteConfirmModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width: 400px;">
+      <header class="w3-container w3-red">
+        <span class="w3-button w3-display-topright" onclick="closeDeleteModal()">&times;</span>
+        <h3>Delete Student</h3>
+      </header>
+      <div class="w3-padding">
+        <p>Type <b>DELETE</b> to confirm deletion of <span id="delete-student-name"></span></p>
+        <input type="text" id="delete-confirm-input" class="w3-input w3-border w3-margin-bottom" placeholder="Type DELETE...">
+        <button class="w3-button w3-red w3-round" onclick="confirmDelete()">Delete</button>
+        <button class="w3-button w3-gray w3-round" onclick="closeDeleteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Attendance Modal -->
+  <div id="attendanceModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width: 400px;">
+      <header class="w3-container w3-blue">
+        <span class="w3-button w3-display-topright" onclick="closeAttendanceModal()">&times;</span>
+        <h3>Add Daily Attendance</h3>
+      </header>
+      <form id="attendanceForm" class="w3-padding">
+        <label class="w3-text-blue"><b>Student</b></label>
+        <p id="attendance-student-name" class="w3-margin-bottom"></p>
+        
+        <label class="w3-text-blue"><b>Date</b></label>
+        <input type="date" id="attendance-date" class="w3-input w3-border w3-margin-bottom" required>
+        
+        <label class="w3-text-blue"><b>Attendance Code</b></label>
+        <select id="attendance-code" class="w3-select w3-border w3-margin-bottom" required>
+          <option value="">Select Code</option>
+          <option value="Present">Present</option>
+          <option value="Absent">Absent</option>
+          <option value="Tardy">Tardy</option>
+          <option value="Excused">Excused</option>
+        </select>
+        
+        <label class="w3-text-blue"><b>Comment (Optional)</b></label>
+        <textarea id="attendance-comment" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
+        
+        <button type="submit" class="w3-button w3-blue w3-round">Save Attendance</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth, getCurrentUser } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, batchWrite } from './js/db.js';
+    import { formatDate, exportCSV, showToast, showModal, generateId } from './js/utils.js';
+
+    let studentsData = [];
+    let dataTable;
+    let currentEditId = null;
+    let currentDeleteId = null;
+    let currentAttendanceId = null;
+
+    window.closeAddEditModal = closeAddEditModal;
+    window.closeDeleteModal = closeDeleteModal;
+    window.closeAttendanceModal = closeAttendanceModal;
+    window.editStudent = editStudent;
+    window.deleteStudent = deleteStudent;
+    window.viewInterventions = viewInterventions;
+    window.addAttendance = addAttendance;
+    window.confirmDelete = confirmDelete;
+
+    initAuth().then(user => {
+      if (!user) {
+        window.location.href = 'index.html';
+        return;
+      }
+      initNav('students');
+      init();
+    });
+
+    async function init() {
+      await loadStudents();
+      setupEventListeners();
+      renderTable();
+    }
+
+    async function loadStudents() {
+      try {
+        showToast('Loading students...', 'info');
+        studentsData = await getAll('students');
+        document.getElementById('student-count').textContent = studentsData.length;
+      } catch (error) {
+        console.error('Error loading students:', error);
+        showToast('Error loading students', 'error');
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('students-tbody');
+      tbody.innerHTML = '';
+
+      studentsData.forEach(student => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+          <td>${student.lastName}, ${student.firstName}</td>
+          <td>${student.yearOfGraduation}</td>
+          <td>${student.house}</td>
+          <td>${student.email}</td>
+          <td>${student.chattStateANumber}</td>
+          <td>
+            <button class="w3-button w3-small w3-blue action-button" onclick="editStudent('${student.id}')">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button class="w3-button w3-small w3-green action-button" onclick="viewInterventions('${student.id}')">
+              <i class="fas fa-chart-line"></i> Interventions
+            </button>
+            <button class="w3-button w3-small w3-orange action-button" onclick="addAttendance('${student.id}')">
+              <i class="fas fa-calendar-check"></i> Attendance
+            </button>
+            <button class="w3-button w3-small w3-red action-button" onclick="deleteStudent('${student.id}')">
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </td>
+        `;
+      });
+
+      if (dataTable) {
+        dataTable.destroy();
+      }
+
+      dataTable = $('#studentsTable').DataTable({
+        paging: true,
+        pageLength: 25,
+        ordering: true,
+        searching: false
+      });
+
+      applyFilters();
+    }
+
+    function setupEventListeners() {
+      document.getElementById('btn-add-student').addEventListener('click', openAddModal);
+      document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
+      document.getElementById('btn-upload-csv').addEventListener('click', () => {
+        document.getElementById('file-upload').click();
+      });
+      document.getElementById('file-upload').addEventListener('change', handleFileUpload);
+      
+      document.getElementById('studentForm').addEventListener('submit', handleStudentFormSubmit);
+      document.getElementById('attendanceForm').addEventListener('submit', handleAttendanceFormSubmit);
+      
+      document.getElementById('search-input').addEventListener('keyup', applyFilters);
+      document.getElementById('grad-year-filter').addEventListener('change', applyFilters);
+      document.getElementById('house-filter').addEventListener('change', applyFilters);
+    }
+
+    function openAddModal() {
+      currentEditId = null;
+      document.getElementById('modal-title').textContent = 'Add Student';
+      document.getElementById('studentForm').reset();
+      document.getElementById('addEditModal').style.display = 'block';
+    }
+
+    function closeAddEditModal() {
+      document.getElementById('addEditModal').style.display = 'none';
+      currentEditId = null;
+    }
+
+    async function editStudent(id) {
+      currentEditId = id;
+      const student = studentsData.find(s => s.id === id);
+      
+      document.getElementById('modal-title').textContent = 'Edit Student';
+      document.getElementById('firstName').value = student.firstName;
+      document.getElementById('lastName').value = student.lastName;
+      document.getElementById('email').value = student.email;
+      document.getElementById('chattStateANumber').value = student.chattStateANumber;
+      document.getElementById('yearOfGraduation').value = student.yearOfGraduation;
+      document.getElementById('house').value = student.house;
+      document.getElementById('googleCalendarId').value = student.googleCalendarId || '';
+      
+      document.getElementById('addEditModal').style.display = 'block';
+    }
+
+    async function handleStudentFormSubmit(e) {
+      e.preventDefault();
+
+      const studentData = {
+        firstName: document.getElementById('firstName').value,
+        lastName: document.getElementById('lastName').value,
+        email: document.getElementById('email').value,
+        chattStateANumber: document.getElementById('chattStateANumber').value,
+        yearOfGraduation: document.getElementById('yearOfGraduation').value,
+        house: document.getElementById('house').value,
+        googleCalendarId: document.getElementById('googleCalendarId').value || null
+      };
+
+      try {
+        if (currentEditId) {
+          await updateDoc('students', currentEditId, studentData);
+          showToast('Student updated successfully', 'success');
+        } else {
+          const docId = generateId();
+          await addDoc('students', docId, studentData);
+          showToast('Student added successfully', 'success');
+        }
+        closeAddEditModal();
+        await loadStudents();
+        renderTable();
+      } catch (error) {
+        console.error('Error saving student:', error);
+        showToast('Error saving student', 'error');
+      }
+    }
+
+    function deleteStudent(id) {
+      currentDeleteId = id;
+      const student = studentsData.find(s => s.id === id);
+      document.getElementById('delete-student-name').textContent = `${student.firstName} ${student.lastName}`;
+      document.getElementById('delete-confirm-input').value = '';
+      document.getElementById('deleteConfirmModal').style.display = 'block';
+    }
+
+    function closeDeleteModal() {
+      document.getElementById('deleteConfirmModal').style.display = 'none';
+      currentDeleteId = null;
+    }
+
+    async function confirmDelete() {
+      const input = document.getElementById('delete-confirm-input').value;
+      if (input !== 'DELETE') {
+        showToast('Please type DELETE to confirm', 'warning');
+        return;
+      }
+
+      try {
+        await deleteDoc('students', currentDeleteId);
+        showToast('Student deleted successfully', 'success');
+        closeDeleteModal();
+        await loadStudents();
+        renderTable();
+      } catch (error) {
+        console.error('Error deleting student:', error);
+        showToast('Error deleting student', 'error');
+      }
+    }
+
+    function viewInterventions(id) {
+      window.location.href = `interventions.html?student=${id}`;
+    }
+
+    function addAttendance(id) {
+      currentAttendanceId = id;
+      const student = studentsData.find(s => s.id === id);
+      document.getElementById('attendance-student-name').textContent = `${student.firstName} ${student.lastName}`;
+      
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('attendance-date').value = today;
+      
+      document.getElementById('attendanceModal').style.display = 'block';
+    }
+
+    function closeAttendanceModal() {
+      document.getElementById('attendanceModal').style.display = 'none';
+      currentAttendanceId = null;
+    }
+
+    async function handleAttendanceFormSubmit(e) {
+      e.preventDefault();
+
+      const attendanceData = {
+        studentId: currentAttendanceId,
+        date: document.getElementById('attendance-date').value,
+        code: document.getElementById('attendance-code').value,
+        comment: document.getElementById('attendance-comment').value || ''
+      };
+
+      try {
+        const docId = generateId();
+        await addDoc('attendance', docId, attendanceData);
+        showToast('Attendance recorded successfully', 'success');
+        closeAttendanceModal();
+        document.getElementById('attendanceForm').reset();
+      } catch (error) {
+        console.error('Error recording attendance:', error);
+        showToast('Error recording attendance', 'error');
+      }
+    }
+
+    function applyFilters() {
+      const searchValue = document.getElementById('search-input').value.toLowerCase();
+      const gradYearValue = document.getElementById('grad-year-filter').value;
+      const houseValue = document.getElementById('house-filter').value;
+
+      dataTable.rows().every(function() {
+        const data = this.data();
+        const fullName = `${data[0].toLowerCase()} ${data[3].toLowerCase()}`;
+        const gradYear = data[1];
+        const house = data[2];
+
+        const searchMatch = fullName.includes(searchValue);
+        const gradYearMatch = !gradYearValue || gradYear === gradYearValue;
+        const houseMatch = !houseValue || house === houseValue;
+
+        if (searchMatch && gradYearMatch && houseMatch) {
+          $(this.node()).show();
+        } else {
+          $(this.node()).hide();
+        }
+      });
+    }
+
+    async function downloadCSV() {
+      try {
+        const csvData = studentsData.map(student => ({
+          'First Name': student.firstName,
+          'Last Name': student.lastName,
+          'Email': student.email,
+          'ChattState A#': student.chattStateANumber,
+          'Graduation Year': student.yearOfGraduation,
+          'House': student.house,
+          'Google Calendar ID': student.googleCalendarId || ''
+        }));
+        exportCSV(csvData, 'students.csv');
+        showToast('CSV downloaded successfully', 'success');
+      } catch (error) {
+        console.error('Error downloading CSV:', error);
+        showToast('Error downloading CSV', 'error');
+      }
+    }
+
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: async (results) => {
+          try {
+            showToast('Uploading students...', 'info');
+            
+            const batch = [];
+            results.data.forEach(row => {
+              const docId = generateId();
+              batch.push({
+                docId,
+                collection: 'students',
+                data: {
+                  firstName: row['First Name'] || row['firstName'] || '',
+                  lastName: row['Last Name'] || row['lastName'] || '',
+                  email: row['Email'] || row['email'] || '',
+                  chattStateANumber: row['ChattState A#'] || row['chattStateANumber'] || '',
+                  yearOfGraduation: row['Graduation Year'] || row['yearOfGraduation'] || '',
+                  house: row['House'] || row['house'] || '',
+                  googleCalendarId: row['Google Calendar ID'] || row['googleCalendarId'] || null
+                }
+              });
+            });
+
+            await batchWrite(batch);
+            showToast(`${batch.length} students uploaded successfully`, 'success');
+            await loadStudents();
+            renderTable();
+            document.getElementById('file-upload').value = '';
+          } catch (error) {
+            console.error('Error uploading CSV:', error);
+            showToast('Error uploading CSV', 'error');
+          }
+        },
+        error: (error) => {
+          console.error('CSV parsing error:', error);
+          showToast('Error parsing CSV file', 'error');
+        }
+      });
+    }
+  </script>
+</body>
+</html>

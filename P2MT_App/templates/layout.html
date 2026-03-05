@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    {% if environment == "prod" and clarity_id %}
+    <script type="text/javascript">
+        (function (c, l, a, r, i, t, y) {
+            c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments) };
+            t = l.createElement(r); t.async = 1; t.src = "https://www.clarity.ms/tag/" + i;
+            y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+        })(window, document, "clarity", "script", "{{ clarity_id }}");
+    </script>
+    {% endif %}
+    {% if title %}
+    <title>P2MT - {{ title }}</title>
+    {% else %}
+    <title>P2MT</title>
+    {% endif %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+
+    <link rel="stylesheet" type="text/css"
+        href="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.24/datatables.min.css" />
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.24/datatables.min.js"></script>
+
+    <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway"> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+<!-- <style>
+    html,
+    body,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5 {
+        font-family: "Raleway", sans-serif
+    }
+</style> -->
+
+<!-- Macro to display flashed messaged -->
+{% macro macro_display_flashed_messages() %}
+<div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    {% if category=='success' %}
+    <div class="w3-panel w3-padding-24 w3-display-container w3-green">
+        <span onclick="this.parentElement.style.display='none'"
+            class="w3-button w3-display-left w3-margin-right w3-large">&times</span>
+        <span class="w3-display-middle w3-padding-large"><b>{{ message | safe }}</b></span>
+    </div>
+    {% elif category=='error' %}
+    <div class="w3-panel w3-padding-24 w3-display-container w3-red ">
+        <span onclick="this.parentElement.style.display='none'"
+            class="w3-button w3-display-left w3-margin-right w3-large">&times</span>
+        <span class="w3-display-middle w3-padding-large"><b>{{ message | safe }}</b></span>
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+</div>
+{% endmacro %}
+
+<body class="w3-light-grey">
+
+    <!-- Top container -->
+    <div class="w3-bar w3-top w3-black w3-large" style="z-index:4">
+        <button id="menuButton" class="w3-bar-item w3-button w3-hover-none w3-hover-text-light-grey"
+            onclick="w3_open();"><i class="fa fa-bars"></i>  Menu</button>
+
+        <span class="w3-bar-item w3-right">
+
+            <span class="w3-small w3-padding-left w3-yellow">
+                <strong>{{system_warning_message | safe }}</strong>
+            </span>
+
+            <span class="w3-small w3-padding">
+                <a href="/p2mtadmin" onclick="openP2MTSetup()">
+                    <strong>System Mode = {{ adminSettings['emailModeStatus'] }} </strong>
+                </a>
+            </span>
+
+            <span class="w3-small w3-padding">
+                <a href="/logininfo"><i class="fa fa-user-circle fa-fw"></i>
+                    <strong>{{ session['username'] }} </strong>
+                </a>
+            </span>
+
+            <span class="w3-small">P2MT</span>
+        </span>
+    </div>
+
+    <!-- Sidebar/menu -->
+    <nav class="w3-sidebar w3-white w3-animate-left" style="display:none;z-index:3;width:300px;" id="mySidebar"><br>
+        <div class="w3-bar-block">
+            <a href="/" class="w3-bar-item w3-button w3-padding"><i class="fa fa-home fa-fw"></i> 
+                Home</a>
+            <a href="/classattendancelog" class="w3-bar-item w3-button w3-padding"><i class="fa fa-diamond fa-fw"></i> 
+                Attendance</a>
+            <a href="/weekly-class-schedules" class="w3-bar-item w3-button w3-padding"><i
+                    class="fa fa-calendar fa-fw"></i> Weekly Class Schedules</a>
+            <a href="/learninglab" class="w3-bar-item w3-button w3-padding"><i class="fa fa-book fa-fw"></i> 
+                Learning Lab</a>
+            <a href="/dailyattendancelog" class="w3-bar-item w3-button w3-padding"><i class="fa fa-id-badge fa-fw"></i> 
+                Absence Log</a>
+            <a href="/classabsencelog" class="w3-bar-item w3-button w3-padding"><i
+                    class="fa fa-check-circle-o fa-fw"></i> 
+                Class Absence Log</a>
+            <a href="/interventionlog" class="w3-bar-item w3-button w3-padding"><i class="fa fa-gavel fa-fw"></i> 
+                Intervention Log</a>
+            <a href="/tmiteacherreview" class="w3-bar-item w3-button w3-padding"><i
+                    class="fa fa-check-square-o fa-fw"></i> 
+                TMI Teacher Review</a>
+            <a href="/tmifinalapproval" class="w3-bar-item w3-button w3-padding"><i class="fa fa-th-list fa-fw"></i> 
+                TMI Final Approval</a>
+            <a href="/students" class="w3-bar-item w3-button w3-padding"><i class="fa fa-users fa-fw"></i> 
+                Students</a>
+            <a href="/parents" class="w3-bar-item w3-button w3-padding"><i class="fa fa-address-card-o fa-fw"></i> 
+                Parent Info</a>
+            <a href="/masterschedule" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bullseye fa-fw"></i> 
+                Master
+                Schedule</a>
+
+            <div class="w3-dropdown-hover">
+                <button class="w3-button w3-padding"><i class="fa fa-globe fa-fw"></i> STEM III Tools
+                    <i class="fa fa-caret-down"></i>
+                </button>
+                <div class="w3-dropdown-content w3-bar-block w3-card w3-dark-grey">
+                    <a href="/stemiiipblplanner" class="w3-bar-item w3-button w3-padding"><i
+                            class="fa fa-calendar-o fa-fw"></i> PBL
+                        Planner</a>
+                    <a href="/stemiiiteams" class="w3-bar-item w3-button w3-padding"><i class="fa fa-cubes fa-fw"></i>
+                        Team
+                        Manager</a>
+                    <a href="/stemiiipblreports" class="w3-bar-item w3-button w3-padding"><i
+                            class="fa fa-paperclip fa-fw"></i> PBL
+                        Reports</a>
+                </div>
+            </div>
+
+            <div class="w3-dropdown-hover">
+                <button class="w3-button w3-padding"><i class="fa fa-gear fa-fw"></i> Settings and Admin Tools
+                    <i class="fa fa-caret-down"></i>
+                </button>
+                <div class="w3-dropdown-content w3-bar-block w3-card w3-dark-grey">
+                    <a href="/p2mttemplates" class="w3-bar-item w3-button w3-padding"><i class="fa fa-book fa-fw"></i> 
+                        Email Templates</a>
+                    <a href="/schoolcalendar" class="w3-bar-item w3-button w3-padding"><i
+                            class="fa fa-calendar fa-fw"></i> 
+                        School
+                        Calendar</a>
+                    <a href="/scheduleadmin" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bell fa-fw"></i> 
+                        Schedule
+                        Admin</a>
+                    <a href="/p2mtadmin" class="w3-bar-item w3-button w3-padding"><i class="fa fa-cogs fa-fw"></i>  P2MT
+                        Admin</a>
+                    <a href="/fettools" class="w3-bar-item w3-button w3-padding"><i class="fa fa-truck fa-fw"></i>  FET
+                        Tools</a>
+                </div>
+            </div>
+            <a href="/survey" class="w3-bar-item w3-button w3-padding"><i class="fa fa-comment fa-fw"></i> 
+                P2MT User Survey</a>
+            <a href="/about" class="w3-bar-item w3-button w3-padding"><i class="fa fa-bank fa-fw"></i> About P2MT</a>
+
+        </div>
+    </nav>
+
+
+    <!-- Overlay effect when opening sidebar on small screens -->
+    <div class="w3-overlay w3-animate-opacity" onclick="w3_close()" style="cursor:pointer" title="close side menu"
+        id="myOverlay"></div>
+
+    <!-- !PAGE CONTENT! -->
+    <div class="w3-main" style="margin-left:0px;margin-top:43px;">
+
+        <div class="w3-col">
+            {% block content %}{% endblock %}
+        </div>
+
+        <!-- Footer -->
+        <footer class="w3-container w3-padding-32 w3-light-grey">
+            <!-- <h4></h4> -->
+            <!-- <p>Powered by <a href="https://www.w3schools.com/w3css/default.asp" target="_blank">w3.css</a></p> -->
+        </footer>
+
+        <!-- End page content -->
+    </div>
+
+    <script>
+        // Get the Sidebar
+        var mySidebar = document.getElementById("mySidebar");
+
+        // Get the DIV with overlay effect
+        var overlayBg = document.getElementById("myOverlay");
+
+        // Toggle between showing and hiding the sidebar, and add overlay effect
+        function w3_open() {
+            if (mySidebar.style.display === 'block') {
+                mySidebar.style.display = 'none';
+                overlayBg.style.display = "none";
+            } else {
+                mySidebar.style.display = 'block';
+                overlayBg.style.display = "block";
+            }
+        }
+
+        // Close the sidebar with the close button
+        function w3_close() {
+            console.log('w3_close called');
+            mySidebar.style.display = "none";
+            overlayBg.style.display = "none";
+        }
+    </script>
+
+    <script>
+        function openP2MTSetup() {
+            sessionStorage.setItem("P2MTAdmin_selected_tab", "P2MTSetupTab");
+            return true;
+        }
+
+    </script>
+
+</body>
+
+</html>

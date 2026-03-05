@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Attendance Log - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .attendance-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 12px;
+      color: white;
+    }
+    .action-button { margin: 2px; font-size: 0.9rem; }
+    .modal-form { max-width: 650px; }
+    .filter-card { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .form-row.full { grid-template-columns: 1fr; }
+    .date-range-group { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .spinner { display: inline-block; margin-right: 8px; }
+  </style>
+</head>
+<body class="w3-light-grey">
+  <div id="nav-container"></div>
+  
+  <div class="w3-container w3-padding" style="margin-top: 10px;">
+    <!-- Header -->
+    <div class="w3-row w3-margin-bottom">
+      <div class="w3-col m8">
+        <h2><i class="fas fa-calendar-check"></i> Daily Attendance Log</h2>
+      </div>
+      <div class="w3-col m4 w3-right-align w3-padding-top">
+        <button id="btn-add-absence" class="w3-button w3-green action-button">
+          <i class="fas fa-plus"></i> Add Absence
+        </button>
+        <button id="btn-download-csv" class="w3-button w3-blue action-button">
+          <i class="fas fa-download"></i> Download CSV
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-card w3-padding w3-margin-bottom">
+      <div class="w3-row">
+        <div class="w3-col m3 w3-padding-small">
+          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Start Date</label>
+          <input type="date" id="filter-start-date" class="w3-input w3-border">
+        </div>
+        <div class="w3-col m3 w3-padding-small">
+          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">End Date</label>
+          <input type="date" id="filter-end-date" class="w3-input w3-border">
+        </div>
+        <div class="w3-col m3 w3-padding-small">
+          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Student</label>
+          <input type="text" id="filter-student" class="w3-input w3-border" placeholder="Search by name...">
+        </div>
+        <div class="w3-col m3 w3-padding-small">
+          <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;">Code</label>
+          <select id="filter-code" class="w3-select w3-border">
+            <option value="">All Codes</option>
+            <option value="P">Present</option>
+            <option value="T">Tardy</option>
+            <option value="E">Excused</option>
+            <option value="U">Unexcused</option>
+            <option value="Q">Quarantine</option>
+            <option value="W">Withdrawn</option>
+            <option value="H">Homebound</option>
+            <option value="L">Late Start</option>
+          </select>
+        </div>
+      </div>
+      <div class="w3-row w3-margin-top">
+        <div class="w3-col m12 w3-padding-small">
+          <button id="btn-apply-filters" class="w3-button w3-blue">
+            <i class="fas fa-filter"></i> Apply Filters
+          </button>
+          <button id="btn-clear-filters" class="w3-button w3-gray">
+            <i class="fas fa-times"></i> Clear
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DataTable -->
+    <div class="w3-card w3-white">
+      <div id="loading-container" class="loading-container" style="display: none;">
+        <div class="loading-text">
+          <div class="spinner"></div>
+          <span>Loading attendance records...</span>
+        </div>
+      </div>
+      <table id="attendanceTable" class="w3-table w3-striped w3-bordered">
+        <thead class="w3-blue">
+          <tr>
+            <th>Date</th>
+            <th>Student Name</th>
+            <th>ChattState A#</th>
+            <th>Code</th>
+            <th>Comment</th>
+            <th>Staff</th>
+            <th>Created Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="attendance-tbody">
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Add/Edit Absence Modal -->
+  <div id="addEditModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form">
+      <header class="w3-container w3-blue">
+        <span class="w3-button w3-display-topright" onclick="closeAddEditModal()">&times;</span>
+        <h3 id="modal-title">Add Absence</h3>
+      </header>
+      <form id="absenceForm" class="w3-padding">
+        <div class="form-row full">
+          <div>
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Student <span style="color: red;">*</span></b></label>
+            <input type="hidden" id="studentId">
+            <input type="text" id="studentName" class="w3-input w3-border" placeholder="Search student..." readonly style="cursor: pointer; background-color: #f9f9f9;">
+            <div id="student-dropdown" class="w3-card" style="position: absolute; max-height: 200px; overflow-y: auto; z-index: 100; display: none; width: 90%; max-width: 600px;"></div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Absence Start Date <span style="color: red;">*</span></b></label>
+            <input type="date" id="absenceStartDate" class="w3-input w3-border" required>
+          </div>
+          <div>
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Absence End Date <span style="color: red;">*</span></b></label>
+            <input type="date" id="absenceEndDate" class="w3-input w3-border" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div>
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Attendance Code <span style="color: red;">*</span></b></label>
+            <select id="attendanceCode" class="w3-select w3-border" required>
+              <option value="">-- Select Code --</option>
+              <option value="P">Present (P)</option>
+              <option value="T">Tardy (T)</option>
+              <option value="E">Excused (E)</option>
+              <option value="U">Unexcused (U)</option>
+              <option value="Q">Quarantine (Q)</option>
+              <option value="W">Withdrawn (W)</option>
+              <option value="H">Homebound (H)</option>
+              <option value="L">Late Start (L)</option>
+            </select>
+          </div>
+          <div>
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Assign TMI</b></label>
+            <input type="checkbox" id="assignTmi" class="w3-check" style="width: auto; margin-top: 10px;">
+            <span style="margin-left: 8px; color: #666;">Check if TMI assigned</span>
+          </div>
+        </div>
+
+        <div class="form-row full">
+          <div>
+            <label class="w3-text-dark" style="font-weight: 600; display: block; margin-bottom: 4px;"><b>Comment</b></label>
+            <textarea id="comment" class="w3-input w3-border" style="resize: vertical; min-height: 100px;" placeholder="Add notes about this absence..."></textarea>
+          </div>
+        </div>
+
+        <div class="w3-row w3-margin-top">
+          <div class="w3-col m6 w3-padding-small">
+            <button type="button" class="w3-button w3-block w3-gray" onclick="closeAddEditModal()">Cancel</button>
+          </div>
+          <div class="w3-col m6 w3-padding-small">
+            <button type="submit" class="w3-button w3-block w3-green">Save Absence</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <!-- Scripts -->
+  <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script type="module">
+    import { initAuth, getCurrentUser, signOut } from './js/auth.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import { initNav } from './js/nav.js';
+    import { formatDate, exportCSV, showToast, showModal, ATTENDANCE_CODES } from './js/utils.js';
+
+    let currentUser = null;
+    let allAttendanceRecords = [];
+    let allStudents = [];
+    let currentEditId = null;
+    let attendanceTable = null;
+
+    // Initialize page
+    initAuth().then(user => {
+      currentUser = user;
+      initNav('daily-attendance');
+      init();
+    });
+
+    async function init() {
+      try {
+        // Load students and attendance data
+        await loadStudents();
+        await loadAttendanceRecords();
+        initializeDataTable();
+        attachEventListeners();
+      } catch (error) {
+        console.error('Error initializing page:', error);
+        showToast('Error loading attendance data', 'error');
+      }
+    }
+
+    async function loadStudents() {
+      try {
+        allStudents = await getAll('students');
+      } catch (error) {
+        console.error('Error loading students:', error);
+        showToast('Error loading students', 'error');
+      }
+    }
+
+    async function loadAttendanceRecords() {
+      try {
+        document.getElementById('loading-container').style.display = 'flex';
+        allAttendanceRecords = await getAll('dailyAttendanceLogs');
+        document.getElementById('loading-container').style.display = 'none';
+      } catch (error) {
+        console.error('Error loading attendance records:', error);
+        showToast('Error loading attendance records', 'error');
+        document.getElementById('loading-container').style.display = 'none';
+      }
+    }
+
+    function initializeDataTable() {
+      if (attendanceTable) {
+        attendanceTable.destroy();
+      }
+      
+      const tableData = getFilteredRecords().map(record => {
+        const codeColor = ATTENDANCE_CODES[record.attendanceCode]?.color || '#666';
+        const codeBadge = `<span class="attendance-badge" style="background-color: ${codeColor};">${record.attendanceCode}</span>`;
+        
+        return {
+          date: formatDate(record.absenceDate),
+          studentName: record.studentName || 'Unknown',
+          chattStateA: record.chattStateANumber || '-',
+          code: codeBadge,
+          comment: record.comment || '-',
+          staff: record.staffName || '-',
+          createdDate: formatDate(record.createDate),
+          id: record.id
+        };
+      });
+
+      $('#attendanceTable tbody').html('');
+      tableData.forEach(row => {
+        $('#attendanceTable tbody').append(`
+          <tr>
+            <td>${row.date}</td>
+            <td>${row.studentName}</td>
+            <td>${row.chattStateA}</td>
+            <td>${row.code}</td>
+            <td>${row.comment}</td>
+            <td>${row.staff}</td>
+            <td>${row.createdDate}</td>
+            <td>
+              <button class="w3-button w3-small w3-blue" onclick="editAbsence('${row.id}')">
+                <i class="fas fa-edit"></i> Edit
+              </button>
+              <button class="w3-button w3-small w3-red" onclick="deleteAbsence('${row.id}')">
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </td>
+          </tr>
+        `);
+      });
+
+      attendanceTable = $('#attendanceTable').DataTable({
+        paging: true,
+        pageLength: 25,
+        ordering: true,
+        searching: true,
+        info: true,
+        lengthChange: true,
+        autoWidth: false
+      });
+    }
+
+    function getFilteredRecords() {
+      let filtered = [...allAttendanceRecords];
+
+      const startDate = document.getElementById('filter-start-date').value;
+      const endDate = document.getElementById('filter-end-date').value;
+      const studentFilter = document.getElementById('filter-student').value.toLowerCase();
+      const codeFilter = document.getElementById('filter-code').value;
+
+      if (startDate) {
+        filtered = filtered.filter(r => r.absenceDate >= startDate);
+      }
+      if (endDate) {
+        filtered = filtered.filter(r => r.absenceDate <= endDate);
+      }
+      if (studentFilter) {
+        filtered = filtered.filter(r => 
+          (r.studentName || '').toLowerCase().includes(studentFilter)
+        );
+      }
+      if (codeFilter) {
+        filtered = filtered.filter(r => r.attendanceCode === codeFilter);
+      }
+
+      return filtered.sort((a, b) => new Date(b.absenceDate) - new Date(a.absenceDate));
+    }
+
+    function attachEventListeners() {
+      document.getElementById('btn-add-absence').addEventListener('click', openAddModal);
+      document.getElementById('btn-apply-filters').addEventListener('click', () => {
+        initializeDataTable();
+      });
+      document.getElementById('btn-clear-filters').addEventListener('click', clearFilters);
+      document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
+      
+      // Student search functionality
+      document.getElementById('studentName').addEventListener('click', showStudentDropdown);
+      document.getElementById('studentName').addEventListener('input', filterStudentDropdown);
+      
+      document.getElementById('absenceForm').addEventListener('submit', handleFormSubmit);
+    }
+
+    function openAddModal() {
+      currentEditId = null;
+      document.getElementById('modal-title').textContent = 'Add Absence';
+      document.getElementById('absenceForm').reset();
+      document.getElementById('studentId').value = '';
+      document.getElementById('studentName').value = '';
+      document.getElementById('addEditModal').style.display = 'block';
+    }
+
+    window.editAbsence = async function(id) {
+      try {
+        currentEditId = id;
+        document.getElementById('modal-title').textContent = 'Edit Absence';
+        
+        const record = allAttendanceRecords.find(r => r.id === id);
+        if (!record) {
+          showToast('Record not found', 'error');
+          return;
+        }
+
+        document.getElementById('studentId').value = record.chattStateANumber;
+        document.getElementById('studentName').value = record.studentName;
+        document.getElementById('absenceStartDate').value = record.absenceDate;
+        document.getElementById('absenceEndDate').value = record.absenceDate;
+        document.getElementById('attendanceCode').value = record.attendanceCode;
+        document.getElementById('comment').value = record.comment || '';
+        document.getElementById('assignTmi').checked = record.assignTmi || false;
+
+        document.getElementById('addEditModal').style.display = 'block';
+      } catch (error) {
+        console.error('Error editing absence:', error);
+        showToast('Error loading absence data', 'error');
+      }
+    };
+
+    window.deleteAbsence = function(id) {
+      showModal(
+        'Confirm Delete',
+        '<p>Are you sure you want to delete this absence record?</p>',
+        async () => {
+          try {
+            await deleteDoc('dailyAttendanceLogs', id);
+            showToast('Absence record deleted', 'success');
+            await loadAttendanceRecords();
+            initializeDataTable();
+          } catch (error) {
+            console.error('Error deleting record:', error);
+            showToast('Error deleting absence record', 'error');
+          }
+        }
+      );
+    };
+
+    function showStudentDropdown() {
+      const dropdown = document.getElementById('student-dropdown');
+      const input = document.getElementById('studentName');
+      
+      if (dropdown.style.display === 'block') {
+        dropdown.style.display = 'none';
+        return;
+      }
+
+      const filtered = allStudents.filter(s => true);
+      if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="w3-padding">No students found</div>';
+      } else {
+        dropdown.innerHTML = filtered.map(student => 
+          `<div class="w3-hover-light-blue w3-padding" style="cursor: pointer; border-bottom: 1px solid #ddd;" onclick="selectStudent('${student.id}', '${student.chattStateANumber}', '${student.lastName}, ${student.firstName}')">
+            ${student.lastName}, ${student.firstName} (${student.chattStateANumber})
+          </div>`
+        ).join('');
+      }
+      
+      dropdown.style.display = 'block';
+    }
+
+    function filterStudentDropdown() {
+      const input = document.getElementById('studentName').value.toLowerCase();
+      const dropdown = document.getElementById('student-dropdown');
+      
+      const filtered = allStudents.filter(s => 
+        `${s.lastName}, ${s.firstName}`.toLowerCase().includes(input) ||
+        s.chattStateANumber.includes(input)
+      );
+
+      if (filtered.length === 0) {
+        dropdown.innerHTML = '<div class="w3-padding">No students found</div>';
+      } else {
+        dropdown.innerHTML = filtered.map(student => 
+          `<div class="w3-hover-light-blue w3-padding" style="cursor: pointer; border-bottom: 1px solid #ddd;" onclick="selectStudent('${student.id}', '${student.chattStateANumber}', '${student.lastName}, ${student.firstName}')">
+            ${student.lastName}, ${student.firstName} (${student.chattStateANumber})
+          </div>`
+        ).join('');
+      }
+      
+      dropdown.style.display = 'block';
+    }
+
+    window.selectStudent = function(id, chattStateA, name) {
+      document.getElementById('studentId').value = chattStateA;
+      document.getElementById('studentName').value = name;
+      document.getElementById('student-dropdown').style.display = 'none';
+    };
+
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const studentId = document.getElementById('studentId').value;
+      const startDate = document.getElementById('absenceStartDate').value;
+      const endDate = document.getElementById('absenceEndDate').value;
+      const code = document.getElementById('attendanceCode').value;
+      const comment = document.getElementById('comment').value;
+      const assignTmi = document.getElementById('assignTmi').checked;
+
+      if (!studentId || !startDate || !endDate || !code) {
+        showToast('Please fill in all required fields', 'error');
+        return;
+      }
+
+      try {
+        const datesToAdd = generateDateRange(startDate, endDate);
+        const studentName = document.getElementById('studentName').value;
+
+        if (currentEditId) {
+          // Update single record
+          await updateDoc('dailyAttendanceLogs', currentEditId, {
+            absenceDate: startDate,
+            attendanceCode: code,
+            comment,
+            assignTmi,
+            staffId: currentUser.uid,
+            staffName: currentUser.displayName || currentUser.email
+          });
+          showToast('Absence updated', 'success');
+        } else {
+          // Create new records for each date in range
+          for (const date of datesToAdd) {
+            await addDoc('dailyAttendanceLogs', {
+              chattStateANumber: studentId,
+              studentName: studentName,
+              absenceDate: date,
+              attendanceCode: code,
+              comment,
+              assignTmi,
+              staffId: currentUser.uid,
+              staffName: currentUser.displayName || currentUser.email,
+              createDate: new Date().toISOString().split('T')[0]
+            });
+          }
+          showToast(`Absence added for ${datesToAdd.length} day(s)`, 'success');
+        }
+
+        closeAddEditModal();
+        await loadAttendanceRecords();
+        initializeDataTable();
+      } catch (error) {
+        console.error('Error saving absence:', error);
+        showToast('Error saving absence', 'error');
+      }
+    }
+
+    function generateDateRange(startDate, endDate) {
+      const dates = [];
+      let current = new Date(startDate);
+      const end = new Date(endDate);
+
+      while (current <= end) {
+        const day = current.getDay();
+        // Skip weekends (0 = Sunday, 6 = Saturday)
+        if (day !== 0 && day !== 6) {
+          dates.push(current.toISOString().split('T')[0]);
+        }
+        current.setDate(current.getDate() + 1);
+      }
+
+      return dates;
+    }
+
+    function clearFilters() {
+      document.getElementById('filter-start-date').value = '';
+      document.getElementById('filter-end-date').value = '';
+      document.getElementById('filter-student').value = '';
+      document.getElementById('filter-code').value = '';
+      initializeDataTable();
+    }
+
+    function downloadCSV() {
+      const records = getFilteredRecords();
+      const csvData = records.map(record => ({
+        'Date': formatDate(record.absenceDate),
+        'Student Name': record.studentName,
+        'ChattState A#': record.chattStateANumber,
+        'Code': record.attendanceCode,
+        'Comment': record.comment || '',
+        'Staff': record.staffName,
+        'Created Date': formatDate(record.createDate)
+      }));
+
+      if (csvData.length === 0) {
+        showToast('No records to download', 'warning');
+        return;
+      }
+
+      exportCSV(csvData, 'daily-attendance.csv');
+    }
+
+    window.closeAddEditModal = function() {
+      document.getElementById('addEditModal').style.display = 'none';
+      document.getElementById('student-dropdown').style.display = 'none';
+      document.getElementById('absenceForm').reset();
+      currentEditId = null;
+    };
+
+    // Close modal when clicking outside
+    window.addEventListener('click', (event) => {
+      const modal = document.getElementById('addEditModal');
+      if (event.target === modal) {
+        closeAddEditModal();
+      }
+    });
+  </script>
+</body>
+</html>

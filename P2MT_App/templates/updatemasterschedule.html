@@ -1,0 +1,103 @@
+{% extends 'layout.html'%}
+{% block content %}
+
+{% macro macro_display_formfield(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+    {{ formfield.label(class="w3-text-green w3-large") }}
+    {% if formfield.errors %}
+    {{ formfield(class="w3-select is-invalid") }}
+    <div class="invalid-feedback">
+        {% for error in formfield.errors %}
+        <span>{{ error }}</span>
+        {% endfor %}
+    </div>
+    {% else %}
+    {{ formfield(class="w3-select  w3-section") }}
+    {% endif %}
+</div>
+{% endmacro %}
+
+{% macro macro_display_checkbox(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+    {{ formfield.label(class="w3-text-green w3-large") }}
+    {% if formfield.errors %}
+    {{ formfield(class="w3-select is-invalid") }}
+    <div class="invalid-feedback">
+        {% for error in formfield.errors %}
+        <span>{{ error }}</span>
+        {% endfor %}
+    </div>
+    {% else %}
+    {{ formfield(class="w3-check  w3-section") }}
+    {% endif %}
+</div>
+{% endmacro %}
+
+<div class="w3-container w3-green w3-row">
+    <div class="w3-third">
+        <h2>{{title}}</h2>
+    </div>
+</div>
+
+{{ macro_display_flashed_messages() }}
+
+<div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+        action="{{ url_for('masterSchedule_bp.edit_ClassSchedule', log_id=editSingleClassSchedule.log_id.data) }}"
+        enctype="multipart/form-data">
+        {{ editSingleClassSchedule.hidden_tag() }}
+        <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+            <legend class="w3-xlarge">Edit Class Schedule for {{ studentName }} </legend>
+            <div class="w3-row-padding">
+                {{ macro_display_formfield(editSingleClassSchedule.schoolYear, "w3-half") }}
+                {{ macro_display_formfield(editSingleClassSchedule.semester, "w3-half") }}
+                {{ macro_display_formfield(editSingleClassSchedule.campus, "w3-half") }}
+                {{ macro_display_formfield(editSingleClassSchedule.className, "w3-half") }}
+                {{ macro_display_formfield(editSingleClassSchedule.teacherName, "w3-half") }}
+                <div class="w3-padding-small w3-cell-row">
+                    {{ editSingleClassSchedule.classDays.label(class="w3-text-green w3-large w3-cell w3-cell-middle") }}
+                    {% if editSingleClassSchedule.classDays.errors %}
+                    {{ editSingleClassSchedule.classDays(class="w3-check is-invalid") }}
+                    <div class="invalid-feedback">
+                        {% for error in editSingleClassSchedule.classDays.errors %}
+                        <span>{{ error }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    {% for choice in editSingleClassSchedule.classDays %}
+                    <div class="w3-cell w3-cell-middle">
+                        <div class="w3-show-inline-block">
+                            <div class="w3-bar">
+                                {{ choice(class="w3-check") }}
+                                {{ choice.label(class="w3-text-black w3-medium") }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                    {{ macro_display_checkbox(editSingleClassSchedule.online, "w3-cell w3-cell-middle") }}
+                    {{ macro_display_checkbox(editSingleClassSchedule.indStudy, "w3-cell w3-cell-middle") }}
+                </div>
+                <div class="w3-row-padding">
+                    {{ macro_display_formfield(editSingleClassSchedule.startTime, "w3-half") }}
+                    {{ macro_display_formfield(editSingleClassSchedule.endTime, "w3-half") }}
+                    {{ macro_display_formfield(editSingleClassSchedule.comment, "w3-half") }}
+                    {{ macro_display_formfield(editSingleClassSchedule.googleCalendarEventID, "w3-half") }}
+                </div>
+                <div class="w3-row-padding">
+                    <p class='w3-panel w3-red'>Important: If you have made any changes to the class days, all
+                        associated class
+                        attendance logs
+                        which are not null will be deleted. You will need to propagate class attendance logs for this
+                        class in order for it to appear in the class attendance roster.</p>
+                </div>
+                <div class="w3-row w3-padding-large">
+                    <a class="w3-btn w3-border-blue w3-large"
+                        href="{{ url_for('masterSchedule_bp.displayMasterSchedule') }}">Cancel</a>
+                    {{ editSingleClassSchedule.submitEditSingleClassSchedule(class="w3-btn w3-blue w3-large") }}
+                </div>
+        </fieldset>
+    </form>
+</div>
+
+{% endblock content %}

@@ -1,0 +1,231 @@
+{% extends 'layout.html'%}
+{% block content %}
+
+{% macro macro_display_formfield(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+  {{ formfield.label(class="w3-text-green w3-large") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(class="w3-select w3-section", id=False) }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro macro_display_checkbox(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+  {{ formfield.label(class="w3-text-green w3-large") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(class="w3-check w3-section") }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+<div class="w3-container w3-green w3-row">
+  <div class="w3-third">
+    <h2>{{title}}</h2>
+  </div>
+</div>
+
+<div class="w3-bar w3-blue">
+  <button id='button_BasicTab' class="w3-bar-item w3-button tablink w3-black"
+    onclick="openTab(event, 'BasicTab', 'ScheduleAdmin')">Basic
+    Functions</button>
+  <button id='button_AdvancedTab' class="w3-bar-item w3-button tablink"
+    onclick="openTab(event, 'AdvancedTab', 'ScheduleAdmin')">Advanced
+    Functions</button>
+</div>
+
+{{ macro_display_flashed_messages() }}
+
+<div class="infoTab" id="BasicTab">
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('scheduleAdmin_bp.displayScheduleAdmin') }}" enctype="multipart/form-data">
+      {{ downloadClassAttendanceForm.csrf_token(id = False) }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge">Download Class Attendance Roster</legend>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(downloadClassAttendanceForm.teacherName, "w3-half") }}
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(downloadClassAttendanceForm.schoolYear, "w3-half") }}
+          {{ macro_display_formfield(downloadClassAttendanceForm.semester, "w3-half") }}
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(downloadClassAttendanceForm.startDate, "w3-half") }}
+          {{ macro_display_formfield(downloadClassAttendanceForm.endDate, "w3-half") }}
+        </div>
+        <div class="w3-row w3-padding-large">
+          {{ downloadClassAttendanceForm.submitDownloadClassAttendanceForm(class="w3-btn w3-blue w3-large") }}
+        </div>
+      </fieldset>
+    </form>
+  </div>
+
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('scheduleAdmin_bp.displayScheduleAdmin') }}" enctype="multipart/form-data">
+      {{ downloadClassScheduleForm.csrf_token(id = False) }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge">Download Entire Semester Class Schedule</legend>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(downloadClassScheduleForm.schoolYear, "w3-half") }}
+          {{ macro_display_formfield(downloadClassScheduleForm.semester, "w3-half") }}
+        </div>
+        <div class="w3-row w3-padding-large">
+          {{ downloadClassScheduleForm.submitDownloadClassScheduleForm(class="w3-btn w3-blue w3-large") }}
+        </div>
+      </fieldset>
+    </form>
+  </div>
+</div>
+
+<div class="infoTab" id="AdvancedTab" style="display:none">
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('scheduleAdmin_bp.displayScheduleAdmin') }}" enctype="multipart/form-data">
+      {{ uploadClassScheduleForm.csrf_token(id = False) }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge">Upload Class Schedule</legend><div class="w3-panel w3-dark-grey">
+          <p>Important: populate the campus field with "STEM School" for all STEM School classes.</p>
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(uploadClassScheduleForm.csvClassScheduleFile, "w3-half") }}
+        </div>
+        <div class="w3-row w3-padding-large">
+          {{ uploadClassScheduleForm.submitUploadClassSchedule(class="w3-btn w3-blue w3-large") }}
+        </div>
+        <div class="w3-row w3-padding-large">
+          <a href="/templates/class_schedule_template" target="blank"><i class="fa fa-download fa-fw"></i>
+            Download Template
+          </a>
+        </div>
+      </fieldset>
+    </form>
+  </div>
+
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('scheduleAdmin_bp.displayScheduleAdmin') }}" enctype="multipart/form-data">
+      {{ propagateClassAttendanceLogsForm.csrf_token(id = False) }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge">Propagate Class Attendance Logs</legend>
+        <div class="w3-panel w3-dark-grey">
+          <p>P2MT will only propagate class attendance rosters on Phase II Days.
+            Before propagating schedules for a semester, update the <a href="/schoolcalendar">School Calendar</a> to
+            indicate school
+            break periods and no-class days. Go to Menu <span><i class="fa fa-arrow-right"
+                aria-hidden="true"></i></span> Settings and Admin Tools <span><i class="fa fa-arrow-right"
+                aria-hidden="true"></i></span> School Calendar and uncheck the 'Phase II Day' box for no-class days.
+          </p>
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(propagateClassAttendanceLogsForm.schoolYear, "w3-half") }}
+          {{ macro_display_formfield(propagateClassAttendanceLogsForm.semester, "w3-half") }}
+          {{ macro_display_formfield(propagateClassAttendanceLogsForm.startDate, "w3-half") }}
+          {{ macro_display_formfield(propagateClassAttendanceLogsForm.endDate, "w3-half") }}
+        </div>
+        <div class="w3-row w3-padding-large">
+          {{ propagateClassAttendanceLogsForm.submitPropagatelassAttendanceLogs(class="w3-btn w3-blue w3-large") }}
+        </div>
+      </fieldset>
+    </form>
+  </div>
+
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('scheduleAdmin_bp.displayScheduleAdmin') }}" enctype="multipart/form-data">
+      {{ addSingleClassSchedule.csrf_token(id = False) }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge">Add Class Schedule for Single Student</legend>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(addSingleClassSchedule.schoolYear, "w3-half") }}
+          {{ macro_display_formfield(addSingleClassSchedule.semester, "w3-half") }}
+          {{ macro_display_formfield(addSingleClassSchedule.studentName, "w3-half") }}
+          {{ macro_display_formfield(addSingleClassSchedule.campus, "w3-half") }}
+          {{ macro_display_formfield(addSingleClassSchedule.className, "w3-half") }}
+          {{ macro_display_formfield(addSingleClassSchedule.teacherName, "w3-half") }}
+          <div class="w3-padding-small w3-cell-row">
+            {{ addSingleClassSchedule.classDays.label(class="w3-text-green w3-large w3-cell w3-cell-middle") }}
+            {% if addSingleClassSchedule.classDays.errors %}
+            {{ addSingleClassSchedule.classDays(class="w3-check is-invalid") }}
+            <div class="invalid-feedback">
+              {% for error in addSingleClassSchedule.classDays.errors %}
+              <span>{{ error }}</span>
+              {% endfor %}
+            </div>
+            {% else %}
+            {% for choice in addSingleClassSchedule.classDays %}
+            <div class="w3-cell w3-cell-middle">
+              <div class="w3-show-inline-block">
+                <div class="w3-bar">
+                  {{ choice(class="w3-check") }}
+                  {{ choice.label(class="w3-text-black w3-medium") }}
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+            {% endif %}
+            {{ macro_display_checkbox(addSingleClassSchedule.online, "w3-cell w3-cell-middle") }}
+            {{ macro_display_checkbox(addSingleClassSchedule.indStudy, "w3-cell w3-cell-middle") }}
+          </div>
+          <div class="w3-row-padding">
+            {{ macro_display_formfield(addSingleClassSchedule.startTime, "w3-half") }}
+            {{ macro_display_formfield(addSingleClassSchedule.endTime, "w3-half") }}
+            {{ macro_display_formfield(addSingleClassSchedule.comment, "w3-half") }}
+            {{ macro_display_formfield(addSingleClassSchedule.googleCalendarEventID, "w3-half") }}
+          </div>
+          <div class="w3-row w3-padding-large">
+            {{ addSingleClassSchedule.submitAddSingleClassSchedule(class="w3-btn w3-blue w3-large") }}
+          </div>
+      </fieldset>
+    </form>
+  </div>
+
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('scheduleAdmin_bp.displayScheduleAdmin') }}" enctype="multipart/form-data">
+      {{ deleteClassScheduleForm.csrf_token(id = False) }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-red">
+        <legend class="w3-xlarge">Delete Entire Semester Class Schedule</legend>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(deleteClassScheduleForm.schoolYear, "w3-half") }}
+          {{ macro_display_formfield(deleteClassScheduleForm.semester, "w3-half") }}
+          {{ macro_display_formfield(deleteClassScheduleForm.yearOfGraduation, "w3-half") }}
+          {{ macro_display_formfield(deleteClassScheduleForm.confirmDeleteClassSchedule, "w3-half") }}
+        </div>
+        <div class="w3-row w3-padding-large">
+          {{ deleteClassScheduleForm.submitDeleteClassScheduleForm(class="w3-btn w3-red w3-large") }}
+        </div>
+      </fieldset>
+    </form>
+  </div>
+</div>
+
+<script type="text/javascript" src="{{ url_for('static', filename='js/pageTabs.js') }}"></script>
+<!-- Reload page to last loaded tab -->
+<script type='text/javascript'>
+  document.addEventListener("DOMContentLoaded", function (event) {
+    selected_tab = 'ScheduleAdmin_selected_tab';
+    var selectedTab = sessionStorage.getItem(selected_tab);
+    if (selectedTab) {
+      document.getElementById("button_" + selectedTab).click();
+    } else {
+      document.getElementById("button_BasicTab").click();
+    }
+  });
+</script>
+{% endblock content %}

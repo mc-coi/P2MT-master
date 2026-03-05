@@ -1,0 +1,505 @@
+{% extends 'layout.html'%}
+{% block content %}
+
+{% macro macro_display_formfield(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+  {{ formfield.label(class="w3-text-green w3-large") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(class="w3-select w3-section", id=False) }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro macro_display_checkbox(formfield, w3ResponsiveGridClass) %}
+<div class="{{w3ResponsiveGridClass}}">
+  {{ formfield.label(class="w3-text-green w3-large") }}
+  {% if formfield.errors %}
+  {{ formfield(class="w3-select is-invalid") }}
+  <div class="invalid-feedback">
+    {% for error in formfield.errors %}
+    <span>{{ error }}</span>
+    {% endfor %}
+  </div>
+  {% else %}
+  {{ formfield(class="w3-check  w3-section") }}
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro macro_colorCode_tdField(formfield) %}
+{% if not formfield %}
+<td class="w3-center w3-pale-red">{{ formfield }}</td>
+{% else %}
+<td class="w3-center w3-pale-green">{{ formfield }}</td>
+{% endif %}
+{% endmacro %}
+
+<div class="w3-container w3-green w3-row">
+  <div class="w3-third">
+    <h2>{{title}}</h2>
+  </div>
+</div>
+
+<div class="w3-bar w3-blue">
+  <button id='button_editTemplate' class="w3-bar-item w3-button tablink w3-black"
+    onclick="openTab(event, 'editTemplate', 'EmailTemplates')">Edit Template</button>
+  <button id='button_newTemplate' class="w3-bar-item w3-button tablink"
+    onclick="openTab(event, 'newTemplate', 'EmailTemplates')">New Template</button>
+  <button id='button_Instructions' class="w3-bar-item w3-button tablink"
+    onclick="openTab(event, 'Instructions', 'EmailTemplates')">Instructions</button>
+  <button id='button_testTemplate' class="w3-bar-item w3-button tablink"
+    onclick="openTab(event, 'testTemplate', 'EmailTemplates')">Template Testing</button>
+</div>
+
+{{ macro_display_flashed_messages() }}
+
+<div class="infoTab" id="editTemplate">
+  <div class="w3-container w3-padding-large w3-margin-right w3-margin-left w3-section">
+    <table class="w3-padding-large w3-table w3-bordered w3-striped">
+      <thead>
+        <tr class="w3-blue">
+          <th>Template Title</th>
+          <th>Send to Student</th>
+          <th>Send to Parent</th>
+          <th>Send to Teacher</th>
+          <th>Intervention Type</th>
+          <th>Intervention Level</th>
+
+        </tr>
+      </thead>
+      <tbody class="w3-main">
+        {% for p2mtTemplate in p2mtTemplates %}
+        <tr class="w3-hover-grey">
+          <td>{{ p2mtTemplate.templateTitle }}</td>
+          {{ macro_colorCode_tdField(p2mtTemplate.sendToStudent) }}
+          {{ macro_colorCode_tdField(p2mtTemplate.sendToParent) }}
+          {{ macro_colorCode_tdField(p2mtTemplate.sendToTeacher) }}
+          {% if p2mtTemplate.interventionType != None %}
+          <td>{{ p2mtTemplate.interventionType }}</td>
+          {% endif %}
+          {% if p2mtTemplate.interventionLevel != None %}
+          <td class="w3-center">{{ p2mtTemplate.interventionLevel }}</td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form class="w3-container w3-padding-large" method="POST" action="{{ url_for('p2mtTemplates_bp.displayTemplates') }}"
+    enctype="multipart/form-data">
+    {{ chooseTemplateToEdit.csrf_token(id = False) }}
+    <div class="w3-row-padding">
+      {{ macro_display_formfield(chooseTemplateToEdit.templateTitle, "w3-half") }}
+    </div>
+    <div class="w3-row w3-padding-large">
+      {{ chooseTemplateToEdit.chooseTemplateToEdit(class="w3-btn w3-blue w3-large") }}
+    </div>
+  </form>
+
+  {% if editTemplateForm %}
+  <div class="w3-container">
+    <form class="w3-container w3-padding-large" method="POST"
+      action="{{ url_for('p2mtTemplates_bp.displayTemplates') }}" enctype="multipart/form-data">
+      {{ editTemplateForm.hidden_tag() }}
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge"> Edit Template </legend>
+        <!-- Title, Intervention Type, Intervention Level -->
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(editTemplateForm.templateTitle, "w3-half") }}
+          {{ macro_display_formfield(editTemplateForm.interventionType, "w3-quarter") }}
+          {{ macro_display_formfield(editTemplateForm.interventionLevel, "w3-quarter") }}
+        </div>
+        <!-- Email Subject -->
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(editTemplateForm.emailSubject, "w3-half") }}
+          {% if rendered_emailSubject %}
+          <div class="w3-half">
+            <label class="w3-text-green w3-large">Example of Rendered Email Subject:</label>
+            <p class="w3-padding-small w3-white">{{rendered_emailSubject}}</p>
+          </div>
+          {% endif %}
+        </div>
+        <!-- Template Content -->
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(editTemplateForm.templateContent, "w3-half") }}
+          {% if rendered_templateContent %}
+          <div class="w3-half">
+            <label class="w3-text-green w3-large">Example of Rendered Content:</label>
+            <p class="w3-padding-small w3-white">{{rendered_templateContent}}</p>
+          </div>
+          {% endif %}
+        </div>
+        <!-- Send to Student, Send to Parent, Send to Teacher -->
+        <div class="w3-row-padding">
+          {{ macro_display_checkbox(editTemplateForm.sendToStudent, "w3-col l2 w3-right-align") }}
+        </div>
+
+        <div class="w3-row-padding">
+          {{ macro_display_checkbox(editTemplateForm.sendToParent, "w3-col l2 w3-right-align") }}
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_checkbox(editTemplateForm.sendToTeacher, "w3-col l2 w3-right-align") }}
+        </div>
+        <!-- Submit or Delete -->
+        <div class="w3-row w3-padding-large">
+          <a class="w3-btn w3-grey w3-large" href="{{url_for('p2mtTemplates_bp.displayTemplates')}}">Cancel</a>
+          {{ editTemplateForm.submitUpdatedTemplate(class="w3-btn w3-blue w3-large") }}
+          <button type="button" class="w3-btn w3-red w3-large"
+            onclick="document.getElementById('deleteModal').style.display='block'">Delete Template</button>
+        </div>
+      </fieldset>
+    </form>
+  </div>
+
+
+
+  <!-- Modal -->
+  <div class="w3-modal" id="deleteModal">
+    <div class="w3-container">
+      <div class="w3-modal-content" style="width:50%">
+        <header class="w3-container w3-red">
+          <span onclick="document.getElementById('deleteModal').style.display='none'"
+            class="w3-button w3-display-topright">&times;</span>
+          <h2>Delete Template?</h2>
+        </header>
+        <footer class="w3-container w3-margin-top w3-white w3-center">
+          <div class="w3-bar">
+            <form
+              action="{{ url_for('p2mtTemplates_bp.delete_p2mtTemplate', log_id=editTemplateForm.template_id.data|int) }}"
+              method="POST">
+              <button type="button" class="w3-button w3-large"
+                onclick="document.getElementById('deleteModal}').style.display='none'">Cancel</button>
+              <input class="w3-button w3-red w3-large" type="submit" value="Delete">
+            </form>
+          </div>
+        </footer>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<div class="infoTab" id="newTemplate" style="display:none">
+  <form class="w3-container w3-padding-large" method="POST" action="{{ url_for('p2mtTemplates_bp.displayTemplates') }}"
+    enctype="multipart/form-data">
+    {{ templateForm.csrf_token(id = False) }}
+    <div class="w3-container">
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge"> New Template </legend>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(templateForm.templateTitle, "w3-half") }}
+          {{ macro_display_formfield(templateForm.interventionType, "w3-quarter") }}
+          {{ macro_display_formfield(templateForm.interventionLevel, "w3-quarter") }}
+          {{ macro_display_formfield(templateForm.emailSubject, "w3-threequarter") }}
+          {{ macro_display_formfield(templateForm.templateContent, "w3-threequarter") }}
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_checkbox(templateForm.sendToStudent, "w3-col l2 w3-right-align") }}
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_checkbox(templateForm.sendToParent, "w3-col l2 w3-right-align") }}
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_checkbox(templateForm.sendToTeacher, "w3-col l2 w3-right-align") }}
+        </div>
+        <div class="w3-row w3-padding-large">
+          {{ templateForm.submitNewTemplate(class="w3-btn w3-blue w3-large") }}
+        </div>
+      </fieldset>
+    </div>
+  </form>
+</div>
+
+<div class="infoTab" id="Instructions" style="display:none">
+  <div class="w3-panel"></div>
+  <div class="w3-container w3-panel w3-margin">
+    {% raw %}
+    <h1>Template Attributes and Naming Conventions</h1>
+    <p> Email templates are selected based on various criteria such as intervention type, intervention level, recipient,
+      and template title. The table below identfies how these criteria are used for different cases.</p>
+    <p> Important: Email templates should be defined carefully so there is exactly one template for any specific
+      criteria. If the wrong template is selected, it is most likely because more than one template met the selection
+      criteria.
+    </p>
+    <p> In most cases, emails should go to students and parents. However, TMI-related emails will use recipient to
+      determine the appropriate template as
+      described in this table.</p>
+    <p>It is not necessary nor appropriate to define an email template for every intervention type and level. For
+      example, emails for
+      more serious interventions should be written for the unique circumstances involved in that intervention. By not
+      including an email template for these situations, you can still record the intervention in the intervention log
+      while not generating an automatic email notification.</p>
+
+    <table class="w3-padding-large w3-table w3-striped">
+      <thead>
+        <tr class="w3-blue">
+          <th></th>
+          <th colspan=5 class="w3-center">Selection Criteria</th>
+        </tr>
+        <tr class="w3-blue">
+          <th class="w3-center">Purpose</th>
+          <th>Naming Convention</th>
+          <th>Send to Student</th>
+          <th>Send to Parent</th>
+          <th>Intervention Type</th>
+          <th>Intervention Level</th>
+        </tr>
+      </thead>
+      <tbody class="w3-main">
+        <tr>
+          <td>The email templates for dress code and academic behavior will be selected based only on intervention type
+            and
+            intervention level</td>
+          <td>N/A</td>
+          <td>N/A</td>
+          <td>N/A</td>
+          <td>Yes</td>
+          <td>Yes</td>
+        </tr>
+        <tr>
+          <td>The email template for sending the inital TMI notification to only the student will be based on recipient,
+            intervention type,
+            and intervention level as shown here</td>
+          <td>N/A</td>
+          <td>Must be True</td>
+          <td>Must be False</td>
+          <td>Attendance</td>
+          <td>Level 1</td>
+        </tr>
+        <tr>
+          <td>The email template for sending the final TMI notification to both the student and parent will be based on
+            recipient,
+            intervention type, and
+            intervention level as shown here</td>
+          <td>N/A</td>
+          <td>Must be True</td>
+          <td>Must be True</td>
+          <td>Attendance</td>
+          <td>Level 1</td>
+        </tr>
+        <tr>
+          <td>The email templates for sending PBL emails must include 'PBL' in their title</td>
+          <td>'PBL' in the template title</td>
+          <td>Must be True</td>
+          <td>N/A</td>
+          <td>No</td>
+          <td>No</td>
+        </tr>
+      </tbody>
+    </table>
+    <br>
+    <h1>Template Variables</h1>
+    <p> Templates use template variables which are enclosed in double curly braces {{}}. The list below includes
+      standard template variables. However, some of the template variables are only applicable for certain
+      interventions. For example, tmiMinutes is only applicable for emails involving TMI.</p>
+    <p> Standard template variables: </p>
+    <div class="w3-row">
+      <div class="w3-third">
+        <p> {{ studentFirstName }} </p>
+        <p> {{ studentLastName }} </p>
+        <p> {{ startDate }} </p>
+        <p> {{ endDate }} </p>
+        <p> {{ tmiDate }} </p>
+        <p> {{ tmiMinutes }} </p>
+        <p> {{ classDate }} </p>
+        <p> {{ className }} </p>
+        <p> {{ attendanceType }} </p>
+        <p> {{ teacherLastName }} </p>
+        <p> {{ comment }} </p>
+      </div>
+      <div class="w3-rest">
+        <p> {{ classAttendanceLogList }} = list of entries for TMI message testing. Each entry contains data
+          for the
+          following items: </p>
+        <p> {{ classDate }} </p>
+        <p> {{ className }} </p>
+        <p> {{ attendanceType }} </p>
+        <p> {{ teacherLastName }}</p>
+        <p> {{ learningLabList }} = list of entries for learning lab message testing. Each entry contains
+          data
+          for the
+          following items: </p>
+        <p> {{ learningLabDay }} </p>
+        <p> {{ startTime }} </p>
+        <p> {{ endTime }} </p>
+      </div>
+    </div>
+    <p> PBL-specific template variables: </p>
+    <div class="w3-row">
+      <div class="w3-third">
+        <p> {{ academicYear }} </p>
+        <p> {{ semester }} </p>
+        <p> {{ quarter }} </p>
+        <p> {{ quarterOrdinal }} </p>
+        <p> {{ pblName }} </p>
+        <p> {{ pblSponsor }} </p>
+        <p> {{ pblSponsorPersonName }} </p>
+        <p> {{ pblComments }} </p>
+        <p> {{ pblTeamNumber }} </p>
+        <p> {{ pblTeamMembers }} = list of team members</p>
+      </div>
+      <div class="w3-third">
+        <p> {{ kickoffEventDate }} </p>
+        <p> {{ kickoffStartTime }} </p>
+        <p> {{ kickoffEndTime }} </p>
+        <p> {{ kickoffEventLocation }} </p>
+        <p> {{ kickoffEventStreetAddress }} </p>
+        <p> {{ kickoffEventCity }} </p>
+        <p> {{ kickoffEventState }} </p>
+        <p> {{ kickoffEventZip }} </p>
+        <p> {{ kickoffEventComments }} </p>
+      </div>
+      <div class="w3-third">
+        <p> {{ finalEventDate }}</p>
+        <p> {{ finalStartTime }} </p>
+        <p> {{ finalEndTime }} </p>
+        <p> {{ finalEventLocation }} </p>
+        <p> {{ finalEventStreetAddress }}</p>
+        <p> {{ finalEventCity }} </p>
+        <p> {{ finalEventState }} </p>
+        <p> {{ finalEventZip }} </p>
+        <p> {{ finalEventComments }} </p>
+      </div>
+    </div>
+    <br>
+    <h1>Date and Time Formatting</h1>
+    <p> Variables representing dates and times can be formatted by appending special formatting codes as shown in these
+      examples.</p>
+    <p> {{ endDate.strftime('%A, %B %-d, %Y') }} = Tuesday, September 8, 2020</p>
+    <p> {{ endDate.strftime('%-m/%-d/%y') }} = 9/8/20</p>
+    <p> {{ endDate.strftime('%a %b %-d') }} = Tue Sep 8</p>
+    <p> {{ startTime.strftime('%-I:%M %p') }}= 9:30 AM</p>
+    <p> Refer to this <a href="https://www.programiz.com/python-programming/datetime/strftime">Python time format
+        guide</a> for more examples.</p>
+    <br>
+    <h1>HTML Formatting</h1>
+    <p> The templates are formatted as HTML email messages. In order for line breaks to appear, it is neccesary to use
+      HTML tags for paragraphs or line breaks.</p>
+    <p>Examples:</p>
+    <p> &lt;p&gt; This examples uses paragraphs tags (note the closing tag preceded with a forward slash) &lt;/p&gt;</p>
+    <p> This example uses a line break (note it is a self-closing tag so only one tag is needed) &lt;br&gt;</p>
+    <br>
+    <p> Templates may use HTML formatting such as applying a bold text style or adding hyperlinks.</p>
+    <p> Examples:</p>
+    <p> &lt;b&gt;This text will be bold&lt;/b&gt;</p>
+    <p> Please see &lt;a href=&quot;{{studentScheduleLink}}&quot;&gt;this link&lt;/a&gt; to your revised schedule</p>
+    <br>
+    <h1>Advanced Template Controls</h1>
+    <p> In addition to these variables, templates can use Jinja templating controls to achieve the desired outcome.
+      Refer to the <a href='https://jinja.palletsprojects.com/en/2.11.x/templates/'>Jinja documentation for details.</a>
+    </p>
+    <p> This example uses a for loop to iterate over class information:</p>
+    <p>{% for log in classAttendanceLogList %}</p>
+    <p>{{ log.classDate.strftime('%A, %B %-d, %Y') }} - {{ log.className }} - {{ log.attendanceType }} -
+      {{ log.teacherLastName }}</p>
+    <p>{% endfor %}</p>
+    <p>{% endraw %}</p>
+  </div>
+</div>
+
+<div class="infoTab" id="testTemplate" style="display:none">
+  <form class="w3-container w3-padding-large" method="POST" action="{{ url_for('p2mtTemplates_bp.displayTemplates') }}"
+    enctype="multipart/form-data">
+    {{ testTemplateForm.csrf_token(id = False) }}
+    <div class="w3-container">
+      <fieldset class="w3-container w3-padding-large w3-hover-border-green">
+        <legend class="w3-xlarge"> Test Template </legend>
+
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(testTemplateForm.emailSubject, "w3-half") }}
+          {% if rendered_emailSubject %}
+          <div class="w3-half">
+            <label class="w3-text-green w3-large">Example of Rendered Email Subject:</label>
+            <p class="w3-padding-small w3-white">{{rendered_emailSubject}}</p>
+          </div>
+          {% endif %}
+        </div>
+        <div class="w3-row-padding">
+          {{ macro_display_formfield(testTemplateForm.templateContent, "w3-half") }}
+          {% if rendered_templateContent != 'None' %}
+          <div class="w3-half">
+            <label class="w3-text-green w3-large">Example of Rendered Content:</label>
+            <p class="w3-padding-small w3-white">{{rendered_templateContent}}</p>
+          </div>
+          {% endif %}
+        </div>
+        <div class="w3-row w3-padding-large">
+          {{ testTemplateForm.submitTestTemplate(class="w3-btn w3-blue w3-large") }}
+        </div>
+
+        {% raw %}
+        <div class="w3-cell-row">
+          <div class="w3-panel w3-cell w3-dark-grey">
+            Test your template using any of these pre-defined variables:
+            <p> {{ studentFirstName }} = Smarty</p>
+            <p> {{ studentLastName }} Tester</p>
+            <p> {{ startDate }} = Tuesday, September 1, 2020</p>
+            <p> {{ endDate }} = Tuesday, September 8, 2020</p>
+            <p> {{ tmiDate }} = Friday, September 4, 2020</p>
+            <p> {{ tmiMinutes }} = 120</p>
+            <p> {{ classDate }} = Monday, August 31, 2020</p>
+            <p> {{ className }} = English IV</p>
+            <p> {{ attendanceType }} = Unexcused</p>
+            <p> {{ teacherLastName }} = Stanley</p>
+            <p> {{ comment }} = 'random comment for testing'</p>
+            <p> {{ studentScheduleLink }} =
+              'https://calendar.google.com/calendar/embed?src=hcde.org_u2vkafii5l8uk8u6j6btlkpl28@group.calendar.google.com'
+            </p>
+          </div>
+          <div class="w3-panel w3-cell w3-dark-grey">
+            <p> {{ classAttendanceLogList }} = list of five entries for TMI message testing. Each entry contains data
+              for the
+              following items: </p>
+            <p> {{ classDate }} </p>
+            <p> {{ className }} </p>
+            <p> {{ attendanceType }} </p>
+            <p> {{ teacherLastName }}</p>
+            <p> The best way to access this list is by using a for loop as in this example:</p>
+            <p>{% for log in classAttendanceLogList %}</p>
+            <p>{{ log.classDate.strftime('%A, %B %-d, %Y') }} - {{ log.className }} - {{ log.attendanceType }} -
+              {{ log.teacherLastName }}</p>
+            <p>{% endfor %}</p>
+            <p> {{ learningLabList }} = list of three entries for learning lab message testing. Each entry contains
+              data
+              for the
+              following items: </p>
+            <p> {{ learningLabDay }} </p>
+            <p> {{ startTime }} </p>
+            <p> {{ endTime }} </p>
+            <p> The best way to access this list is by using a for loop as in this example:</p>
+            <p>{% for log in learningLabLogList %}</p>
+            <p>{{ log.learningLabDay }} - {{ log.startTime.strftime('%-I:%M') }} - {{ log.endTime.strftime('%-I:%M') }}
+            </p>
+            <p>{% endfor %}</p>
+          </div>
+        </div>
+        {% endraw %}
+
+      </fieldset>
+    </div>
+  </form>
+</div>
+
+
+<script type="text/javascript" src="{{ url_for('static', filename="js/pageTabs.js") }}"></script>
+<!-- Reload page to last loaded tab -->
+<script type='text/javascript'>
+  document.addEventListener("DOMContentLoaded", function (event) {
+    selected_tab = 'EmailTemplates_selected_tab';
+    var selectedTab = sessionStorage.getItem(selected_tab);
+    if (selectedTab) {
+      document.getElementById("button_" + selectedTab).click();
+    } else {
+      document.getElementById("button_editTemplate").click();
+    }
+  });
+</script>
+{% endblock content %}

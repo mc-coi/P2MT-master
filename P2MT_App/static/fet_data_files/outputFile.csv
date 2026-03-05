@@ -1,0 +1,423 @@
+year,semester,Chatt_State_A_Number,CSname,firstName,lastName,HSclass,campus,courseNumber,courseName,sectionID,teacher,online,indStudy,days,times,startTime,endTime,comment
+1202,Fall,A00337865,Cheung Steffan,Steffan,Cheung,1200,STEM School,,STEM III,,Vanzant,0,0,WF,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 01
+1202,Fall,A00337865,Cheung Steffan,Steffan,Cheung,1200,Chattanooga State,,Composition I,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00337865,Cheung Steffan,Steffan,Cheung,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00337865,Cheung Steffan,Steffan,Cheung,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00337865,Cheung Steffan,Steffan,Cheung,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336276,Baugh Xavier,Xavier,Baugh,1200,STEM School,,STEM III,,Vanzant,0,0,WF,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 01
+1202,Fall,A00336276,Baugh Xavier,Xavier,Baugh,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336276,Baugh Xavier,Xavier,Baugh,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336276,Baugh Xavier,Xavier,Baugh,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336276,Baugh Xavier,Xavier,Baugh,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336395,Brock Cooper,Cooper,Brock,1200,STEM School,,STEM III,,Vanzant,0,0,WF,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 01
+1202,Fall,A00336395,Brock Cooper,Cooper,Brock,1200,Chattanooga State,,Composition 1,,,0,0,MWF,11:00 - 11:50,11:00 AM,11:50 AM,
+1202,Fall,A00336395,Brock Cooper,Cooper,Brock,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336395,Brock Cooper,Cooper,Brock,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336395,Brock Cooper,Cooper,Brock,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336395,Brock Cooper,Cooper,Brock,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 02
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,STEM III,,Vanzant,0,0,M,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 02
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,ACT Review English,,Stanley,0,0,WR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,Spanish II,,Femal,0,0,MF,9:30 - 11:00,9:30 AM,11:00 AM,
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,11:30 - 12:30,11:30 AM,12:30 PM,
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,Biology,,Seigle,0,0,M,2:30 - 4:30,2:30 PM,4:30 PM,Arrive late W
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,Biology,,Seigle,0,0,W,3:00 - 4:30,3:00 PM,4:30 PM,Arrive late W
+1202,Fall,A00336421,Holloway Corey,Corey,Holloway,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss W
+1202,Fall,A00336285,Tugman Liliana,Liliana,Tugman,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 02
+1202,Fall,A00336285,Tugman Liliana,Liliana,Tugman,1200,STEM School,,STEM III,,Vanzant,0,0,M,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 02
+1202,Fall,A00336285,Tugman Liliana,Liliana,Tugman,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336285,Tugman Liliana,Liliana,Tugman,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336285,Tugman Liliana,Liliana,Tugman,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336295,Flanigan Cortez,Cortez,Flanigan,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 02
+1202,Fall,A00336295,Flanigan Cortez,Cortez,Flanigan,1200,STEM School,,STEM III,,Vanzant,0,0,M,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 02
+1202,Fall,A00336295,Flanigan Cortez,Cortez,Flanigan,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336295,Flanigan Cortez,Cortez,Flanigan,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336295,Flanigan Cortez,Cortez,Flanigan,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336295,Flanigan Cortez,Cortez,Flanigan,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336291,Nichols TJ,TJ,Nichols,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 03
+1202,Fall,A00336291,Nichols TJ,TJ,Nichols,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 03
+1202,Fall,A00336291,Nichols TJ,TJ,Nichols,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336291,Nichols TJ,TJ,Nichols,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336291,Nichols TJ,TJ,Nichols,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336291,Nichols TJ,TJ,Nichols,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 03
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 03
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00336417,Pruett Trevor ,Trevor ,Pruett,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,11:30 - 12:30,11:30 AM,12:30 PM,
+1202,Fall,A00336408,Murphy Knox,Knox,Murphy,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 03
+1202,Fall,A00336408,Murphy Knox,Knox,Murphy,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 03
+1202,Fall,A00336408,Murphy Knox,Knox,Murphy,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336408,Murphy Knox,Knox,Murphy,1200,STEM School,,Spanish II,,Femal,0,0,MF,9:30 - 11:00,9:30 AM,11:00 AM,
+1202,Fall,A00336408,Murphy Knox,Knox,Murphy,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336394,Brewer Mary Alice,Mary Alice,Brewer,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 04
+1202,Fall,A00336394,Brewer Mary Alice,Mary Alice,Brewer,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 04
+1202,Fall,A00336394,Brewer Mary Alice,Mary Alice,Brewer,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336394,Brewer Mary Alice,Mary Alice,Brewer,1200,Chattanooga State,,Elementary French 2,,,1,0,M,8:00 - 8:30,8:00 AM,8:30 AM,
+1202,Fall,A00336394,Brewer Mary Alice,Mary Alice,Brewer,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336394,Brewer Mary Alice,Mary Alice,Brewer,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336394,Brewer Mary Alice,Mary Alice,Brewer,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336366,Lewis Hayley,Hayley,Lewis,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 04
+1202,Fall,A00336366,Lewis Hayley,Hayley,Lewis,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 04
+1202,Fall,A00336366,Lewis Hayley,Hayley,Lewis,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336366,Lewis Hayley,Hayley,Lewis,1200,Chattanooga State,,Composition 1,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336366,Lewis Hayley,Hayley,Lewis,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336366,Lewis Hayley,Hayley,Lewis,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336366,Lewis Hayley,Hayley,Lewis,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 04
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 04
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336388,Clayton Ronald,Ronald,Clayton,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336278,Flanagan Justin,Justin,Flanagan,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 05
+1202,Fall,A00336278,Flanagan Justin,Justin,Flanagan,1200,STEM School,,STEM III,,Vanzant,0,0,W,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 05
+1202,Fall,A00336278,Flanagan Justin,Justin,Flanagan,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336278,Flanagan Justin,Justin,Flanagan,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336278,Flanagan Justin,Justin,Flanagan,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336278,Flanagan Justin,Justin,Flanagan,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336281,Stoker Kaitlyn,Kaitlyn,Stoker,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 05
+1202,Fall,A00336281,Stoker Kaitlyn,Kaitlyn,Stoker,1200,STEM School,,STEM III,,Vanzant,0,0,W,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 05
+1202,Fall,A00336281,Stoker Kaitlyn,Kaitlyn,Stoker,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336281,Stoker Kaitlyn,Kaitlyn,Stoker,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336281,Stoker Kaitlyn,Kaitlyn,Stoker,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336281,Stoker Kaitlyn,Kaitlyn,Stoker,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336390,Tumlin Jermichia,Jermichia,Tumlin,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 05
+1202,Fall,A00336390,Tumlin Jermichia,Jermichia,Tumlin,1200,STEM School,,STEM III,,Vanzant,0,0,W,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 05
+1202,Fall,A00336390,Tumlin Jermichia,Jermichia,Tumlin,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336390,Tumlin Jermichia,Jermichia,Tumlin,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336390,Tumlin Jermichia,Jermichia,Tumlin,1200,STEM School,,Biology,,Seigle,0,0,MW,2:30 - 4:30,2:30 PM,4:30 PM,
+1202,Fall,A00336390,Tumlin Jermichia,Jermichia,Tumlin,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336390,Tumlin Jermichia,Jermichia,Tumlin,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 06
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 06
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,Chattanooga State,,Elementary Spanish 1,,,0,0,MWF,10:00 - 10:50,10:00 AM,10:50 AM,
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,STEM School,,Biology,,Seigle,0,0,MW,2:30 - 4:30,2:30 PM,4:30 PM,
+1202,Fall,A00336392,Cotton Aaliyah,Aaliyah,Cotton,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,11:30 - 12:30,11:30 AM,12:30 PM,
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 06
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 06
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,STEM School,,ACT Review English,,Stanley,0,0,WR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,STEM School,,Spanish II,,Femal,0,0,MF,9:30 - 11:00,9:30 AM,11:00 AM,
+1202,Fall,A00336406,Vassilev Kira,Kira,Vassilev,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss W
+1202,Fall,A00336411,Allen Ben,Ben,Allen,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 06
+1202,Fall,A00336411,Allen Ben,Ben,Allen,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 06
+1202,Fall,A00336411,Allen Ben,Ben,Allen,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336411,Allen Ben,Ben,Allen,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336411,Allen Ben,Ben,Allen,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336411,Allen Ben,Ben,Allen,1200,STEM School,,Biology,,Seigle,0,0,M,2:30 - 4:30,2:30 PM,4:30 PM,Arrive late W
+1202,Fall,A00336411,Allen Ben,Ben,Allen,1200,STEM School,,Biology,,Seigle,0,0,W,3:00 - 4:30,3:00 PM,4:30 PM,Arrive late w
+1202,Fall,A00336293,Conway Mackenzie,Mackenzie,Conway,1200,STEM School,,STEM III,,Vanzant,0,0,W,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 07
+1202,Fall,A00336293,Conway Mackenzie,Mackenzie,Conway,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 07
+1202,Fall,A00336293,Conway Mackenzie,Mackenzie,Conway,1200,Chattanooga State,,Composition 1,,,0,0,TR,2:00 - 3:15,2:00 PM,3:15 PM,
+1202,Fall,A00336293,Conway Mackenzie,Mackenzie,Conway,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336293,Conway Mackenzie,Mackenzie,Conway,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336293,Conway Mackenzie,Mackenzie,Conway,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00330438,McMahon Joseph,Joseph,McMahon,1200,STEM School,,STEM III,,Vanzant,0,0,W,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 07
+1202,Fall,A00330438,McMahon Joseph,Joseph,McMahon,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 07
+1202,Fall,A00330438,McMahon Joseph,Joseph,McMahon,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00330438,McMahon Joseph,Joseph,McMahon,1200,Chattanooga State,,General Chemistry 1,,,0,0,T,2:00 - 4:50,2:00 PM,4:50 PM,
+1202,Fall,A00330438,McMahon Joseph,Joseph,McMahon,1200,Chattanooga State,,General Chemistry 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00330438,McMahon Joseph,Joseph,McMahon,1200,Chattanooga State,,Elementary German 1,,,1,0,M,8:00 - 8:30,8:00 AM,8:30 AM,
+1202,Fall,A00349931,Jenkins Belle,Belle,Jenkins,1200,STEM School,,STEM III,,Vanzant,0,0,W,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 07
+1202,Fall,A00349931,Jenkins Belle,Belle,Jenkins,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 07
+1202,Fall,A00349931,Jenkins Belle,Belle,Jenkins,1200,Chattanooga State,,Composition 1,,,0,0,MWF,11:00 - 11:50,11:00 AM,11:50 AM,
+1202,Fall,A00349931,Jenkins Belle,Belle,Jenkins,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00349931,Jenkins Belle,Belle,Jenkins,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00349931,Jenkins Belle,Belle,Jenkins,1200,STEM School,,Spanish II,,Femal,0,0,MF,9:30 - 11:00,9:30 AM,11:00 AM,
+1202,Fall,A00336446,Gregory Analise,Analise,Gregory,1200,STEM School,,STEM III,,Vanzant,0,0,M,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 08
+1202,Fall,A00336446,Gregory Analise,Analise,Gregory,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 08
+1202,Fall,A00336446,Gregory Analise,Analise,Gregory,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336446,Gregory Analise,Analise,Gregory,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336446,Gregory Analise,Analise,Gregory,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336446,Gregory Analise,Analise,Gregory,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336446,Gregory Analise,Analise,Gregory,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,STEM School,,STEM III,,Vanzant,0,0,M,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 08
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 08
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336416,Mullins Aiden,Aiden,Mullins,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336396,Mangan Alex,Alex,Mangan,1200,STEM School,,STEM III,,Vanzant,0,0,M,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 08
+1202,Fall,A00336396,Mangan Alex,Alex,Mangan,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 08
+1202,Fall,A00336396,Mangan Alex,Alex,Mangan,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336396,Mangan Alex,Alex,Mangan,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336396,Mangan Alex,Alex,Mangan,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336444,Hubbard Janea,Janea,Hubbard,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 09
+1202,Fall,A00336444,Hubbard Janea,Janea,Hubbard,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 09
+1202,Fall,A00336444,Hubbard Janea,Janea,Hubbard,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336444,Hubbard Janea,Janea,Hubbard,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336444,Hubbard Janea,Janea,Hubbard,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00337864,Burgess Colin,Colin,Burgess,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 09
+1202,Fall,A00337864,Burgess Colin,Colin,Burgess,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 09
+1202,Fall,A00337864,Burgess Colin,Colin,Burgess,1200,Chattanooga State,,Composition 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00337864,Burgess Colin,Colin,Burgess,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00337864,Burgess Colin,Colin,Burgess,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00337864,Burgess Colin,Colin,Burgess,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00337864,Burgess Colin,Colin,Burgess,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss W
+1202,Fall,A00337866,Quarles Wesley,Wesley,Quarles,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 09
+1202,Fall,A00337866,Quarles Wesley,Wesley,Quarles,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 09
+1202,Fall,A00337866,Quarles Wesley,Wesley,Quarles,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00337866,Quarles Wesley,Wesley,Quarles,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00337866,Quarles Wesley,Wesley,Quarles,1200,Chattanooga State,,Composition 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336280,Karl Maya,Maya,Karl,1200,STEM School,,STEM III,,Vanzant,0,0,MW,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 10
+1202,Fall,A00336280,Karl Maya,Maya,Karl,1200,Chattanooga State,,Calculus 1,,,0,0,MWF,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336280,Karl Maya,Maya,Karl,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336280,Karl Maya,Maya,Karl,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336280,Karl Maya,Maya,Karl,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336280,Karl Maya,Maya,Karl,1200,STEM School,,Biology,,Seigle,0,0,M,2:30 - 4:30,2:30 PM,4:30 PM,Arrive late W
+1202,Fall,A00336280,Karl Maya,Maya,Karl,1200,STEM School,,Biology,,Seigle,0,0,W,3:00 - 4:30,3:00 PM,4:30 PM,Arrive late W
+1202,Fall,A00336428,Blackburn Camden,Camden,Blackburn,1200,STEM School,,STEM III,,Vanzant,0,0,MW,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 10
+1202,Fall,A00336428,Blackburn Camden,Camden,Blackburn,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336428,Blackburn Camden,Camden,Blackburn,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336428,Blackburn Camden,Camden,Blackburn,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336428,Blackburn Camden,Camden,Blackburn,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336277,Eberhardt Zenswayla,Zenswayla,Eberhardt,1200,STEM School,,STEM III,,Vanzant,0,0,MW,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 10
+1202,Fall,A00336277,Eberhardt Zenswayla,Zenswayla,Eberhardt,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336277,Eberhardt Zenswayla,Zenswayla,Eberhardt,1200,STEM School,,Biology,,Seigle,0,0,MW,2:30 - 4:30,2:30 PM,4:30 PM,
+1202,Fall,A00336277,Eberhardt Zenswayla,Zenswayla,Eberhardt,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336277,Eberhardt Zenswayla,Zenswayla,Eberhardt,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336277,Eberhardt Zenswayla,Zenswayla,Eberhardt,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00337863,Binoy Alvin,Alvin,Binoy,1200,STEM School,,STEM III,,Vanzant,0,0,W,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 11
+1202,Fall,A00337863,Binoy Alvin,Alvin,Binoy,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 11
+1202,Fall,A00337863,Binoy Alvin,Alvin,Binoy,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00337863,Binoy Alvin,Alvin,Binoy,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00337863,Binoy Alvin,Alvin,Binoy,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00337863,Binoy Alvin,Alvin,Binoy,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00337863,Binoy Alvin,Alvin,Binoy,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,11:30 - 12:30,11:30 AM,12:30 PM,
+1202,Fall,A00336365,Mayorga Melinda,Melinda,Mayorga,1200,STEM School,,STEM III,,Vanzant,0,0,W,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 11
+1202,Fall,A00336365,Mayorga Melinda,Melinda,Mayorga,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 11
+1202,Fall,A00336365,Mayorga Melinda,Melinda,Mayorga,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336365,Mayorga Melinda,Melinda,Mayorga,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336365,Mayorga Melinda,Melinda,Mayorga,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336365,Mayorga Melinda,Melinda,Mayorga,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00337868,Gans Vinny,Vinny,Gans,1200,STEM School,,STEM III,,Vanzant,0,0,W,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 11
+1202,Fall,A00337868,Gans Vinny,Vinny,Gans,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 11
+1202,Fall,A00337868,Gans Vinny,Vinny,Gans,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00337868,Gans Vinny,Vinny,Gans,1200,Chattanooga State,,General Biology 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00337868,Gans Vinny,Vinny,Gans,1200,STEM School,,Spanish II,,Femal,0,0,MF,9:30 - 11:00,9:30 AM,11:00 AM,
+1202,Fall,A00337868,Gans Vinny,Vinny,Gans,1200,Chattanooga State,,General Biology 1,,,0,0,W,2:30 - 5:20,2:30 PM,5:20 PM,
+1202,Fall,A00337868,Gans Vinny,Vinny,Gans,1200,STEM School,,Algebra II,,Christopher,0,0,TWRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss M
+1202,Fall,A00336425,Appiah Michael,Michael,Appiah,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 12
+1202,Fall,A00336425,Appiah Michael,Michael,Appiah,1200,STEM School,,STEM III,,Vanzant,0,0,T,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 12
+1202,Fall,A00336425,Appiah Michael,Michael,Appiah,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336425,Appiah Michael,Michael,Appiah,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336425,Appiah Michael,Michael,Appiah,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336425,Appiah Michael,Michael,Appiah,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336412,Pitts Gresham,Gresham,Pitts,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 12
+1202,Fall,A00336412,Pitts Gresham,Gresham,Pitts,1200,STEM School,,STEM III,,Vanzant,0,0,T,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 12
+1202,Fall,A00336412,Pitts Gresham,Gresham,Pitts,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336412,Pitts Gresham,Gresham,Pitts,1200,STEM School,,Biology,,Seigle,0,0,MW,2:30 - 4:30,2:30 PM,4:30 PM,
+1202,Fall,A00336412,Pitts Gresham,Gresham,Pitts,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336412,Pitts Gresham,Gresham,Pitts,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336400,Sowers Connor,Connor,Sowers,1200,STEM School,,STEM III,,Vanzant,0,0,F,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 12
+1202,Fall,A00336400,Sowers Connor,Connor,Sowers,1200,STEM School,,STEM III,,Vanzant,0,0,T,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 12
+1202,Fall,A00336400,Sowers Connor,Connor,Sowers,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336400,Sowers Connor,Connor,Sowers,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336400,Sowers Connor,Connor,Sowers,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336400,Sowers Connor,Connor,Sowers,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 13
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 13
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00349930,Lowry Jamie,Jamie,Lowry,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss W
+1202,Fall,A00336441,Davis Coebe,Coebe,Davis,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 13
+1202,Fall,A00336441,Davis Coebe,Coebe,Davis,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 13
+1202,Fall,A00336441,Davis Coebe,Coebe,Davis,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336441,Davis Coebe,Coebe,Davis,1200,STEM School,,ACT Review English,,Stanley,0,0,MT,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336441,Davis Coebe,Coebe,Davis,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336441,Davis Coebe,Coebe,Davis,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336441,Davis Coebe,Coebe,Davis,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00337867,Ditto Cassia,Cassia,Ditto,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 13
+1202,Fall,A00337867,Ditto Cassia,Cassia,Ditto,1200,STEM School,,STEM III,,Vanzant,0,0,M,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 13
+1202,Fall,A00337867,Ditto Cassia,Cassia,Ditto,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00337867,Ditto Cassia,Cassia,Ditto,1200,Chattanooga State,,General Biology 1,,,0,0,TR,9:30 - 10:45,9:30 AM,10:45 AM,
+1202,Fall,A00337867,Ditto Cassia,Cassia,Ditto,1200,Chattanooga State,,General Biology 1,,,0,0,W,11:00 - 1:50,11:00 AM,1:50 PM,
+1202,Fall,A00337867,Ditto Cassia,Cassia,Ditto,1200,STEM School,,Spanish II,,Femal,0,0,MF,9:30 - 11:00,9:30 AM,11:00 AM,
+1202,Fall,A00337867,Ditto Cassia,Cassia,Ditto,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss W
+1202,Fall,A00349929,Hall Elise,Elise,Hall,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 14
+1202,Fall,A00349929,Hall Elise,Elise,Hall,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 14
+1202,Fall,A00349929,Hall Elise,Elise,Hall,1200,Chattanooga State,,Human Anatomy Physiology 1,,,0,0,T,2:30 - 5:20,2:30 PM,5:20 PM,
+1202,Fall,A00349929,Hall Elise,Elise,Hall,1200,Chattanooga State,,Human Anatomy Physiology 1,,,0,0,TR,9:30 - 10:45,9:30 AM,10:45 AM,
+1202,Fall,A00349929,Hall Elise,Elise,Hall,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00349929,Hall Elise,Elise,Hall,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336442,Donovan Daemion,Daemion,Donovan,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 14
+1202,Fall,A00336442,Donovan Daemion,Daemion,Donovan,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 14
+1202,Fall,A00336442,Donovan Daemion,Daemion,Donovan,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336442,Donovan Daemion,Daemion,Donovan,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336442,Donovan Daemion,Daemion,Donovan,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336442,Donovan Daemion,Daemion,Donovan,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336401,Chen Eric,Eric,Chen,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 14
+1202,Fall,A00336401,Chen Eric,Eric,Chen,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 14
+1202,Fall,A00336401,Chen Eric,Eric,Chen,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336401,Chen Eric,Eric,Chen,1200,Chattanooga State,,Composition 1,,,0,0,MWF,10:00 - 10:50,10:00 AM,10:50 AM,
+1202,Fall,A00336401,Chen Eric,Eric,Chen,1200,Chattanooga State,,Calculus 1,,,0,0,MWF,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336401,Chen Eric,Eric,Chen,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336401,Chen Eric,Eric,Chen,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336414,Vogt Tim,Tim,Vogt,1200,STEM School,,STEM III,,Vanzant,0,0,MW,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 15
+1202,Fall,A00336414,Vogt Tim,Tim,Vogt,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336414,Vogt Tim,Tim,Vogt,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336414,Vogt Tim,Tim,Vogt,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336414,Vogt Tim,Tim,Vogt,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336290,Rickman Taylor,Taylor,Rickman,1200,STEM School,,STEM III,,Vanzant,0,0,MW,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 15
+1202,Fall,A00336290,Rickman Taylor,Taylor,Rickman,1200,Chattanooga State,,Composition 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336290,Rickman Taylor,Taylor,Rickman,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336290,Rickman Taylor,Taylor,Rickman,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336290,Rickman Taylor,Taylor,Rickman,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336429,Barefoot Trey,Trey,Barefoot,1200,STEM School,,STEM III,,Vanzant,0,0,MW,11:30 - 12:30,11:30 AM,12:30 PM, Junior Team 15
+1202,Fall,A00336429,Barefoot Trey,Trey,Barefoot,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336429,Barefoot Trey,Trey,Barefoot,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336429,Barefoot Trey,Trey,Barefoot,1200,STEM School,,Biology,,Seigle,0,0,MW,2:30 - 4:30,2:30 PM,4:30 PM,
+1202,Fall,A00336429,Barefoot Trey,Trey,Barefoot,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336429,Barefoot Trey,Trey,Barefoot,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336294,Stappenbeck Hayden,Hayden,Stappenbeck,1200,STEM School,,STEM III,,Vanzant,0,0,T,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 16
+1202,Fall,A00336294,Stappenbeck Hayden,Hayden,Stappenbeck,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 16
+1202,Fall,A00336294,Stappenbeck Hayden,Hayden,Stappenbeck,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336294,Stappenbeck Hayden,Hayden,Stappenbeck,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336294,Stappenbeck Hayden,Hayden,Stappenbeck,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336294,Stappenbeck Hayden,Hayden,Stappenbeck,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336294,Stappenbeck Hayden,Hayden,Stappenbeck,1200,STEM School,,Algebra II,,Christopher,0,0,TWRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss M
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,STEM School,,STEM III,,Vanzant,0,0,T,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 16
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 16
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336422,Harvey Mason,Mason,Harvey,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336404,Crutchfield Max,Max,Crutchfield,1200,STEM School,,STEM III,,Vanzant,0,0,T,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 16
+1202,Fall,A00336404,Crutchfield Max,Max,Crutchfield,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 16
+1202,Fall,A00336404,Crutchfield Max,Max,Crutchfield,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336404,Crutchfield Max,Max,Crutchfield,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336404,Crutchfield Max,Max,Crutchfield,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336404,Crutchfield Max,Max,Crutchfield,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336403,Green JT,JT,Green,1200,STEM School,,STEM III,,Vanzant,0,0,M,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 17
+1202,Fall,A00336403,Green JT,JT,Green,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 17
+1202,Fall,A00336403,Green JT,JT,Green,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336403,Green JT,JT,Green,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00336403,Green JT,JT,Green,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336403,Green JT,JT,Green,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336403,Green JT,JT,Green,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336403,Green JT,JT,Green,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336275,Henry Matthew,Matthew,Henry,1200,STEM School,,STEM III,,Vanzant,0,0,M,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 17
+1202,Fall,A00336275,Henry Matthew,Matthew,Henry,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 17
+1202,Fall,A00336275,Henry Matthew,Matthew,Henry,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336275,Henry Matthew,Matthew,Henry,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336275,Henry Matthew,Matthew,Henry,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336275,Henry Matthew,Matthew,Henry,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336389,Common Sierra,Sierra,Common,1200,STEM School,,STEM III,,Vanzant,0,0,M,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 17
+1202,Fall,A00336389,Common Sierra,Sierra,Common,1200,STEM School,,STEM III,,Vanzant,0,0,R,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 17
+1202,Fall,A00336389,Common Sierra,Sierra,Common,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336389,Common Sierra,Sierra,Common,1200,STEM School,,Biology,,Seigle,0,0,MW,2:30 - 4:30,2:30 PM,4:30 PM,
+1202,Fall,A00336389,Common Sierra,Sierra,Common,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,11:30 - 12:30,11:30 AM,12:30 PM,
+1202,Fall,A00336389,Common Sierra,Sierra,Common,1200,STEM School,,Spanish II,,Femal,0,0,MF,9:30 - 11:00,9:30 AM,11:00 AM,
+1202,Fall,A00336389,Common Sierra,Sierra,Common,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 18
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 18
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336447,Rawlins Aidan,Aidan,Rawlins,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 18
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 18
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,STEM School,,ACT Review English,,Stanley,0,0,TR,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,10:30 - 11:30,10:30 AM,11:30 AM,
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,STEM School,,Biology,,Seigle,0,0,MW,9:30 - 11:30,9:30 AM,11:30 AM,
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336420,Laymon Morgan,Morgan,Laymon,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336279,Achata Julian,Julian,Achata,1200,STEM School,,STEM III,,Vanzant,0,0,R,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 18
+1202,Fall,A00336279,Achata Julian,Julian,Achata,1200,STEM School,,STEM III,,Vanzant,0,0,T,2:30 - 3:30,2:30 PM,3:30 PM, Junior Team 18
+1202,Fall,A00336279,Achata Julian,Julian,Achata,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336279,Achata Julian,Julian,Achata,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336279,Achata Julian,Julian,Achata,1200,Chattanooga State,,Composition 1,,,0,0,MWF,9:00 - 9:50,9:00 AM,9:50 AM,
+1202,Fall,A00336279,Achata Julian,Julian,Achata,1200,Chattanooga State,,Elementary French I,,,1,0,M,8:00 - 8:30,8:00 AM,8:30 AM,
+1202,Fall,A00336407,Price Brandon,Brandon,Price,1200,STEM School,,STEM III,,Vanzant,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 19
+1202,Fall,A00336407,Price Brandon,Brandon,Price,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 19
+1202,Fall,A00336407,Price Brandon,Brandon,Price,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336407,Price Brandon,Brandon,Price,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336407,Price Brandon,Brandon,Price,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336407,Price Brandon,Brandon,Price,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336419,Dempsey Delanie,Delanie,Dempsey,1200,STEM School,,STEM III,,Vanzant,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 19
+1202,Fall,A00336419,Dempsey Delanie,Delanie,Dempsey,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 19
+1202,Fall,A00336419,Dempsey Delanie,Delanie,Dempsey,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336419,Dempsey Delanie,Delanie,Dempsey,1200,Chattanooga State,,Composition 1,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336419,Dempsey Delanie,Delanie,Dempsey,1200,STEM School,,ACT Review English,,Stanley,0,0,MT,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336419,Dempsey Delanie,Delanie,Dempsey,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336419,Dempsey Delanie,Delanie,Dempsey,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00335886,Spitznagel Logan,Logan,Spitznagel,1200,STEM School,,STEM III,,Vanzant,0,0,F,10:30 - 11:30,10:30 AM,11:30 AM, Junior Team 19
+1202,Fall,A00335886,Spitznagel Logan,Logan,Spitznagel,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 19
+1202,Fall,A00335886,Spitznagel Logan,Logan,Spitznagel,1200,Chattanooga State,,Intro to Criminal Justice,,,0,0,MWF,12:00 - 12:50,12:00 PM,12:50 PM,
+1202,Fall,A00335886,Spitznagel Logan,Logan,Spitznagel,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00335886,Spitznagel Logan,Logan,Spitznagel,1200,Chattanooga State,,Composition 1,,,0,0,TR,2:00 - 3:15,2:00 PM,3:15 PM,
+1202,Fall,A00335886,Spitznagel Logan,Logan,Spitznagel,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,STEM School,,STEM III,,Vanzant,0,0,M,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 20
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 20
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,Chattanooga State,,Composition 1,,,0,0,MWF,11:00 - 11:50,11:00 AM,11:50 AM,
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,STEM School,,Biology,,Seigle,0,0,M,2:30 - 4:30,2:30 PM,4:30 PM,Arrive late W
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,STEM School,,Biology,,Seigle,0,0,W,3:00 - 4:30,3:00 PM,4:30 PM,Arrive late W
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00349928,Cooley Oliver,Oliver,Cooley,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,STEM III,,Vanzant,0,0,M,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 20
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 20
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,Chattanooga State,,Composition 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,Chattanooga State,,College Success for Engineer,,,0,0,W,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,Biology,,Seigle,0,0,M,2:30 - 4:30,2:30 PM,4:30 PM,Arrive late W
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,Biology,,Seigle,0,0,W,3:00 - 4:30,3:00 PM,4:30 PM,Arrive late W
+1202,Fall,A00336427,Puffenberger Daniel,Daniel,Puffenberger,1200,STEM School,,Algebra II,,Christopher,0,0,MTRF,1:00 - 2:00,1:00 PM,2:00 PM,Miss W
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,STEM School,,STEM III,,Vanzant,0,0,M,12:00 - 1:00,12:00 PM,1:00 PM, Junior Team 20
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,STEM School,,STEM III,,Vanzant,0,0,F,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 20
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,STEM School,,Biology,,Seigle,0,0,MW,2:30 - 4:30,2:30 PM,4:30 PM,
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,STEM School,,Precalculus,,Christopher,0,0,MWF,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,STEM School,,Biology Study Session,,Seigle,0,0,F,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336288,Griffeth Jacob,Jacob,Griffeth,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336409,Swallows Tori,Tori,Swallows,1200,STEM School,,STEM III,,Vanzant,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM, Junior Team 21
+1202,Fall,A00336409,Swallows Tori,Tori,Swallows,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336409,Swallows Tori,Tori,Swallows,1200,STEM School,,English III,,Stanley,0,0,TR,10:30 - 12:00,10:30 AM,12:00 PM,
+1202,Fall,A00336409,Swallows Tori,Tori,Swallows,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336409,Swallows Tori,Tori,Swallows,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336439,Wilford Peter,Peter,Wilford,1200,STEM School,,STEM III,,Vanzant,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM, Junior Team 21
+1202,Fall,A00336439,Wilford Peter,Peter,Wilford,1200,Chattanooga State,,General Biology 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336439,Wilford Peter,Peter,Wilford,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336439,Wilford Peter,Peter,Wilford,1200,Chattanooga State,,General Biology 1,,,0,0,W,11:00 - 1:50,11:00 AM,1:50 PM,
+1202,Fall,A00336439,Wilford Peter,Peter,Wilford,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336439,Wilford Peter,Peter,Wilford,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
+1202,Fall,A00336445,Rickman Tyler,Tyler,Rickman,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 22
+1202,Fall,A00336445,Rickman Tyler,Tyler,Rickman,1200,STEM School,,STEM III,,Vanzant,0,0,M,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 22
+1202,Fall,A00336445,Rickman Tyler,Tyler,Rickman,1200,Chattanooga State,,College Success for Engineer,,,0,0,M,1:00 - 3:00,1:00 PM,3:00 PM,
+1202,Fall,A00336445,Rickman Tyler,Tyler,Rickman,1200,Chattanooga State,,Calculus 1,,,0,0,MWF,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336445,Rickman Tyler,Tyler,Rickman,1200,Chattanooga State,,Composition 1,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336445,Rickman Tyler,Tyler,Rickman,1200,STEM School,,ACT Review English,,Stanley,0,0,MW,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336445,Rickman Tyler,Tyler,Rickman,1200,STEM School,,ACT Review Math,,Christopher,0,0,TR,3:30 - 4:30,3:30 PM,4:30 PM,
+1202,Fall,A00336367,Tooley Mara,Mara,Tooley,1200,STEM School,,STEM III,,Vanzant,0,0,W,3:00 - 4:00,3:00 PM,4:00 PM, Junior Team 22
+1202,Fall,A00336367,Tooley Mara,Mara,Tooley,1200,STEM School,,STEM III,,Vanzant,0,0,M,2:00 - 3:00,2:00 PM,3:00 PM, Junior Team 22
+1202,Fall,A00336367,Tooley Mara,Mara,Tooley,1200,Chattanooga State,,College Success Math Sciences,,,0,0,TR,11:00 - 12:15,11:00 AM,12:15 PM,
+1202,Fall,A00336367,Tooley Mara,Mara,Tooley,1200,Chattanooga State,,Composition 1,,,0,0,TR,12:30 - 1:45,12:30 PM,1:45 PM,
+1202,Fall,A00336367,Tooley Mara,Mara,Tooley,1200,STEM School,,Algebra II,,Christopher,0,0,MTWRF,9:30 - 10:30,9:30 AM,10:30 AM,
+1202,Fall,A00336367,Tooley Mara,Mara,Tooley,1200,STEM School,,Spanish II,,Femal,0,0,MF,1:00 - 2:30,1:00 PM,2:30 PM,
