@@ -498,7 +498,7 @@
   <!-- Firebase / Auth logic -->
   <script type="module">
     import { initAuth, signInWithGoogle, getCurrentUser } from './js/auth.js';
-    import { getById } from './js/db.js';
+    import { getWhere } from './js/db.js';
 
     // ── Helpers ──────────────────────────────────────────────────
     function showError(message) {
@@ -526,8 +526,8 @@
       if (!user) return;
       setLoading(true);
       try {
-        const staff = await getById('staff', user.uid);
-        if (staff) {
+        const results = await getWhere('staff', 'email', '==', user.email);
+        if (results && results.length > 0) {
           window.location.href = './dashboard.html';
         } else {
           setLoading(false);
@@ -547,10 +547,10 @@
       setLoading(true);
 
       try {
-        const user  = await signInWithGoogle();
-        const staff = await getById('staff', user.uid);
+        const user    = await signInWithGoogle();
+        const results = await getWhere('staff', 'email', '==', user.email);
 
-        if (staff) {
+        if (results && results.length > 0) {
           window.location.href = './dashboard.html';
         } else {
           setLoading(false);
