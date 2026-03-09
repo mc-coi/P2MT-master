@@ -275,26 +275,115 @@
       exportCSV(headers, rows, 'schedule-template.csv');
     };
 
+    // ── CSV format helpers ───────────────────────────────────────
+    function parseDays(dayStr) {
+      const s = (dayStr || '').trim().toUpperCase();
+      // Handle common abbreviation blocks
+      const map = {
+        'MTWTHF': ['M','T','W','Th','F'], 'MTWHF': ['M','T','W','Th','F'],
+        'MTWF':  ['M','T','W','F'],  'MWF': ['M','W','F'],
+        'TWF':   ['T','W','F'],      'TWR': ['T','W','Th'],
+        'MTR':   ['M','T','Th'],     'MWR': ['M','W','Th'],
+        'MW':    ['M','W'],          'TR':  ['T','Th'],
+        'MF':    ['M','F'],          'TF':  ['T','F'],
+        'WF':    ['W','F'],
+      };
+      if (map[s]) return map[s];
+      // Fall back to splitting individual letters
+      const result = [];
+      let i = 0;
+      while (i < s.length) {
+        if (s[i] === 'T' && s[i+1] === 'H') { result.push('Th'); i += 2; }
+        else if (s[i] === 'R')               { result.push('Th'); i++; }
+        else if ('MTWF'.includes(s[i]))      { result.push(s[i]); i++; }
+        else i++;
+      }
+      return result.length ? result : (dayStr ? [dayStr] : []);
+    }
+
+    function convertTo24h(timeStr) {
+      const m = (timeStr || '').trim().match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (!m) return timeStr || '';
+      let h = parseInt(m[1]), mins = m[2];
+      const ampm = (m[3] || '').toUpperCase();
+      if (ampm === 'PM' && h !== 12) h += 12;
+      if (ampm === 'AM' && h === 12) h = 0;
+      return String(h).padStart(2,'0') + ':' + mins;
+    }
+
+    function buildSchoolYear(yearStr, semester) {
+      const y = parseInt(yearStr);
+      if (!y) return yearStr || '';
+      return (semester || '').toLowerCase() === 'spring' ? `${y-1}-${y}` : `${y}-${y+1}`;
+    }
+
+    function parseScheduleRows(results) {
+      // Detect format: if first row has only 1 column, rows are wrapped in quotes
+      const firstRow = results.data[0];
+      const keys = Object.keys(firstRow);
+      if (keys.length === 1) {
+        // Quoted-row format: each row is one field containing comma-delimited values
+        return results.data.map(row => {
+          const f = Object.values(row)[0].split(',');
+          return {
+            year:      (f[0] || '').trim(),
+            semester:  (f[1] || '').trim(),
+            aNumber:   (f[2] || '').trim(),
+            firstName: (f[4] || '').trim(),
+            lastName:  (f[5] || '').trim(),
+            campus:    (f[7] || '').trim(),
+            className: (f[9] || '').trim(),
+            teacher:   (f[11] || '').trim(),
+            days:      (f[14] || '').trim(),
+            startTime: (f[16] || '').trim(),
+            endTime:   (f[17] || '').trim(),
+            comment:   (f[18] || '').trim(),
+          };
+        }).filter(r => r.aNumber);
+      }
+      // Standard template format
+      return results.data.filter(r => r['Student Name']).map(r => ({
+        year:      '',
+        semester:  (r['Semester'] || '').trim(),
+        aNumber:   (r['ChattState A#'] || '').trim(),
+        firstName: '',
+        lastName:  (r['Student Name'] || '').trim(),
+        campus:    (r['Campus'] || '').trim(),
+        className: (r['Class Name'] || '').trim(),
+        teacher:   (r['Teacher Last Name'] || '').trim(),
+        days:      (r['Days (comma separated: M,T,W,Th,F)'] || '').trim(),
+        startTime: (r['Start Time (HH:MM)'] || '').trim(),
+        endTime:   (r['End Time (HH:MM)'] || '').trim(),
+        comment:   (r['Comment'] || '').trim(),
+      }));
+    }
+
     window.previewCSV = function() {
       const file = document.getElementById('csvFile').files[0];
       if (!file) return;
 
       Papa.parse(file, {
-        header: true,
+        header: false,
+        skipEmptyLines: true,
         complete: function(results) {
-          csvData = results.data.filter(row => row['Student Name']);
-          const preview = document.getElementById('csvPreview');
-          let html = '<h3>Preview (first 5 rows):</h3><div style="overflow-x:auto;"><table class="w3-table w3-bordered w3-striped">';
-          
-          if (csvData.length > 0) {
-            html += '<tr class="btn-primary"><th>' + Object.keys(csvData[0]).join('</th><th>') + '</th></tr>';
-            csvData.slice(0, 5).forEach(row => {
-              html += '<tr><td>' + Object.values(row).map(v => (v || '').substring(0, 20)).join('</td><td>') + '</td></tr>';
-            });
-          }
-          html += '</table></div><p class="w3-text-grey"><strong>Total rows to import: ' + csvData.length + '</strong></p>';
-          preview.innerHTML = html;
-          document.getElementById('importBtn').style.display = 'block';
+          // Re-run with header:true to get named keys, then detect format
+          Papa.parse(file, {
+            header: true,
+            skipEmptyLines: true,
+            complete: function(r2) {
+              csvData = parseScheduleRows(r2);
+              const preview = document.getElementById('csvPreview');
+              let html = '<h3>Preview (first 5 rows):</h3><div style="overflow-x:auto;"><table class="w3-table w3-bordered w3-striped">';
+              html += '<tr style="background:var(--primary);color:#fff"><th>A#</th><th>Name</th><th>Class</th><th>Teacher</th><th>Days</th><th>Start</th><th>End</th><th>Semester</th></tr>';
+              csvData.slice(0, 5).forEach(r => {
+                const name = r.firstName ? `${r.firstName} ${r.lastName}` : r.lastName;
+                html += `<tr><td>${r.aNumber}</td><td>${name}</td><td>${r.className}</td><td>${r.teacher}</td><td>${r.days}</td><td>${r.startTime}</td><td>${r.endTime}</td><td>${r.semester}</td></tr>`;
+              });
+              html += `</table></div><p><strong>Total rows to import: ${csvData.length}</strong></p>`;
+              preview.innerHTML = html;
+              document.getElementById('importBtn').style.display = 'block';
+            }
+          });
         }
       });
     };
@@ -308,55 +397,84 @@
 
         const progress = document.getElementById('uploadProgress');
         progress.innerHTML = '<p>Importing...</p>';
-        
+
         let successful = 0;
-        let errors = 0;
+        const errorRows = [];
 
         for (let i = 0; i < csvData.length; i++) {
           try {
             const row = csvData[i];
-            const studentName = row['Student Name'];
-            const student = allStudents.find(s => (s.firstName + ' ' + s.lastName).toLowerCase() === studentName.toLowerCase());
+            const aNumber = row.aNumber;
+            const fullNameFromCsv = row.firstName ? `${row.firstName} ${row.lastName}` : row.lastName;
+
+            if (!aNumber && !fullNameFromCsv) { errorRows.push(`Row ${i+2}: missing student info`); continue; }
+
+            // Match by A# first, then by full name
+            let student = aNumber
+              ? allStudents.find(s => (s.chattStateANumber || '').toUpperCase() === aNumber.toUpperCase())
+              : null;
+            if (!student && fullNameFromCsv) {
+              student = allStudents.find(s =>
+                (s.firstName + ' ' + s.lastName).toLowerCase() === fullNameFromCsv.toLowerCase()
+              );
+            }
 
             if (!student) {
-              errors++;
+              errorRows.push(`Row ${i+2}: student not found — "${fullNameFromCsv}"${aNumber ? ' / ' + aNumber : ''}`);
               continue;
             }
 
-            const days = (row['Days (comma separated: M,T,W,Th,F)'] || '').split(',').map(d => d.trim()).filter(d => d);
-            
+            const days   = parseDays(row.days);
+            const start  = convertTo24h(row.startTime);
+            const end    = convertTo24h(row.endTime);
+            const syear  = row.year ? buildSchoolYear(row.year, row.semester) : row.schoolYear || '';
+
             const data = {
               studentId: student.id,
-              studentName: studentName,
-              chattStateANumber: row['ChattState A#'] || student.chattStateANumber,
-              schoolYear: row['School Year'],
-              semester: row['Semester'],
-              campus: row['Campus'],
-              className: row['Class Name'],
-              teacherLastName: row['Teacher Last Name'],
+              studentName: student.firstName + ' ' + student.lastName,
+              chattStateANumber: aNumber || student.chattStateANumber || '',
+              schoolYear: syear,
+              semester: row.semester,
+              campus: row.campus || 'STEM School',
+              className: row.className,
+              teacherLastName: row.teacher,
               classDays: days,
-              startTime: row['Start Time (HH:MM)'],
-              endTime: row['End Time (HH:MM)'],
-              online: row['Online (Yes/No)']?.toLowerCase() === 'yes',
-              indStudy: row['Ind Study (Yes/No)']?.toLowerCase() === 'yes',
-              learningLab: row['Learning Lab (Yes/No)']?.toLowerCase() === 'yes',
-              comment: row['Comment'] || ''
+              startTime: start,
+              endTime: end,
+              online: false,
+              indStudy: false,
+              learningLab: false,
+              comment: row.comment || ''
             };
 
             await addDoc('classSchedules', data);
             successful++;
           } catch (err) {
             console.error('Row error:', err);
-            errors++;
+            errorRows.push(`Row ${i+2}: unexpected error — ${err.message}`);
           }
 
           const pct = Math.round((i + 1) / csvData.length * 100);
-          progress.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-primary" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed</p>`;
+          progress.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-primary" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed…</p>`;
         }
 
-        progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Import Complete!</strong><br>Successful: ${successful}<br>Errors: ${errors}</div>`;
+        let html = `<div class="w3-panel w3-border" style="border-color:${errorRows.length===0?'#4caf50':'#ff9800'}; background:${errorRows.length===0?'#f1f8e9':'#fff8e1'}">
+          <strong>Import Complete</strong><br>
+          ✅ Successful: <strong>${successful}</strong> &nbsp; ❌ Skipped: <strong>${errorRows.length}</strong>`;
+
+        if (errorRows.length > 0) {
+          html += `<details style="margin-top:10px;"><summary style="cursor:pointer;color:#e65100;">Show skipped rows (${errorRows.length})</summary>
+            <ul style="margin:8px 0; padding-left:20px; font-size:13px; color:#bf360c;">
+              ${errorRows.map(e => `<li>${e}</li>`).join('')}
+            </ul>
+            <p style="font-size:13px; color:#555;">💡 Make sure student names in the CSV exactly match the names in the Students list, or that the ChattState A# matches.</p>
+          </details>`;
+        }
+        html += '</div>';
+
+        progress.innerHTML = html;
         allSchedules = await getAll('classSchedules');
-        showToast('Import completed', 'success');
+        showToast(errorRows.length === 0 ? 'Import completed successfully' : `Imported ${successful}, skipped ${errorRows.length}`, errorRows.length === 0 ? 'success' : 'warning');
       } catch (error) {
         console.error('Import error:', error);
         showToast('Error importing data', 'error');

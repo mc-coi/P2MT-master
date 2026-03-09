@@ -228,8 +228,8 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, addDoc, updateDoc, deleteDoc, batchWrite } from './js/db.js';
-    import { formatDate, exportCSV, showToast, showModal, generateId } from './js/utils.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc } from './js/db.js';
+    import { formatDate, exportCSV, showToast, showModal } from './js/utils.js';
 
     let studentsData = [];
     let dataTable;
@@ -517,36 +517,45 @@
         header: true,
         skipEmptyLines: true,
         complete: async (results) => {
-          try {
-            showToast('Uploading students...', 'info');
-            
-            const batch = [];
-            results.data.forEach(row => {
-              const docId = generateId();
-              batch.push({
-                docId,
-                collection: 'students',
-                data: {
-                  firstName: row['First Name'] || row['firstName'] || '',
-                  lastName: row['Last Name'] || row['lastName'] || '',
-                  email: row['Email'] || row['email'] || '',
-                  chattStateANumber: row['ChattState A#'] || row['chattStateANumber'] || '',
-                  yearOfGraduation: row['Graduation Year'] || row['yearOfGraduation'] || '',
-                  house: row['House'] || row['house'] || '',
-                  googleCalendarId: row['Google Calendar ID'] || row['googleCalendarId'] || null
-                }
-              });
-            });
-
-            await batchWrite(batch);
-            showToast(`${batch.length} students uploaded successfully`, 'success');
-            await loadStudents();
-            renderTable();
-            document.getElementById('file-upload').value = '';
-          } catch (error) {
-            console.error('Error uploading CSV:', error);
-            showToast('Error uploading CSV', 'error');
+          const rows = results.data.filter(row =>
+            row['First_Name'] || row['First Name'] || row['firstName']
+          );
+          if (rows.length === 0) {
+            showToast('No valid rows found in CSV', 'error');
+            return;
           }
+
+          showToast(`Uploading ${rows.length} students…`, 'info');
+          let successful = 0, errors = 0;
+
+          for (let i = 0; i < rows.length; i++) {
+            try {
+              const row = rows[i];
+              await addDoc('students', {
+                firstName:         row['First_Name']          || row['First Name']       || row['firstName']         || '',
+                lastName:          row['Last_Name']           || row['Last Name']        || row['lastName']          || '',
+                email:             row['Student_Email']       || row['Email']            || row['email']             || '',
+                chattStateANumber: row['Chatt_State_A_Number']|| row['ChattState A#']    || row['chattStateANumber'] || '',
+                yearOfGraduation:  row['Year_of_Graduation']  || row['Graduation Year']  || row['yearOfGraduation']  || '',
+                house:             row['House']               || row['house']            || '',
+                studentNumber:     row['Student_Number']      || row['Student Number']   || '',
+                googleCalendarId:  row['googleCalendarID']    || row['Google Calendar ID']|| row['googleCalendarId'] || ''
+              });
+              successful++;
+            } catch (err) {
+              console.error('Row error:', err);
+              errors++;
+            }
+          }
+
+          if (errors === 0) {
+            showToast(`${successful} students uploaded successfully`, 'success');
+          } else {
+            showToast(`Uploaded ${successful}, failed ${errors}`, 'warning');
+          }
+          document.getElementById('file-upload').value = '';
+          await loadStudents();
+          renderTable();
         },
         error: (error) => {
           console.error('CSV parsing error:', error);
