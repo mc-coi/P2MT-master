@@ -9,32 +9,85 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
   <style>
-    .attendance-badge {
-      display: inline-block;
-      padding: 6px 12px;
-      border-radius: 4px;
-      font-weight: 600;
-      font-size: 12px;
-      color: white;
-    }
-    .action-button { margin: 2px; font-size: 0.9rem; }
     .filter-card { background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-    .spinner { display: inline-block; margin-right: 8px; }
-    .attendance-row { padding: 12px; border-bottom: 1px solid #f0f0f0; }
-    .attendance-row:hover { background-color: #f9f9f9; }
-    .radio-group { display: flex; gap: 16px; align-items: center; margin-top: 8px; }
-    .radio-group label { margin: 0; display: flex; align-items: center; gap: 6px; }
-    .radio-group input[type="radio"] { width: auto; }
-    .class-info-card { background: #e3f2fd; padding: 16px; border-radius: 4px; margin-bottom: 16px; border-left: 4px solid #2196F3; }
-    .class-info-card h4 { margin: 0 0 8px 0; color: #1976D2; }
-    .class-info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; }
-    .class-info-item { font-size: 14px; }
-    .class-info-label { font-weight: 600; color: #555; }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
-    .student-name { font-weight: 600; color: #333; }
-    .comment-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
-    .save-button-row { padding: 16px; background: white; position: sticky; bottom: 0; border-top: 2px solid #ddd; }
+
+    /* ── Class info banner ── */
+    .class-info-card {
+      background: linear-gradient(135deg, var(--primary) 0%, #3730a3 100%);
+      color: white; padding: 16px 20px; border-radius: 10px;
+      margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
+    }
+    .class-info-card .ci-item { font-size: 13px; opacity: .9; }
+    .class-info-card .ci-val  { font-size: 15px; font-weight: 700; opacity: 1; }
+
+    /* ── Attendance table ── */
+    .att-table { width: 100%; border-collapse: collapse; }
+    .att-table thead th {
+      background: var(--primary); color: white; padding: 10px 12px;
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .05em; white-space: nowrap;
+    }
+    .att-table thead th:first-child { border-radius: 8px 0 0 0; }
+    .att-table thead th:last-child  { border-radius: 0 8px 0 0; }
+    .att-row { border-bottom: 1px solid #f1f5f9; transition: background .1s; }
+    .att-row:hover { background: #f8fafc !important; }
+    .att-row td { padding: 10px 12px; vertical-align: middle; font-size: 14px; }
+    .att-row[data-code="U"] { background: #fff5f5; }
+    .att-row[data-code="T"] { background: #fffbeb; }
+    .att-row[data-code="E"] { background: #eff6ff; }
+    .att-row[data-code="P"] { background: #f0fdf4; }
+    .att-row[data-code="?"] { background: #f9fafb; }
+    .att-num  { width: 36px; color: #94a3b8; font-size: 13px; text-align: center; }
+    .att-name { font-weight: 600; color: var(--text-primary); }
+    .att-anum { font-size: 12px; color: var(--text-muted); }
+
+    /* ── Code buttons ── */
+    .code-btn-group { display: flex; gap: 5px; flex-wrap: nowrap; }
+    .code-btn {
+      width: 38px; height: 34px; border-radius: 6px; border: 2px solid;
+      font-weight: 700; font-size: 13px; cursor: pointer; background: transparent;
+      transition: all .15s; line-height: 1;
+    }
+    .code-btn:hover { opacity: .85; transform: scale(1.05); }
+    .code-btn.P { border-color: #16a34a; color: #16a34a; }
+    .code-btn.P.active { background: #16a34a; color: white; }
+    .code-btn.T { border-color: #d97706; color: #d97706; }
+    .code-btn.T.active { background: #d97706; color: white; }
+    .code-btn.E { border-color: #2563eb; color: #2563eb; }
+    .code-btn.E.active { background: #2563eb; color: white; }
+    .code-btn.U { border-color: #dc2626; color: #dc2626; }
+    .code-btn.U.active { background: #dc2626; color: white; }
+    .code-btn.Q { border-color: #9ca3af; color: #9ca3af; }
+    .code-btn.Q.active { background: #9ca3af; color: white; }
+
+    /* ── Comment & TMI ── */
+    .att-comment {
+      border: 1px solid #e2e8f0; border-radius: 6px; padding: 5px 8px;
+      font-size: 13px; width: 100%; min-width: 120px; color: var(--text-primary);
+    }
+    .att-comment:focus { outline: none; border-color: var(--primary); }
+    .tmi-check { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+
+    /* ── Toolbar ── */
+    .att-toolbar {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      padding: 12px 16px; background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0; border-radius: 8px 8px 0 0;
+    }
+    .att-count { font-size: 13px; color: var(--text-secondary); margin-left: auto; }
+
+    /* ── Legend ── */
+    .att-legend {
+      display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 16px;
+      background: white; border-top: 1px solid #f1f5f9;
+      font-size: 12px; color: var(--text-secondary);
+    }
+    .legend-dot {
+      display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px;
+    }
+    .save-button-row { padding: 16px; background: white; border-top: 2px solid #e2e8f0; }
   </style>
 </head>
 <body>
@@ -96,32 +149,14 @@
 
     <!-- Tab 1: Take Attendance -->
     <div id="attendance-tab" class="tab-content active">
-      <!-- Class Info Card (appears after filters applied) -->
+      <!-- Class Info Banner (appears after filters applied) -->
       <div id="class-info-container" style="display: none;">
         <div class="class-info-card">
-          <h4>Class Information</h4>
-          <div class="class-info-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">
-            <div class="class-info-item">
-              <div class="class-info-label">Teacher</div>
-              <div id="class-teacher">-</div>
-            </div>
-            <div class="class-info-item">
-              <div class="class-info-label">Class</div>
-              <div id="class-name">-</div>
-            </div>
-            <div class="class-info-item">
-              <div class="class-info-label">Date</div>
-              <div id="class-date">-</div>
-            </div>
-            <div class="class-info-item">
-              <div class="class-info-label">Time</div>
-              <div id="class-time">-</div>
-            </div>
-            <div class="class-info-item">
-              <div class="class-info-label">Campus</div>
-              <div id="class-campus">-</div>
-            </div>
-          </div>
+          <div><div class="ci-item">Teacher</div><div class="ci-val" id="class-teacher">-</div></div>
+          <div><div class="ci-item">Class</div><div class="ci-val" id="class-name">-</div></div>
+          <div><div class="ci-item">Date</div><div class="ci-val" id="class-date">-</div></div>
+          <div><div class="ci-item">Time</div><div class="ci-val" id="class-time">-</div></div>
+          <div><div class="ci-item">Campus</div><div class="ci-val" id="class-campus">-</div></div>
         </div>
       </div>
 
@@ -139,22 +174,42 @@
       </div>
 
       <div id="attendance-container" style="display: none;">
-        <div class="w3-card w3-white">
-          <div class="save-button-row" style="position: sticky; top: 0; background: white; border-bottom: 2px solid #ddd; z-index: 10;">
+        <div class="card" style="overflow:hidden;">
+          <div class="att-toolbar">
             <button id="btn-save-top" class="w3-button btn-primary">
-              <i class="fas fa-save"></i> Save All Changes
+              <i class="fas fa-save"></i> Save Changes
             </button>
-            <button id="btn-mark-all-present" class="w3-button btn-ghost" onclick="markAllPresent()" style="margin-left:8px;">
+            <button class="w3-button btn-ghost" onclick="markAllPresent()">
               <i class="fas fa-check-double"></i> Mark All Present
             </button>
+            <span class="att-count" id="att-count"></span>
           </div>
-          <div id="attendance-students-list"></div>
-        </div>
-
-        <div class="save-button-row">
-          <button id="btn-save-bottom" class="w3-button btn-primary w3-block w3-large">
-            <i class="fas fa-save"></i> Save All Changes
-          </button>
+          <div style="overflow-x:auto;">
+            <table class="att-table">
+              <thead>
+                <tr>
+                  <th class="att-num">#</th>
+                  <th>Student</th>
+                  <th>Code</th>
+                  <th>Notes</th>
+                  <th title="Assign TMI">TMI</th>
+                </tr>
+              </thead>
+              <tbody id="attendance-students-list"></tbody>
+            </table>
+          </div>
+          <div class="att-legend">
+            <span><span class="legend-dot" style="background:#16a34a"></span>P = Present</span>
+            <span><span class="legend-dot" style="background:#d97706"></span>T = Tardy</span>
+            <span><span class="legend-dot" style="background:#2563eb"></span>E = Excused</span>
+            <span><span class="legend-dot" style="background:#dc2626"></span>U = Unexcused</span>
+            <span><span class="legend-dot" style="background:#9ca3af"></span>? = Unknown</span>
+          </div>
+          <div class="save-button-row">
+            <button id="btn-save-bottom" class="w3-button btn-primary w3-block">
+              <i class="fas fa-save"></i> Save All Changes
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -245,6 +300,8 @@
     let currentClass = null;
     let currentDate = null;
     let attendanceChanges = {};
+    let attendanceState = {};   // keyed by student.id: { code, comment, tmi }
+    let currentStudents = [];   // enrolled students for current class view
     let absenceTable = null;
 
     // Initialize page
@@ -409,140 +466,146 @@
     }
 
     function displayAttendanceForm(students, existingLogs, schedule) {
-      const container = document.getElementById('attendance-students-list');
-      container.innerHTML = '';
+      currentStudents = students;
+      attendanceState = {};
 
-      students.forEach(student => {
-        const log = existingLogs.find(l => l.chattStateANumber === student.chattStateANumber);
-        const currentCode = log?.attendanceCode || 'P';
-        const currentComment = log?.comment || '';
-        const assignTmi = log?.assignTmi || false;
-
-        const codeColor = ATTENDANCE_CODES[currentCode]?.color || '#4CAF50';
-
-        const studentRow = document.createElement('div');
-        studentRow.className = 'attendance-row';
-        studentRow.innerHTML = `
-          <div style="padding: 8px 0;">
-            <div style="margin-bottom: 8px;">
-              <span class="student-name">${student.lastName}, ${student.firstName}</span>
-              <span style="color: #999; font-size: 12px;">(${student.chattStateANumber})</span>
-            </div>
-            <div class="radio-group">
-              <label><input type="radio" name="code-${student.chattStateANumber}" value="P" ${currentCode === 'P' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">P</span></label>
-              <label><input type="radio" name="code-${student.chattStateANumber}" value="T" ${currentCode === 'T' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #FFC107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px;">T</span></label>
-              <label><input type="radio" name="code-${student.chattStateANumber}" value="E" ${currentCode === 'E' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">E</span></label>
-              <label><input type="radio" name="code-${student.chattStateANumber}" value="U" ${currentCode === 'U' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #F44336; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">U</span></label>
-              <label><input type="radio" name="code-${student.chattStateANumber}" value="?" ${currentCode === '?' ? 'checked' : ''} onchange="updateAttendanceCode('${student.chattStateANumber}', this.value)"> <span style="background: #999; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;">?</span></label>
-            </div>
-            <div style="margin-top: 8px;">
-              <input type="text" class="comment-input" id="comment-${student.chattStateANumber}" placeholder="Comment..." value="${currentComment}" onchange="updateAttendanceComment('${student.chattStateANumber}', this.value)">
-              <label style="margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-                <input type="checkbox" id="tmi-${student.chattStateANumber}" ${assignTmi ? 'checked' : ''} onchange="updateAttendanceTMI('${student.chattStateANumber}', this.checked)" style="width: auto;">
-                <span>Assign TMI</span>
-              </label>
-            </div>
-          </div>
-        `;
-        container.appendChild(studentRow);
+      // Seed state from existing logs
+      students.forEach(s => {
+        const log = existingLogs.find(l =>
+          l.studentId === s.id || l.chattStateANumber === s.chattStateANumber
+        );
+        attendanceState[s.id] = {
+          code:    log?.attendanceCode || log?.status || 'P',
+          comment: log?.comment || '',
+          tmi:     log?.assignTmi || false,
+          logId:   log?.id || null
+        };
       });
+
+      const tbody = document.getElementById('attendance-students-list');
+      tbody.innerHTML = '';
+
+      students.forEach((student, idx) => {
+        const state = attendanceState[student.id];
+        const codes = ['P','T','E','U','?'];
+        const btnClass = c => c === '?' ? 'Q' : c;
+
+        const codeBtns = codes.map(c => {
+          const active = state.code === c ? 'active' : '';
+          return `<button class="code-btn ${btnClass(c)} ${active}" onclick="setCode('${student.id}','${c}')" title="${c}">${c}</button>`;
+        }).join('');
+
+        const tr = document.createElement('tr');
+        tr.className = 'att-row';
+        tr.dataset.studentId = student.id;
+        tr.dataset.code = state.code;
+        tr.innerHTML = `
+          <td class="att-num">${idx + 1}</td>
+          <td>
+            <div class="att-name">${student.lastName || ''}, ${student.firstName || ''}</div>
+            <div class="att-anum">${student.chattStateANumber || ''}</div>
+          </td>
+          <td><div class="code-btn-group">${codeBtns}</div></td>
+          <td><input class="att-comment" type="text" placeholder="Notes…" value="${(state.comment || '').replace(/"/g,'&quot;')}"
+               oninput="setComment('${student.id}', this.value)"></td>
+          <td style="text-align:center;">
+            <input class="tmi-check" type="checkbox" ${state.tmi ? 'checked' : ''}
+               onchange="setTMI('${student.id}', this.checked)" title="Assign TMI">
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const countEl = document.getElementById('att-count');
+      if (countEl) countEl.textContent = `${students.length} student${students.length !== 1 ? 's' : ''}`;
     }
 
-    window.updateAttendanceCode = function(studentId, code) {
-      if (!attendanceChanges[studentId]) {
-        attendanceChanges[studentId] = {};
+    window.setCode = function(studentId, code) {
+      if (!attendanceState[studentId]) attendanceState[studentId] = { code: 'P', comment: '', tmi: false };
+      attendanceState[studentId].code = code;
+
+      // Update button states
+      const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
+      if (row) {
+        row.dataset.code = code;
+        row.querySelectorAll('.code-btn').forEach(btn => {
+          const btnCode = btn.classList.contains('Q') ? '?' : [...btn.classList].find(c => ['P','T','E','U'].includes(c));
+          btn.classList.toggle('active', btnCode === code);
+        });
       }
-      attendanceChanges[studentId].code = code;
     };
 
-    window.updateAttendanceComment = function(studentId, comment) {
-      if (!attendanceChanges[studentId]) {
-        attendanceChanges[studentId] = {};
-      }
-      attendanceChanges[studentId].comment = comment;
+    window.setComment = function(studentId, comment) {
+      if (!attendanceState[studentId]) attendanceState[studentId] = { code: 'P', comment: '', tmi: false };
+      attendanceState[studentId].comment = comment;
     };
 
-    window.updateAttendanceTMI = function(studentId, checked) {
-      if (!attendanceChanges[studentId]) {
-        attendanceChanges[studentId] = {};
-      }
-      attendanceChanges[studentId].assignTmi = checked;
+    window.setTMI = function(studentId, checked) {
+      if (!attendanceState[studentId]) attendanceState[studentId] = { code: 'P', comment: '', tmi: false };
+      attendanceState[studentId].tmi = checked;
     };
 
     window.markAllPresent = function() {
-      document.querySelectorAll('input[type="radio"][value="P"]').forEach(radio => {
-        radio.checked = true;
-        const studentId = radio.name.replace('code-', '');
-        if (!attendanceChanges[studentId]) attendanceChanges[studentId] = {};
-        attendanceChanges[studentId].code = 'P';
+      currentStudents.forEach(s => {
+        if (attendanceState[s.id]) attendanceState[s.id].code = 'P';
+        // Update UI
+        const row = document.querySelector(`tr[data-student-id="${s.id}"]`);
+        if (row) {
+          row.dataset.code = 'P';
+          row.querySelectorAll('.code-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.classList.contains('P'));
+          });
+        }
       });
       showToast('All students marked present', 'success');
     };
 
     async function saveAllChanges() {
-      if (!currentClassScheduleId || !currentDate) {
+      if (!currentDate || !currentTeacher || !currentClass) {
         showToast('No class selected', 'error');
         return;
       }
-
       try {
         const savePromises = [];
 
-        // Get all radio buttons to capture current state
-        const allRadios = document.querySelectorAll('input[type="radio"]:checked');
-        const allStudentsSet = new Set();
-        allRadios.forEach(radio => {
-          const name = radio.name;
-          const studentId = name.replace('code-', '');
-          allStudentsSet.add(studentId);
-        });
+        currentStudents.forEach(student => {
+          const state = attendanceState[student.id] || { code: 'P', comment: '', tmi: false };
 
-        allStudentsSet.forEach(studentId => {
-          const code = document.querySelector(`input[name="code-${studentId}"]:checked`)?.value || 'P';
-          const comment = document.getElementById(`comment-${studentId}`)?.value || '';
-          const assignTmi = document.getElementById(`tmi-${studentId}`)?.checked || false;
-
-          const student = allStudents.find(s => s.chattStateANumber === studentId);
-          const studentName = student ? `${student.lastName}, ${student.firstName}` : '';
-
-          // Check if log exists (handles both 'date' and 'classDate' field names)
+          // Find existing log (propagated logs use 'studentId'; manually saved use chattStateANumber)
           const existingLog = allClassAttendanceLogs.find(l =>
+            (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
             l.teacherLastName === currentTeacher &&
             l.className === currentClass &&
-            (l.date === currentDate || l.classDate === currentDate) &&
-            l.chattStateANumber === studentId
+            (l.date === currentDate || l.classDate === currentDate)
           );
 
           if (existingLog) {
-            savePromises.push(
-              updateDoc('classAttendanceLogs', existingLog.id, {
-                attendanceCode: code,
-                comment,
-                assignTmi,
-                updatedAt: new Date().toISOString()
-              })
-            );
+            savePromises.push(updateDoc('classAttendanceLogs', existingLog.id, {
+              attendanceCode: state.code,
+              comment: state.comment,
+              assignTmi: state.tmi,
+              updatedAt: new Date().toISOString()
+            }));
           } else {
-            savePromises.push(
-              addDoc('classAttendanceLogs', {
-                classScheduleId: currentClassScheduleId,
-                teacherLastName: currentTeacher,
-                className: currentClass,
-                date: currentDate,
-                chattStateANumber: studentId,
-                studentName: studentName,
-                attendanceCode: code,
-                comment,
-                assignTmi,
-                createdBy: currentUser?.uid || '',
-                updatedAt: new Date().toISOString()
-              })
-            );
+            savePromises.push(addDoc('classAttendanceLogs', {
+              studentId: student.id,
+              chattStateANumber: student.chattStateANumber || '',
+              studentName: `${student.lastName || ''}, ${student.firstName || ''}`,
+              teacherLastName: currentTeacher,
+              className: currentClass,
+              classScheduleId: currentClassScheduleId,
+              date: currentDate,
+              attendanceCode: state.code,
+              comment: state.comment,
+              assignTmi: state.tmi,
+              createdBy: currentUser?.uid || '',
+              updatedAt: new Date().toISOString()
+            }));
           }
         });
 
         await Promise.all(savePromises);
-        showToast('Attendance saved successfully', 'success');
+        showToast(`Attendance saved for ${currentStudents.length} students`, 'success');
         attendanceChanges = {};
         await loadAllData();
       } catch (error) {
