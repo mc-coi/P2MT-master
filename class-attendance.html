@@ -423,8 +423,14 @@
         currentDate = classDate;
         attendanceChanges = {};
 
-        // Build enrolled student list from all per-student schedule docs
+        // Build enrolled student list — deduplicate by studentId in case of duplicate schedule records
+        const seenIds = new Set();
         const enrolledStudents = classSchedules
+          .filter(cs => {
+            if (!cs.studentId || seenIds.has(cs.studentId)) return false;
+            seenIds.add(cs.studentId);
+            return true;
+          })
           .map(cs => allStudents.find(s => s.id === cs.studentId))
           .filter(Boolean)
           .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));

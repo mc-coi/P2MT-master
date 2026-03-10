@@ -313,9 +313,9 @@
     function buildSchoolYear(yearStr, semester) {
       const y = parseInt(yearStr);
       if (!y) return yearStr || '';
-      // "2025" means the school year starting in 2025 → "2025-2026"
-      // Both Fall 2025 and Spring 2026 belong to school year "2025-2026"
-      return `${y}-${y+1}`;
+      // Spring 2026 → school year 2025-2026  (y-1 to y)
+      // Fall   2025 → school year 2025-2026  (y to y+1)
+      return (semester || '').toLowerCase() === 'spring' ? `${y-1}-${y}` : `${y}-${y+1}`;
     }
 
     function parseScheduleRows(results) {
@@ -584,18 +584,25 @@
       try {
         const schoolYear = document.getElementById('propSchoolYear').value;
         const semester = document.getElementById('propSemester').value;
-        const startDate = new Date(document.getElementById('propStartDate').value);
-        const endDate = new Date(document.getElementById('propEndDate').value);
+        const startVal = document.getElementById('propStartDate').value;
+        const endVal   = document.getElementById('propEndDate').value;
 
-        if (!schoolYear || !semester || isNaN(startDate) || isNaN(endDate)) {
+        if (!schoolYear || !semester || !startVal || !endVal) {
           showToast('Please fill in all fields', 'error');
           return;
         }
 
+        // Parse as LOCAL time (not UTC) to avoid day-of-week being off by one
+        const parseLocal = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
+        const localDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+        const startDate = parseLocal(startVal);
+        const endDate   = parseLocal(endVal);
+
         const progress = document.getElementById('propagateProgress');
         progress.innerHTML = '<p>Processing...</p>';
 
-        const matchingSchedules = allSchedules.filter(s => 
+        const matchingSchedules = allSchedules.filter(s =>
           s.schoolYear === schoolYear && s.semester === semester
         );
 
@@ -606,7 +613,7 @@
           const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][current.getDay()];
 
           matchingSchedules.forEach(schedule => {
-            if ((schedule.classDays || []).includes(dayAbbr)) {
+            if (dayAbbr && (schedule.classDays || []).includes(dayAbbr)) {
               attendanceLogs.push({
                 studentId: schedule.studentId,
                 studentName: schedule.studentName,
@@ -614,7 +621,7 @@
                 classScheduleId: schedule.id,
                 className: schedule.className,
                 teacherLastName: schedule.teacherLastName,
-                date: current.toISOString().split('T')[0],
+                date: localDateStr(current),
                 schoolYear: schoolYear,
                 semester: semester,
                 status: 'unmarked'
