@@ -295,6 +295,7 @@
     let allClassSchedules = [];
     let allClassAttendanceLogs = [];
     let allStudents = [];
+    let allInterventions = [];
     let currentClassScheduleId = null;
     let currentTeacher = null;
     let currentClass = null;
@@ -328,6 +329,7 @@
         allClassSchedules = await getAll('classSchedules');
         allClassAttendanceLogs = await getAll('classAttendanceLogs');
         allStudents = await getAll('students');
+        try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
       } catch (error) {
         console.error('Error loading data:', error);
         throw error;
@@ -362,16 +364,20 @@
       
       if (!selectedTeacher) return;
 
-      const classes = [...new Set(
-        allClassSchedules
-          .filter(cs => cs.teacherLastName === selectedTeacher)
-          .map(cs => cs.className)
-      )].sort();
+      // Get unique classes for this teacher, labeling learning labs
+      const classMap = {};
+      allClassSchedules
+        .filter(cs => cs.teacherLastName === selectedTeacher)
+        .forEach(cs => {
+          if (!classMap[cs.className]) {
+            classMap[cs.className] = cs.learningLab || false;
+          }
+        });
 
-      classes.forEach(className => {
+      Object.keys(classMap).sort().forEach(className => {
         const option = document.createElement('option');
         option.value = className;
-        option.textContent = className;
+        option.textContent = classMap[className] ? `${className} ⭐ Learning Lab` : className;
         filterClass.appendChild(option);
       });
     }
@@ -611,13 +617,97 @@
         });
 
         await Promise.all(savePromises);
-        showToast(`Attendance saved for ${currentStudents.length} students`, 'success');
         attendanceChanges = {};
-        await loadAllData();
+        await loadAllData(); // reload fresh before TMI check
+        await checkAndCreateTMI();
+        showToast(`Attendance saved for ${currentStudents.length} students`, 'success');
       } catch (error) {
         console.error('Error saving attendance:', error);
         showToast('Error saving attendance', 'error');
       }
+    }
+
+    // ── Auto-TMI rules ──────────────────────────────────────────────────────
+    // Triggers: U code, manual assignTmi override, or 3+ T's across all
+    // classes in the same calendar week (Mon–Sun).
+    async function checkAndCreateTMI() {
+      if (!currentDate || !currentStudents.length) return;
+
+      // Compute Mon–Sun range for currentDate (timezone-safe)
+      const [yr, mo, dy] = currentDate.split('-').map(Number);
+      const dt = new Date(yr, mo - 1, dy);
+      const dow = dt.getDay(); // 0=Sun, 1=Mon …
+      const toMon = (dow === 0) ? -6 : 1 - dow;
+      const mon = new Date(dt); mon.setDate(dt.getDate() + toMon);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const pad = n => String(n).padStart(2, '0');
+      const toStr = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
+      const weekStart = toStr(mon);
+      const weekEnd   = toStr(sun);
+
+      const tmiCreated = [];
+
+      for (const student of currentStudents) {
+        const state = attendanceState[student.id] || {};
+        const code = state.code || 'P';
+        const assignTmi = state.tmi || false;
+
+        const uTrigger       = (code === 'U');
+        const overrideTrigger = assignTmi;
+
+        // Count all T codes for this student this week across every class
+        const weekTardies = allClassAttendanceLogs.filter(log => {
+          const logDate = log.date || log.classDate || '';
+          return (log.studentId === student.id || log.chattStateANumber === student.chattStateANumber) &&
+                 logDate >= weekStart && logDate <= weekEnd &&
+                 log.attendanceCode === 'T';
+        }).length;
+        const threeTTrigger = (weekTardies >= 3);
+
+        if (!uTrigger && !overrideTrigger && !threeTTrigger) continue;
+
+        // Don't create a duplicate TMI for the same student this week
+        const alreadyHasTMI = allInterventions.some(i =>
+          i.studentId === student.id &&
+          i.interventionType === 'TMI' &&
+          i.interventionStatus !== 'Closed' &&
+          (i.startDate || '') >= weekStart &&
+          (i.startDate || '') <= weekEnd
+        );
+        if (alreadyHasTMI) continue;
+
+        const reason = uTrigger
+          ? 'Unexcused absence'
+          : threeTTrigger
+          ? '3 tardies in one week'
+          : 'Manual override';
+
+        await addDoc('interventionLogs', {
+          studentId:            student.id,
+          studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
+          chattStateANumber:    student.chattStateANumber || '',
+          interventionType:     'TMI',
+          interventionLevel:    1,
+          startDate:            currentDate,
+          tmiMinutes:           60,
+          tmiMinutesServed:     0,
+          tmiMinutesRemaining:  60,
+          interventionStatus:   'Pending Review',
+          reason:               reason,
+          triggeredBy:          uTrigger ? 'U' : (threeTTrigger ? '3T' : 'override'),
+          className:            currentClass,
+          teacherLastName:      currentTeacher,
+          createDate:           new Date().toISOString()
+        });
+        tmiCreated.push(student.firstName + ' ' + student.lastName);
+      }
+
+      if (tmiCreated.length > 0) {
+        showToast(`TMI assigned for: ${tmiCreated.join(', ')}`, 'warning');
+      }
+
+      // Refresh interventions list
+      try { allInterventions = await getAll('interventionLogs'); } catch(e) {}
     }
 
     async function loadAbsenceData() {

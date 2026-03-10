@@ -98,6 +98,8 @@
               <th>TMI Served</th>
               <th>TMI Remaining</th>
               <th>Status</th>
+              <th>Reason</th>
+              <th>Teacher Review</th>
               <th>Parent Notified</th>
               <th>Student Notified</th>
               <th>Actions</th>
@@ -240,11 +242,15 @@
         let totalRemaining = 0;
 
         interventions.forEach(intervention => {
-          let interventionStartDate = new Date(intervention.startDate);
-          let searchStartDate = new Date(startDate);
-          let searchEndDate = new Date(endDate);
+          // Only show TMI-type interventions that are pending or reviewed (not closed/non-TMI)
+          if (intervention.interventionType !== 'TMI') return;
+          if (intervention.interventionStatus === 'Closed') return;
 
-          if (interventionStartDate >= searchStartDate && interventionStartDate <= searchEndDate) {
+          // Timezone-safe date comparison using string comparison (YYYY-MM-DD)
+          const iDate = (intervention.startDate || '').substring(0, 10);
+          if (iDate < startDate || iDate > endDate) return;
+
+          {
             let student = students.find(s => s.id === intervention.studentId);
             if (!student) return;
 
@@ -275,7 +281,11 @@
               tmiRemaining: tmiRemaining,
               status: status,
               parentNotified: intervention.parentNotification || false,
-              studentNotified: intervention.studentNotification || false
+              studentNotified: intervention.studentNotification || false,
+              reviewStatus: intervention.interventionStatus || 'Pending Review',
+              reason: intervention.reason || '',
+              className: intervention.className || '',
+              teacherLastName: intervention.teacherLastName || ''
             });
           }
         });
@@ -319,6 +329,11 @@
             <td>${student.tmiServed}</td>
             <td>${student.tmiRemaining}</td>
             <td>${statusBadge}</td>
+            <td>${student.reason || '-'}</td>
+            <td>${student.reviewStatus === 'Reviewed'
+              ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;"><i class="fas fa-check"></i> Reviewed</span>'
+              : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;">Pending</span>'
+            }</td>
             <td><input type="checkbox" class="parent-notified" data-id="${student.id}" ${student.parentNotified ? 'checked' : ''}></td>
             <td><input type="checkbox" class="student-notified" data-id="${student.id}" ${student.studentNotified ? 'checked' : ''}></td>
             <td>

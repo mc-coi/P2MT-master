@@ -639,9 +639,12 @@
           if (currentEditId && i === 1) {
             await updateDoc('classSchedules', currentEditId, data);
             scheduleIds.push(currentEditId);
+            createdSchedules.push({ id: currentEditId, ...data });
           } else if (!currentEditId) {
-            const docRef = await addDoc('classSchedules', data);
-            scheduleIds.push(docRef.id);
+            // addDoc returns the string ID directly
+            const newId = await addDoc('classSchedules', data);
+            scheduleIds.push(newId);
+            createdSchedules.push({ id: newId, ...data });
           }
         }
 
@@ -653,45 +656,38 @@
           await updateDoc('interventionLogs', interventionId, { linkedScheduleIds: newIds });
         }
 
-        // Propagate attendance logs
+        // Propagate attendance logs — use timezone-safe date parsing
         if (startDate && endDate && startDate <= endDate) {
-          const attendanceLogs = [];
-          let current = new Date(startDate);
-          
-          while (current <= new Date(endDate)) {
-            const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][current.getDay()];
-            
-            scheduleIds.forEach(schedId => {
-              const sched = createdSchedules.find(s => s.id === schedId) || { classDays: [], startTime, endTime };
-              if ((sched.classDays || []).includes(dayAbbr)) {
-                attendanceLogs.push({
+          const parseLocal = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
+          const localDateStr = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+          const DAY_MAP = { 0: '', 1: 'M', 2: 'T', 3: 'W', 4: 'Th', 5: 'F', 6: '' };
+
+          let current = parseLocal(startDate);
+          const end = parseLocal(endDate);
+
+          while (current <= end) {
+            const dayAbbr = DAY_MAP[current.getDay()];
+            const dateStr = localDateStr(current);
+
+            for (const sched of createdSchedules) {
+              if (dayAbbr && (sched.classDays || []).includes(dayAbbr)) {
+                await addDoc('classAttendanceLogs', {
                   studentId: studentId,
                   studentName: student.firstName + ' ' + student.lastName,
                   chattStateANumber: student.chattStateANumber,
-                  classScheduleId: schedId,
+                  classScheduleId: sched.id,
                   className: className,
                   teacherLastName: teacherLastName,
-                  date: current.toISOString().split('T')[0],
+                  classDate: dateStr,
                   schoolYear: schoolYear,
                   semester: semester,
-                  status: 'unmarked'
+                  attendanceCode: '?',
+                  learningLab: true
                 });
               }
-            });
-            
-            current.setDate(current.getDate() + 1);
-          }
-
-          if (attendanceLogs.length > 0) {
-            const batchSize = 500;
-            for (let i = 0; i < attendanceLogs.length; i += batchSize) {
-              const batch = attendanceLogs.slice(i, i + batchSize);
-              const batch_data = {};
-              batch.forEach((log, idx) => {
-                batch_data[`doc_${i + idx}`] = log;
-              });
-              await batchWrite('classAttendanceLogs', batch_data);
             }
+
+            current.setDate(current.getDate() + 1);
           }
         }
 
