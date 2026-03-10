@@ -186,7 +186,7 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
 
     window.getAll = getAll;
@@ -631,17 +631,15 @@
           return;
         }
 
-        const batchSize = 500;
-        for (let i = 0; i < attendanceLogs.length; i += batchSize) {
-          const batch = attendanceLogs.slice(i, i + batchSize);
-          const batch_data = {};
-          batch.forEach((log, idx) => {
-            batch_data[`doc_${i + idx}`] = log;
-          });
-          await batchWrite('classAttendanceLogs', batch_data);
-          
-          const pct = Math.round((i + batchSize) / attendanceLogs.length * 100);
-          progress.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-primary" style="width:${Math.min(pct, 100)}%; text-align:center; color:white; height:25px; line-height:25px;">${Math.min(pct, 100)}%</div></div><p>Created ${Math.min(i + batchSize, attendanceLogs.length)}/${attendanceLogs.length} attendance logs</p>`;
+        progress.innerHTML = `<p>Creating ${attendanceLogs.length} attendance logs…</p>`;
+        let created = 0;
+        for (let i = 0; i < attendanceLogs.length; i++) {
+          await addDoc('classAttendanceLogs', attendanceLogs[i]);
+          created++;
+          if (created % 10 === 0 || created === attendanceLogs.length) {
+            const pct = Math.round(created / attendanceLogs.length * 100);
+            progress.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-primary" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${created} / ${attendanceLogs.length} logs created</p>`;
+          }
         }
 
         progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Propagation Complete!</strong><br>Created ${attendanceLogs.length} attendance logs</div>`;
