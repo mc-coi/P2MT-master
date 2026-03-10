@@ -314,7 +314,9 @@
     function buildSchoolYear(yearStr, semester) {
       const y = parseInt(yearStr);
       if (!y) return yearStr || '';
-      return (semester || '').toLowerCase() === 'spring' ? `${y-1}-${y}` : `${y}-${y+1}`;
+      // "2025" means the school year starting in 2025 → "2025-2026"
+      // Both Fall 2025 and Spring 2026 belong to school year "2025-2026"
+      return `${y}-${y+1}`;
     }
 
     function parseScheduleRows(results) {
