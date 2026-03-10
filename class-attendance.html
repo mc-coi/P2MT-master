@@ -348,38 +348,39 @@
         document.getElementById('attendance-container').style.display = 'none';
         document.getElementById('no-selection-message').style.display = 'block';
 
-        const schedule = allClassSchedules.find(cs => 
+        // Our model: one schedule doc per student — find ALL for this teacher+class
+        const classSchedules = allClassSchedules.filter(cs =>
           cs.teacherLastName === teacher && cs.className === className
         );
 
-        if (!schedule) {
+        if (classSchedules.length === 0) {
           showToast('Class schedule not found', 'error');
           document.getElementById('loading-container').style.display = 'none';
           return;
         }
 
+        const schedule = classSchedules[0]; // use first for class info (campus, times)
         currentClassScheduleId = schedule.id;
         currentTeacher = teacher;
         currentClass = className;
         currentDate = classDate;
         attendanceChanges = {};
 
-        // Load enrolled students (from classSchedules)
-        const enrolledStudents = [];
-        if (schedule.studentIds && Array.isArray(schedule.studentIds)) {
-          for (const studentId of schedule.studentIds) {
-            const student = allStudents.find(s => s.id === studentId);
-            if (student) enrolledStudents.push(student);
-          }
-        }
+        // Build enrolled student list from all per-student schedule docs
+        const enrolledStudents = classSchedules
+          .map(cs => allStudents.find(s => s.id === cs.studentId))
+          .filter(Boolean)
+          .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
 
         // Display class info
         displayClassInfo(schedule);
         document.getElementById('class-info-container').style.display = 'block';
 
-        // Load existing attendance logs for this date
+        // Find existing logs by teacher+class+date (handles both 'date' and 'classDate' fields)
         const existingLogs = allClassAttendanceLogs.filter(log =>
-          log.classScheduleId === schedule.id && log.classDate === classDate
+          log.teacherLastName === teacher &&
+          log.className === className &&
+          (log.date === classDate || log.classDate === classDate)
         );
 
         // Display attendance form
@@ -504,10 +505,11 @@
           const student = allStudents.find(s => s.chattStateANumber === studentId);
           const studentName = student ? `${student.lastName}, ${student.firstName}` : '';
 
-          // Check if log exists and upsert
+          // Check if log exists (handles both 'date' and 'classDate' field names)
           const existingLog = allClassAttendanceLogs.find(l =>
-            l.classScheduleId === currentClassScheduleId &&
-            l.classDate === currentDate &&
+            l.teacherLastName === currentTeacher &&
+            l.className === currentClass &&
+            (l.date === currentDate || l.classDate === currentDate) &&
             l.chattStateANumber === studentId
           );
 
@@ -524,13 +526,15 @@
             savePromises.push(
               addDoc('classAttendanceLogs', {
                 classScheduleId: currentClassScheduleId,
-                classDate: currentDate,
+                teacherLastName: currentTeacher,
+                className: currentClass,
+                date: currentDate,
                 chattStateANumber: studentId,
                 studentName: studentName,
                 attendanceCode: code,
                 comment,
                 assignTmi,
-                createdBy: currentUser.uid,
+                createdBy: currentUser?.uid || '',
                 updatedAt: new Date().toISOString()
               })
             );
