@@ -86,8 +86,8 @@
           <label class="form-label">Status</label>
           <select id="filterStatus" class="w3-select w3-border">
             <option value="">All</option>
-            <option value="Pending Review" selected>Pending Review</option>
-            <option value="Reviewed">Reviewed</option>
+            <option value="Reviewed" selected>Reviewed (Confirmed)</option>
+            <option value="Pending Review">Pending Review</option>
           </select>
         </div>
         <div class="w3-col m3 w3-padding-small">
@@ -259,8 +259,8 @@
     }
 
     function statusBadge(status) {
-      if (status === 'Reviewed') return `<span class="status-reviewed"><i class="fas fa-check"></i> Reviewed</span>`;
-      return `<span class="status-pending"><i class="fas fa-hourglass-half"></i> Pending Review</span>`;
+      if (status === 'Reviewed') return `<span class="status-reviewed"><i class="fas fa-check-circle"></i> Confirmed</span>`;
+      return `<span class="status-pending"><i class="fas fa-hourglass-half"></i> Needs Review</span>`;
     }
 
     function renderTable() {
@@ -289,7 +289,7 @@
           </td>
           <td>${statusBadge(item.interventionStatus)}</td>
           <td>
-            ${item.interventionStatus === 'Pending Review'
+            ${item.interventionStatus !== 'Reviewed'
               ? `<button class="w3-button btn-primary action-btn" onclick="confirmOne('${item.id}')">
                    <i class="fas fa-check"></i> Confirm
                  </button>`
@@ -345,7 +345,7 @@
     };
 
     window.confirmAllVisible = async function() {
-      const pending = filteredTMI.filter(t => t.interventionStatus === 'Pending Review');
+      const pending = filteredTMI.filter(t => t.interventionStatus !== 'Reviewed');
       if (pending.length === 0) {
         showToast('No pending items in current view', 'warning');
         return;

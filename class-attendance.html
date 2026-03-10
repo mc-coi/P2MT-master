@@ -628,10 +628,14 @@
     }
 
     // ── Auto-TMI rules ──────────────────────────────────────────────────────
-    // Triggers: U code, manual assignTmi override, or 3+ T's across all
-    // classes in the same calendar week (Mon–Sun).
+    // • 1 U  = +120 min TMI (stacks; cap 420 min total)
+    // • 3 T's across all classes in one week = +90 min (once per week per student)
+    // • Assign TMI checkbox = +120 min (manual override)
+    // Records are created as "Reviewed" (confirmed by default).
     async function checkAndCreateTMI() {
       if (!currentDate || !currentStudents.length) return;
+
+      const MAX_TMI = 420;
 
       // Compute Mon–Sun range for currentDate (timezone-safe)
       const [yr, mo, dy] = currentDate.split('-').map(Number);
@@ -646,67 +650,107 @@
       const weekEnd   = toStr(sun);
 
       const tmiCreated = [];
+      const tmiUpdated = [];
 
       for (const student of currentStudents) {
-        const state = attendanceState[student.id] || {};
-        const code = state.code || 'P';
-        const assignTmi = state.tmi || false;
+        const state      = attendanceState[student.id] || {};
+        const code       = state.code    || 'P';
+        const assignTmi  = state.tmi     || false;
 
-        const uTrigger       = (code === 'U');
+        const uTrigger        = (code === 'U');
         const overrideTrigger = assignTmi;
 
-        // Count all T codes for this student this week across every class
+        // Count T codes for this student this week across every class (fresh data)
         const weekTardies = allClassAttendanceLogs.filter(log => {
           const logDate = log.date || log.classDate || '';
           return (log.studentId === student.id || log.chattStateANumber === student.chattStateANumber) &&
                  logDate >= weekStart && logDate <= weekEnd &&
                  log.attendanceCode === 'T';
         }).length;
-        const threeTTrigger = (weekTardies >= 3);
+
+        // 3T rule only fires once per week — check if already triggered
+        let threeTTrigger = (weekTardies >= 3);
+        if (threeTTrigger) {
+          const already3T = allInterventions.some(i =>
+            i.studentId     === student.id &&
+            i.interventionType === 'TMI'   &&
+            i.triggeredBy   === '3T'       &&
+            i.interventionStatus !== 'Closed' &&
+            (i.startDate || '') >= weekStart &&
+            (i.startDate || '') <= weekEnd
+          );
+          if (already3T) threeTTrigger = false;
+        }
 
         if (!uTrigger && !overrideTrigger && !threeTTrigger) continue;
 
-        // Don't create a duplicate TMI for the same student this week
-        const alreadyHasTMI = allInterventions.some(i =>
-          i.studentId === student.id &&
-          i.interventionType === 'TMI' &&
-          i.interventionStatus !== 'Closed' &&
-          (i.startDate || '') >= weekStart &&
-          (i.startDate || '') <= weekEnd
-        );
-        if (alreadyHasTMI) continue;
-
-        const reason = uTrigger
-          ? 'Unexcused absence'
+        // Minutes to add: U/override = 120, 3T = 90
+        const addMinutes = (uTrigger || overrideTrigger) ? 120 : 90;
+        const triggeredBy = uTrigger ? 'U' : (threeTTrigger ? '3T' : 'override');
+        const reason      = uTrigger
+          ? 'Unexcused absence (+120 min)'
           : threeTTrigger
-          ? '3 tardies in one week'
-          : 'Manual override';
+          ? '3 tardies in one week (+90 min)'
+          : 'Manual override (+120 min)';
 
-        await addDoc('interventionLogs', {
-          studentId:            student.id,
-          studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
-          chattStateANumber:    student.chattStateANumber || '',
-          interventionType:     'TMI',
-          interventionLevel:    1,
-          startDate:            currentDate,
-          tmiMinutes:           60,
-          tmiMinutesServed:     0,
-          tmiMinutesRemaining:  60,
-          interventionStatus:   'Pending Review',
-          reason:               reason,
-          triggeredBy:          uTrigger ? 'U' : (threeTTrigger ? '3T' : 'override'),
-          className:            currentClass,
-          teacherLastName:      currentTeacher,
-          createDate:           new Date().toISOString()
-        });
-        tmiCreated.push(student.firstName + ' ' + student.lastName);
+        // Find existing open TMI for this student and accumulate into it
+        const existingTMI = allInterventions.find(i =>
+          i.studentId        === student.id &&
+          i.interventionType === 'TMI'      &&
+          i.interventionStatus !== 'Closed'
+        );
+
+        if (existingTMI) {
+          // Add minutes, cap at 420
+          const newTotal     = Math.min((existingTMI.tmiMinutes || 0) + addMinutes, MAX_TMI);
+          const newRemaining = Math.max(0, newTotal - (existingTMI.tmiMinutesServed || 0));
+          const newReason    = existingTMI.reason
+            ? `${existingTMI.reason}; ${reason}`
+            : reason;
+
+          await updateDoc('interventionLogs', existingTMI.id, {
+            tmiMinutes:          newTotal,
+            tmiMinutesRemaining: newRemaining,
+            reason:              newReason,
+            triggeredBy:         triggeredBy,
+            updatedAt:           new Date().toISOString()
+          });
+          // Update local cache so subsequent students in the same save don't double-count
+          existingTMI.tmiMinutes          = newTotal;
+          existingTMI.tmiMinutesRemaining = newRemaining;
+          existingTMI.triggeredBy         = triggeredBy;
+          tmiUpdated.push(`${student.firstName} ${student.lastName} → ${newTotal} min`);
+        } else {
+          // Create a new TMI record; confirmed by default ("Reviewed")
+          await addDoc('interventionLogs', {
+            studentId:            student.id,
+            studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
+            chattStateANumber:    student.chattStateANumber || '',
+            interventionType:     'TMI',
+            interventionLevel:    1,
+            startDate:            currentDate,
+            tmiMinutes:           addMinutes,
+            tmiMinutesServed:     0,
+            tmiMinutesRemaining:  addMinutes,
+            interventionStatus:   'Reviewed',   // confirmed by default
+            reason:               reason,
+            triggeredBy:          triggeredBy,
+            className:            currentClass,
+            teacherLastName:      currentTeacher,
+            createDate:           new Date().toISOString()
+          });
+          tmiCreated.push(`${student.firstName} ${student.lastName} (${addMinutes} min)`);
+        }
       }
 
       if (tmiCreated.length > 0) {
-        showToast(`TMI assigned for: ${tmiCreated.join(', ')}`, 'warning');
+        showToast(`TMI assigned: ${tmiCreated.join(', ')}`, 'warning');
+      }
+      if (tmiUpdated.length > 0) {
+        showToast(`TMI updated: ${tmiUpdated.join(', ')}`, 'warning');
       }
 
-      // Refresh interventions list
+      // Refresh local interventions cache
       try { allInterventions = await getAll('interventionLogs'); } catch(e) {}
     }
 
