@@ -9,18 +9,27 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
   <style>
-    .reason-badge {
-      display: inline-block; padding: 3px 10px; border-radius: 12px;
-      font-size: 12px; font-weight: 600;
-    }
-    .reason-U   { background: #FEE2E2; color: #991B1B; }
-    .reason-3T  { background: #FEF3C7; color: #92400E; }
-    .reason-OVR { background: #EDE9FE; color: #5B21B6; }
-    .status-pending  { background: #FEF3C7; color: #92400E; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-    .status-reviewed { background: #D1FAE5; color: #065F46; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-    .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-    .action-btn { padding: 4px 10px; font-size: 12px; margin: 2px; }
-    .tmi-min-input { width: 70px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 13px; text-align: center; }
+    .status-pending  { background:#FEF3C7; color:#92400E; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+    .status-reviewed { background:#D1FAE5; color:#065F46; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+    .summary-card    { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; }
+    .action-btn      { padding:4px 10px; font-size:12px; margin:2px; }
+    .tmi-min-input   { width:70px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; text-align:center; }
+    .code-pill-U  { background:#FEE2E2; color:#991B1B; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; }
+    .code-pill-T  { background:#FEF3C7; color:#92400E; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; }
+    .expand-cell  { cursor:pointer; text-align:center; width:32px; color:#94a3b8; }
+    .expand-cell:hover { color:#2563eb; }
+
+    /* Detail sub-panel */
+    .detail-panel { background:#f8fafc; padding:12px 20px 16px 20px; }
+    .detail-panel h4 { margin:0 0 8px; font-size:13px; color:#475569; text-transform:uppercase; letter-spacing:.05em; }
+    .detail-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .detail-table thead th { background:#e2e8f0; padding:6px 10px; text-align:left; font-size:12px; color:#475569; text-transform:uppercase; letter-spacing:.04em; }
+    .detail-table tbody td { padding:6px 10px; border-bottom:1px solid #f1f5f9; }
+    .detail-table tbody tr:last-child td { border-bottom:none; }
+    .detail-table tbody tr:hover td { background:#f0f9ff; }
+
+    tr.shown .expand-cell i { transform: rotate(90deg); }
+    .expand-cell i { transition: transform .15s; display:inline-block; }
   </style>
 </head>
 <body>
@@ -36,10 +45,9 @@
       <div class="card-body">
         <div class="w3-panel w3-light-blue w3-round" style="margin:0;">
           <p style="margin:0;">
-            <strong>TMI (Time Management Intervention)</strong> is automatically assigned when a student
-            receives an <strong>Unexcused (U)</strong> absence, accumulates <strong>3 Tardies in one week</strong>
-            across all classes, or is manually flagged. Review the list below, adjust minutes if needed,
-            then confirm to send for final approval.
+            <strong>TMI (Time Management Intervention)</strong> — 1 Unexcused absence = <strong>+120 min</strong>;
+            3 Tardies in one week = <strong>+90 min</strong> (max 420 min total). Records are auto-confirmed.
+            Click any row to see the full T/U breakdown. Dismiss any record that was assigned in error.
           </p>
         </div>
       </div>
@@ -49,14 +57,14 @@
     <div id="summaryRow" class="w3-row w3-margin-bottom" style="display:none;">
       <div class="w3-col m3 w3-padding-small">
         <div class="w3-card summary-card w3-padding w3-round w3-center">
-          <div class="w3-jumbo" id="stat-pending">0</div>
-          <div>Pending Review</div>
+          <div class="w3-jumbo" id="stat-total">0</div>
+          <div>Total TMI Records</div>
         </div>
       </div>
       <div class="w3-col m3 w3-padding-small">
         <div class="w3-card summary-card w3-padding w3-round w3-center">
           <div class="w3-jumbo" id="stat-reviewed">0</div>
-          <div>Reviewed</div>
+          <div>Confirmed</div>
         </div>
       </div>
       <div class="w3-col m3 w3-padding-small">
@@ -120,14 +128,14 @@
         <i class="fas fa-spinner fa-spin" style="font-size:24px;"></i> Loading…
       </div>
       <div class="table-wrap">
-        <table id="tmiTable" class="w3-table w3-bordered w3-striped" style="width:100%;">
+        <table id="tmiTable" class="w3-table w3-bordered" style="width:100%;">
           <thead>
             <tr class="w3-blue">
+              <th></th>
               <th>Student</th>
               <th>A#</th>
-              <th>Reason</th>
-              <th>Class / Teacher</th>
-              <th>Date Assigned</th>
+              <th>Unexcused (U)</th>
+              <th>Tardy (T)</th>
               <th>TMI Minutes</th>
               <th>Status</th>
               <th>Actions</th>
@@ -136,13 +144,13 @@
           <tbody id="tmiTableBody"></tbody>
         </table>
       </div>
-      <div id="noDataMsg" class="w3-panel w3-light-grey w3-round w3-center w3-padding">
-        <i class="fas fa-info-circle"></i> No TMI records found. Apply filters or check back after attendance is taken.
+      <div id="noDataMsg" class="w3-panel w3-light-grey w3-round w3-center w3-padding" style="display:none;">
+        <i class="fas fa-info-circle"></i> No TMI records found for the selected filters.
       </div>
     </div>
   </div>
 
-  <!-- Edit Minutes Modal -->
+  <!-- Edit Modal -->
   <div id="editModal" class="w3-modal" onclick="if(event.target===this)closeEditModal()">
     <div class="w3-modal-content w3-card" style="max-width:420px;">
       <button class="modal-close-btn" onclick="closeEditModal()">×</button>
@@ -174,13 +182,14 @@
   <script type="module">
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, updateDoc, deleteDoc } from './js/db.js';
+    import { getAll, updateDoc } from './js/db.js';
     import { formatDate, showToast } from './js/utils.js';
 
-    let allTMI = [];          // interventionLogs where type=TMI
-    let filteredTMI = [];
-    let classSchedules = [];
-    let tmiTable = null;
+    let allTMI          = [];   // interventionLogs where type === 'TMI'
+    let filteredTMI     = [];
+    let classSchedules  = [];
+    let allAttendanceLogs = [];
+    let tmiTable        = null;
 
     initAuth().then(user => {
       initNav('tmi-review');
@@ -192,9 +201,15 @@
         document.getElementById('loadingSpinner').style.display = 'block';
         document.getElementById('noDataMsg').style.display = 'none';
 
-        const allInterventions = await getAll('interventionLogs');
-        allTMI = allInterventions.filter(i => i.interventionType === 'TMI');
-        classSchedules = await getAll('classSchedules');
+        const [allInterventions, schedules, attLogs] = await Promise.all([
+          getAll('interventionLogs'),
+          getAll('classSchedules'),
+          getAll('classAttendanceLogs')
+        ]);
+
+        allTMI           = allInterventions.filter(i => i.interventionType === 'TMI');
+        classSchedules   = schedules;
+        allAttendanceLogs = attLogs;
 
         populateTeacherDropdown();
         applyFilters();
@@ -207,7 +222,12 @@
     }
 
     function populateTeacherDropdown() {
-      const teachers = [...new Set(allTMI.map(t => t.teacherLastName).filter(Boolean))].sort();
+      // Build from both TMI records and from classSchedules so all teachers are present
+      const teachers = [...new Set([
+        ...allTMI.map(t => t.teacherLastName),
+        ...classSchedules.map(cs => cs.teacherLastName)
+      ].filter(Boolean))].sort();
+
       const sel = document.getElementById('filterTeacher');
       teachers.forEach(t => {
         const opt = document.createElement('option');
@@ -217,6 +237,70 @@
       });
     }
 
+    // Returns all T and U attendance logs for a student, sorted by date
+    function getStudentTULogs(studentId, aNum) {
+      return allAttendanceLogs
+        .filter(log =>
+          (log.studentId === studentId || log.chattStateANumber === aNum) &&
+          (log.attendanceCode === 'T' || log.attendanceCode === 'U')
+        )
+        .sort((a, b) => {
+          const da = a.date || a.classDate || '';
+          const db = b.date || b.classDate || '';
+          return da.localeCompare(db);
+        });
+    }
+
+    // Look up class time from schedule
+    function getClassTime(log) {
+      const sched = classSchedules.find(cs => cs.id === log.classScheduleId);
+      if (sched && sched.startTime) {
+        return sched.endTime ? `${sched.startTime} – ${sched.endTime}` : sched.startTime;
+      }
+      return '—';
+    }
+
+    // Build the expandable detail panel HTML for one student's T/U records
+    function buildDetailHtml(logs) {
+      if (!logs || logs.length === 0) {
+        return `<div class="detail-panel"><p style="color:#64748b;font-style:italic;margin:0;">No T or U attendance records found for this student.</p></div>`;
+      }
+
+      const uLogs = logs.filter(l => l.attendanceCode === 'U');
+      const tLogs = logs.filter(l => l.attendanceCode === 'T');
+
+      let html = `<div class="detail-panel">`;
+      html += `<h4><i class="fas fa-list-ul" style="margin-right:6px;"></i>Attendance Breakdown — ${uLogs.length} Unexcused, ${tLogs.length} Tardy</h4>`;
+      html += `<table class="detail-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Class</th>
+            <th>Teacher</th>
+            <th>Date</th>
+            <th>Time</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+      logs.forEach(log => {
+        const code    = log.attendanceCode;
+        const pillCls = code === 'U' ? 'code-pill-U' : 'code-pill-T';
+        const dateStr = formatDate(log.date || log.classDate);
+        const time    = getClassTime(log);
+        html += `<tr>
+          <td><span class="${pillCls}">${code}</span></td>
+          <td>${log.className || '—'}</td>
+          <td>${log.teacherLastName || '—'}</td>
+          <td>${dateStr}</td>
+          <td>${time}</td>
+        </tr>`;
+      });
+
+      html += `</tbody></table></div>`;
+      return html;
+    }
+
     window.applyFilters = function() {
       const teacher = document.getElementById('filterTeacher').value;
       const status  = document.getElementById('filterStatus').value;
@@ -224,6 +308,7 @@
       const end     = document.getElementById('filterEnd').value;
 
       filteredTMI = allTMI.filter(t => {
+        if (t.interventionStatus === 'Closed') return false;
         if (teacher && t.teacherLastName !== teacher) return false;
         if (status  && t.interventionStatus !== status) return false;
         if (start   && (t.startDate || '') < start) return false;
@@ -237,33 +322,29 @@
 
     window.clearFilters = function() {
       document.getElementById('filterTeacher').value = '';
-      document.getElementById('filterStatus').value = 'Pending Review';
-      document.getElementById('filterStart').value = '';
-      document.getElementById('filterEnd').value = '';
+      document.getElementById('filterStatus').value  = 'Reviewed';
+      document.getElementById('filterStart').value   = '';
+      document.getElementById('filterEnd').value     = '';
       applyFilters();
     };
 
     function updateSummary() {
+      const visible = allTMI.filter(t => t.interventionStatus !== 'Closed');
       document.getElementById('summaryRow').style.display = '';
-      document.getElementById('stat-pending').textContent  = allTMI.filter(t => t.interventionStatus === 'Pending Review').length;
-      document.getElementById('stat-reviewed').textContent = allTMI.filter(t => t.interventionStatus === 'Reviewed').length;
-      document.getElementById('stat-u').textContent        = allTMI.filter(t => t.triggeredBy === 'U').length;
-      document.getElementById('stat-3t').textContent       = allTMI.filter(t => t.triggeredBy === '3T').length;
-    }
-
-    function reasonBadge(item) {
-      if (item.triggeredBy === 'U')        return `<span class="reason-badge reason-U">Unexcused Absence</span>`;
-      if (item.triggeredBy === '3T')       return `<span class="reason-badge reason-3T">3 Tardies / Week</span>`;
-      if (item.triggeredBy === 'override') return `<span class="reason-badge reason-OVR">Manual Override</span>`;
-      return `<span class="reason-badge reason-OVR">${item.reason || 'TMI'}</span>`;
+      document.getElementById('stat-total').textContent    = visible.length;
+      document.getElementById('stat-reviewed').textContent = visible.filter(t => t.interventionStatus === 'Reviewed').length;
+      document.getElementById('stat-u').textContent        = visible.filter(t => t.triggeredBy === 'U').length;
+      document.getElementById('stat-3t').textContent       = visible.filter(t => t.triggeredBy === '3T').length;
     }
 
     function statusBadge(status) {
-      if (status === 'Reviewed') return `<span class="status-reviewed"><i class="fas fa-check-circle"></i> Confirmed</span>`;
+      if (status === 'Reviewed')
+        return `<span class="status-reviewed"><i class="fas fa-check-circle"></i> Confirmed</span>`;
       return `<span class="status-pending"><i class="fas fa-hourglass-half"></i> Needs Review</span>`;
     }
 
     function renderTable() {
+      // Destroy DataTables instance if it exists
       if (tmiTable) { tmiTable.destroy(); tmiTable = null; }
       const tbody = document.getElementById('tmiTableBody');
       tbody.innerHTML = '';
@@ -274,21 +355,39 @@
       }
       document.getElementById('noDataMsg').style.display = 'none';
 
+      // Build rows + pre-compute detail HTML for each item
+      const detailMap = {};
+
       filteredTMI.forEach(item => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
+        const tuLogs = getStudentTULogs(item.studentId, item.chattStateANumber);
+        const uCount = tuLogs.filter(l => l.attendanceCode === 'U').length;
+        const tCount = tuLogs.filter(l => l.attendanceCode === 'T').length;
+
+        detailMap[item.id] = buildDetailHtml(tuLogs);
+
+        // Main row
+        const tr = document.createElement('tr');
+        tr.className = 'tmi-main-row';
+        tr.dataset.id = item.id;
+        tr.innerHTML = `
+          <td class="expand-cell"><i class="fas fa-chevron-right"></i></td>
           <td style="font-weight:600;">${item.studentName || ''}</td>
           <td>${item.chattStateANumber || ''}</td>
-          <td>${reasonBadge(item)}</td>
-          <td>${item.className || ''}<br><small style="color:#64748b;">${item.teacherLastName || ''}</small></td>
-          <td>${formatDate(item.startDate)}</td>
+          <td style="text-align:center;">
+            <span class="code-pill-U">${uCount} U</span>
+          </td>
+          <td style="text-align:center;">
+            <span class="code-pill-T">${tCount} T</span>
+          </td>
           <td>
             <input class="tmi-min-input" type="number" min="0" step="5"
-              value="${item.tmiMinutes || 60}" data-id="${item.id}"
-              onchange="updateMinutesInline('${item.id}', this.value)">
+              value="${item.tmiMinutes || 0}" data-id="${item.id}"
+              onchange="updateMinutesInline('${item.id}', this.value)"
+              onclick="event.stopPropagation()">
+            <span style="font-size:11px;color:#64748b;"> min</span>
           </td>
           <td>${statusBadge(item.interventionStatus)}</td>
-          <td>
+          <td onclick="event.stopPropagation()">
             ${item.interventionStatus !== 'Reviewed'
               ? `<button class="w3-button btn-primary action-btn" onclick="confirmOne('${item.id}')">
                    <i class="fas fa-check"></i> Confirm
@@ -302,15 +401,37 @@
             </button>
           </td>
         `;
-        tbody.appendChild(row);
+        tbody.appendChild(tr);
       });
 
+      // Init DataTables
       tmiTable = $('#tmiTable').DataTable({
         paging: true,
         pageLength: 25,
         ordering: true,
         searching: true,
-        destroy: true
+        destroy: true,
+        columnDefs: [
+          { orderable: false, targets: [0, 7] }  // expand and actions not sortable
+        ]
+      });
+
+      // Attach expand/collapse click handler using DataTables child rows API
+      $('#tmiTable tbody').off('click.expand').on('click.expand', 'tr.tmi-main-row', function(e) {
+        // Don't expand when clicking action buttons or inputs
+        if ($(e.target).closest('button, input').length) return;
+
+        const tr  = $(this);
+        const row = tmiTable.row(tr);
+        const id  = tr.data('id');
+
+        if (row.child.isShown()) {
+          row.child.hide();
+          tr.removeClass('shown');
+        } else {
+          row.child(detailMap[id] || '').show();
+          tr.addClass('shown');
+        }
       });
     }
 
@@ -339,7 +460,6 @@
         showToast('TMI confirmed — ready for final approval', 'success');
         applyFilters();
       } catch(e) {
-        console.error(e);
         showToast('Error confirming TMI', 'error');
       }
     };
@@ -347,7 +467,7 @@
     window.confirmAllVisible = async function() {
       const pending = filteredTMI.filter(t => t.interventionStatus !== 'Reviewed');
       if (pending.length === 0) {
-        showToast('No pending items in current view', 'warning');
+        showToast('No unconfirmed items in current view', 'warning');
         return;
       }
       try {
@@ -361,7 +481,6 @@
         showToast(`${pending.length} TMI assignments confirmed`, 'success');
         applyFilters();
       } catch(e) {
-        console.error(e);
         showToast('Error confirming TMI assignments', 'error');
       }
     };
@@ -383,7 +502,7 @@
       if (!item) return;
       document.getElementById('editId').value = id;
       document.getElementById('editStudentName').textContent = item.studentName || '';
-      document.getElementById('editMinutes').value = item.tmiMinutes || 60;
+      document.getElementById('editMinutes').value = item.tmiMinutes || 0;
       document.getElementById('editNotes').value = item.comment || '';
       document.getElementById('editModal').style.display = 'block';
     };
@@ -393,8 +512,8 @@
     };
 
     window.saveEdit = async function() {
-      const id   = document.getElementById('editId').value;
-      const mins = parseInt(document.getElementById('editMinutes').value) || 0;
+      const id    = document.getElementById('editId').value;
+      const mins  = parseInt(document.getElementById('editMinutes').value) || 0;
       const notes = document.getElementById('editNotes').value;
       try {
         await updateDoc('interventionLogs', id, {
