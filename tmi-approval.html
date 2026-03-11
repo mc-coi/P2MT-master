@@ -9,12 +9,25 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
   <style>
-    .status-complete { background-color: #4CAF50; color: white; padding: 4px 8px; border-radius: 4px; }
-    .status-partial { background-color: #FF9800; color: white; padding: 4px 8px; border-radius: 4px; }
-    .status-notstarted { background-color: #F44336; color: white; padding: 4px 8px; border-radius: 4px; }
+    .status-complete   { background:#D1FAE5; color:#065F46; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+    .status-partial    { background:#FEF3C7; color:#92400E; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+    .status-notstarted { background:#FEE2E2; color:#991B1B; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
     .summary-card { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
     .action-btn { padding: 4px 8px; font-size: 12px; margin: 2px; }
     .modal-content { max-height: 90vh; overflow-y: auto; }
+
+    /* ── Time-served cell ── */
+    .served-cell      { min-width: 130px; }
+    .served-nums      { display:flex; align-items:center; gap:4px; margin-bottom:4px; }
+    .tmi-served-input { width:64px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; text-align:center; }
+    .tmi-served-input:focus { outline:none; border-color:#2563eb; }
+    .served-denom     { font-size:11px; color:#64748b; white-space:nowrap; }
+    .progress-wrap    { height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
+    .progress-fill    { height:100%; background:#3b82f6; border-radius:3px; transition:width .3s; }
+    .progress-fill.progress-complete { background:#22c55e; }
+
+    /* ── Complete-row fade ── */
+    tr.row-complete td { opacity:.55; }
   </style>
 </head>
 <body>
@@ -303,48 +316,75 @@
       }
     }
 
+    function statusBadgeHtml(status) {
+      if (status === 'Complete') return '<span class="status-complete"><i class="fas fa-check-circle"></i> Complete</span>';
+      if (status === 'Partial')  return '<span class="status-partial"><i class="fas fa-hourglass-half"></i> Partial</span>';
+      return '<span class="status-notstarted"><i class="fas fa-clock"></i> Not Started</span>';
+    }
+
     function renderTMITable() {
-      if (tmiTable) {
-        tmiTable.destroy();
-      }
+      if (tmiTable) { tmiTable.destroy(); tmiTable = null; }
       $('#tmiTableBody').empty();
 
+      if (tmiData.length === 0) {
+        $('#tmiTableContainer').hide();
+        $('#noDataMsg').text('No active TMI records found for the selected period.').show();
+        return;
+      }
+      $('#tmiTableContainer').show();
+      $('#noDataMsg').hide();
+
       tmiData.forEach(student => {
-        let statusBadge = '';
-        if (student.status === 'Complete') {
-          statusBadge = '<span class="status-complete">Complete</span>';
-        } else if (student.status === 'Partial') {
-          statusBadge = '<span class="status-partial">Partial</span>';
-        } else {
-          statusBadge = '<span class="status-notstarted">Not Started</span>';
-        }
+        const pct      = student.tmiMinutes > 0 ? Math.min(100, Math.round(student.tmiServed / student.tmiMinutes * 100)) : 0;
+        const isComplete = student.status === 'Complete';
+        const rowClass = isComplete ? 'row-complete' : '';
 
         let row = `
-          <tr>
-            <td>${student.studentName}</td>
+          <tr class="${rowClass}">
+            <td style="font-weight:600;">${student.studentName}</td>
             <td>${student.chattStateA}</td>
             <td>${student.gradYear}</td>
             <td>${student.house}</td>
-            <td>${student.tmiMinutes}</td>
-            <td>${student.tmiServed}</td>
-            <td>${student.tmiRemaining}</td>
-            <td>${statusBadge}</td>
-            <td>${student.reason || '-'}</td>
+            <td style="text-align:center;">${student.tmiMinutes} min</td>
+            <td>
+              <div class="served-cell">
+                <div class="served-nums">
+                  <input class="tmi-served-input" type="number" min="0" step="5"
+                    value="${student.tmiServed}"
+                    data-id="${student.id}"
+                    data-assigned="${student.tmiMinutes}"
+                    onclick="event.stopPropagation()">
+                  <span class="served-denom">/ ${student.tmiMinutes} min</span>
+                </div>
+                <div class="progress-wrap">
+                  <div class="progress-fill${isComplete ? ' progress-complete' : ''}" style="width:${pct}%;"></div>
+                </div>
+              </div>
+            </td>
+            <td style="text-align:center;" class="remaining-cell" data-id="${student.id}">
+              ${student.tmiRemaining} min
+            </td>
+            <td class="status-cell" data-id="${student.id}">${statusBadgeHtml(student.status)}</td>
+            <td>${student.reason || '—'}</td>
             <td>${student.reviewStatus === 'Reviewed'
               ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;"><i class="fas fa-check"></i> Reviewed</span>'
               : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;">Pending</span>'
             }</td>
             <td><input type="checkbox" class="parent-notified" data-id="${student.id}" ${student.parentNotified ? 'checked' : ''}></td>
             <td><input type="checkbox" class="student-notified" data-id="${student.id}" ${student.studentNotified ? 'checked' : ''}></td>
-            <td>
-              <button class="w3-button w3-small btn-primary action-btn" onclick="showStudentNotification('${student.id}', '${student.studentName}')">
-                <i class="fas fa-envelope"></i>
+            <td onclick="event.stopPropagation()">
+              <button class="w3-button w3-small btn-primary action-btn"
+                onclick="showStudentNotification('${student.id}','${student.studentName.replace(/'/g,"\\'")}')">
+                <i class="fas fa-user"></i>
               </button>
-              <button class="w3-button w3-small btn-primary action-btn" onclick="showParentNotification('${student.id}', '${student.studentName}')">
-                <i class="fas fa-envelope-open"></i>
+              <button class="w3-button w3-small btn-primary action-btn"
+                onclick="showParentNotification('${student.id}','${student.studentName.replace(/'/g,"\\'")}')">
+                <i class="fas fa-users"></i>
               </button>
-              <button class="w3-button w3-small btn-primary action-btn" onclick="markComplete('${student.id}')">
-                <i class="fas fa-check"></i>
+              <button class="w3-button w3-small w3-green action-btn"
+                onclick="markComplete('${student.id}')"
+                title="Mark complete &amp; remove from list">
+                <i class="fas fa-check-double"></i>
               </button>
             </td>
           </tr>
@@ -352,23 +392,36 @@
         $('#tmiTableBody').append(row);
       });
 
+      // Served input — save on change, auto-close if fully served
+      $('.tmi-served-input').on('change', async function() {
+        const id       = $(this).data('id');
+        const assigned = parseInt($(this).data('assigned')) || 0;
+        const served   = Math.max(0, parseInt($(this).val()) || 0);
+        $(this).val(served); // clamp display
+        await saveServedMinutes(id, served, assigned);
+      });
+
       $('.parent-notified').on('change', function() {
-        let id = $(this).data('id');
-        let student = tmiData.find(s => s.id === id);
-        if (student) student.parentNotified = $(this).prop('checked');
+        const id = $(this).data('id');
+        const s = tmiData.find(s => s.id === id);
+        if (s) s.parentNotified = $(this).prop('checked');
+        updateDoc('interventionLogs', id, { parentNotification: $(this).prop('checked') });
       });
 
       $('.student-notified').on('change', function() {
-        let id = $(this).data('id');
-        let student = tmiData.find(s => s.id === id);
-        if (student) student.studentNotified = $(this).prop('checked');
+        const id = $(this).data('id');
+        const s = tmiData.find(s => s.id === id);
+        if (s) s.studentNotified = $(this).prop('checked');
+        updateDoc('interventionLogs', id, { studentNotification: $(this).prop('checked') });
       });
 
       tmiTable = $('#tmiTable').DataTable({
         paging: true,
         pageLength: 25,
         ordering: true,
-        searching: true
+        searching: true,
+        destroy: true,
+        columnDefs: [{ orderable: false, targets: [5, 12] }]
       });
     }
 
@@ -380,23 +433,69 @@
       $('#summaryCards').show();
     }
 
-    async function processAllTMI() {
+    // ── Save served minutes; auto-close if fully served ──
+    async function saveServedMinutes(id, served, assigned) {
+      const remaining = Math.max(0, assigned - served);
       try {
-        $('#loadingSpinner').show();
-        let updatedCount = 0;
+        await updateDoc('interventionLogs', id, {
+          tmiMinutesServed:    served,
+          tmiMinutesRemaining: remaining
+        });
 
-        for (let student of tmiData) {
-          if (student.tmiServed >= student.tmiMinutes) {
-            await updateDoc('interventionLogs', student.id, {
-              interventionStatus: 'Closed'
-            });
-            updatedCount++;
+        const item = tmiData.find(s => s.id === id);
+        if (item) {
+          item.tmiServed    = served;
+          item.tmiRemaining = remaining;
+          item.status       = served >= assigned ? 'Complete' : (served > 0 ? 'Partial' : 'Not Started');
+        }
+
+        showToast('Time served updated', 'success');
+
+        if (served >= assigned && item) {
+          if (confirm(`${item.studentName} has served all ${assigned} required minutes. Mark as complete and remove from list?`)) {
+            await markComplete(id);
+            return;
           }
         }
 
+        // Re-render to refresh progress bars, remaining, status badges
+        renderTMITable();
+        refreshSummary();
+      } catch (e) {
+        console.error(e);
+        showToast('Error updating time served', 'error');
+      }
+    }
+
+    // ── Recalculate and update summary cards from current tmiData ──
+    function refreshSummary() {
+      const totalAssigned  = tmiData.reduce((a, s) => a + s.tmiMinutes, 0);
+      const totalServed    = tmiData.reduce((a, s) => a + s.tmiServed,  0);
+      const totalRemaining = tmiData.reduce((a, s) => a + s.tmiRemaining, 0);
+      updateSummaryStat(tmiData.length, totalAssigned, totalServed, totalRemaining);
+    }
+
+    async function processAllTMI() {
+      try {
+        $('#loadingSpinner').show();
+        const complete = tmiData.filter(s => s.tmiServed >= s.tmiMinutes);
+        if (complete.length === 0) {
+          showToast('No fully-served records to close', 'warning');
+          $('#loadingSpinner').hide();
+          return;
+        }
+        for (const s of complete) {
+          await updateDoc('interventionLogs', s.id, {
+            interventionStatus:  'Closed',
+            tmiMinutesRemaining: 0,
+            completedAt: new Date().toISOString()
+          });
+        }
+        tmiData = tmiData.filter(s => s.tmiServed < s.tmiMinutes);
+        renderTMITable();
+        refreshSummary();
         $('#loadingSpinner').hide();
-        showToast(`${updatedCount} interventions marked as completed`, 'success');
-        await loadTMIData();
+        showToast(`${complete.length} completed TMI record${complete.length > 1 ? 's' : ''} removed from list`, 'success');
       } catch (error) {
         console.error('Error processing TMI:', error);
         showToast('Error processing TMI', 'error');
@@ -404,17 +503,19 @@
       }
     }
 
-    async function markComplete(studentId) {
+    async function markComplete(id) {
       try {
-        let student = tmiData.find(s => s.id === studentId);
-        if (student) {
-          await updateDoc('interventionLogs', studentId, {
-            interventionStatus: 'Closed'
-          });
-          student.status = 'Complete';
-          showToast('Marked as complete', 'success');
-          await loadTMIData();
-        }
+        const item = tmiData.find(s => s.id === id);
+        await updateDoc('interventionLogs', id, {
+          interventionStatus:  'Closed',
+          tmiMinutesServed:    item ? item.tmiMinutes : undefined,
+          tmiMinutesRemaining: 0,
+          completedAt: new Date().toISOString()
+        });
+        tmiData = tmiData.filter(s => s.id !== id);
+        renderTMITable();
+        refreshSummary();
+        showToast(`${item?.studentName || 'Student'} marked complete — removed from list`, 'success');
       } catch (error) {
         console.error('Error marking complete:', error);
         showToast('Error marking complete', 'error');
