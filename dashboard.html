@@ -1,312 +1,487 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - P2MT</title>
-    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="css/main.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    /* ── Weather card ── */
+    .weather-card {
+      background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+      color: white; border-radius: 12px; padding: 22px 24px;
+      min-height: 260px; display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .weather-card.cls-clear  { background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); }
+    .weather-card.cls-cloudy { background: linear-gradient(135deg, #374151 0%, #6b7280 100%); }
+    .weather-card.cls-rainy  { background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); }
+    .weather-card.cls-snowy  { background: linear-gradient(135deg, #0369a1 0%, #93c5fd 100%); }
+    .weather-card.cls-stormy { background: linear-gradient(135deg, #1f2937 0%, #7c3aed 100%); }
+
+    .wx-location { font-size: 12px; opacity: .80; margin-bottom: 10px; letter-spacing: .02em; }
+    .wx-main     { display: flex; justify-content: space-between; align-items: flex-start; }
+    .wx-left {}
+    .wx-desc     { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+    .wx-temp     { font-size: 68px; font-weight: 200; line-height: 1; }
+    .wx-temp sup { font-size: 22px; font-weight: 400; vertical-align: top; margin-top: 12px; display: inline-block; }
+    .wx-feels    { font-size: 12px; opacity: .78; margin-top: 2px; }
+    .wx-icon     { font-size: 56px; opacity: .90; padding-top: 4px; }
+
+    .wx-details  { display: flex; gap: 18px; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,.2); flex-wrap: wrap; }
+    .wx-detail   { font-size: 12px; opacity: .85; }
+    .wx-detail i { margin-right: 4px; }
+
+    .wx-forecast { display: flex; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.2); }
+    .wx-fc-day   { flex: 1; text-align: center; }
+    .wx-fc-day:not(:last-child) { border-right: 1px solid rgba(255,255,255,.15); }
+    .wx-fc-name  { font-size: 10px; opacity: .72; text-transform: uppercase; letter-spacing: .05em; }
+    .wx-fc-icon  { font-size: 14px; margin: 3px 0; }
+    .wx-fc-temps { font-size: 11px; }
+    .wx-fc-hi    { font-weight: 700; }
+    .wx-fc-lo    { opacity: .60; }
+
+    .wx-loading  { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; opacity: .7; }
+    .wx-error    { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; opacity: .75; font-size: 13px; }
+
+    /* ── Calendar widget ── */
+    .cal-event-row    { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f1f5f9; align-items: flex-start; }
+    .cal-event-row:last-child { border-bottom: none; }
+    .cal-event-time   { font-size: 11px; font-weight: 700; color: #2563eb; min-width: 54px; white-space: nowrap; padding-top: 2px; }
+    .cal-event-allday { font-size: 11px; font-weight: 700; color: #9333ea; min-width: 54px; padding-top: 2px; }
+    .cal-event-bar    { width: 3px; border-radius: 2px; background: #2563eb; flex-shrink: 0; align-self: stretch; min-height: 18px; }
+    .cal-event-name   { font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.3; }
+    .cal-event-loc    { font-size: 11px; color: #64748b; margin-top: 2px; }
+    .cal-empty-msg    { text-align: center; padding: 28px 0; color: #94a3b8; }
+    .cal-empty-msg i  { font-size: 28px; margin-bottom: 8px; }
+
+    .cal-setup-box    { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 18px; text-align: center; margin-bottom: 12px; }
+    .cal-setup-box p  { font-size: 13px; color: #475569; margin: 4px 0 10px; }
+    .cal-url-input    { width: 100%; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; box-sizing: border-box; margin-bottom: 8px; }
+    .cal-url-input:focus { outline: none; border-color: #2563eb; }
+    .cal-link-btn     { font-size: 11px; color: #64748b; cursor: pointer; background: none; border: none; padding: 0; }
+    .cal-link-btn:hover { color: #2563eb; text-decoration: underline; }
+
+    /* ── Card for weather slot ── */
+    #weatherSection { border-radius: 12px; overflow: hidden; }
+  </style>
 </head>
 <body>
-    <div id="nav-container"></div>
-    
-    <div class="page-container">
-        <div class="page-header">
-            <h1>Dashboard</h1>
-            <div class="actions">
-                <span id="current-date" style="font-size: 14px; color: #666;"></span>
-            </div>
-        </div>
+  <div id="nav-container"></div>
+  <div class="page-container">
 
-        <!-- Stats row -->
-        <div class="grid-stats">
-            <div class="stat-card">
-                <div class="stat-icon blue">
-                    <i class="fas fa-users"></i>
-                </div>
-                <div class="stat-value" id="stat-students">0</div>
-                <div class="stat-label">Total Students</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon red">
-                    <i class="fas fa-exclamation-circle"></i>
-                </div>
-                <div class="stat-value" id="stat-active-interventions">0</div>
-                <div class="stat-label">Active Interventions</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon yellow">
-                    <i class="fas fa-times-circle"></i>
-                </div>
-                <div class="stat-value" id="stat-today-absences">0</div>
-                <div class="stat-label">Today's Absences</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon indigo">
-                    <i class="fas fa-calendar"></i>
-                </div>
-                <div class="stat-value" id="stat-upcoming-tmi">0</div>
-                <div class="stat-label">Upcoming TMI Days</div>
-            </div>
-        </div>
-
-        <!-- Two-column layout -->
-        <div class="grid-2">
-            <!-- Active Interventions card -->
-            <div class="card">
-                <div class="card-header">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                        <div class="card-title">Active Interventions</div>
-                        <div style="display: flex; gap: 8px; align-items: center;">
-                            <span class="badge badge-danger" id="active-interventions-count">0</span>
-                            <a href="interventions.html" class="w3-button btn-ghost" style="font-size: 12px; padding: 4px 8px;">View All</a>
-                        </div>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-wrap">
-                        <table id="active-interventions-table" class="w3-table w3-striped">
-                            <thead>
-                                <tr>
-                                    <th>Student Name</th>
-                                    <th>Level</th>
-                                    <th>Type</th>
-                                    <th>Start Date</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                    <div id="active-interventions-empty" class="empty-state" style="display: none;">
-                        <div class="empty-icon"><i class="fas fa-inbox"></i></div>
-                        <div class="empty-title">No Active Interventions</div>
-                        <div class="empty-subtitle">No students currently have active interventions</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Absences card -->
-            <div class="card">
-                <div class="card-header">
-                    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                        <div class="card-title">Recent Absences</div>
-                        <a href="daily-attendance.html" class="w3-button btn-ghost" style="font-size: 12px; padding: 4px 8px;">View All</a>
-                    </div>
-                </div>
-                <div class="card-body">
-                    <div class="table-wrap">
-                        <table id="recent-absences-table" class="w3-table w3-striped">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Student Name</th>
-                                    <th>Code</th>
-                                    <th>Staff</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                    <div id="recent-absences-empty" class="empty-state" style="display: none;">
-                        <div class="empty-icon"><i class="fas fa-inbox"></i></div>
-                        <div class="empty-title">No Recent Absences</div>
-                        <div class="empty-subtitle">No absence records found</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Chronic Absenteeism alert section -->
-        <div id="chronic-absenteeism-card" class="card" style="display: none;">
-            <div class="card-header">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <div class="card-title">Chronic Absenteeism Alert</div>
-                    <span class="badge badge-danger" id="chronic-count">0</span>
-                </div>
-            </div>
-            <div class="card-body">
-                <div class="table-wrap">
-                    <table id="chronic-absenteeism-table" class="w3-table w3-striped">
-                        <thead>
-                            <tr>
-                                <th>Student Name</th>
-                                <th>Records</th>
-                                <th>Attendance Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
+    <div class="page-header">
+      <h1>Dashboard</h1>
+      <div class="actions">
+        <span id="current-date" style="font-size:14px;color:#666;"></span>
+      </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-    <script type="module">
-        import { initAuth, getCurrentUser, signOut } from './js/auth.js';
-        import { initNav } from './js/nav.js';
-        import { getAll, getWhere } from './js/db.js';
-        import { formatDate, getCurrentSchoolYear } from './js/utils.js';
+    <!-- Stats row -->
+    <div class="grid-stats">
+      <div class="stat-card">
+        <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+        <div class="stat-value" id="stat-students">—</div>
+        <div class="stat-label">Total Students</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon yellow"><i class="fas fa-times-circle"></i></div>
+        <div class="stat-value" id="stat-absences">—</div>
+        <div class="stat-label">Today's Absences</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green"><i class="fas fa-calendar-check"></i></div>
+        <div class="stat-value" id="stat-classes">—</div>
+        <div class="stat-label">Classes Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="stat-value" id="stat-tardies">—</div>
+        <div class="stat-label">Tardies This Week</div>
+      </div>
+    </div>
 
-        // Initialize auth and check if user is logged in
-        await initAuth();
-        const user = getCurrentUser();
-        if (!user) {
-            window.location.href = 'index.html';
-        }
+    <!-- Weather + Calendar row -->
+    <div class="grid-2" style="align-items:stretch; margin-bottom:24px;">
 
-        // Initialize navigation
-        initNav('home');
+      <!-- Weather -->
+      <div class="weather-card" id="weatherCard">
+        <div class="wx-loading">
+          <i class="fas fa-spinner fa-spin" style="font-size:22px;"></i>
+          <div style="font-size:13px;">Loading weather…</div>
+        </div>
+      </div>
 
-        // Set current date
-        const today = new Date();
-        const dateString = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-        document.getElementById('current-date').textContent = dateString;
+      <!-- Outlook Calendar -->
+      <div class="card" style="margin:0;">
+        <div class="card-header">
+          <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+            <div class="card-title">
+              <i class="fas fa-calendar-day" style="margin-right:6px;color:#2563eb;"></i>Today's Schedule
+            </div>
+            <button class="cal-link-btn" onclick="toggleCalSetup()" id="calSetupToggle">
+              <i class="fas fa-cog"></i> Setup
+            </button>
+          </div>
+        </div>
+        <div class="card-body" style="padding-top:4px;">
 
-        // Get today's date for filtering
-        const todayFormatted = today.toISOString().split('T')[0];
+          <!-- Setup panel -->
+          <div id="calSetupPanel" style="display:none;" class="cal-setup-box">
+            <i class="fas fa-calendar-alt" style="font-size:26px;color:#94a3b8;margin-bottom:6px;"></i>
+            <p>Paste your Outlook <strong>ICS subscribe link</strong> to show today's events here.</p>
+            <details style="font-size:12px;color:#64748b;text-align:left;margin-bottom:10px;">
+              <summary style="cursor:pointer;font-weight:600;padding:4px 0;">How to get your subscribe link</summary>
+              <ol style="margin:6px 0 0 14px;line-height:1.9;">
+                <li>Open <strong>Outlook</strong> on the web (outlook.com or Office 365)</li>
+                <li>Go to <strong>Calendar</strong></li>
+                <li>Click the <strong>⋯</strong> next to your calendar → <strong>Share</strong></li>
+                <li>Choose <strong>Get a link</strong> → copy the <strong>ICS</strong> URL</li>
+                <li>Paste it below — it starts with <code>webcal://</code> or <code>https://</code></li>
+              </ol>
+            </details>
+            <input type="text" id="calUrlInput" class="cal-url-input"
+              placeholder="webcal://outlook.live.com/owa/calendar/…/calendar.ics">
+            <button class="w3-button btn-primary" style="width:100%;" onclick="saveCalUrl()">
+              <i class="fas fa-link"></i> Connect Calendar
+            </button>
+            <div id="calStatus" style="font-size:11px;color:#64748b;margin-top:6px;"></div>
+          </div>
 
-        // Load all data in parallel
-        const [students, interventionLogs, dailyAttendanceLogs, schoolCalendarDocs] = await Promise.all([
-            getAll('students'),
-            getAll('interventionLogs'),
-            getAll('dailyAttendanceLogs'),
-            getAll('schoolCalendar')
-        ]);
+          <!-- Events list -->
+          <div id="calEvents">
+            <div class="cal-empty-msg">
+              <i class="fas fa-calendar-plus"></i>
+              <div style="font-size:13px;">Click <strong>Setup</strong> above to connect your Outlook calendar</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-        // Calculate stats
-        const totalStudents = students.length;
-        
-        // Active interventions (where interventionStatus === 'Active')
-        const activeInterventions = interventionLogs.filter(log => log.interventionStatus === 'Active');
-        const activeInterventionsCount = activeInterventions.length;
+    <!-- Recent Absences -->
+    <div class="card">
+      <div class="card-header">
+        <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+          <div class="card-title">Recent Absences &amp; Tardies</div>
+          <a href="daily-attendance.html" class="w3-button btn-ghost" style="font-size:12px;padding:4px 8px;">View All</a>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table id="absTable" class="w3-table w3-striped">
+            <thead>
+              <tr>
+                <th>Date</th><th>Student</th><th>Code</th><th>Class</th><th>Teacher</th>
+              </tr>
+            </thead>
+            <tbody id="absTableBody"></tbody>
+          </table>
+        </div>
+        <div id="absEmpty" class="empty-state" style="display:none;">
+          <div class="empty-icon"><i class="fas fa-inbox"></i></div>
+          <div class="empty-title">No Recent Absences</div>
+          <div class="empty-subtitle">No T/U/E records found</div>
+        </div>
+      </div>
+    </div>
 
-        // Today's absences (where absenceDate === today and code !== 'P')
-        const todaysAbsences = dailyAttendanceLogs.filter(log => 
-            log.absenceDate === todayFormatted && log.attendanceCode !== 'P'
-        );
-        const todaysAbsencesCount = todaysAbsences.length;
+  </div>
 
-        // Upcoming TMI days (count TMI days in schoolCalendar where stemSchoolDay === true)
-        const upcomingTmiDays = schoolCalendarDocs.filter(cal => cal.tmiDay === true).length;
+  <script type="module">
+    import { initAuth, getCurrentUser } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll } from './js/db.js';
+    import { formatDate } from './js/utils.js';
 
-        // Render stat cards
-        document.getElementById('stat-students').textContent = totalStudents;
-        document.getElementById('stat-active-interventions').textContent = activeInterventionsCount;
-        document.getElementById('stat-today-absences').textContent = todaysAbsencesCount;
-        document.getElementById('stat-upcoming-tmi').textContent = upcomingTmiDays;
+    await initAuth();
+    if (!getCurrentUser()) { window.location.href = 'index.html'; }
+    initNav('home');
 
-        // Helper function to get badge class for attendance code
-        function getAttendanceBadgeClass(code) {
-            switch(code) {
-                case 'P': return 'badge-success';
-                case 'T': return 'badge-warning';
-                case 'U':
-                case 'E': return 'badge-danger';
-                case 'Q': return 'badge-primary';
-                case 'W':
-                case 'H':
-                case 'L': return 'badge-gray';
-                default: return 'badge-gray';
-            }
-        }
+    // ── Date display ──
+    const today    = new Date();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    document.getElementById('current-date').textContent =
+      today.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
 
-        // Render active interventions table (top 10 active, sorted by level desc)
-        const activeInterventionsSorted = activeInterventions
-            .sort((a, b) => (b.interventionLevel || 1) - (a.interventionLevel || 1))
-            .slice(0, 10);
+    // Week bounds (Mon–Sun)
+    const dow      = today.getDay();
+    const mondayMs = today.getTime() - ((dow === 0 ? 6 : dow - 1) * 86400000);
+    const weekStart = new Date(mondayMs);
+    const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
 
-        const interventionsTable = document.getElementById('active-interventions-table').querySelector('tbody');
-        if (activeInterventionsSorted.length > 0) {
-            document.getElementById('active-interventions-empty').style.display = 'none';
-            document.getElementById('active-interventions-table').style.display = 'table';
-            document.getElementById('active-interventions-count').textContent = activeInterventionsCount;
-            
-            activeInterventionsSorted.forEach(intervention => {
-                const row = document.createElement('tr');
-                const levelNum = intervention.interventionLevel || 1;
-                const levelClass = `level-${levelNum}`;
-                
-                row.innerHTML = `
-                    <td>${intervention.studentName || 'N/A'}</td>
-                    <td><span class="badge ${levelClass}">Level ${levelNum}</span></td>
-                    <td>${intervention.interventionType || 'N/A'}</td>
-                    <td>${formatDate(intervention.startDate)}</td>
-                `;
-                interventionsTable.appendChild(row);
-            });
-        } else {
-            document.getElementById('active-interventions-table').style.display = 'none';
-            document.getElementById('active-interventions-empty').style.display = 'block';
-        }
+    // ── Load Firebase data ──
+    const [students, attLogs] = await Promise.all([
+      getAll('students'),
+      getAll('classAttendanceLogs')
+    ]);
 
-        // Render recent absences table (last 10 by date)
-        const recentAbsencesSorted = dailyAttendanceLogs
-            .sort((a, b) => new Date(b.absenceDate) - new Date(a.absenceDate))
-            .slice(0, 10);
+    // Stats
+    document.getElementById('stat-students').textContent = students.length;
 
-        const absencesTable = document.getElementById('recent-absences-table').querySelector('tbody');
-        if (recentAbsencesSorted.length > 0) {
-            document.getElementById('recent-absences-empty').style.display = 'none';
-            document.getElementById('recent-absences-table').style.display = 'table';
-            
-            recentAbsencesSorted.forEach(absence => {
-                const row = document.createElement('tr');
-                const badgeClass = getAttendanceBadgeClass(absence.attendanceCode);
-                
-                row.innerHTML = `
-                    <td>${formatDate(absence.absenceDate)}</td>
-                    <td>${absence.studentName || 'N/A'}</td>
-                    <td><span class="badge ${badgeClass}">${absence.attendanceCode}</span></td>
-                    <td>${absence.staffName || 'N/A'}</td>
-                `;
-                absencesTable.appendChild(row);
-            });
-        } else {
-            document.getElementById('recent-absences-table').style.display = 'none';
-            document.getElementById('recent-absences-empty').style.display = 'block';
-        }
+    const todayAbs = attLogs.filter(l =>
+      (l.classDate === todayStr || l.date === todayStr) &&
+      (l.attendanceCode === 'U' || l.attendanceCode === 'E')
+    );
+    document.getElementById('stat-absences').textContent = todayAbs.length;
 
-        // Chronic absenteeism: group attendance by student, calculate rate, show students with <80% attendance
-        const attendanceByStudent = {};
-        dailyAttendanceLogs.forEach(log => {
-            const name = log.studentName;
-            if (!attendanceByStudent[name]) {
-                attendanceByStudent[name] = { present: 0, total: 0 };
-            }
-            attendanceByStudent[name].total++;
-            if (log.attendanceCode === 'P') {
-                attendanceByStudent[name].present++;
-            }
+    const classesToday = [...new Set(
+      attLogs.filter(l => l.classDate === todayStr || l.date === todayStr).map(l => l.className)
+    )].filter(Boolean);
+    document.getElementById('stat-classes').textContent = classesToday.length;
+
+    const weekTardies = attLogs.filter(l => {
+      const d = l.classDate || l.date || '';
+      return d >= weekStartStr && d <= todayStr && l.attendanceCode === 'T';
+    });
+    document.getElementById('stat-tardies').textContent = weekTardies.length;
+
+    // Recent absences table
+    const codeColor = { U:'#dc2626', T:'#d97706', E:'#2563eb' };
+    const recent = attLogs
+      .filter(l => ['U','T','E'].includes(l.attendanceCode))
+      .sort((a, b) => ((b.classDate||b.date||'')).localeCompare((a.classDate||a.date||'')))
+      .slice(0, 12);
+
+    const tbody = document.getElementById('absTableBody');
+    if (recent.length > 0) {
+      recent.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${formatDate(r.classDate || r.date)}</td>
+          <td>${r.studentName || '—'}</td>
+          <td><span style="background:${codeColor[r.attendanceCode]||'#64748b'};color:white;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">${r.attendanceCode}</span></td>
+          <td>${r.className || '—'}</td>
+          <td>${r.teacherLastName || '—'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } else {
+      document.getElementById('absTable').style.display = 'none';
+      document.getElementById('absEmpty').style.display = 'block';
+    }
+
+    // ══════════════════════════════════════
+    //  WEATHER — Open-Meteo (no API key)
+    // ══════════════════════════════════════
+    const WX_URL = 'https://api.open-meteo.com/v1/forecast'
+      + '?latitude=35.0456&longitude=-85.2672'
+      + '&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,relativehumidity_2m'
+      + '&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max'
+      + '&temperature_unit=fahrenheit&windspeed_unit=mph&timezone=America%2FNew_York&forecast_days=5';
+
+    const WMO = {
+      0:  { i:'fa-sun',                d:'Clear sky',          c:'cls-clear'  },
+      1:  { i:'fa-cloud-sun',          d:'Mainly clear',       c:'cls-clear'  },
+      2:  { i:'fa-cloud-sun',          d:'Partly cloudy',      c:'cls-cloudy' },
+      3:  { i:'fa-cloud',              d:'Overcast',           c:'cls-cloudy' },
+      45: { i:'fa-smog',               d:'Foggy',              c:'cls-cloudy' },
+      48: { i:'fa-smog',               d:'Rime fog',           c:'cls-cloudy' },
+      51: { i:'fa-cloud-drizzle',      d:'Light drizzle',      c:'cls-rainy'  },
+      53: { i:'fa-cloud-drizzle',      d:'Drizzle',            c:'cls-rainy'  },
+      55: { i:'fa-cloud-drizzle',      d:'Heavy drizzle',      c:'cls-rainy'  },
+      61: { i:'fa-cloud-rain',         d:'Light rain',         c:'cls-rainy'  },
+      63: { i:'fa-cloud-rain',         d:'Moderate rain',      c:'cls-rainy'  },
+      65: { i:'fa-cloud-showers-heavy',d:'Heavy rain',         c:'cls-rainy'  },
+      71: { i:'fa-snowflake',          d:'Light snow',         c:'cls-snowy'  },
+      73: { i:'fa-snowflake',          d:'Moderate snow',      c:'cls-snowy'  },
+      75: { i:'fa-snowflake',          d:'Heavy snow',         c:'cls-snowy'  },
+      80: { i:'fa-cloud-showers-heavy',d:'Rain showers',       c:'cls-rainy'  },
+      81: { i:'fa-cloud-showers-heavy',d:'Heavy showers',      c:'cls-rainy'  },
+      82: { i:'fa-cloud-showers-heavy',d:'Violent showers',    c:'cls-rainy'  },
+      85: { i:'fa-snowflake',          d:'Snow showers',       c:'cls-snowy'  },
+      86: { i:'fa-snowflake',          d:'Heavy snow showers', c:'cls-snowy'  },
+      95: { i:'fa-bolt',               d:'Thunderstorm',       c:'cls-stormy' },
+      96: { i:'fa-bolt',               d:'Thunderstorm + hail',c:'cls-stormy' },
+      99: { i:'fa-bolt',               d:'Thunderstorm',       c:'cls-stormy' },
+    };
+    const DS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    function wmo(code) { return WMO[code] || { i:'fa-cloud', d:'Unknown', c:'' }; }
+
+    try {
+      const wx   = await (await fetch(WX_URL)).json();
+      const cur  = wx.current;
+      const day  = wx.daily;
+      const w    = wmo(cur.weathercode);
+      const card = document.getElementById('weatherCard');
+      card.className = `weather-card ${w.c}`;
+
+      let fcHtml = '';
+      for (let i = 0; i < 5; i++) {
+        const fw  = wmo(day.weathercode[i]);
+        const lbl = i === 0 ? 'Today' : DS[new Date(day.time[i]+'T12:00:00').getDay()];
+        fcHtml += `
+          <div class="wx-fc-day">
+            <div class="wx-fc-name">${lbl}</div>
+            <div class="wx-fc-icon"><i class="fas ${fw.i}"></i></div>
+            <div class="wx-fc-temps">
+              <span class="wx-fc-hi">${Math.round(day.temperature_2m_max[i])}°</span>
+              <span class="wx-fc-lo">/${Math.round(day.temperature_2m_min[i])}°</span>
+            </div>
+          </div>`;
+      }
+
+      card.innerHTML = `
+        <div>
+          <div class="wx-location"><i class="fas fa-map-marker-alt"></i> Chattanooga, TN 37406</div>
+          <div class="wx-main">
+            <div class="wx-left">
+              <div class="wx-desc">${w.d}</div>
+              <div class="wx-temp">${Math.round(cur.temperature_2m)}<sup>°F</sup></div>
+              <div class="wx-feels">Feels like ${Math.round(cur.apparent_temperature)}°F</div>
+            </div>
+            <div class="wx-icon"><i class="fas ${w.i}"></i></div>
+          </div>
+          <div class="wx-details">
+            <div class="wx-detail"><i class="fas fa-wind"></i>${Math.round(cur.windspeed_10m)} mph</div>
+            <div class="wx-detail"><i class="fas fa-tint"></i>${cur.relativehumidity_2m}% humidity</div>
+            <div class="wx-detail"><i class="fas fa-temperature-high"></i>H: ${Math.round(day.temperature_2m_max[0])}°F</div>
+            <div class="wx-detail"><i class="fas fa-temperature-low"></i>L: ${Math.round(day.temperature_2m_min[0])}°F</div>
+          </div>
+        </div>
+        <div class="wx-forecast">${fcHtml}</div>
+      `;
+    } catch(e) {
+      console.error('Weather error:', e);
+      document.getElementById('weatherCard').innerHTML =
+        `<div class="wx-error"><i class="fas fa-cloud-slash" style="font-size:30px;"></i><div>Weather unavailable</div></div>`;
+    }
+
+    // ══════════════════════════════════════
+    //  OUTLOOK CALENDAR (ICS)
+    // ══════════════════════════════════════
+    const CAL_KEY = 'p2mt_cal_ics_url';
+
+    window.toggleCalSetup = function() {
+      const panel = document.getElementById('calSetupPanel');
+      const open  = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : 'block';
+      if (!open) document.getElementById('calUrlInput').value = localStorage.getItem(CAL_KEY) || '';
+    };
+
+    window.saveCalUrl = function() {
+      const url = document.getElementById('calUrlInput').value.trim();
+      if (!url) return;
+      localStorage.setItem(CAL_KEY, url);
+      document.getElementById('calStatus').textContent = 'Saved! Loading events…';
+      document.getElementById('calSetupPanel').style.display = 'none';
+      loadCalendar(url);
+    };
+
+    // ── ICS parser ──
+    function parseICS(text) {
+      const events = [];
+      const blocks = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
+      blocks.forEach(block => {
+        const unfolded = block.replace(/\r?\n[ \t]/g, ''); // RFC 5545 line folding
+        const get = key => {
+          const m = unfolded.match(new RegExp(`(?:^|\\n)${key}(?:;[^:]+)?:([^\\n]*)`, 'm'));
+          return m ? m[1].trim() : '';
+        };
+        const getRaw = key => {
+          const m = unfolded.match(new RegExp(`(?:^|\\n)(${key}[^\\n]*)`, 'm'));
+          return m ? m[1].trim() : '';
+        };
+        events.push({
+          summary:  get('SUMMARY'),
+          location: get('LOCATION'),
+          dtstart:  getRaw('DTSTART'),
+          dtend:    getRaw('DTEND'),
         });
+      });
+      return events;
+    }
 
-        const chronicStudents = Object.entries(attendanceByStudent)
-            .filter(([name, stats]) => stats.total >= 5 && (stats.present / stats.total) < 0.80)
-            .map(([name, stats]) => ({
-                name,
-                records: stats.total,
-                rate: ((stats.present / stats.total) * 100).toFixed(1)
-            }))
-            .sort((a, b) => parseFloat(a.rate) - parseFloat(b.rate));
+    function parseDT(line) {
+      if (!line) return null;
+      const val     = line.replace(/^[^:]*:/, '');
+      const allDay  = !val.includes('T');
+      if (allDay) {
+        return { dateStr: `${val.slice(0,4)}-${val.slice(4,6)}-${val.slice(6,8)}`, allDay: true, dt: null };
+      }
+      const m = val.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+      if (!m) return null;
+      const [,y,mo,d,h,mi] = m;
+      const utc = val.endsWith('Z');
+      const dt  = new Date(`${y}-${mo}-${d}T${h}:${mi}:00${utc ? 'Z' : ''}`);
+      const ld  = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+      return { dateStr: ld, allDay: false, dt };
+    }
 
-        if (chronicStudents.length > 0) {
-            document.getElementById('chronic-absenteeism-card').style.display = 'block';
-            document.getElementById('chronic-count').textContent = chronicStudents.length;
-            
-            const chronicTable = document.getElementById('chronic-absenteeism-table').querySelector('tbody');
-            chronicStudents.forEach(student => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${student.name}</td>
-                    <td>${student.records}</td>
-                    <td><span style="color: #e74c3c; font-weight: bold;">${student.rate}%</span></td>
-                `;
-                chronicTable.appendChild(row);
-            });
-        } else {
-            document.getElementById('chronic-absenteeism-card').style.display = 'none';
+    function fmtTime(dt) {
+      return dt.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+    }
+
+    async function loadCalendar(rawUrl) {
+      const box = document.getElementById('calEvents');
+      box.innerHTML = '<div class="cal-empty-msg"><i class="fas fa-spinner fa-spin"></i><div style="font-size:13px;">Loading…</div></div>';
+
+      const httpsUrl = rawUrl.replace(/^webcal:\/\//i, 'https://');
+      const proxy    = `https://api.allorigins.win/raw?url=${encodeURIComponent(httpsUrl)}`;
+
+      try {
+        const resp = await fetch(proxy, { cache: 'no-cache' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const text   = await resp.text();
+        const events = parseICS(text);
+
+        const todayEvts = events
+          .filter(ev => { const p = parseDT(ev.dtstart); return p && p.dateStr === todayStr; })
+          .sort((a, b) => {
+            const pa = parseDT(a.dtstart), pb = parseDT(b.dtstart);
+            if (pa?.allDay && !pb?.allDay) return -1;
+            if (!pa?.allDay && pb?.allDay) return 1;
+            return (pa?.dt || 0) - (pb?.dt || 0);
+          });
+
+        if (todayEvts.length === 0) {
+          box.innerHTML = `<div class="cal-empty-msg">
+            <i class="fas fa-coffee"></i>
+            <div style="font-size:13px;">No events scheduled for today</div>
+          </div>`;
+          return;
         }
-    </script>
+
+        box.innerHTML = todayEvts.map(ev => {
+          const p       = parseDT(ev.dtstart);
+          const timeHtml = p?.allDay
+            ? `<div class="cal-event-allday">All day</div>`
+            : `<div class="cal-event-time">${p?.dt ? fmtTime(p.dt) : ''}</div>`;
+          const locHtml = ev.location
+            ? `<div class="cal-event-loc"><i class="fas fa-map-marker-alt"></i> ${ev.location}</div>`
+            : '';
+          return `
+            <div class="cal-event-row">
+              ${timeHtml}
+              <div class="cal-event-bar"></div>
+              <div>
+                <div class="cal-event-name">${ev.summary || 'Untitled'}</div>
+                ${locHtml}
+              </div>
+            </div>`;
+        }).join('');
+
+      } catch(e) {
+        console.error('Calendar error:', e);
+        box.innerHTML = `<div class="cal-empty-msg">
+          <i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i>
+          <div style="font-size:13px;">Could not load calendar.<br>
+            <button class="cal-link-btn" onclick="toggleCalSetup()" style="margin-top:4px;">Check your ICS link</button>
+          </div>
+        </div>`;
+      }
+    }
+
+    // Auto-load saved URL
+    const saved = localStorage.getItem(CAL_KEY);
+    if (saved) {
+      loadCalendar(saved);
+    } else {
+      document.getElementById('calSetupPanel').style.display = 'block';
+      document.getElementById('calEvents').innerHTML = '';
+    }
+
+  </script>
 </body>
 </html>

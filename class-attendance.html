@@ -88,6 +88,28 @@
       display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px;
     }
     .save-button-row { padding: 16px; background: white; border-top: 2px solid #e2e8f0; }
+
+    /* ── Learning Lab Today Panel ── */
+    #ll-panel { margin-bottom: 16px; }
+    .ll-panel-inner {
+      background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+      border: 1px solid #c4b5fd; border-radius: 10px; padding: 14px 18px;
+    }
+    .ll-title {
+      font-size: 13px; font-weight: 700; color: #6d28d9;
+      display: block; margin-bottom: 10px;
+    }
+    .ll-items { display: flex; flex-wrap: wrap; gap: 10px; }
+    .ll-item-btn {
+      display: flex; align-items: center; gap: 10px; background: white;
+      border: 1.5px solid #c4b5fd; border-radius: 8px; padding: 8px 14px;
+      cursor: pointer; transition: all .15s; font-size: 13px; text-align: left;
+    }
+    .ll-item-btn:hover { background: #f5f3ff; border-color: #8b5cf6; box-shadow: 0 2px 6px rgba(139,92,246,.2); }
+    .ll-item-name { font-weight: 600; color: #4c1d95; }
+    .ll-item-time { color: #6d28d9; font-size: 12px; }
+    .ll-item-count { color: #7c3aed; background: #ede9fe; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .ll-item-action { color: #8b5cf6; font-size: 12px; font-weight: 600; margin-left: 4px; }
   </style>
 </head>
 <body>
@@ -136,6 +158,9 @@
         </div>
       </div>
     </div>
+
+    <!-- Learning Lab Quick Access Panel -->
+    <div id="ll-panel" style="display:none;"></div>
 
     <!-- Tab Navigation -->
     <div class="tab-bar">
@@ -380,10 +405,78 @@
         option.textContent = classMap[className] ? `${className} ⭐ Learning Lab` : className;
         filterClass.appendChild(option);
       });
+
+      // Refresh the learning lab panel whenever classes are rebuilt
+      updateLLPanel();
     }
+
+    // ── Learning Lab Today Panel ────────────────────────────────────────────
+    function updateLLPanel() {
+      const teacher = document.getElementById('filter-teacher').value;
+      const date    = document.getElementById('filter-class-date').value;
+      const panel   = document.getElementById('ll-panel');
+
+      if (!teacher || !date) { panel.style.display = 'none'; return; }
+
+      // Determine abbreviated weekday for the selected date (timezone-safe)
+      const [yr, mo, dy] = date.split('-').map(Number);
+      const dt = new Date(yr, mo - 1, dy);
+      const DAY_MAP = { 0: '', 1: 'M', 2: 'T', 3: 'W', 4: 'Th', 5: 'F', 6: '' };
+      const dayAbbr = DAY_MAP[dt.getDay()];
+
+      if (!dayAbbr) { panel.style.display = 'none'; return; } // weekend
+
+      // Collect unique learning lab classes for this teacher that meet today
+      const labClasses = new Map();
+      allClassSchedules
+        .filter(cs => cs.learningLab && cs.teacherLastName === teacher)
+        .forEach(cs => {
+          if (!(cs.classDays || []).includes(dayAbbr)) return;
+          if (cs.startDate && date < cs.startDate) return;
+          if (cs.endDate   && date > cs.endDate)   return;
+          if (labClasses.has(cs.className)) return;
+          // Count distinct enrolled students
+          const studentCount = allClassSchedules.filter(x =>
+            x.learningLab && x.teacherLastName === teacher && x.className === cs.className
+          ).length;
+          labClasses.set(cs.className, { ...cs, studentCount });
+        });
+
+      if (labClasses.size === 0) { panel.style.display = 'none'; return; }
+
+      const dayLabel = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+      let html = `<div class="ll-panel-inner">
+        <span class="ll-title"><i class="fas fa-flask"></i> Learning Lab Sessions — ${dayLabel}</span>
+        <div class="ll-items">`;
+
+      labClasses.forEach((cs, className) => {
+        const time = cs.startTime && cs.endTime ? `${cs.startTime}–${cs.endTime}` : '';
+        const safeClass = className.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        html += `<button class="ll-item-btn" onclick="quickLoadLab('${safeClass}')">
+          <i class="fas fa-flask" style="color:#8b5cf6;"></i>
+          <span class="ll-item-name">${className}</span>
+          ${time ? `<span class="ll-item-time">${time}</span>` : ''}
+          <span class="ll-item-count">${cs.studentCount} student${cs.studentCount !== 1 ? 's' : ''}</span>
+          <span class="ll-item-action">Take Attendance →</span>
+        </button>`;
+      });
+
+      html += `</div></div>`;
+      panel.innerHTML = html;
+      panel.style.display = 'block';
+    }
+
+    window.quickLoadLab = function(className) {
+      // Ensure class dropdown is populated for the current teacher
+      populateClassDropdown();
+      const filterClass = document.getElementById('filter-class');
+      filterClass.value = className;
+      applyFilters();
+    };
 
     function attachEventListeners() {
       document.getElementById('filter-teacher').addEventListener('change', populateClassDropdown);
+      document.getElementById('filter-class-date').addEventListener('change', updateLLPanel);
       document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
       document.getElementById('btn-download-csv').addEventListener('click', downloadAttendanceCSV);
       document.getElementById('btn-save-top').addEventListener('click', saveAllChanges);

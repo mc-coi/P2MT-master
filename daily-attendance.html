@@ -26,6 +26,9 @@
     .stat-label { font-size:12px; color:#999; margin-top:4px; }
     .filter-card { background:white; box-shadow:0 2px 4px rgba(0,0,0,.1); }
     .action-button { margin:2px; font-size:.9rem; }
+    .code-Lab { background:#f3e8ff; color:#6d28d9; }
+    .lab-row   { background:#faf5ff !important; }
+    .lab-badge { display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700; color:#7c3aed; background:#ede9fe; padding:2px 7px; border-radius:10px; }
   </style>
 </head>
 <body>
@@ -59,6 +62,10 @@
       <div class="stat-card">
         <div class="stat-icon green"><i class="fas fa-file-medical"></i></div>
         <div><div class="stat-value" id="stat-excused">0</div><div class="stat-label">Excused (E / PE / DE)</div></div>
+      </div>
+      <div class="stat-card" id="stat-lab-card" style="display:none;">
+        <div class="stat-icon" style="background:#f3e8ff;color:#7c3aed;"><i class="fas fa-flask"></i></div>
+        <div><div class="stat-value" id="stat-lab">0</div><div class="stat-label">Learning Lab Sessions</div></div>
       </div>
     </div>
 
@@ -97,8 +104,12 @@
         </div>
       </div>
       <div class="w3-row w3-margin-top">
-        <div class="w3-col m12 w3-padding-small">
+        <div class="w3-col m12 w3-padding-small" style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
           <button id="btn-clear" class="w3-button btn-ghost"><i class="fas fa-times"></i> Clear</button>
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:600; color:#6d28d9; user-select:none;">
+            <input type="checkbox" id="filter-include-labs" style="width:16px;height:16px;accent-color:#7c3aed;">
+            <i class="fas fa-flask" style="font-size:13px;"></i> Include Learning Lab Sessions
+          </label>
         </div>
       </div>
     </div>
@@ -181,6 +192,7 @@
 
     let currentUser = null;
     let allLogs     = [];   // classAttendanceLogs with code T/U/E
+    let allLabLogs  = [];   // classAttendanceLogs with learningLab:true
     let filtered    = [];
     let attTable    = null;
 
@@ -194,8 +206,10 @@
       try {
         document.getElementById('loading-container').style.display = 'flex';
         const raw = await getAll('classAttendanceLogs');
-        // Only T, U, E codes matter here
-        allLogs = raw.filter(l => ['T','U','E'].includes(l.attendanceCode));
+        // T, U, E absences for the main view
+        allLogs    = raw.filter(l => ['T','U','E'].includes(l.attendanceCode));
+        // All learning lab entries (any code) for the lab overlay
+        allLabLogs = raw.filter(l => l.learningLab === true);
         document.getElementById('loading-container').style.display = 'none';
 
         populateTeacherFilter();
@@ -209,7 +223,9 @@
     }
 
     function populateTeacherFilter() {
-      const teachers = [...new Set(allLogs.map(l => l.teacherLastName).filter(Boolean))].sort();
+      const teachers = [...new Set(
+        [...allLogs, ...allLabLogs].map(l => l.teacherLastName).filter(Boolean)
+      )].sort();
       const sel = document.getElementById('filter-teacher');
       teachers.forEach(t => {
         const o = document.createElement('option');
@@ -223,13 +239,16 @@
     }
 
     function applyFilters() {
-      const start   = document.getElementById('filter-start').value;
-      const end     = document.getElementById('filter-end').value;
-      const student = document.getElementById('filter-student').value.toLowerCase();
-      const teacher = document.getElementById('filter-teacher').value;
-      const code    = document.getElementById('filter-code').value;
+      const start      = document.getElementById('filter-start').value;
+      const end        = document.getElementById('filter-end').value;
+      const student    = document.getElementById('filter-student').value.toLowerCase();
+      const teacher    = document.getElementById('filter-teacher').value;
+      const code       = document.getElementById('filter-code').value;
+      const includeLabs = document.getElementById('filter-include-labs').checked;
 
-      filtered = allLogs.filter(l => {
+      // Standard T/U/E records (skip learning labs here to avoid duplicates)
+      let base = allLogs.filter(l => {
+        if (l.learningLab) return false; // lab entries handled separately
         const d = getDate(l);
         if (start && d < start) return false;
         if (end   && d > end)   return false;
@@ -241,13 +260,44 @@
           if (!name.includes(student) && !aNum.includes(student)) return false;
         }
         return true;
-      }).sort((a, b) => getDate(b).localeCompare(getDate(a)));
+      });
 
-      updateStats();
+      // Learning lab entries (when toggle is on)
+      let labEntries = [];
+      if (includeLabs) {
+        // Require a date filter when labs are included to avoid thousands of records
+        const effectiveStart = start || new Date().toISOString().split('T')[0];
+        const effectiveEnd   = end   || new Date().toISOString().split('T')[0];
+        if (!start) document.getElementById('filter-start').value = effectiveStart;
+        if (!end)   document.getElementById('filter-end').value   = effectiveEnd;
+
+        // Skip '?' entries that are just placeholders with no T/U/E — show ALL lab entries
+        labEntries = allLabLogs.filter(l => {
+          const d = getDate(l);
+          if (d < effectiveStart || d > effectiveEnd) return false;
+          if (teacher && l.teacherLastName !== teacher) return false;
+          if (student) {
+            const name = (l.studentName || '').toLowerCase();
+            const aNum = (l.chattStateANumber || '').toLowerCase();
+            if (!name.includes(student) && !aNum.includes(student)) return false;
+          }
+          // If code filter is active, only show lab entries with that code (or all labs if no code filter)
+          if (code && l.attendanceCode !== code && l.attendanceCode !== '?') return false;
+          return true;
+        });
+      }
+
+      filtered = [...base, ...labEntries]
+        .sort((a, b) => getDate(b).localeCompare(getDate(a)));
+
+      // Show/hide labs stat card
+      document.getElementById('stat-lab-card').style.display = includeLabs ? '' : 'none';
+
+      updateStats(labEntries);
       renderTable();
     }
 
-    function updateStats() {
+    function updateStats(labEntries = []) {
       document.getElementById('stat-total').textContent     = filtered.length;
       document.getElementById('stat-unexcused').textContent = filtered.filter(l => l.attendanceCode === 'U').length;
       document.getElementById('stat-tardy').textContent     = filtered.filter(l => l.attendanceCode === 'T').length;
@@ -255,9 +305,15 @@
       document.getElementById('stat-excused').textContent   = filtered.filter(l =>
         l.attendanceCode === 'E' || l.excuseType === 'PE' || l.excuseType === 'DE'
       ).length;
+      document.getElementById('stat-lab').textContent = labEntries.length;
     }
 
-    function codeBadge(code) {
+    function codeBadge(code, isLab) {
+      if (isLab) {
+        const map = { U: 'code-U', T: 'code-T', E: 'code-E', P: '', '?': 'code-Lab' };
+        const label = code === '?' ? '⭐ Pending' : `⭐ Lab/${code}`;
+        return `<span class="code-badge ${map[code] || 'code-Lab'}">${label}</span>`;
+      }
       const map = { U: 'code-U', T: 'code-T', E: 'code-E' };
       return `<span class="code-badge ${map[code] || ''}">${code}</span>`;
     }
@@ -275,26 +331,32 @@
 
       filtered.forEach(log => {
         const d = getDate(log);
+        const isLab = log.learningLab === true;
         const row = document.createElement('tr');
-        // Highlight rows with no excuse that are U
-        if (log.attendanceCode === 'U' && !log.excuseType) {
+        // Row highlight
+        if (isLab) {
+          row.className = 'lab-row';
+        } else if (log.attendanceCode === 'U' && !log.excuseType) {
           row.style.background = '#fff5f5';
         }
+        // For lab entries still pending (?) the Excuse button is less relevant
+        const excuseBtn = (isLab && log.attendanceCode === '?')
+          ? `<a class="w3-button w3-small w3-purple action-button" href="class-attendance.html" title="Take attendance in Class Attendance">
+               <i class="fas fa-flask"></i> Take Att.
+             </a>`
+          : `<button class="w3-button w3-small w3-blue action-button" onclick="openExcuseModal('${log.id}')">
+               <i class="fas fa-file-medical"></i> Excuse
+             </button>`;
         row.innerHTML = `
           <td>${formatDate(d)}</td>
-          <td style="font-weight:600;">${log.studentName || '—'}</td>
+          <td style="font-weight:600;">${log.studentName || '—'}${isLab ? ' <span class="lab-badge"><i class="fas fa-flask"></i> Lab</span>' : ''}</td>
           <td>${log.chattStateANumber || '—'}</td>
-          <td>${codeBadge(log.attendanceCode)}</td>
+          <td>${codeBadge(log.attendanceCode, isLab)}</td>
           <td>${log.className || '—'}</td>
           <td>${log.teacherLastName || '—'}</td>
           <td id="excuse-cell-${log.id}">${excuseBadge(log)}</td>
           <td style="font-size:12px;color:#64748b;">${log.comment || log.excuseNotes || '—'}</td>
-          <td>
-            <button class="w3-button w3-small w3-blue action-button"
-              onclick="openExcuseModal('${log.id}')">
-              <i class="fas fa-file-medical"></i> Excuse
-            </button>
-          </td>
+          <td>${excuseBtn}</td>
         `;
         tbody.appendChild(row);
       });
@@ -311,12 +373,14 @@
 
     function attachEvents() {
       document.getElementById('btn-apply').addEventListener('click', applyFilters);
+      document.getElementById('filter-include-labs').addEventListener('change', applyFilters);
       document.getElementById('btn-clear').addEventListener('click', () => {
-        document.getElementById('filter-start').value   = '';
-        document.getElementById('filter-end').value     = '';
-        document.getElementById('filter-student').value = '';
-        document.getElementById('filter-teacher').value = '';
-        document.getElementById('filter-code').value    = '';
+        document.getElementById('filter-start').value        = '';
+        document.getElementById('filter-end').value          = '';
+        document.getElementById('filter-student').value      = '';
+        document.getElementById('filter-teacher').value      = '';
+        document.getElementById('filter-code').value         = '';
+        document.getElementById('filter-include-labs').checked = false;
         applyFilters();
       });
       document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
@@ -376,6 +440,7 @@
         'Student':     l.studentName || '',
         'A#':          l.chattStateANumber || '',
         'Code':        l.attendanceCode,
+        'Type':        l.learningLab ? 'Learning Lab' : 'Regular',
         'Class':       l.className || '',
         'Teacher':     l.teacherLastName || '',
         'Excuse':      l.excuseType || '',
