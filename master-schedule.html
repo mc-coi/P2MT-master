@@ -9,30 +9,77 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
   <style>
-    .day-badge { display: inline-block; width: 24px; height: 24px; border-radius: 3px; text-align: center; line-height: 24px; font-size: 11px; font-weight: bold; color: white; margin: 2px; }
-    .day-m { background-color: #2196F3; }
-    .day-t { background-color: #009688; }
-    .day-w { background-color: #4CAF50; }
-    .day-th { background-color: #FF9800; }
-    .day-f { background-color: #9C27B0; }
-    .badge-online { background-color: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 2px; }
-    .badge-ind { background-color: #FF9800; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 2px; }
-    .badge-lab { background-color: #4CAF50; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 2px; }
-    .modal-form { max-width: 600px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
-    .form-row-full { grid-column: 1 / -1; }
-    .checkbox-group { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
-    .checkbox-group label { margin: 0; }
-    .loading { text-align: center; padding: 20px; }
-    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #2196F3; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    /* ── Existing styles ── */
+    .day-badge { display:inline-block; width:24px; height:24px; border-radius:3px; text-align:center; line-height:24px; font-size:11px; font-weight:bold; color:white; margin:2px; }
+    .day-m  { background-color:#2196F3; }
+    .day-t  { background-color:#009688; }
+    .day-w  { background-color:#4CAF50; }
+    .day-th { background-color:#FF9800; }
+    .day-f  { background-color:#9C27B0; }
+    .badge-online { background-color:#2196F3; color:white; padding:2px 6px; border-radius:3px; font-size:11px; margin:2px; }
+    .badge-ind    { background-color:#FF9800; color:white; padding:2px 6px; border-radius:3px; font-size:11px; margin:2px; }
+    .badge-lab    { background-color:#4CAF50; color:white; padding:2px 6px; border-radius:3px; font-size:11px; margin:2px; }
+    .modal-form { max-width:600px; }
+    .form-row      { display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px; }
+    .form-row-full { grid-column:1 / -1; }
+    .checkbox-group { display:flex; gap:15px; flex-wrap:wrap; align-items:center; }
+    .checkbox-group label { margin:0; }
+
+    /* ── View toggle ── */
+    .view-tabs { display:flex; gap:0; margin-bottom:16px; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; width:fit-content; }
+    .view-tab  { padding:8px 20px; font-size:13px; font-weight:600; cursor:pointer; background:#f8fafc; color:#64748b; border:none; transition:background .15s,color .15s; }
+    .view-tab.active { background:#1d4ed8; color:white; }
+    .view-tab:hover:not(.active) { background:#e2e8f0; }
+
+    /* ── Calendar wrapper ── */
+    .cal-outer    { display:flex; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden; min-height:400px; }
+    .cal-sidebar  { width:180px; flex-shrink:0; background:#f8fafc; border-right:1px solid #e2e8f0; padding:12px; }
+    .cal-sidebar h4 { margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:#475569; }
+    .teacher-item { display:flex; align-items:center; gap:8px; padding:5px 4px; border-radius:4px; cursor:pointer; }
+    .teacher-item:hover { background:#f1f5f9; }
+    .teacher-dot  { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+    .teacher-label { font-size:13px; color:#1e293b; user-select:none; }
+    .sidebar-actions { display:flex; gap:6px; margin-bottom:10px; }
+    .sidebar-btn { font-size:11px; padding:3px 8px; border:1px solid #cbd5e1; background:white; border-radius:4px; cursor:pointer; color:#475569; }
+    .sidebar-btn:hover { background:#f1f5f9; }
+
+    /* ── Calendar grid ── */
+    .cal-main { flex:1; overflow-x:auto; }
+    .cal-grid-wrap { display:flex; min-width:560px; }
+
+    /* Time label column */
+    .cal-timecol { width:68px; flex-shrink:0; }
+    .cal-time-header { height:42px; border-bottom:2px solid #e2e8f0; }
+    .cal-time-label  { height:36px; display:flex; align-items:flex-start; justify-content:flex-end; padding:2px 8px 0 0; font-size:10px; color:#94a3b8; box-sizing:border-box; }
+
+    /* Day columns */
+    .cal-day { flex:1; min-width:100px; border-left:1px solid #e2e8f0; display:flex; flex-direction:column; }
+    .cal-day-header { height:42px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:12px; color:#1e293b; background:#f1f5f9; border-bottom:2px solid #e2e8f0; flex-shrink:0; }
+    .cal-day-body { position:relative; flex:1; }
+    .cal-slot { height:36px; border-bottom:1px solid #f1f5f9; box-sizing:border-box; }
+    .cal-slot.on-hour { border-bottom-color:#e2e8f0; }
+
+    /* Event blocks */
+    .cal-event {
+      position:absolute; left:3px; right:3px;
+      border-radius:5px; padding:3px 6px;
+      font-size:11px; line-height:1.3; color:white;
+      overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,.18);
+      z-index:3; cursor:default;
+      border-left:3px solid rgba(0,0,0,.15);
+    }
+    .cal-event-name    { font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .cal-event-teacher { opacity:.88; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:10px; }
+    .cal-event-time    { opacity:.75; font-size:9px; margin-top:1px; }
+
+    .cal-empty-msg { display:flex; align-items:center; justify-content:center; height:200px; color:#94a3b8; font-size:14px; font-style:italic; }
   </style>
 </head>
 <body>
   <div id="nav-container"></div>
   <div class="page-container" style="margin-top:10px;">
     <h1><i class="fas fa-calendar-alt"></i> Master Schedule</h1>
-    
+
     <!-- Action Buttons -->
     <div class="w3-bar w3-margin-bottom">
       <button class="w3-button btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Add Class</button>
@@ -41,43 +88,67 @@
       <button class="w3-button w3-purple" onclick="openPropagateModal()"><i class="fas fa-clock"></i> Propagate Attendance Logs</button>
     </div>
 
-    <!-- Filter Bar -->
-    <div class="w3-card w3-padding w3-margin-bottom">
-      <div class="w3-row">
-        <div class="w3-col s12 m3"><label>School Year:<input class="w3-input w3-border" type="text" id="filterSchoolYear" placeholder="e.g., 2025-2026"></label></div>
-        <div class="w3-col s12 m3"><label>Semester:<br><input type="radio" name="semester" value=""> Any
-          <input type="radio" name="semester" value="Fall"> Fall
-          <input type="radio" name="semester" value="Spring"> Spring</label></div>
-        <div class="w3-col s12 m3"><label>Teacher:<input class="w3-input w3-border" type="text" id="filterTeacher" placeholder="Last Name"></label></div>
-        <div class="w3-col s12 m3"><label>Student:<input class="w3-input w3-border" type="text" id="filterStudent" placeholder="Name or A#"></label></div>
+    <!-- View Toggle -->
+    <div class="view-tabs">
+      <button id="tabTable" class="view-tab active" onclick="setView('table')">
+        <i class="fas fa-table"></i> Table View
+      </button>
+      <button id="tabCal" class="view-tab" onclick="setView('calendar')">
+        <i class="fas fa-calendar-week"></i> Weekly View
+      </button>
+    </div>
+
+    <!-- ══ TABLE VIEW ══ -->
+    <div id="tableSection">
+      <div class="w3-card w3-padding w3-margin-bottom">
+        <div class="w3-row">
+          <div class="w3-col s12 m3"><label>School Year:<input class="w3-input w3-border" type="text" id="filterSchoolYear" placeholder="e.g., 2025-2026"></label></div>
+          <div class="w3-col s12 m3"><label>Semester:<br>
+            <input type="radio" name="semester" value=""> Any
+            <input type="radio" name="semester" value="Fall"> Fall
+            <input type="radio" name="semester" value="Spring"> Spring</label></div>
+          <div class="w3-col s12 m3"><label>Teacher:<input class="w3-input w3-border" type="text" id="filterTeacher" placeholder="Last Name"></label></div>
+          <div class="w3-col s12 m3"><label>Student:<input class="w3-input w3-border" type="text" id="filterStudent" placeholder="Name or A#"></label></div>
+        </div>
+        <div class="w3-row w3-margin-top">
+          <div class="w3-col s12 m3"><label>Campus:<input class="w3-input w3-border" type="text" id="filterCampus" placeholder="Campus"></label></div>
+          <div class="w3-col s12 m9 w3-right-align"><button class="w3-button btn-primary" onclick="applyFilters()"><i class="fas fa-filter"></i> Apply Filters</button></div>
+        </div>
       </div>
-      <div class="w3-row w3-margin-top">
-        <div class="w3-col s12 m3"><label>Campus:<input class="w3-input w3-border" type="text" id="filterCampus" placeholder="Campus"></label></div>
-        <div class="w3-col s12 m9 w3-right-align"><button class="w3-button btn-primary" onclick="applyFilters()"><i class="fas fa-filter"></i> Apply Filters</button></div>
+      <div style="overflow-x:auto;">
+        <table id="scheduleTable" class="w3-table-all w3-striped w3-bordered">
+          <thead>
+            <tr class="btn-primary">
+              <th>Student Name</th><th>ChattState A#</th><th>School Year</th><th>Semester</th>
+              <th>Campus</th><th>Class Name</th><th>Teacher</th><th>Days</th>
+              <th>Start Time</th><th>End Time</th><th>Flags</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
       </div>
     </div>
 
-    <!-- Data Table -->
-    <div style="overflow-x: auto;">
-      <table id="scheduleTable" class="w3-table-all w3-striped w3-bordered">
-        <thead>
-          <tr class="btn-primary">
-            <th>Student Name</th>
-            <th>ChattState A#</th>
-            <th>School Year</th>
-            <th>Semester</th>
-            <th>Campus</th>
-            <th>Class Name</th>
-            <th>Teacher</th>
-            <th>Days</th>
-            <th>Start Time</th>
-            <th>End Time</th>
-            <th>Flags</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="tableBody"></tbody>
-      </table>
+    <!-- ══ CALENDAR VIEW ══ -->
+    <div id="calendarSection" style="display:none;">
+      <div class="cal-outer">
+        <!-- Teacher sidebar -->
+        <div class="cal-sidebar">
+          <h4><i class="fas fa-chalkboard-teacher"></i> Teachers</h4>
+          <div class="sidebar-actions">
+            <button class="sidebar-btn" onclick="checkAllTeachers()">All</button>
+            <button class="sidebar-btn" onclick="uncheckAllTeachers()">None</button>
+          </div>
+          <div id="teacherList"></div>
+        </div>
+
+        <!-- Calendar -->
+        <div class="cal-main">
+          <div id="calGrid">
+            <div class="cal-empty-msg">Check a teacher to view their schedule</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -86,44 +157,37 @@
     <div class="w3-modal-content w3-card modal-form">
       <button class="modal-close-btn" onclick="closeModal()">×</button>
       <div class="modal-body"><h2 id="modalTitle">Add Class Schedule</h2>
-        
         <div class="form-row">
-          <div><label>Student:<br><input class="w3-input w3-border" type="text" id="studentSearch" placeholder="Search student" onkeyup="searchStudents()"></label>
+          <div>
+            <label>Student:<br><input class="w3-input w3-border" type="text" id="studentSearch" placeholder="Search student" onkeyup="searchStudents()"></label>
             <div id="studentDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:200px; max-height:200px; overflow-y:auto; z-index:100;"></div>
             <input type="hidden" id="studentId">
             <div id="studentDisplay"></div>
           </div>
           <div><label>School Year<input class="w3-input w3-border" type="text" id="schoolYear"></label></div>
         </div>
-
         <div class="form-row">
           <div><label>Semester<select class="w3-input w3-border" id="semester"><option>Fall</option><option>Spring</option></select></label></div>
           <div><label>Campus<input class="w3-input w3-border" type="text" id="campus"></label></div>
         </div>
-
         <div class="form-row-full"><label>Class Name<input class="w3-input w3-border" type="text" id="className"></label></div>
         <div class="form-row-full"><label>Teacher Last Name<input class="w3-input w3-border" type="text" id="teacherLastName"></label></div>
-
         <label>Class Days:</label>
         <div class="checkbox-group">
-          <label><input type="checkbox" id="dayM" value="M"> M</label>
-          <label><input type="checkbox" id="dayT" value="T"> T</label>
-          <label><input type="checkbox" id="dayW" value="W"> W</label>
+          <label><input type="checkbox" id="dayM"  value="M">  M</label>
+          <label><input type="checkbox" id="dayT"  value="T">  T</label>
+          <label><input type="checkbox" id="dayW"  value="W">  W</label>
           <label><input type="checkbox" id="dayTh" value="Th"> Th</label>
-          <label><input type="checkbox" id="dayF" value="F"> F</label>
+          <label><input type="checkbox" id="dayF"  value="F">  F</label>
         </div>
-
         <div class="form-row w3-margin-top">
           <div><label>Start Time<input class="w3-input w3-border" type="time" id="startTime"></label></div>
           <div><label>End Time<input class="w3-input w3-border" type="time" id="endTime"></label></div>
         </div>
-
         <label class="w3-margin-top"><input type="checkbox" id="online"> Online</label><br>
         <label><input type="checkbox" id="indStudy"> Independent Study</label><br>
         <label><input type="checkbox" id="learningLab"> Learning Lab</label><br>
-
         <label class="w3-margin-top">Comment<textarea class="w3-input w3-border" id="comment" rows="3"></textarea></label>
-
         <div class="w3-row w3-margin-top">
           <button class="w3-button btn-primary w3-half" onclick="saveSchedule()"><i class="fas fa-save"></i> Save</button>
           <button class="w3-button btn-danger w3-half" onclick="closeModal()"><i class="fas fa-times"></i> Cancel</button>
@@ -138,12 +202,9 @@
       <button class="modal-close-btn" onclick="closeUploadModal()">×</button>
       <div class="modal-body"><h2>Upload Schedule CSV</h2>
         <p><button class="w3-button btn-primary" onclick="downloadTemplate()"><i class="fas fa-download"></i> Download Template</button></p>
-        
         <label>Select CSV File:</label>
         <input type="file" id="csvFile" accept=".csv" onchange="previewCSV()">
-        
         <div id="csvPreview" style="margin-top:20px;"></div>
-        
         <div class="w3-row w3-margin-top">
           <button class="w3-button btn-primary w3-half" onclick="importCSVData()"><i class="fas fa-upload"></i> Import</button>
           <button class="w3-button btn-danger w3-half" onclick="closeUploadModal()"><i class="fas fa-times"></i> Cancel</button>
@@ -159,12 +220,10 @@
       <button class="modal-close-btn" onclick="closePropagateModal()">×</button>
       <div class="modal-body"><h2>Propagate Attendance Logs</h2>
         <p class="w3-text-grey">Create attendance log records for all scheduled classes in the selected date range.</p>
-        
         <label>School Year:<input class="w3-input w3-border" type="text" id="propSchoolYear"></label>
         <label>Semester:<select class="w3-input w3-border" id="propSemester"><option>Fall</option><option>Spring</option></select></label>
         <label>Start Date:<input class="w3-input w3-border" type="date" id="propStartDate"></label>
         <label>End Date:<input class="w3-input w3-border" type="date" id="propEndDate"></label>
-        
         <div class="w3-row w3-margin-top">
           <button class="w3-button btn-primary w3-half" onclick="propagateAttendance()"><i class="fas fa-clock"></i> Propagate</button>
           <button class="w3-button btn-danger w3-half" onclick="closePropagateModal()"><i class="fas fa-times"></i> Cancel</button>
@@ -174,7 +233,7 @@
     </div>
   </div>
 
-  <!-- Delete Confirmation Modal -->
+  <!-- Delete Modal -->
   <div id="deleteModal" class="w3-modal">
     <div class="w3-modal-content w3-card" style="max-width:400px;">
       <button class="modal-close-btn" onclick="closeDeleteModal()">×</button>
@@ -199,29 +258,42 @@
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
 
-    window.getAll = getAll;
-    window.getById = getById;
-    window.addDoc = addDoc;
-    window.updateDoc = updateDoc;
-    window.deleteDoc = deleteDoc;
-    window.getWhere = getWhere;
-    window.getWhereMultiple = getWhereMultiple;
-    window.batchWrite = batchWrite;
-    window.formatDate = formatDate;
-    window.exportCSV = exportCSV;
-    window.importCSV = importCSV;
-    window.showToast = showToast;
-    window.showModal = showModal;
+    // Expose to inline handlers
+    window.getAll = getAll; window.getById = getById; window.addDoc = addDoc;
+    window.updateDoc = updateDoc; window.deleteDoc = deleteDoc;
+    window.getWhere = getWhere; window.getWhereMultiple = getWhereMultiple;
+    window.batchWrite = batchWrite; window.formatDate = formatDate;
+    window.exportCSV = exportCSV; window.importCSV = importCSV;
+    window.showToast = showToast; window.showModal = showModal;
     window.getCurrentSchoolYear = getCurrentSchoolYear;
     window.getCurrentSemester = getCurrentSemester;
 
-    let allSchedules = [];
+    let allSchedules    = [];
     let filteredSchedules = [];
-    let allStudents = [];
-    let currentEditId = null;
+    let allStudents     = [];
+    let currentEditId   = null;
     let currentDeleteId = null;
-    let csvData = [];
+    let csvData         = [];
+    let currentView     = 'table';
 
+    // ── Teacher colors (10 distinct) ──
+    const PALETTE = [
+      '#2563EB','#059669','#DC2626','#7C3AED','#D97706',
+      '#0891B2','#BE185D','#16A34A','#EA580C','#0F766E'
+    ];
+    let teacherColors = {}; // teacherLastName → hex color
+
+    // ── Calendar constants ──
+    const SLOT_H   = 36;   // px per 30-min slot
+    const MIN_MINS = 7 * 60;   // 7:00 AM
+    const MAX_MINS = 21 * 60;  // 9:00 PM
+    const TOTAL_SLOTS = (MAX_MINS - MIN_MINS) / 30; // 28
+    const DAYS       = ['M', 'T', 'W', 'Th', 'F'];
+    const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+    // ─────────────────────────────────────────────
+    //  INIT
+    // ─────────────────────────────────────────────
     initAuth().then(user => {
       if (!user) window.location.href = 'index.html';
       initNav('master-schedule');
@@ -230,88 +302,236 @@
 
     async function init() {
       try {
-        document.getElementById('schoolYear').value = getCurrentSchoolYear();
+        document.getElementById('schoolYear').value    = getCurrentSchoolYear();
         document.getElementById('propSchoolYear').value = getCurrentSchoolYear();
-        document.getElementById('semester').value = getCurrentSemester();
-        document.getElementById('propSemester').value = getCurrentSemester();
-        document.getElementById('campus').value = 'STEM School';
-        
+        document.getElementById('semester').value       = getCurrentSemester();
+        document.getElementById('propSemester').value   = getCurrentSemester();
+        document.getElementById('campus').value         = 'STEM School';
         await loadSchedules();
-      } catch (error) {
-        console.error('Init error:', error);
+      } catch (err) {
+        console.error('Init error:', err);
         showToast('Error loading schedules', 'error');
       }
     }
 
     async function loadSchedules() {
-      try {
-        allSchedules = await getAll('classSchedules');
-        allStudents = await getAll('students');
-        filteredSchedules = allSchedules;
-        renderTable();
-      } catch (error) {
-        console.error('Load schedules error:', error);
-        showToast('Error loading schedules', 'error');
-      }
+      allSchedules  = await getAll('classSchedules');
+      allStudents   = await getAll('students');
+      filteredSchedules = allSchedules;
+      buildTeacherColors();
+      renderTable();
+      buildTeacherList();
     }
 
+    // ─────────────────────────────────────────────
+    //  VIEW TOGGLE
+    // ─────────────────────────────────────────────
+    window.setView = function(view) {
+      currentView = view;
+      document.getElementById('tableSection').style.display    = view === 'table'    ? '' : 'none';
+      document.getElementById('calendarSection').style.display = view === 'calendar' ? '' : 'none';
+      document.getElementById('tabTable').classList.toggle('active', view === 'table');
+      document.getElementById('tabCal').classList.toggle('active', view === 'calendar');
+      if (view === 'calendar') renderCalendar();
+    };
+
+    // ─────────────────────────────────────────────
+    //  TABLE VIEW
+    // ─────────────────────────────────────────────
     function renderTable() {
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
-      filteredSchedules.forEach(schedule => {
-        const daysHtml = (schedule.classDays || []).map(day => `<span class="day-badge day-${day.toLowerCase()}">${day}</span>`).join('');
+      filteredSchedules.forEach(s => {
+        const daysHtml  = (s.classDays || []).map(d => `<span class="day-badge day-${d.toLowerCase()}">${d}</span>`).join('');
         let flagsHtml = '';
-        if (schedule.online) flagsHtml += '<span class="badge-online">Online</span>';
-        if (schedule.indStudy) flagsHtml += '<span class="badge-ind">Ind Study</span>';
-        if (schedule.learningLab) flagsHtml += '<span class="badge-lab">Lab</span>';
-        
-        tbody.innerHTML += `
-          <tr>
-            <td>${schedule.studentName || ''}</td>
-            <td>${schedule.chattStateANumber || ''}</td>
-            <td>${schedule.schoolYear || ''}</td>
-            <td>${schedule.semester || ''}</td>
-            <td>${schedule.campus || ''}</td>
-            <td>${schedule.className || ''}</td>
-            <td>${schedule.teacherLastName || ''}</td>
-            <td>${daysHtml}</td>
-            <td>${schedule.startTime || ''}</td>
-            <td>${schedule.endTime || ''}</td>
-            <td>${flagsHtml}</td>
-            <td>
-              <button class="w3-button btn-primary w3-small" onclick="openEditModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
-              <button class="w3-button btn-danger w3-small" onclick="openDeleteModal('${schedule.id}')"><i class="fas fa-trash"></i></button>
-            </td>
-          </tr>
-        `;
+        if (s.online)       flagsHtml += '<span class="badge-online">Online</span>';
+        if (s.indStudy)     flagsHtml += '<span class="badge-ind">Ind Study</span>';
+        if (s.learningLab)  flagsHtml += '<span class="badge-lab">Lab</span>';
+        tbody.innerHTML += `<tr>
+          <td>${s.studentName || ''}</td>
+          <td>${s.chattStateANumber || ''}</td>
+          <td>${s.schoolYear || ''}</td>
+          <td>${s.semester || ''}</td>
+          <td>${s.campus || ''}</td>
+          <td>${s.className || ''}</td>
+          <td>${s.teacherLastName || ''}</td>
+          <td>${daysHtml}</td>
+          <td>${s.startTime || ''}</td>
+          <td>${s.endTime || ''}</td>
+          <td>${flagsHtml}</td>
+          <td>
+            <button class="w3-button btn-primary w3-small" onclick="openEditModal('${s.id}')"><i class="fas fa-edit"></i></button>
+            <button class="w3-button btn-danger w3-small" onclick="openDeleteModal('${s.id}')"><i class="fas fa-trash"></i></button>
+          </td>
+        </tr>`;
       });
-      if ($.fn.DataTable.isDataTable('#scheduleTable')) {
-        $('#scheduleTable').DataTable().destroy();
-      }
-      $('#scheduleTable').DataTable({
-        pageLength: 25,
-        order: [[0, 'asc']]
-      });
+      if ($.fn.DataTable.isDataTable('#scheduleTable')) $('#scheduleTable').DataTable().destroy();
+      $('#scheduleTable').DataTable({ pageLength:25, order:[[0,'asc']] });
     }
 
-    window.applyFilters = async function() {
-      const year = document.getElementById('filterSchoolYear').value;
+    window.applyFilters = function() {
+      const year     = document.getElementById('filterSchoolYear').value;
       const semester = document.querySelector('input[name="semester"]:checked')?.value || '';
-      const teacher = document.getElementById('filterTeacher').value.toLowerCase();
-      const student = document.getElementById('filterStudent').value.toLowerCase();
-      const campus = document.getElementById('filterCampus').value.toLowerCase();
-      
+      const teacher  = document.getElementById('filterTeacher').value.toLowerCase();
+      const student  = document.getElementById('filterStudent').value.toLowerCase();
+      const campus   = document.getElementById('filterCampus').value.toLowerCase();
+
       filteredSchedules = allSchedules.filter(s => {
-        const matchYear = !year || s.schoolYear === year;
-        const matchSemester = !semester || s.semester === semester;
-        const matchTeacher = !teacher || (s.teacherLastName || '').toLowerCase().includes(teacher);
-        const matchStudent = !student || (s.studentName || '').toLowerCase().includes(student) || (s.chattStateANumber || '').includes(student);
-        const matchCampus = !campus || (s.campus || '').toLowerCase().includes(campus);
-        return matchYear && matchSemester && matchTeacher && matchStudent && matchCampus;
+        return (!year     || s.schoolYear === year)
+            && (!semester || s.semester   === semester)
+            && (!teacher  || (s.teacherLastName || '').toLowerCase().includes(teacher))
+            && (!student  || (s.studentName || '').toLowerCase().includes(student) || (s.chattStateANumber || '').includes(student))
+            && (!campus   || (s.campus || '').toLowerCase().includes(campus));
       });
       renderTable();
+      if (currentView === 'calendar') renderCalendar();
     };
 
+    // ─────────────────────────────────────────────
+    //  CALENDAR VIEW
+    // ─────────────────────────────────────────────
+    function buildTeacherColors() {
+      const names = [...new Set(allSchedules.map(s => s.teacherLastName).filter(Boolean))].sort();
+      names.forEach((n, i) => { teacherColors[n] = PALETTE[i % PALETTE.length]; });
+    }
+
+    function buildTeacherList() {
+      const teachers = [...new Set(allSchedules.map(s => s.teacherLastName).filter(Boolean))].sort();
+      const list = document.getElementById('teacherList');
+      list.innerHTML = teachers.map(t => `
+        <label class="teacher-item">
+          <input type="checkbox" class="teacher-cb" value="${t}" onchange="renderCalendar()" style="display:none;">
+          <span class="teacher-dot" style="background:${teacherColors[t]};"></span>
+          <span class="teacher-label">${t}</span>
+        </label>
+      `).join('');
+    }
+
+    window.checkAllTeachers = function() {
+      document.querySelectorAll('.teacher-cb').forEach(cb => cb.checked = true);
+      renderCalendar();
+    };
+    window.uncheckAllTeachers = function() {
+      document.querySelectorAll('.teacher-cb').forEach(cb => cb.checked = false);
+      renderCalendar();
+    };
+
+    function getCheckedTeachers() {
+      return new Set([...document.querySelectorAll('.teacher-cb:checked')].map(cb => cb.value));
+    }
+
+    // Parse "HH:MM" → total minutes
+    function toMins(t) {
+      if (!t) return 0;
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + (m || 0);
+    }
+
+    // Format "HH:MM" → "h:MM AM/PM"
+    function fmtTime(t) {
+      if (!t) return '';
+      const [h, m] = t.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      return `${h > 12 ? h - 12 : (h === 0 ? 12 : h)}:${String(m).padStart(2,'0')} ${ampm}`;
+    }
+
+    // Deduplicate classes (multiple students share the same class slot)
+    function getUniqueClasses(schedules) {
+      const seen = new Set();
+      const result = [];
+      schedules.forEach(s => {
+        const key = `${s.teacherLastName}|${s.className}|${s.startTime}|${s.endTime}|${(s.classDays||[]).slice().sort().join(',')}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          result.push({
+            teacherLastName: s.teacherLastName,
+            className: s.className,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            classDays: s.classDays || [],
+            learningLab: s.learningLab
+          });
+        }
+      });
+      return result;
+    }
+
+    window.renderCalendar = function() {
+      const checked = getCheckedTeachers();
+      const grid    = document.getElementById('calGrid');
+
+      if (checked.size === 0) {
+        grid.innerHTML = '<div class="cal-empty-msg">Check a teacher to view their schedule</div>';
+        return;
+      }
+
+      const classes = getUniqueClasses(
+        filteredSchedules.filter(s => checked.has(s.teacherLastName))
+      );
+
+      // ── Build time labels column ──
+      let timeColHtml = `<div class="cal-timecol"><div class="cal-time-header"></div>`;
+      for (let i = 0; i < TOTAL_SLOTS; i++) {
+        const mins = MIN_MINS + i * 30;
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        const label = m === 0
+          ? `${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}`
+          : '';
+        timeColHtml += `<div class="cal-time-label">${label}</div>`;
+      }
+      timeColHtml += `</div>`;
+
+      // ── Build each day column ──
+      let dayColsHtml = '';
+      DAYS.forEach((day, di) => {
+        // Background slots
+        let slotsHtml = '';
+        for (let i = 0; i < TOTAL_SLOTS; i++) {
+          const isHour = (i % 2 === 0);
+          slotsHtml += `<div class="cal-slot${isHour ? ' on-hour' : ''}"></div>`;
+        }
+
+        // Events for this day
+        let eventsHtml = '';
+        classes.forEach(cls => {
+          if (!(cls.classDays || []).includes(day)) return;
+          const startM = toMins(cls.startTime);
+          const endM   = toMins(cls.endTime);
+          if (startM < MIN_MINS || endM > MAX_MINS || endM <= startM) return;
+
+          const top    = (startM - MIN_MINS) / 30 * SLOT_H;
+          const height = Math.max((endM - startM) / 30 * SLOT_H, SLOT_H * 0.5);
+          const color  = teacherColors[cls.teacherLastName] || '#6B7280';
+          const isLab  = cls.learningLab ? '⭐ ' : '';
+          const title  = `${isLab}${cls.className}\n${cls.teacherLastName}\n${fmtTime(cls.startTime)} – ${fmtTime(cls.endTime)}`;
+
+          eventsHtml += `
+            <div class="cal-event"
+              style="top:${top}px; height:${height}px; background:${color};"
+              title="${title.replace(/"/g,'&quot;')}">
+              <div class="cal-event-name">${isLab}${cls.className}</div>
+              ${height > 40 ? `<div class="cal-event-teacher">${cls.teacherLastName}</div>` : ''}
+              ${height > 54 ? `<div class="cal-event-time">${fmtTime(cls.startTime)} – ${fmtTime(cls.endTime)}</div>` : ''}
+            </div>`;
+        });
+
+        dayColsHtml += `
+          <div class="cal-day">
+            <div class="cal-day-header">${DAY_LABELS[di]}</div>
+            <div class="cal-day-body">
+              ${slotsHtml}
+              ${eventsHtml}
+            </div>
+          </div>`;
+      });
+
+      grid.innerHTML = `<div class="cal-grid-wrap">${timeColHtml}${dayColsHtml}</div>`;
+    };
+
+    // ─────────────────────────────────────────────
+    //  ADD / EDIT MODAL
+    // ─────────────────────────────────────────────
     window.openAddModal = function() {
       currentEditId = null;
       document.getElementById('modalTitle').textContent = 'Add Class Schedule';
@@ -323,49 +543,42 @@
       document.getElementById('online').checked = false;
       document.getElementById('indStudy').checked = false;
       document.getElementById('learningLab').checked = false;
-      document.getElementById('dayM').checked = false;
-      document.getElementById('dayT').checked = false;
-      document.getElementById('dayW').checked = false;
-      document.getElementById('dayTh').checked = false;
-      document.getElementById('dayF').checked = false;
+      ['M','T','W','Th','F'].forEach(d => document.getElementById(`day${d === 'Th' ? 'Th' : d}`).checked = false);
       document.getElementById('schoolYear').value = getCurrentSchoolYear();
-      document.getElementById('semester').value = getCurrentSemester();
-      document.getElementById('campus').value = 'STEM School';
+      document.getElementById('semester').value   = getCurrentSemester();
+      document.getElementById('campus').value     = 'STEM School';
       document.getElementById('startTime').value = '';
-      document.getElementById('endTime').value = '';
+      document.getElementById('endTime').value   = '';
       document.getElementById('scheduleModal').style.display = 'block';
     };
 
     window.openEditModal = async function(id) {
       try {
-        const schedule = await getById('classSchedules', id);
-        if (!schedule) return;
-        
+        const s = await getById('classSchedules', id);
+        if (!s) return;
         currentEditId = id;
         document.getElementById('modalTitle').textContent = 'Edit Class Schedule';
-        document.getElementById('studentId').value = schedule.studentId || '';
-        document.getElementById('studentDisplay').innerHTML = `<div class="w3-text-blue"><strong>${schedule.studentName}</strong> (${schedule.chattStateANumber})</div>`;
-        document.getElementById('schoolYear').value = schedule.schoolYear || '';
-        document.getElementById('semester').value = schedule.semester || '';
-        document.getElementById('campus').value = schedule.campus || '';
-        document.getElementById('className').value = schedule.className || '';
-        document.getElementById('teacherLastName').value = schedule.teacherLastName || '';
-        document.getElementById('comment').value = schedule.comment || '';
-        document.getElementById('online').checked = schedule.online || false;
-        document.getElementById('indStudy').checked = schedule.indStudy || false;
-        document.getElementById('learningLab').checked = schedule.learningLab || false;
-        document.getElementById('startTime').value = schedule.startTime || '';
-        document.getElementById('endTime').value = schedule.endTime || '';
-        
-        document.getElementById('dayM').checked = (schedule.classDays || []).includes('M');
-        document.getElementById('dayT').checked = (schedule.classDays || []).includes('T');
-        document.getElementById('dayW').checked = (schedule.classDays || []).includes('W');
-        document.getElementById('dayTh').checked = (schedule.classDays || []).includes('Th');
-        document.getElementById('dayF').checked = (schedule.classDays || []).includes('F');
-        
+        document.getElementById('studentId').value = s.studentId || '';
+        document.getElementById('studentDisplay').innerHTML = `<div class="w3-text-blue"><strong>${s.studentName}</strong> (${s.chattStateANumber})</div>`;
+        document.getElementById('schoolYear').value = s.schoolYear || '';
+        document.getElementById('semester').value   = s.semester   || '';
+        document.getElementById('campus').value     = s.campus     || '';
+        document.getElementById('className').value  = s.className  || '';
+        document.getElementById('teacherLastName').value = s.teacherLastName || '';
+        document.getElementById('comment').value    = s.comment    || '';
+        document.getElementById('online').checked   = s.online     || false;
+        document.getElementById('indStudy').checked = s.indStudy   || false;
+        document.getElementById('learningLab').checked = s.learningLab || false;
+        document.getElementById('startTime').value  = s.startTime  || '';
+        document.getElementById('endTime').value    = s.endTime    || '';
+        document.getElementById('dayM').checked  = (s.classDays || []).includes('M');
+        document.getElementById('dayT').checked  = (s.classDays || []).includes('T');
+        document.getElementById('dayW').checked  = (s.classDays || []).includes('W');
+        document.getElementById('dayTh').checked = (s.classDays || []).includes('Th');
+        document.getElementById('dayF').checked  = (s.classDays || []).includes('F');
         document.getElementById('scheduleModal').style.display = 'block';
-      } catch (error) {
-        console.error('Edit modal error:', error);
+      } catch (err) {
+        console.error(err);
         showToast('Error loading schedule', 'error');
       }
     };
@@ -378,98 +591,89 @@
     window.saveSchedule = async function() {
       try {
         const studentId = document.getElementById('studentId').value;
-        if (!studentId) {
-          showToast('Please select a student', 'error');
-          return;
-        }
-
+        if (!studentId) { showToast('Please select a student', 'error'); return; }
         const classDays = [];
-        if (document.getElementById('dayM').checked) classDays.push('M');
-        if (document.getElementById('dayT').checked) classDays.push('T');
-        if (document.getElementById('dayW').checked) classDays.push('W');
+        if (document.getElementById('dayM').checked)  classDays.push('M');
+        if (document.getElementById('dayT').checked)  classDays.push('T');
+        if (document.getElementById('dayW').checked)  classDays.push('W');
         if (document.getElementById('dayTh').checked) classDays.push('Th');
-        if (document.getElementById('dayF').checked) classDays.push('F');
-
+        if (document.getElementById('dayF').checked)  classDays.push('F');
         const data = {
-          studentId: studentId,
+          studentId,
           studentName: document.getElementById('studentDisplay').innerText.split('\n')[0],
           chattStateANumber: document.getElementById('studentDisplay').innerText.match(/\(([^)]+)\)/)?.[1] || '',
           schoolYear: document.getElementById('schoolYear').value,
-          semester: document.getElementById('semester').value,
-          campus: document.getElementById('campus').value,
-          className: document.getElementById('className').value,
+          semester:   document.getElementById('semester').value,
+          campus:     document.getElementById('campus').value,
+          className:  document.getElementById('className').value,
           teacherLastName: document.getElementById('teacherLastName').value,
-          classDays: classDays,
+          classDays,
           startTime: document.getElementById('startTime').value,
-          endTime: document.getElementById('endTime').value,
-          online: document.getElementById('online').checked,
-          indStudy: document.getElementById('indStudy').checked,
+          endTime:   document.getElementById('endTime').value,
+          online:     document.getElementById('online').checked,
+          indStudy:   document.getElementById('indStudy').checked,
           learningLab: document.getElementById('learningLab').checked,
-          comment: document.getElementById('comment').value
+          comment:    document.getElementById('comment').value
         };
-
         if (currentEditId) {
           await updateDoc('classSchedules', currentEditId, data);
-          showToast('Schedule updated successfully', 'success');
+          showToast('Schedule updated', 'success');
         } else {
           await addDoc('classSchedules', data);
-          showToast('Schedule added successfully', 'success');
+          showToast('Schedule added', 'success');
         }
-        
         closeModal();
         await loadSchedules();
-      } catch (error) {
-        console.error('Save error:', error);
+        if (currentView === 'calendar') renderCalendar();
+      } catch (err) {
+        console.error(err);
         showToast('Error saving schedule', 'error');
       }
     };
 
+    // ─────────────────────────────────────────────
+    //  DELETE
+    // ─────────────────────────────────────────────
     window.openDeleteModal = function(id) {
       currentDeleteId = id;
       document.getElementById('deleteModal').style.display = 'block';
     };
-
     window.closeDeleteModal = function() {
       document.getElementById('deleteModal').style.display = 'none';
       currentDeleteId = null;
     };
-
     window.confirmDelete = async function() {
       try {
         if (currentDeleteId) {
           await deleteDoc('classSchedules', currentDeleteId);
-          showToast('Schedule deleted successfully', 'success');
+          showToast('Schedule deleted', 'success');
           closeDeleteModal();
           await loadSchedules();
         }
-      } catch (error) {
-        console.error('Delete error:', error);
+      } catch (err) {
+        console.error(err);
         showToast('Error deleting schedule', 'error');
       }
     };
 
+    // ─────────────────────────────────────────────
+    //  STUDENT SEARCH
+    // ─────────────────────────────────────────────
     window.searchStudents = function() {
-      const query = document.getElementById('studentSearch').value.toLowerCase();
+      const query    = document.getElementById('studentSearch').value.toLowerCase();
       const dropdown = document.getElementById('studentDropdown');
-      
-      if (query.length < 1) {
-        dropdown.style.display = 'none';
-        return;
-      }
-
-      const filtered = allStudents.filter(s => 
-        (s.firstName || '').toLowerCase().includes(query) || 
-        (s.lastName || '').toLowerCase().includes(query) || 
+      if (query.length < 1) { dropdown.style.display = 'none'; return; }
+      const filtered = allStudents.filter(s =>
+        (s.firstName || '').toLowerCase().includes(query) ||
+        (s.lastName  || '').toLowerCase().includes(query) ||
         (s.chattStateANumber || '').includes(query)
       ).slice(0, 10);
-
-      if (filtered.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-      }
-
-      dropdown.innerHTML = filtered.map(s => 
-        `<a onclick="selectStudent('${s.id}', '${s.firstName} ${s.lastName}', '${s.chattStateANumber}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.firstName} ${s.lastName} (${s.chattStateANumber})</a>`
+      if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
+      dropdown.innerHTML = filtered.map(s =>
+        `<a onclick="selectStudent('${s.id}','${s.firstName} ${s.lastName}','${s.chattStateANumber}')"
+            class="w3-dropdown-item" style="cursor:pointer;padding:8px;">
+          ${s.firstName} ${s.lastName} (${s.chattStateANumber})
+        </a>`
       ).join('');
       dropdown.style.display = 'block';
     };
@@ -481,31 +685,19 @@
       document.getElementById('studentDropdown').style.display = 'none';
     };
 
-    window.downloadSchedule = async function() {
-      try {
-        const headers = ['Student Name', 'ChattState A#', 'School Year', 'Semester', 'Campus', 'Class Name', 'Teacher', 'Days', 'Start Time', 'End Time', 'Online', 'Ind Study', 'Learning Lab', 'Comment'];
-        const rows = filteredSchedules.map(s => [
-          s.studentName || '',
-          s.chattStateANumber || '',
-          s.schoolYear || '',
-          s.semester || '',
-          s.campus || '',
-          s.className || '',
-          s.teacherLastName || '',
-          (s.classDays || []).join(', '),
-          s.startTime || '',
-          s.endTime || '',
-          s.online ? 'Yes' : 'No',
-          s.indStudy ? 'Yes' : 'No',
-          s.learningLab ? 'Yes' : 'No',
-          s.comment || ''
-        ]);
-        exportCSV(headers, rows, 'master-schedule.csv');
-        showToast('Schedule downloaded', 'success');
-      } catch (error) {
-        console.error('Download error:', error);
-        showToast('Error downloading schedule', 'error');
-      }
+    // ─────────────────────────────────────────────
+    //  DOWNLOAD / UPLOAD
+    // ─────────────────────────────────────────────
+    window.downloadSchedule = function() {
+      const headers = ['Student Name','ChattState A#','School Year','Semester','Campus','Class Name','Teacher','Days','Start Time','End Time','Online','Ind Study','Learning Lab','Comment'];
+      const rows = filteredSchedules.map(s => [
+        s.studentName||'', s.chattStateANumber||'', s.schoolYear||'', s.semester||'', s.campus||'',
+        s.className||'', s.teacherLastName||'', (s.classDays||[]).join(', '),
+        s.startTime||'', s.endTime||'',
+        s.online?'Yes':'No', s.indStudy?'Yes':'No', s.learningLab?'Yes':'No', s.comment||''
+      ]);
+      exportCSV(headers, rows, 'master-schedule.csv');
+      showToast('Schedule downloaded', 'success');
     };
 
     window.openUploadModal = function() {
@@ -515,186 +707,123 @@
       document.getElementById('uploadProgress').innerHTML = '';
       document.getElementById('uploadModal').style.display = 'block';
     };
-
     window.closeUploadModal = function() {
       document.getElementById('uploadModal').style.display = 'none';
     };
-
     window.downloadTemplate = function() {
-      const headers = ['Student Name', 'ChattState A#', 'School Year', 'Semester', 'Campus', 'Class Name', 'Teacher Last Name', 'Days (comma separated: M,T,W,Th,F)', 'Start Time (HH:MM)', 'End Time (HH:MM)', 'Online (Yes/No)', 'Ind Study (Yes/No)', 'Learning Lab (Yes/No)', 'Comment'];
-      const rows = [['John Doe', 'A123456', '2025-2026', 'Fall', 'STEM School', 'Math 101', 'Smith', 'M,W,F', '09:00', '10:00', 'No', 'No', 'No', '']];
-      exportCSV(headers, rows, 'schedule-template.csv');
+      const headers = ['Student Name','ChattState A#','School Year','Semester','Campus','Class Name','Teacher Last Name','Days (comma separated: M,T,W,Th,F)','Start Time (HH:MM)','End Time (HH:MM)','Online (Yes/No)','Ind Study (Yes/No)','Learning Lab (Yes/No)','Comment'];
+      exportCSV(headers, [['John Doe','A123456','2025-2026','Fall','STEM School','Math 101','Smith','M,W,F','09:00','10:00','No','No','No','']], 'schedule-template.csv');
     };
 
     window.previewCSV = function() {
       const file = document.getElementById('csvFile').files[0];
       if (!file) return;
-
       Papa.parse(file, {
         header: true,
-        complete: function(results) {
-          csvData = results.data.filter(row => row['Student Name']); // Filter out empty rows
-          const preview = document.getElementById('csvPreview');
+        complete(results) {
+          csvData = results.data.filter(r => r['Student Name']);
           let html = '<h4>Preview (first 5 rows):</h4><table class="w3-table w3-bordered w3-striped">';
-          
           if (csvData.length > 0) {
             html += '<tr class="btn-primary"><th>' + Object.keys(csvData[0]).join('</th><th>') + '</th></tr>';
-            csvData.slice(0, 5).forEach(row => {
-              html += '<tr><td>' + Object.values(row).join('</td><td>') + '</td></tr>';
-            });
+            csvData.slice(0, 5).forEach(r => { html += '<tr><td>' + Object.values(r).join('</td><td>') + '</td></tr>'; });
           }
-          html += '</table><p class="w3-text-grey">Total rows to import: ' + csvData.length + '</p>';
-          preview.innerHTML = html;
+          html += `</table><p class="w3-text-grey">Total rows: ${csvData.length}</p>`;
+          document.getElementById('csvPreview').innerHTML = html;
         }
       });
     };
 
     window.importCSVData = async function() {
-      try {
-        if (csvData.length === 0) {
-          showToast('No data to import', 'error');
-          return;
-        }
-
-        const progress = document.getElementById('uploadProgress');
-        progress.innerHTML = '<p>Importing...</p>';
-        
-        let successful = 0;
-        let errors = 0;
-
-        for (let i = 0; i < csvData.length; i++) {
-          try {
-            const row = csvData[i];
-            const studentName = row['Student Name'];
-            const student = allStudents.find(s => (s.firstName + ' ' + s.lastName).toLowerCase() === studentName.toLowerCase());
-
-            if (!student) {
-              errors++;
-              continue;
-            }
-
-            const days = (row['Days (comma separated: M,T,W,Th,F)'] || '').split(',').map(d => d.trim()).filter(d => d);
-            
-            const data = {
-              studentId: student.id,
-              studentName: studentName,
-              chattStateANumber: row['ChattState A#'] || student.chattStateANumber,
-              schoolYear: row['School Year'],
-              semester: row['Semester'],
-              campus: row['Campus'],
-              className: row['Class Name'],
-              teacherLastName: row['Teacher Last Name'],
-              classDays: days,
-              startTime: row['Start Time (HH:MM)'],
-              endTime: row['End Time (HH:MM)'],
-              online: row['Online (Yes/No)']?.toLowerCase() === 'yes',
-              indStudy: row['Ind Study (Yes/No)']?.toLowerCase() === 'yes',
-              learningLab: row['Learning Lab (Yes/No)']?.toLowerCase() === 'yes',
-              comment: row['Comment'] || ''
-            };
-
-            await addDoc('classSchedules', data);
-            successful++;
-          } catch (err) {
-            console.error('Row error:', err);
-            errors++;
-          }
-
-          const pct = Math.round((i + 1) / csvData.length * 100);
-          progress.innerHTML = `<div class="btn-ghost"><div class="btn-primary" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed</p>`;
-        }
-
-        progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Import Complete!</strong><br>Successful: ${successful}<br>Errors: ${errors}</div>`;
-        await loadSchedules();
-      } catch (error) {
-        console.error('Import error:', error);
-        showToast('Error importing data', 'error');
+      if (csvData.length === 0) { showToast('No data to import', 'error'); return; }
+      const progress = document.getElementById('uploadProgress');
+      let ok = 0, fail = 0;
+      for (let i = 0; i < csvData.length; i++) {
+        try {
+          const row = csvData[i];
+          const student = allStudents.find(s => (s.firstName + ' ' + s.lastName).toLowerCase() === (row['Student Name'] || '').toLowerCase());
+          if (!student) { fail++; continue; }
+          await addDoc('classSchedules', {
+            studentId: student.id,
+            studentName: row['Student Name'],
+            chattStateANumber: row['ChattState A#'] || student.chattStateANumber,
+            schoolYear: row['School Year'], semester: row['Semester'], campus: row['Campus'],
+            className: row['Class Name'], teacherLastName: row['Teacher Last Name'],
+            classDays: (row['Days (comma separated: M,T,W,Th,F)'] || '').split(',').map(d => d.trim()).filter(Boolean),
+            startTime: row['Start Time (HH:MM)'], endTime: row['End Time (HH:MM)'],
+            online: row['Online (Yes/No)']?.toLowerCase() === 'yes',
+            indStudy: row['Ind Study (Yes/No)']?.toLowerCase() === 'yes',
+            learningLab: row['Learning Lab (Yes/No)']?.toLowerCase() === 'yes',
+            comment: row['Comment'] || ''
+          });
+          ok++;
+        } catch(e) { fail++; }
+        const pct = Math.round((i + 1) / csvData.length * 100);
+        progress.innerHTML = `<div class="btn-ghost"><div class="btn-primary" style="width:${pct}%;text-align:center;color:white;height:25px;line-height:25px;">${pct}%</div></div><p>${i+1}/${csvData.length} processed</p>`;
       }
+      progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Done!</strong> Imported: ${ok} &nbsp; Errors: ${fail}</div>`;
+      await loadSchedules();
     };
 
+    // ─────────────────────────────────────────────
+    //  PROPAGATE ATTENDANCE LOGS
+    // ─────────────────────────────────────────────
     window.openPropagateModal = function() {
       document.getElementById('propSchoolYear').value = getCurrentSchoolYear();
-      document.getElementById('propSemester').value = getCurrentSemester();
-      document.getElementById('propStartDate').value = '';
-      document.getElementById('propEndDate').value = '';
+      document.getElementById('propSemester').value   = getCurrentSemester();
+      document.getElementById('propStartDate').value  = '';
+      document.getElementById('propEndDate').value    = '';
       document.getElementById('propagateProgress').innerHTML = '';
       document.getElementById('propagateModal').style.display = 'block';
     };
-
     window.closePropagateModal = function() {
       document.getElementById('propagateModal').style.display = 'none';
     };
 
     window.propagateAttendance = async function() {
-      try {
-        const schoolYear = document.getElementById('propSchoolYear').value;
-        const semester = document.getElementById('propSemester').value;
-        const startDate = new Date(document.getElementById('propStartDate').value);
-        const endDate = new Date(document.getElementById('propEndDate').value);
-
-        if (!schoolYear || !semester || isNaN(startDate) || isNaN(endDate)) {
-          showToast('Please fill in all fields', 'error');
-          return;
-        }
-
-        const progress = document.getElementById('propagateProgress');
-        progress.innerHTML = '<p>Processing...</p>';
-
-        const matchingSchedules = allSchedules.filter(s => 
-          s.schoolYear === schoolYear && s.semester === semester
-        );
-
-        const attendanceLogs = [];
-        let current = new Date(startDate);
-
-        while (current <= endDate) {
-          const dayName = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][current.getDay()];
-          const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][current.getDay()];
-
-          matchingSchedules.forEach(schedule => {
-            if ((schedule.classDays || []).includes(dayAbbr)) {
-              attendanceLogs.push({
-                studentId: schedule.studentId,
-                studentName: schedule.studentName,
-                chattStateANumber: schedule.chattStateANumber,
-                classScheduleId: schedule.id,
-                className: schedule.className,
-                teacherLastName: schedule.teacherLastName,
-                date: current.toISOString().split('T')[0],
-                schoolYear: schoolYear,
-                semester: semester,
-                status: 'unmarked'
+      const schoolYear = document.getElementById('propSchoolYear').value;
+      const semester   = document.getElementById('propSemester').value;
+      const startDate  = new Date(document.getElementById('propStartDate').value);
+      const endDate    = new Date(document.getElementById('propEndDate').value);
+      if (!schoolYear || !semester || isNaN(startDate) || isNaN(endDate)) {
+        showToast('Please fill in all fields', 'error'); return;
+      }
+      const progress = document.getElementById('propagateProgress');
+      progress.innerHTML = '<p>Processing…</p>';
+      const matching = allSchedules.filter(s => s.schoolYear === schoolYear && s.semester === semester);
+      const logs = [];
+      const DAY_MAP = ['','M','T','W','Th','F',''];
+      let cur = new Date(startDate);
+      while (cur <= endDate) {
+        const abbr = DAY_MAP[cur.getDay()];
+        if (abbr) {
+          matching.forEach(s => {
+            if ((s.classDays || []).includes(abbr)) {
+              logs.push({
+                studentId: s.studentId, studentName: s.studentName,
+                chattStateANumber: s.chattStateANumber, classScheduleId: s.id,
+                className: s.className, teacherLastName: s.teacherLastName,
+                date: cur.toISOString().split('T')[0],
+                schoolYear, semester, status: 'unmarked'
               });
             }
           });
-
-          current.setDate(current.getDate() + 1);
         }
-
-        if (attendanceLogs.length === 0) {
-          progress.innerHTML = '<p class="w3-text-red">No matching schedules found for the date range.</p>';
-          return;
-        }
-
-        const batchSize = 500;
-        for (let i = 0; i < attendanceLogs.length; i += batchSize) {
-          const batch = attendanceLogs.slice(i, i + batchSize);
-          const batch_data = {};
-          batch.forEach((log, idx) => {
-            batch_data[`doc_${i + idx}`] = log;
-          });
-          await batchWrite('classAttendanceLogs', batch_data);
-          
-          const pct = Math.round((i + batchSize) / attendanceLogs.length * 100);
-          progress.innerHTML = `<div class="btn-ghost"><div class="btn-primary" style="width:${Math.min(pct, 100)}%; text-align:center; color:white; height:25px; line-height:25px;">${Math.min(pct, 100)}%</div></div><p>Created ${Math.min(i + batchSize, attendanceLogs.length)}/${attendanceLogs.length} attendance logs</p>`;
-        }
-
-        progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Propagation Complete!</strong><br>Created ${attendanceLogs.length} attendance logs</div>`;
-        showToast('Attendance logs propagated', 'success');
-      } catch (error) {
-        console.error('Propagate error:', error);
-        showToast('Error propagating attendance logs', 'error');
+        cur.setDate(cur.getDate() + 1);
       }
+      if (logs.length === 0) {
+        progress.innerHTML = '<p class="w3-text-red">No matching schedules found.</p>'; return;
+      }
+      const batchSize = 500;
+      for (let i = 0; i < logs.length; i += batchSize) {
+        const batch = logs.slice(i, i + batchSize);
+        const bd = {};
+        batch.forEach((l, idx) => { bd[`doc_${i + idx}`] = l; });
+        await batchWrite('classAttendanceLogs', bd);
+        const pct = Math.round((i + batchSize) / logs.length * 100);
+        progress.innerHTML = `<div class="btn-ghost"><div class="btn-primary" style="width:${Math.min(pct,100)}%;text-align:center;color:white;height:25px;line-height:25px;">${Math.min(pct,100)}%</div></div><p>${Math.min(i+batchSize,logs.length)}/${logs.length} logs</p>`;
+      }
+      progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Done!</strong> Created ${logs.length} attendance logs</div>`;
+      showToast('Attendance logs propagated', 'success');
     };
   </script>
 </body>
