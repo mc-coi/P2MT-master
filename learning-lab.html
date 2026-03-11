@@ -67,7 +67,6 @@
             <th>Time</th>
             <th>Start Date</th>
             <th>End Date</th>
-            <th>Linked Intervention</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -215,14 +214,6 @@
 
         <label class="w3-margin-top">Comment<textarea class="w3-input w3-border" id="labComment" rows="3"></textarea></label>
 
-        <h3 style="margin-top:20px; border-bottom:2px solid #2196F3; padding-bottom:10px;">Link to Intervention</h3>
-        <label class="form-label">Linked Intervention (optional):<br>
-          <input class="w3-input w3-border" type="text" id="labInterventionSearch" placeholder="Search intervention" onkeyup="searchLabInterventions()">
-          <div id="labInterventionDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:300px; max-height:200px; overflow-y:auto; z-index:100;"></div>
-          <input type="hidden" id="labInterventionId">
-          <div id="labInterventionDisplay"></div>
-        </label>
-
         <div class="w3-row w3-margin-top">
           <button class="w3-button btn-primary w3-half" onclick="saveLabSchedule()"><i class="fas fa-save"></i> Save Learning Lab</button>
           <button class="w3-button btn-danger w3-half" onclick="closeLabModal()"><i class="fas fa-times"></i> Cancel</button>
@@ -285,7 +276,6 @@
     window.getCurrentSemester = getCurrentSemester;
 
     let allSchedules = [];
-    let allInterventions = [];
     let allStudents = [];
     let filteredSchedules = [];
     let currentEditId = null;
@@ -304,7 +294,6 @@
         document.getElementById('labSemester').value = getCurrentSemester();
         
         allSchedules = await getAll('classSchedules');
-        allInterventions = await getAll('interventionLogs');
         allStudents = await getAll('students');
 
         // Populate teacher dropdown from unique teacher names already in classSchedules
@@ -330,8 +319,6 @@
       filteredSchedules.forEach(schedule => {
         const daysHtml = (schedule.classDays || []).map(day => `<span class="day-badge day-${day.toLowerCase()}">${day}</span>`).join('');
         const timeRange = `${schedule.startTime || ''}-${schedule.endTime || ''}`;
-        const intervention = allInterventions.find(i => (i.linkedScheduleIds || []).includes(schedule.id));
-        
         tbody.innerHTML += `
           <tr>
             <td>${schedule.studentName || ''}</td>
@@ -342,7 +329,6 @@
             <td>${timeRange}</td>
             <td>${schedule.startDate || ''}</td>
             <td>${schedule.endDate || ''}</td>
-            <td>${intervention ? intervention.interventionType || 'Linked' : '-'}</td>
             <td>
               <button class="w3-button btn-primary w3-small" onclick="openEditLabModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
               <button class="w3-button btn-primary w3-small" onclick="openViewSchedule('${schedule.id}')"><i class="fas fa-eye"></i></button>
@@ -407,8 +393,6 @@
       document.getElementById('labComment').value = '';
       document.getElementById('labOnline').checked = false;
       document.getElementById('labIndStudy').checked = false;
-      document.getElementById('labInterventionId').value = '';
-      document.getElementById('labInterventionDisplay').innerHTML = '';
       document.getElementById('labSchoolYear').value = getCurrentSchoolYear();
       document.getElementById('labSemester').value = getCurrentSemester();
       document.getElementById('labStartDate').value = '';
@@ -465,13 +449,6 @@
         document.getElementById('session1Start').value = schedule.startTime || '';
         document.getElementById('session1End').value = schedule.endTime || '';
         
-        // Find linked intervention
-        const intervention = allInterventions.find(i => (i.linkedScheduleIds || []).includes(id));
-        if (intervention) {
-          document.getElementById('labInterventionId').value = intervention.id;
-          document.getElementById('labInterventionDisplay').innerHTML = `<div class="w3-text-blue"><strong>${intervention.interventionType}</strong></div>`;
-        }
-        
         document.getElementById('labModal').style.display = 'block';
       } catch (error) {
         console.error('Edit modal error:', error);
@@ -518,39 +495,6 @@
     };
 
 
-    window.searchLabInterventions = function() {
-      const query = document.getElementById('labInterventionSearch').value.toLowerCase();
-      const dropdown = document.getElementById('labInterventionDropdown');
-      const studentId = document.getElementById('labStudentId').value;
-      
-      if (query.length < 1) {
-        dropdown.style.display = 'none';
-        return;
-      }
-
-      const filtered = allInterventions.filter(i => {
-        const matchStudent = !studentId || i.studentId === studentId;
-        const matchQuery = (i.interventionType || '').toLowerCase().includes(query);
-        return matchStudent && matchQuery;
-      }).slice(0, 10);
-
-      if (filtered.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-      }
-
-      dropdown.innerHTML = filtered.map(i => 
-        `<a onclick="selectLabIntervention('${i.id}', '${i.interventionType}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${i.interventionType}</a>`
-      ).join('');
-      dropdown.style.display = 'block';
-    };
-
-    window.selectLabIntervention = function(id, type) {
-      document.getElementById('labInterventionId').value = id;
-      document.getElementById('labInterventionDisplay').innerHTML = `<div class="w3-text-blue"><strong>${type}</strong></div>`;
-      document.getElementById('labInterventionSearch').value = '';
-      document.getElementById('labInterventionDropdown').style.display = 'none';
-    };
 
     window.saveLabSchedule = async function() {
       try {
@@ -575,7 +519,6 @@
         const online = document.getElementById('labOnline').checked;
         const indStudy = document.getElementById('labIndStudy').checked;
         const comment = document.getElementById('labComment').value;
-        const interventionId = document.getElementById('labInterventionId').value;
 
         const scheduleIds = [];
         const createdSchedules = [];
@@ -621,14 +564,6 @@
           }
         }
 
-        // Update intervention link
-        if (interventionId) {
-          const intervention = await getById('interventionLogs', interventionId);
-          const linkedIds = intervention.linkedScheduleIds || [];
-          const newIds = [...linkedIds, ...scheduleIds].filter((v, i, a) => a.indexOf(v) === i);
-          await updateDoc('interventionLogs', interventionId, { linkedScheduleIds: newIds });
-        }
-
         // Propagate attendance logs — use timezone-safe date parsing
         if (startDate && endDate && startDate <= endDate) {
           const parseLocal = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
@@ -667,7 +602,6 @@
         showToast('Learning lab saved successfully', 'success');
         closeLabModal();
         allSchedules = await getAll('classSchedules');
-        allInterventions = await getAll('interventionLogs');
         filteredSchedules = allSchedules.filter(s => s.learningLab);
         renderTable();
       } catch (error) {

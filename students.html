@@ -242,7 +242,6 @@
     window.closeAttendanceModal = closeAttendanceModal;
     window.editStudent = editStudent;
     window.deleteStudent = deleteStudent;
-    window.viewInterventions = viewInterventions;
     window.addAttendance = addAttendance;
     window.confirmDelete = confirmDelete;
 
@@ -291,9 +290,6 @@
             <a href="./student-profile.html?id=${student.id}" class="w3-button w3-small btn-ghost action-button">
               <i class="fas fa-user"></i> Profile
             </a>
-            <button class="w3-button w3-small btn-primary action-button" onclick="viewInterventions('${student.id}')">
-              <i class="fas fa-chart-line"></i> Interventions
-            </button>
             <button class="w3-button w3-small btn-primary action-button" onclick="addAttendance('${student.id}')">
               <i class="fas fa-calendar-check"></i> Attendance
             </button>
@@ -423,10 +419,6 @@
         console.error('Error deleting student:', error);
         showToast('Error deleting student', 'error');
       }
-    }
-
-    function viewInterventions(id) {
-      window.location.href = `interventions.html?student=${id}`;
     }
 
     function addAttendance(id) {
