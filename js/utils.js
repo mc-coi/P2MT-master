@@ -17,6 +17,14 @@ export const ATTENDANCE_CODES = {
 export function formatDate(dateStr) {
   if (!dateStr) return '';
   try {
+    // Parse YYYY-MM-DD manually to avoid UTC-to-local timezone shift
+    // (new Date('2026-03-11') is treated as UTC midnight, which rolls back
+    //  to March 10 in any US timezone — this avoids that entirely)
+    const isoMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) {
+      return `${isoMatch[2]}/${isoMatch[3]}/${isoMatch[1]}`;
+    }
+    // Fallback for non-ISO formats
     const date = new Date(dateStr);
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');

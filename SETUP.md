@@ -82,7 +82,7 @@ Follow these steps in the Firebase Console:
 2. Document structure:
    - `date`: string (YYYY-MM-DD format)
    - `studentId`: string (reference to student)
-   - `code`: string (P, T, E, U, Q, W, H, or L)
+   - `code`: string (P, T, E, U, or Q)
    - `notes`: string (optional)
    - `recordedBy`: string (staff UID)
    - `recordedAt`: timestamp
@@ -90,7 +90,6 @@ Follow these steps in the Firebase Console:
 #### Additional Collections
 Create these empty collections (you'll populate them as needed):
 - `class_attendance`
-- `interventions`
 - `tmi_reviews`
 - `tmi_approvals`
 - `master_schedule`

@@ -336,8 +336,9 @@
       document.getElementById('btn-apply-absence-filters').addEventListener('click', loadAbsenceData);
       document.getElementById('btn-download-absence-csv').addEventListener('click', downloadAbsenceCSV);
 
-      // Default to today
-      const today = new Date().toISOString().split('T')[0];
+      // Default to today — use local date parts to avoid UTC timezone shift
+      const _now = new Date();
+      const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
       document.getElementById('filter-class-date').value = today;
     }
 
@@ -395,9 +396,11 @@
         });
 
         if (groupMap.size === 0) {
-          const dayName = dt.toLocaleDateString('en-US', { weekday: 'long' });
+            // Use dt (local Date object) directly — avoids formatDate's UTC shift
+          const dayName    = dt.toLocaleDateString('en-US', { weekday: 'long' });
+          const displayDate = dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
           document.getElementById('no-classes-text').textContent =
-            `No classes found for ${teacher} on ${dayName}, ${formatDate(classDate)}.`;
+            `No classes found for ${teacher} on ${dayName}, ${displayDate}.`;
           document.getElementById('no-classes-message').style.display = 'block';
           document.getElementById('filter-loading').style.display = 'none';
           return;
