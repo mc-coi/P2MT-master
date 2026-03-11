@@ -99,11 +99,10 @@
         </div>
 
         <div class="form-row-full"><label>Class Name<input class="w3-input w3-border" type="text" id="labClassName"></label></div>
-        <div class="form-row-full"><label class="form-label">Teacher (searchable):<br>
-          <input class="w3-input w3-border" type="text" id="labTeacherSearch" placeholder="Search teacher" onkeyup="searchLabTeachers()">
-          <div id="labTeacherDropdown" class="w3-dropdown-content w3-border w3-card" style="display:none; position:absolute; width:250px; max-height:150px; overflow-y:auto; z-index:100;"></div>
-          <input type="hidden" id="labTeacherId">
-          <div id="labTeacherDisplay"></div>
+        <div class="form-row-full"><label class="form-label">Teacher<br>
+          <select class="w3-select w3-border" id="labTeacherSelect" style="margin-top:4px;">
+            <option value="">-- Select Teacher --</option>
+          </select>
         </label></div>
 
         <div class="form-row">
@@ -288,7 +287,6 @@
     let allSchedules = [];
     let allInterventions = [];
     let allStudents = [];
-    let allStaff = [];
     let filteredSchedules = [];
     let currentEditId = null;
     let currentDeleteIds = [];
@@ -308,12 +306,16 @@
         allSchedules = await getAll('classSchedules');
         allInterventions = await getAll('interventionLogs');
         allStudents = await getAll('students');
-        try {
-          allStaff = await getAll('staff');
-        } catch (e) {
-          allStaff = [];
-        }
-        
+
+        // Populate teacher dropdown from unique teacher names already in classSchedules
+        const teachers = [...new Set(allSchedules.map(s => s.teacherLastName).filter(Boolean))].sort();
+        const teacherSel = document.getElementById('labTeacherSelect');
+        teachers.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t; opt.textContent = t;
+          teacherSel.appendChild(opt);
+        });
+
         filteredSchedules = allSchedules.filter(s => s.learningLab);
         renderTable();
       } catch (error) {
@@ -400,8 +402,7 @@
       document.getElementById('labModalTitle').textContent = 'Add Learning Lab';
       document.getElementById('labStudentId').value = '';
       document.getElementById('labStudentDisplay').innerHTML = '';
-      document.getElementById('labTeacherId').value = '';
-      document.getElementById('labTeacherDisplay').innerHTML = '';
+      document.getElementById('labTeacherSelect').value = '';
       document.getElementById('labClassName').value = '';
       document.getElementById('labComment').value = '';
       document.getElementById('labOnline').checked = false;
@@ -449,8 +450,7 @@
         document.getElementById('labModalTitle').textContent = 'Edit Learning Lab';
         document.getElementById('labStudentId').value = schedule.studentId || '';
         document.getElementById('labStudentDisplay').innerHTML = `<div class="w3-text-blue"><strong>${schedule.studentName}</strong> (${schedule.chattStateANumber})</div>`;
-        document.getElementById('labTeacherId').value = '';
-        document.getElementById('labTeacherDisplay').innerHTML = `<div class="w3-text-blue"><strong>${schedule.teacherLastName}</strong></div>`;
+        document.getElementById('labTeacherSelect').value = schedule.teacherLastName || '';
         document.getElementById('labClassName').value = schedule.className || '';
         document.getElementById('labComment').value = schedule.comment || '';
         document.getElementById('labOnline').checked = schedule.online || false;
@@ -517,37 +517,6 @@
       document.getElementById('labStudentDropdown').style.display = 'none';
     };
 
-    window.searchLabTeachers = function() {
-      const query = document.getElementById('labTeacherSearch').value.toLowerCase();
-      const dropdown = document.getElementById('labTeacherDropdown');
-      
-      if (query.length < 1) {
-        dropdown.style.display = 'none';
-        return;
-      }
-
-      const filtered = allStaff.filter(s => 
-        (s.lastName || '').toLowerCase().includes(query) || 
-        (s.firstName || '').toLowerCase().includes(query)
-      ).slice(0, 10);
-
-      if (filtered.length === 0) {
-        dropdown.style.display = 'none';
-        return;
-      }
-
-      dropdown.innerHTML = filtered.map(s => 
-        `<a onclick="selectLabTeacher('${s.id}', '${s.lastName}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.lastName}, ${s.firstName}</a>`
-      ).join('');
-      dropdown.style.display = 'block';
-    };
-
-    window.selectLabTeacher = function(id, lastName) {
-      document.getElementById('labTeacherId').value = id;
-      document.getElementById('labTeacherDisplay').innerHTML = `<div class="w3-text-blue"><strong>${lastName}</strong></div>`;
-      document.getElementById('labTeacherSearch').value = '';
-      document.getElementById('labTeacherDropdown').style.display = 'none';
-    };
 
     window.searchLabInterventions = function() {
       const query = document.getElementById('labInterventionSearch').value.toLowerCase();
@@ -590,13 +559,17 @@
           showToast('Please select a student', 'error');
           return;
         }
+        const teacherLastName = document.getElementById('labTeacherSelect').value;
+        if (!teacherLastName) {
+          showToast('Please select a teacher', 'error');
+          return;
+        }
 
         const student = allStudents.find(s => s.id === studentId);
         const schoolYear = document.getElementById('labSchoolYear').value;
         const semester = document.getElementById('labSemester').value;
         const campus = document.getElementById('labCampus').value;
         const className = document.getElementById('labClassName').value;
-        const teacherLastName = document.getElementById('labTeacherDisplay').innerText.split('\n')[0].trim();
         const startDate = document.getElementById('labStartDate').value;
         const endDate = document.getElementById('labEndDate').value;
         const online = document.getElementById('labOnline').checked;
