@@ -325,6 +325,7 @@
     let currentTeacher = null;
     let currentClass = null;
     let currentDate = null;
+    let currentIsLab = false;   // true when the active class is a learning lab
     let attendanceChanges = {};
     let attendanceState = {};   // keyed by student.id: { code, comment, tmi }
     let currentStudents = [];   // enrolled students for current class view
@@ -524,6 +525,7 @@
         currentTeacher = teacher;
         currentClass = className;
         currentDate = classDate;
+        currentIsLab = isLabClass;
         attendanceChanges = {};
 
         // Build enrolled student list — deduplicate by studentId in case of duplicate schedule records
@@ -542,11 +544,12 @@
         displayClassInfo(schedule);
         document.getElementById('class-info-container').style.display = 'block';
 
-        // Find existing logs by teacher+class+date (handles both 'date' and 'classDate' fields)
+        // Find existing logs — match teacher+class+date AND lab/regular type so they never bleed into each other
         const existingLogs = allClassAttendanceLogs.filter(log =>
           log.teacherLastName === teacher &&
           log.className === className &&
-          (log.date === classDate || log.classDate === classDate)
+          (log.date === classDate || log.classDate === classDate) &&
+          (isLabClass ? log.learningLab === true : !log.learningLab)
         );
 
         // Display attendance form
@@ -680,12 +683,13 @@
         currentStudents.forEach(student => {
           const state = attendanceState[student.id] || { code: 'P', comment: '', tmi: false };
 
-          // Find existing log (propagated logs use 'studentId'; manually saved use chattStateANumber)
+          // Find existing log — must also match learningLab flag so lab and regular never overwrite each other
           const existingLog = allClassAttendanceLogs.find(l =>
             (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
             l.teacherLastName === currentTeacher &&
             l.className === currentClass &&
-            (l.date === currentDate || l.classDate === currentDate)
+            (l.date === currentDate || l.classDate === currentDate) &&
+            (currentIsLab ? l.learningLab === true : !l.learningLab)
           );
 
           if (existingLog) {
@@ -696,7 +700,7 @@
               updatedAt: new Date().toISOString()
             }));
           } else {
-            savePromises.push(addDoc('classAttendanceLogs', {
+            const newLog = {
               studentId: student.id,
               chattStateANumber: student.chattStateANumber || '',
               studentName: `${student.lastName || ''}, ${student.firstName || ''}`,
@@ -709,7 +713,9 @@
               assignTmi: state.tmi,
               createdBy: currentUser?.uid || '',
               updatedAt: new Date().toISOString()
-            }));
+            };
+            if (currentIsLab) newLog.learningLab = true;
+            savePromises.push(addDoc('classAttendanceLogs', newLog));
           }
         });
 
