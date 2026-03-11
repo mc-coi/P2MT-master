@@ -281,9 +281,6 @@
 
     let absenceTable = null;
 
-    // Day-of-week mapping (same format used in classDays arrays)
-    const DAY_MAP = { 0: '', 1: 'M', 2: 'T', 3: 'W', 4: 'Th', 5: 'F', 6: '' };
-
     // ── Boot ─────────────────────────────────────────────────────────────────
     initAuth().then(user => {
       currentUser = user;
@@ -365,21 +362,20 @@
         currentTeacher = teacher;
         currentDate    = classDate;
 
-        // Day-of-week abbreviation for the selected date
+        // Local Date object for display only (day name in no-classes message)
         const [yr, mo, dy] = classDate.split('-').map(Number);
-        const dt      = new Date(yr, mo - 1, dy);
-        const dayAbbr = DAY_MAP[dt.getDay()]; // '' on weekends
+        const dt = new Date(yr, mo - 1, dy);
 
-        // Filter schedules: teacher matches, date range, and day-of-week
+        // Filter schedules: teacher + date range only.
+        // We intentionally do NOT filter by classDays here — regular class
+        // schedules often don't have startDate/endDate set, and teachers need
+        // to be able to take attendance on any day regardless of the stored
+        // classDays array (which may be incomplete or not set at all).
         const teacherSchedules = allClassSchedules.filter(cs => {
           if (cs.teacherLastName !== teacher) return false;
-          // Date range (inclusive) — skip if outside
+          // Only apply date-range check when both bounds are explicitly stored
           if (cs.startDate && classDate < cs.startDate) return false;
           if (cs.endDate   && classDate > cs.endDate)   return false;
-          // Day-of-week — if classDays is set and non-empty, must include today's abbr
-          if (cs.classDays && cs.classDays.length > 0) {
-            if (!dayAbbr || !cs.classDays.includes(dayAbbr)) return false;
-          }
           return true;
         });
 
