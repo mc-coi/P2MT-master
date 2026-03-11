@@ -410,32 +410,19 @@
       updateLLPanel();
     }
 
-    // ── Learning Lab Today Panel ────────────────────────────────────────────
+    // ── Learning Lab Panel ──────────────────────────────────────────────────
     function updateLLPanel() {
       const teacher = document.getElementById('filter-teacher').value;
-      const date    = document.getElementById('filter-class-date').value;
       const panel   = document.getElementById('ll-panel');
 
-      if (!teacher || !date) { panel.style.display = 'none'; return; }
+      if (!teacher) { panel.style.display = 'none'; return; }
 
-      // Determine abbreviated weekday for the selected date (timezone-safe)
-      const [yr, mo, dy] = date.split('-').map(Number);
-      const dt = new Date(yr, mo - 1, dy);
-      const DAY_MAP = { 0: '', 1: 'M', 2: 'T', 3: 'W', 4: 'Th', 5: 'F', 6: '' };
-      const dayAbbr = DAY_MAP[dt.getDay()];
-
-      if (!dayAbbr) { panel.style.display = 'none'; return; } // weekend
-
-      // Collect unique learning lab classes for this teacher that meet today
+      // Collect all unique learning lab classes for this teacher
       const labClasses = new Map();
       allClassSchedules
         .filter(cs => cs.learningLab && cs.teacherLastName === teacher)
         .forEach(cs => {
-          if (!(cs.classDays || []).includes(dayAbbr)) return;
-          if (cs.startDate && date < cs.startDate) return;
-          if (cs.endDate   && date > cs.endDate)   return;
           if (labClasses.has(cs.className)) return;
-          // Count distinct enrolled students
           const studentCount = allClassSchedules.filter(x =>
             x.learningLab && x.teacherLastName === teacher && x.className === cs.className
           ).length;
@@ -444,18 +431,19 @@
 
       if (labClasses.size === 0) { panel.style.display = 'none'; return; }
 
-      const dayLabel = dt.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
       let html = `<div class="ll-panel-inner">
-        <span class="ll-title"><i class="fas fa-flask"></i> Learning Lab Sessions — ${dayLabel}</span>
+        <span class="ll-title"><i class="fas fa-flask"></i> Learning Lab Sessions</span>
         <div class="ll-items">`;
 
       labClasses.forEach((cs, className) => {
+        const days = (cs.classDays || []).join('/');
         const time = cs.startTime && cs.endTime ? `${cs.startTime}–${cs.endTime}` : '';
+        const schedule = [days, time].filter(Boolean).join(' · ');
         const safeClass = className.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         html += `<button class="ll-item-btn" onclick="quickLoadLab('${safeClass}')">
           <i class="fas fa-flask" style="color:#8b5cf6;"></i>
           <span class="ll-item-name">${className}</span>
-          ${time ? `<span class="ll-item-time">${time}</span>` : ''}
+          ${schedule ? `<span class="ll-item-time">${schedule}</span>` : ''}
           <span class="ll-item-count">${cs.studentCount} student${cs.studentCount !== 1 ? 's' : ''}</span>
           <span class="ll-item-action">Take Attendance →</span>
         </button>`;
@@ -476,7 +464,6 @@
 
     function attachEventListeners() {
       document.getElementById('filter-teacher').addEventListener('change', populateClassDropdown);
-      document.getElementById('filter-class-date').addEventListener('change', updateLLPanel);
       document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
       document.getElementById('btn-download-csv').addEventListener('click', downloadAttendanceCSV);
       document.getElementById('btn-save-top').addEventListener('click', saveAllChanges);
