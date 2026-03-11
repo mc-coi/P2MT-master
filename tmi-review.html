@@ -32,6 +32,13 @@
 
     tr.shown .expand-cell i { transform: rotate(90deg); }
     .expand-cell i { transition: transform .15s; display:inline-block; }
+
+    /* Excuse highlight on main row */
+    tr.has-excuse td { background:#f0fdf4 !important; }
+    tr.has-excuse td:nth-child(2) { border-left:4px solid #22c55e; }
+    .excuse-badge     { display:inline-block; margin-left:6px; font-size:10px; font-weight:700; padding:1px 6px; border-radius:8px; vertical-align:middle; }
+    .excuse-badge-PE  { background:#DCFCE7; color:#166534; }
+    .excuse-badge-DE  { background:#DBEAFE; color:#1E40AF; }
   </style>
 </head>
 <body>
@@ -373,15 +380,23 @@
         const uCount = tuLogs.filter(l => l.attendanceCode === 'U').length;
         const tCount = tuLogs.filter(l => l.attendanceCode === 'T').length;
 
+        // Detect any PE / DE excuses on this student's T/U logs
+        const hasPE     = tuLogs.some(l => l.excuseType === 'PE');
+        const hasDE     = tuLogs.some(l => l.excuseType === 'DE');
+        const hasExcuse = hasPE || hasDE;
+        let excuseBadges = '';
+        if (hasPE) excuseBadges += `<span class="excuse-badge excuse-badge-PE" title="Parent Excuse on file">PE</span>`;
+        if (hasDE) excuseBadges += `<span class="excuse-badge excuse-badge-DE" title="Doctor Excuse on file">DE</span>`;
+
         detailMap[item.id] = buildDetailHtml(tuLogs);
 
-        // Main row
+        // Main row — green-tinted if any excuse exists
         const tr = document.createElement('tr');
-        tr.className = 'tmi-main-row';
+        tr.className = `tmi-main-row${hasExcuse ? ' has-excuse' : ''}`;
         tr.dataset.id = item.id;
         tr.innerHTML = `
           <td class="expand-cell"><i class="fas fa-chevron-right"></i></td>
-          <td style="font-weight:600;">${item.studentName || ''}</td>
+          <td style="font-weight:600;">${item.studentName || ''}${excuseBadges}</td>
           <td>${item.chattStateANumber || ''}</td>
           <td style="text-align:center;">
             <span class="code-pill-U">${uCount} U</span>
