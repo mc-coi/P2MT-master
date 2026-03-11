@@ -5,9 +5,7 @@ import { getCurrentUser, signOut } from './auth.js';
 import { getInitials } from './utils.js';
 
 // ── Nav structure ─────────────────────────────────────────────────────────────
-// Items can be plain links or groups (with children array).
-// group: true  →  rendered as a dropdown button
-// children: [] →  links inside the dropdown
+// Plain items render as links; group items (group:true) render as dropdowns.
 const navItems = [
   { id: 'home',     label: 'Home',     href: './dashboard.html', icon: 'fa-home' },
   { id: 'students', label: 'Students', href: './students.html',  icon: 'fa-users' },
@@ -30,26 +28,24 @@ const navItems = [
     ]
   },
 
-  { id: 'school-calendar', label: 'Calendar', href: './school-calendar.html', icon: 'fa-calendar' },
-  { id: 'pbl-planner',     label: 'PBL',      href: './pbl-planner.html',    icon: 'fa-lightbulb' },
+  { id: 'pbl-planner', label: 'PBL', href: './pbl-planner.html', icon: 'fa-lightbulb' },
 
   {
     id: 'admin-group', label: 'Admin', icon: 'fa-tools', group: true,
     children: [
-      { id: 'schedule-admin', label: 'Schedule Admin', href: './schedule-admin.html', icon: 'fa-cog' },
-      { id: 'admin',          label: 'Admin',          href: './admin.html',          icon: 'fa-tools' },
+      { id: 'school-calendar', label: 'Calendar',      href: './school-calendar.html', icon: 'fa-calendar' },
+      { id: 'schedule-admin',  label: 'Schedule Admin', href: './schedule-admin.html',  icon: 'fa-cog' },
+      { id: 'admin',           label: 'Admin',          href: './admin.html',           icon: 'fa-tools' },
     ]
   },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Returns true if any child of the group matches activePage */
 function groupIsActive(group, activePage) {
   return group.children.some(c => c.id === activePage);
 }
 
-/** Build desktop HTML for a single nav item (plain or group) */
 function buildDesktopItem(item, activePage) {
   if (!item.group) {
     const active = activePage === item.id ? 'active' : '';
@@ -59,8 +55,7 @@ function buildDesktopItem(item, activePage) {
             </a>`;
   }
 
-  // Group — render as dropdown button + menu
-  const active  = groupIsActive(item, activePage) ? 'active' : '';
+  const active = groupIsActive(item, activePage) ? 'active' : '';
   const menuItems = item.children.map(c => {
     const childActive = activePage === c.id ? 'active' : '';
     return `<a href="${c.href}" class="${childActive}">
@@ -81,7 +76,6 @@ function buildDesktopItem(item, activePage) {
     </div>`;
 }
 
-/** Build mobile HTML — groups expand inline as indented links */
 function buildMobileItem(item, activePage) {
   if (!item.group) {
     const active = activePage === item.id ? 'active' : '';
@@ -91,7 +85,6 @@ function buildMobileItem(item, activePage) {
             </a>`;
   }
 
-  // Group header (non-clickable label) + children indented below
   const childLinks = item.children.map(c => {
     const active = activePage === c.id ? 'active' : '';
     return `<a href="${c.href}" class="p2mt-nav-link ${active}" style="padding-left:28px;">
@@ -101,11 +94,22 @@ function buildMobileItem(item, activePage) {
   }).join('');
 
   return `
-    <div style="padding: 4px 14px 2px; font-size:10px; font-weight:700; text-transform:uppercase;
-                letter-spacing:.08em; color:rgba(255,255,255,.35); margin-top:6px;">
+    <div style="padding:4px 14px 2px;font-size:10px;font-weight:700;text-transform:uppercase;
+                letter-spacing:.08em;color:rgba(255,255,255,.35);margin-top:6px;">
       ${item.label}
     </div>
     ${childLinks}`;
+}
+
+// Close all open group menus
+function closeAllGroupMenus() {
+  document.querySelectorAll('.p2mt-nav-group-menu.open').forEach(m => {
+    m.classList.remove('open');
+    m.style.top  = '';
+    m.style.left = '';
+    const btn = m.closest('.p2mt-nav-group')?.querySelector('.p2mt-nav-group-btn');
+    if (btn) btn.setAttribute('aria-expanded', 'false');
+  });
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -113,11 +117,11 @@ export function initNav(activePage) {
   const navContainer = document.getElementById('nav-container');
   if (!navContainer) { console.error('nav-container element not found'); return; }
 
-  const user          = getCurrentUser();
-  const userInitials  = user ? getInitials(user.displayName || user.email) : 'U';
-  const userPhotoURL  = user ? (user.photoURL || '') : '';
-  const userName      = user ? (user.displayName || user.email || '') : '';
-  const userEmail     = user ? (user.email || '') : '';
+  const user         = getCurrentUser();
+  const userInitials = user ? getInitials(user.displayName || user.email) : 'U';
+  const userPhotoURL = user ? (user.photoURL || '') : '';
+  const userName     = user ? (user.displayName || user.email || '') : '';
+  const userEmail    = user ? (user.email || '') : '';
 
   const linksHTML       = navItems.map(i => buildDesktopItem(i, activePage)).join('');
   const mobileLinksHTML = navItems.map(i => buildMobileItem(i, activePage)).join('');
@@ -131,7 +135,7 @@ export function initNav(activePage) {
     <button class="p2mt-user-btn" id="user-menu-toggle" aria-label="User menu">
       <span class="p2mt-avatar">${avatarHTML}</span>
       <span class="p2mt-nav-user-name">${userName.split(' ')[0] || userName}</span>
-      <i class="fas fa-chevron-down" style="font-size:10px; opacity:0.6; margin-left:2px;"></i>
+      <i class="fas fa-chevron-down" style="font-size:10px;opacity:0.6;margin-left:2px;"></i>
     </button>
     <div class="p2mt-dropdown" id="user-dropdown" style="display:none;">
       <div class="p2mt-dropdown-header">
@@ -139,8 +143,7 @@ export function initNav(activePage) {
         <div class="email">${userEmail}</div>
       </div>
       <button class="p2mt-dropdown-item danger" id="signout-btn">
-        <i class="fas fa-sign-out-alt"></i>
-        Sign out
+        <i class="fas fa-sign-out-alt"></i>Sign out
       </button>
     </div>
   ` : '';
@@ -165,6 +168,8 @@ export function initNav(activePage) {
   `;
 
   // ── Desktop group dropdowns ──────────────────────────────────────────────
+  // Use position:fixed + getBoundingClientRect so the menu is never clipped
+  // by the overflow-x:auto on .p2mt-nav-links
   document.querySelectorAll('.p2mt-nav-group').forEach(groupEl => {
     const btn  = groupEl.querySelector('.p2mt-nav-group-btn');
     const menu = groupEl.querySelector('.p2mt-nav-group-menu');
@@ -173,13 +178,13 @@ export function initNav(activePage) {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const isOpen = menu.classList.contains('open');
-      // Close all other open group menus first
-      document.querySelectorAll('.p2mt-nav-group-menu.open').forEach(m => {
-        m.classList.remove('open');
-        const b = m.closest('.p2mt-nav-group')?.querySelector('.p2mt-nav-group-btn');
-        if (b) b.setAttribute('aria-expanded', 'false');
-      });
+      closeAllGroupMenus();
+
       if (!isOpen) {
+        // Position the fixed menu just below the button
+        const rect = btn.getBoundingClientRect();
+        menu.style.top  = `${rect.bottom + 6}px`;
+        menu.style.left = `${rect.left}px`;
         menu.classList.add('open');
         btn.setAttribute('aria-expanded', 'true');
       }
@@ -204,29 +209,23 @@ export function initNav(activePage) {
   if (userMenuToggle && userDropdown) {
     userMenuToggle.addEventListener('click', (e) => {
       e.stopPropagation();
+      closeAllGroupMenus();
       const isOpen = userDropdown.style.display !== 'none';
       userDropdown.style.display = isOpen ? 'none' : 'block';
     });
   }
 
-  // ── Close all menus on outside click ────────────────────────────────────
+  // ── Close all on outside click ───────────────────────────────────────────
   document.addEventListener('click', (e) => {
-    // User dropdown
     if (userDropdown && !e.target.closest('#user-menu-toggle') && !e.target.closest('#user-dropdown')) {
       userDropdown.style.display = 'none';
     }
-    // Group dropdowns
     if (!e.target.closest('.p2mt-nav-group')) {
-      document.querySelectorAll('.p2mt-nav-group-menu.open').forEach(m => {
-        m.classList.remove('open');
-        const b = m.closest('.p2mt-nav-group')?.querySelector('.p2mt-nav-group-btn');
-        if (b) b.setAttribute('aria-expanded', 'false');
-      });
+      closeAllGroupMenus();
     }
-    // Mobile menu
     if (mobileMenu && !e.target.closest('#mobile-toggle') && !e.target.closest('#mobile-nav-menu')) {
       mobileMenu.classList.remove('open');
-      const icon = mobileToggle && mobileToggle.querySelector('i');
+      const icon = mobileToggle?.querySelector('i');
       if (icon) icon.className = 'fas fa-bars';
     }
   });

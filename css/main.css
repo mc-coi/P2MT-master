@@ -310,15 +310,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 .p2mt-nav-group-menu {
   display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
+  position: fixed;          /* fixed avoids clip from overflow-x:auto on nav-links */
+  /* top/left injected by JS via getBoundingClientRect() */
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-xl);
   min-width: 180px;
-  z-index: 300;
+  z-index: 1000;
   overflow: hidden;
   animation: dropIn 0.15s ease;
 }
