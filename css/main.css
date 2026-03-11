@@ -270,6 +270,82 @@ h1, h2, h3, h4, h5, h6 {
 .p2mt-dropdown-item:hover { background: var(--bg); color: var(--text-primary); }
 .p2mt-dropdown-item.danger:hover { background: var(--danger-light); color: var(--danger); }
 
+/* ── Nav group (dropdown) ── */
+.p2mt-nav-group {
+  position: relative;
+}
+.p2mt-nav-group-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--nav-text);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.p2mt-nav-group-btn:hover {
+  background: var(--nav-hover);
+  color: #CBD5E1;
+}
+.p2mt-nav-group-btn.active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+  font-weight: 600;
+}
+.p2mt-nav-group-btn i.group-icon { font-size: 12px; opacity: 0.8; }
+.p2mt-nav-group-btn i.chevron {
+  font-size: 9px;
+  opacity: 0.6;
+  margin-left: 2px;
+  transition: transform 0.2s;
+}
+.p2mt-nav-group-btn[aria-expanded="true"] i.chevron {
+  transform: rotate(180deg);
+}
+.p2mt-nav-group-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xl);
+  min-width: 180px;
+  z-index: 300;
+  overflow: hidden;
+  animation: dropIn 0.15s ease;
+}
+.p2mt-nav-group-menu.open { display: block; }
+.p2mt-nav-group-menu a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.p2mt-nav-group-menu a:hover {
+  background: var(--bg);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.p2mt-nav-group-menu a.active {
+  background: var(--primary-light, #EEF2FF);
+  color: var(--primary);
+  font-weight: 600;
+}
+.p2mt-nav-group-menu a i { font-size: 12px; opacity: 0.75; width: 14px; text-align: center; }
+
 /* Mobile menu */
 .p2mt-nav-mobile-toggle {
   display: none;

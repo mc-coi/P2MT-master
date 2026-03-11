@@ -279,13 +279,6 @@
                 <div class="stat-label">Attendance Rate</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon red">
-                    <i class="fas fa-exclamation-circle"></i>
-                </div>
-                <div class="stat-value" id="stat-active-interventions">0</div>
-                <div class="stat-label">Active Interventions</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-icon blue">
                     <i class="fas fa-book"></i>
                 </div>
@@ -330,46 +323,15 @@
 
         <!-- Tab bar -->
         <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab(event, 'interventions')">Interventions</button>
-            <button class="tab-btn" onclick="switchTab(event, 'attendance')">Attendance</button>
+            <button class="tab-btn active" onclick="switchTab(event, 'attendance')">Attendance</button>
             <button class="tab-btn" onclick="switchTab(event, 'schedule')">Schedule</button>
             <button class="tab-btn" onclick="switchTab(event, 'pbl')">PBL Teams</button>
         </div>
 
         <!-- Tab content panels -->
-        
-        <!-- Tab 1 - Interventions -->
-        <div id="interventions" class="tab-content active">
-            <div class="card">
-                <div class="card-body">
-                    <div class="table-wrap">
-                        <table id="interventions-table" class="w3-table w3-striped">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Level</th>
-                                    <th>Start Date</th>
-                                    <th>End Date</th>
-                                    <th>Status</th>
-                                    <th>TMI Minutes</th>
-                                    <th>Staff</th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                    <div id="interventions-empty" class="empty-state" style="display: none;">
-                        <div class="empty-icon"><i class="fas fa-inbox"></i></div>
-                        <div class="empty-title">No Interventions</div>
-                        <div class="empty-subtitle">This student has no intervention records</div>
-                    </div>
-                </div>
-            </div>
-            <div id="interventionTimeline"></div>
-        </div>
 
-        <!-- Tab 2 - Attendance -->
-        <div id="attendance" class="tab-content">
+        <!-- Tab 1 - Attendance -->
+        <div id="attendance" class="tab-content active">
             <div class="card">
                 <div class="card-body">
                     <div class="stats-row">
@@ -504,15 +466,13 @@
         }
 
         let currentStudent = null;
-        let interventions = [];
         let attendanceLogs = [];
         let classSchedules = [];
         let pblTeams = [];
 
         // Load all data in parallel
-        const [student, interventionsData, attendanceData, scheduleData, pblData] = await Promise.all([
+        const [student, attendanceData, scheduleData, pblData] = await Promise.all([
             getById('students', studentId),
-            getWhere('interventionLogs', 'studentId', studentId),
             getWhere('dailyAttendanceLogs', 'chattStateANumber', null), // Will filter manually
             getWhere('classSchedules', 'chattStateANumber', null), // Will filter manually
             getWhere('pblTeams', 'chattStateANumber', null) // Will filter manually
@@ -533,9 +493,6 @@
 
         // Filter PBL teams by chattStateANumber
         pblTeams = pblData.filter(team => team.chattStateANumber === student.chattStateANumber);
-
-        // Get all interventions to filter by studentId
-        interventions = interventionsData.filter(int => int.studentId === studentId);
 
         // Helper function to get initials
         function getInitials(firstName, lastName) {
@@ -579,7 +536,6 @@
         document.getElementById('student-grad-year').textContent = student.yearOfGraduation || '--';
 
         // Calculate stats
-        const activeInterventionsCount = interventions.filter(int => int.interventionStatus === 'Active').length;
         const classesCount = classSchedules.length;
         const pblTeamsCount = pblTeams.length;
 
@@ -592,7 +548,6 @@
 
         // Render stat cards
         document.getElementById('stat-attendance-rate').textContent = `${attendanceRate}%`;
-        document.getElementById('stat-active-interventions').textContent = activeInterventionsCount;
         document.getElementById('stat-classes-enrolled').textContent = classesCount;
         document.getElementById('stat-pbl-teams').textContent = pblTeamsCount;
 
@@ -601,80 +556,6 @@
         if (attendanceRate < 80) {
             attendanceIcon.classList.remove('green');
             attendanceIcon.classList.add('red');
-        }
-
-        // Render Interventions Tab
-        function renderInterventionsTab() {
-            const table = document.getElementById('interventions-table').querySelector('tbody');
-            table.innerHTML = '';
-
-            if (interventions.length > 0) {
-                document.getElementById('interventions-empty').style.display = 'none';
-                document.getElementById('interventions-table').style.display = 'table';
-
-                interventions.forEach(intervention => {
-                    const row = document.createElement('tr');
-                    const levelNum = intervention.interventionLevel || 1;
-                    const levelClass = `level-${levelNum}`;
-
-                    row.innerHTML = `
-                        <td>${intervention.interventionType || 'N/A'}</td>
-                        <td><span class="badge ${levelClass}">Level ${levelNum}</span></td>
-                        <td>${formatDate(intervention.startDate)}</td>
-                        <td>${intervention.endDate ? formatDate(intervention.endDate) : '--'}</td>
-                        <td><span class="badge ${intervention.interventionStatus === 'Active' ? 'badge-danger' : 'badge-gray'}">${intervention.interventionStatus}</span></td>
-                        <td>${intervention.tmiMinutesServed || 0}/${intervention.tmiMinutes || 0}</td>
-                        <td>${intervention.staffName || 'N/A'}</td>
-                    `;
-                    table.appendChild(row);
-                });
-
-                // Render timeline if there are interventions
-                const timelineHtml = renderInterventionTimeline();
-                if (timelineHtml) {
-                    document.getElementById('interventionTimeline').innerHTML = timelineHtml;
-                }
-            } else {
-                document.getElementById('interventions-table').style.display = 'none';
-                document.getElementById('interventions-empty').style.display = 'block';
-                document.getElementById('interventionTimeline').innerHTML = '';
-            }
-        }
-
-        // Render intervention timeline
-        function renderInterventionTimeline() {
-            if (interventions.length === 0) return '';
-
-            const sortedInterventions = interventions.sort((a, b) => 
-                new Date(b.startDate) - new Date(a.startDate)
-            );
-
-            let timelineHtml = '<div class="card" style="margin-top: 20px;"><div class="card-header"><div class="card-title">Intervention Timeline</div></div><div class="card-body"><div class="timeline">';
-
-            sortedInterventions.forEach((intervention, index) => {
-                const levelNum = intervention.interventionLevel || 1;
-                const levelClass = `level-${levelNum}`;
-
-                timelineHtml += `
-                    <div class="timeline-item">
-                        <div class="timeline-dot">${index + 1}</div>
-                        <div class="timeline-content">
-                            <div class="timeline-date">${formatDate(intervention.startDate)}</div>
-                            <div class="timeline-title">
-                                <span class="badge ${levelClass}">Level ${levelNum}</span>
-                                ${intervention.interventionType}
-                            </div>
-                            <div class="timeline-status">
-                                Status: ${intervention.interventionStatus} | Staff: ${intervention.staffName || 'N/A'}
-                            </div>
-                            ${intervention.comment ? `<div class="timeline-status" style="margin-top: 8px; color: #555;">${intervention.comment}</div>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-
-            timelineHtml += '</div></div></div>';
-            return timelineHtml;
         }
 
         // Render Attendance Tab
@@ -776,7 +657,6 @@
         }
 
         // Render all tabs
-        renderInterventionsTab();
         renderAttendanceTab();
         renderScheduleTab();
         renderPblTab();

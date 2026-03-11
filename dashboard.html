@@ -45,9 +45,36 @@
     .wx-loading  { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; opacity: .7; }
     .wx-error    { flex: 1; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 6px; opacity: .75; font-size: 13px; }
 
-    /* ── Calendar widget ── */
-    .cal-event-row    { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f1f5f9; align-items: flex-start; }
-    .cal-event-row:last-child { border-bottom: none; }
+    /* ── To-Do widget ── */
+    .todo-input-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .todo-input {
+      flex: 1; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      padding: 8px 12px; font-size: 14px; color: var(--text-primary);
+      outline: none; transition: border-color .15s;
+    }
+    .todo-input:focus { border-color: var(--primary); }
+    .todo-add-btn {
+      padding: 8px 16px; border-radius: 8px; border: none;
+      background: var(--primary); color: white; font-size: 13px;
+      font-weight: 600; cursor: pointer; white-space: nowrap;
+      transition: opacity .15s;
+    }
+    .todo-add-btn:hover { opacity: .85; }
+    .todo-list { list-style: none; margin: 0; padding: 0; }
+    .todo-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 4px; border-bottom: 1px solid #f1f5f9;
+      transition: opacity .3s, transform .3s;
+    }
+    .todo-item:last-child { border-bottom: none; }
+    .todo-item.done { opacity: 0; transform: translateX(20px); pointer-events: none; }
+    .todo-cb {
+      width: 18px; height: 18px; cursor: pointer; flex-shrink: 0;
+      accent-color: var(--primary);
+    }
+    .todo-text { font-size: 14px; color: var(--text-primary); flex: 1; }
+    .todo-empty { text-align: center; padding: 28px 0; color: var(--text-muted); font-size: 13px; }
+    .todo-empty i { font-size: 28px; display: block; margin-bottom: 8px; opacity: .4; }
     .cal-event-time   { font-size: 11px; font-weight: 700; color: #2563eb; min-width: 54px; white-space: nowrap; padding-top: 2px; }
     .cal-event-allday { font-size: 11px; font-weight: 700; color: #9333ea; min-width: 54px; padding-top: 2px; }
     .cal-event-bar    { width: 3px; border-radius: 2px; background: #2563eb; flex-shrink: 0; align-self: stretch; min-height: 18px; }
@@ -113,48 +140,24 @@
         </div>
       </div>
 
-      <!-- Outlook Calendar -->
+      <!-- To-Do List -->
       <div class="card" style="margin:0;">
         <div class="card-header">
-          <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
-            <div class="card-title">
-              <i class="fas fa-calendar-day" style="margin-right:6px;color:#2563eb;"></i>Today's Schedule
-            </div>
-            <button class="cal-link-btn" onclick="toggleCalSetup()" id="calSetupToggle">
-              <i class="fas fa-cog"></i> Setup
-            </button>
+          <div class="card-title">
+            <i class="fas fa-check-square" style="margin-right:6px;color:#4f46e5;"></i>To Do
           </div>
         </div>
-        <div class="card-body" style="padding-top:4px;">
-
-          <!-- Setup panel -->
-          <div id="calSetupPanel" style="display:none;" class="cal-setup-box">
-            <i class="fas fa-calendar-alt" style="font-size:26px;color:#94a3b8;margin-bottom:6px;"></i>
-            <p>Paste your Outlook <strong>ICS subscribe link</strong> to show today's events here.</p>
-            <details style="font-size:12px;color:#64748b;text-align:left;margin-bottom:10px;">
-              <summary style="cursor:pointer;font-weight:600;padding:4px 0;">How to get your subscribe link</summary>
-              <ol style="margin:6px 0 0 14px;line-height:1.9;">
-                <li>Open <strong>Outlook</strong> on the web (outlook.com or Office 365)</li>
-                <li>Go to <strong>Calendar</strong></li>
-                <li>Click the <strong>⋯</strong> next to your calendar → <strong>Share</strong></li>
-                <li>Choose <strong>Get a link</strong> → copy the <strong>ICS</strong> URL</li>
-                <li>Paste it below — it starts with <code>webcal://</code> or <code>https://</code></li>
-              </ol>
-            </details>
-            <input type="text" id="calUrlInput" class="cal-url-input"
-              placeholder="webcal://outlook.live.com/owa/calendar/…/calendar.ics">
-            <button class="w3-button btn-primary" style="width:100%;" onclick="saveCalUrl()">
-              <i class="fas fa-link"></i> Connect Calendar
+        <div class="card-body" style="padding-top:10px;">
+          <div class="todo-input-row">
+            <input type="text" id="todo-input" class="todo-input" placeholder="Add a task…" maxlength="200">
+            <button class="todo-add-btn" onclick="todoAdd()">
+              <i class="fas fa-plus"></i> Add
             </button>
-            <div id="calStatus" style="font-size:11px;color:#64748b;margin-top:6px;"></div>
           </div>
-
-          <!-- Events list -->
-          <div id="calEvents">
-            <div class="cal-empty-msg">
-              <i class="fas fa-calendar-plus"></i>
-              <div style="font-size:13px;">Click <strong>Setup</strong> above to connect your Outlook calendar</div>
-            </div>
+          <ul class="todo-list" id="todo-list"></ul>
+          <div class="todo-empty" id="todo-empty" style="display:none;">
+            <i class="fas fa-clipboard-check"></i>
+            All done — nothing left to do!
           </div>
         </div>
       </div>
@@ -349,138 +352,72 @@
     }
 
     // ══════════════════════════════════════
-    //  OUTLOOK CALENDAR (ICS)
+    //  TO-DO LIST
     // ══════════════════════════════════════
-    const CAL_KEY = 'p2mt_cal_ics_url';
+    const TODO_KEY = 'p2mt_todo_items';
 
-    window.toggleCalSetup = function() {
-      const panel = document.getElementById('calSetupPanel');
-      const open  = panel.style.display !== 'none';
-      panel.style.display = open ? 'none' : 'block';
-      if (!open) document.getElementById('calUrlInput').value = localStorage.getItem(CAL_KEY) || '';
-    };
+    function todoLoad() {
+      try { return JSON.parse(localStorage.getItem(TODO_KEY)) || []; }
+      catch(e) { return []; }
+    }
 
-    window.saveCalUrl = function() {
-      const url = document.getElementById('calUrlInput').value.trim();
-      if (!url) return;
-      localStorage.setItem(CAL_KEY, url);
-      document.getElementById('calStatus').textContent = 'Saved! Loading events…';
-      document.getElementById('calSetupPanel').style.display = 'none';
-      loadCalendar(url);
-    };
+    function todoSave(items) {
+      localStorage.setItem(TODO_KEY, JSON.stringify(items));
+    }
 
-    // ── ICS parser ──
-    function parseICS(text) {
-      const events = [];
-      const blocks = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) || [];
-      blocks.forEach(block => {
-        const unfolded = block.replace(/\r?\n[ \t]/g, ''); // RFC 5545 line folding
-        const get = key => {
-          const m = unfolded.match(new RegExp(`(?:^|\\n)${key}(?:;[^:]+)?:([^\\n]*)`, 'm'));
-          return m ? m[1].trim() : '';
-        };
-        const getRaw = key => {
-          const m = unfolded.match(new RegExp(`(?:^|\\n)(${key}[^\\n]*)`, 'm'));
-          return m ? m[1].trim() : '';
-        };
-        events.push({
-          summary:  get('SUMMARY'),
-          location: get('LOCATION'),
-          dtstart:  getRaw('DTSTART'),
-          dtend:    getRaw('DTEND'),
+    function todoRender() {
+      const items = todoLoad();
+      const list  = document.getElementById('todo-list');
+      const empty = document.getElementById('todo-empty');
+      list.innerHTML = '';
+
+      if (items.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      items.forEach((text, idx) => {
+        const li = document.createElement('li');
+        li.className = 'todo-item';
+        li.innerHTML = `
+          <input type="checkbox" class="todo-cb" id="todo-cb-${idx}">
+          <label class="todo-text" for="todo-cb-${idx}">${text.replace(/</g,'&lt;')}</label>`;
+
+        li.querySelector('.todo-cb').addEventListener('change', () => {
+          li.classList.add('done');
+          // Wait for fade-out transition then remove from storage
+          setTimeout(() => {
+            const current = todoLoad();
+            current.splice(idx, 1);
+            todoSave(current);
+            todoRender();
+          }, 320);
         });
+
+        list.appendChild(li);
       });
-      return events;
     }
 
-    function parseDT(line) {
-      if (!line) return null;
-      const val     = line.replace(/^[^:]*:/, '');
-      const allDay  = !val.includes('T');
-      if (allDay) {
-        return { dateStr: `${val.slice(0,4)}-${val.slice(4,6)}-${val.slice(6,8)}`, allDay: true, dt: null };
-      }
-      const m = val.match(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
-      if (!m) return null;
-      const [,y,mo,d,h,mi] = m;
-      const utc = val.endsWith('Z');
-      const dt  = new Date(`${y}-${mo}-${d}T${h}:${mi}:00${utc ? 'Z' : ''}`);
-      const ld  = `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-      return { dateStr: ld, allDay: false, dt };
-    }
+    window.todoAdd = function() {
+      const input = document.getElementById('todo-input');
+      const text  = input.value.trim();
+      if (!text) return;
+      const items = todoLoad();
+      items.push(text);
+      todoSave(items);
+      input.value = '';
+      todoRender();
+      input.focus();
+    };
 
-    function fmtTime(dt) {
-      return dt.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
-    }
+    // Add on Enter key
+    document.getElementById('todo-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') window.todoAdd();
+    });
 
-    async function loadCalendar(rawUrl) {
-      const box = document.getElementById('calEvents');
-      box.innerHTML = '<div class="cal-empty-msg"><i class="fas fa-spinner fa-spin"></i><div style="font-size:13px;">Loading…</div></div>';
-
-      const httpsUrl = rawUrl.replace(/^webcal:\/\//i, 'https://');
-      const proxy    = `https://api.allorigins.win/raw?url=${encodeURIComponent(httpsUrl)}`;
-
-      try {
-        const resp = await fetch(proxy, { cache: 'no-cache' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const text   = await resp.text();
-        const events = parseICS(text);
-
-        const todayEvts = events
-          .filter(ev => { const p = parseDT(ev.dtstart); return p && p.dateStr === todayStr; })
-          .sort((a, b) => {
-            const pa = parseDT(a.dtstart), pb = parseDT(b.dtstart);
-            if (pa?.allDay && !pb?.allDay) return -1;
-            if (!pa?.allDay && pb?.allDay) return 1;
-            return (pa?.dt || 0) - (pb?.dt || 0);
-          });
-
-        if (todayEvts.length === 0) {
-          box.innerHTML = `<div class="cal-empty-msg">
-            <i class="fas fa-coffee"></i>
-            <div style="font-size:13px;">No events scheduled for today</div>
-          </div>`;
-          return;
-        }
-
-        box.innerHTML = todayEvts.map(ev => {
-          const p       = parseDT(ev.dtstart);
-          const timeHtml = p?.allDay
-            ? `<div class="cal-event-allday">All day</div>`
-            : `<div class="cal-event-time">${p?.dt ? fmtTime(p.dt) : ''}</div>`;
-          const locHtml = ev.location
-            ? `<div class="cal-event-loc"><i class="fas fa-map-marker-alt"></i> ${ev.location}</div>`
-            : '';
-          return `
-            <div class="cal-event-row">
-              ${timeHtml}
-              <div class="cal-event-bar"></div>
-              <div>
-                <div class="cal-event-name">${ev.summary || 'Untitled'}</div>
-                ${locHtml}
-              </div>
-            </div>`;
-        }).join('');
-
-      } catch(e) {
-        console.error('Calendar error:', e);
-        box.innerHTML = `<div class="cal-empty-msg">
-          <i class="fas fa-exclamation-triangle" style="color:#f59e0b;"></i>
-          <div style="font-size:13px;">Could not load calendar.<br>
-            <button class="cal-link-btn" onclick="toggleCalSetup()" style="margin-top:4px;">Check your ICS link</button>
-          </div>
-        </div>`;
-      }
-    }
-
-    // Auto-load saved URL
-    const saved = localStorage.getItem(CAL_KEY);
-    if (saved) {
-      loadCalendar(saved);
-    } else {
-      document.getElementById('calSetupPanel').style.display = 'block';
-      document.getElementById('calEvents').innerHTML = '';
-    }
+    // Initial render
+    todoRender();
 
   </script>
 </body>
