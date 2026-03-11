@@ -13,15 +13,6 @@
     .tab-content { display: none; }
     .tab-content.active { display: block; }
 
-    /* ── Class info banner ── */
-    .class-info-card {
-      background: linear-gradient(135deg, var(--primary) 0%, #3730a3 100%);
-      color: white; padding: 16px 20px; border-radius: 10px;
-      margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center;
-    }
-    .class-info-card .ci-item { font-size: 13px; opacity: .9; }
-    .class-info-card .ci-val  { font-size: 15px; font-weight: 700; opacity: 1; }
-
     /* ── Attendance table ── */
     .att-table { width: 100%; border-collapse: collapse; }
     .att-table thead th {
@@ -70,14 +61,6 @@
     .att-comment:focus { outline: none; border-color: var(--primary); }
     .tmi-check { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
 
-    /* ── Toolbar ── */
-    .att-toolbar {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-      padding: 12px 16px; background: #f8fafc;
-      border-bottom: 1px solid #e2e8f0; border-radius: 8px 8px 0 0;
-    }
-    .att-count { font-size: 13px; color: var(--text-secondary); margin-left: auto; }
-
     /* ── Legend ── */
     .att-legend {
       display: flex; gap: 14px; flex-wrap: wrap; padding: 10px 16px;
@@ -87,34 +70,51 @@
     .legend-dot {
       display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px;
     }
-    .save-button-row { padding: 16px; background: white; border-top: 2px solid #e2e8f0; }
 
-    /* ── Learning Lab Today Panel ── */
-    #ll-panel { margin-bottom: 16px; }
-    .ll-panel-inner {
-      background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
-      border: 1px solid #c4b5fd; border-radius: 10px; padding: 14px 18px;
+    /* ── Class sections ── */
+    .class-section {
+      margin-bottom: 20px; border-radius: 10px;
+      overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,.08); background: white;
     }
-    .ll-title {
-      font-size: 13px; font-weight: 700; color: #6d28d9;
-      display: block; margin-bottom: 10px;
+    .section-header {
+      display: flex; align-items: center; flex-wrap: wrap; gap: 12px;
+      padding: 14px 18px;
     }
-    .ll-items { display: flex; flex-wrap: wrap; gap: 10px; }
-    .ll-item-btn {
-      display: flex; align-items: center; gap: 10px; background: white;
-      border: 1.5px solid #c4b5fd; border-radius: 8px; padding: 8px 14px;
-      cursor: pointer; transition: all .15s; font-size: 13px; text-align: left;
+    .section-header.regular {
+      background: linear-gradient(135deg, var(--primary) 0%, #3730a3 100%); color: white;
     }
-    .ll-item-btn:hover { background: #f5f3ff; border-color: #8b5cf6; box-shadow: 0 2px 6px rgba(139,92,246,.2); }
-    .ll-item-name { font-weight: 600; color: #4c1d95; }
-    .ll-item-time { color: #6d28d9; font-size: 12px; }
-    .ll-item-count { color: #7c3aed; background: #ede9fe; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
-    .ll-item-action { color: #8b5cf6; font-size: 12px; font-weight: 600; margin-left: 4px; }
+    .section-header.lab {
+      background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: white;
+    }
+    .section-class-name { font-size: 16px; font-weight: 700; }
+    .section-meta { font-size: 13px; opacity: .85; }
+    .section-badge {
+      font-size: 11px; font-weight: 700; padding: 3px 10px;
+      border-radius: 12px; background: rgba(255,255,255,.2);
+    }
+    .section-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+    .section-btn {
+      padding: 6px 14px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,.6);
+      background: rgba(255,255,255,.15); color: white; cursor: pointer;
+      font-size: 13px; font-weight: 600; transition: background .15s;
+    }
+    .section-btn:hover { background: rgba(255,255,255,.3); }
+    .section-btn.save { background: rgba(255,255,255,.25); border-color: white; }
+    .section-btn.save:hover { background: rgba(255,255,255,.4); }
+
+    /* ── Save All bar ── */
+    .save-all-bar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 12px 16px; background: white;
+      border-radius: 8px; margin-bottom: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,.08);
+    }
+    .save-all-summary { font-size: 13px; color: var(--text-secondary); margin-left: auto; }
   </style>
 </head>
 <body>
   <div id="nav-container"></div>
-  
+
   <div class="page-container">
     <!-- Header -->
     <div class="page-header">
@@ -126,10 +126,10 @@
       </div>
     </div>
 
-    <!-- Filter Bar -->
+    <!-- Filter Bar: Teacher + Date only (auto-loads on change) -->
     <div class="filter-bar filter-card w3-margin-bottom">
       <div class="w3-row">
-        <div class="w3-col m3 w3-padding-small">
+        <div class="w3-col m5 w3-padding-small">
           <div class="filter-group">
             <label class="form-label">Teacher</label>
             <select id="filter-teacher" class="w3-select w3-border">
@@ -137,30 +137,19 @@
             </select>
           </div>
         </div>
-        <div class="w3-col m3 w3-padding-small">
-          <div class="filter-group">
-            <label class="form-label">Class</label>
-            <select id="filter-class" class="w3-select w3-border">
-              <option value="">-- Select Class --</option>
-            </select>
-          </div>
-        </div>
-        <div class="w3-col m3 w3-padding-small">
+        <div class="w3-col m5 w3-padding-small">
           <div class="filter-group">
             <label class="form-label">Class Date</label>
             <input type="date" id="filter-class-date" class="w3-input w3-border">
           </div>
         </div>
-        <div class="w3-col m3 w3-padding-small" style="padding-top: 30px;">
-          <button id="btn-apply-filters" class="w3-button btn-primary w3-block">
-            <i class="fas fa-filter"></i> Apply
-          </button>
+        <div class="w3-col m2 w3-padding-small" style="display:flex;align-items:flex-end;">
+          <div id="filter-loading" style="display:none;padding:8px;color:var(--text-muted);font-size:13px;">
+            <i class="fas fa-spinner fa-spin"></i> Loading…
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Learning Lab Quick Access Panel -->
-    <div id="ll-panel" style="display:none;"></div>
 
     <!-- Tab Navigation -->
     <div class="tab-bar">
@@ -174,69 +163,29 @@
 
     <!-- Tab 1: Take Attendance -->
     <div id="attendance-tab" class="tab-content active">
-      <!-- Class Info Banner (appears after filters applied) -->
-      <div id="class-info-container" style="display: none;">
-        <div class="class-info-card">
-          <div><div class="ci-item">Teacher</div><div class="ci-val" id="class-teacher">-</div></div>
-          <div><div class="ci-item">Class</div><div class="ci-val" id="class-name">-</div></div>
-          <div><div class="ci-item">Date</div><div class="ci-val" id="class-date">-</div></div>
-          <div><div class="ci-item">Time</div><div class="ci-val" id="class-time">-</div></div>
-          <div><div class="ci-item">Campus</div><div class="ci-val" id="class-campus">-</div></div>
-        </div>
-      </div>
 
-      <!-- Attendance Table Container -->
-      <div id="loading-container" class="loading-container" style="display: none;">
-        <div class="loading-text">
-          <div class="spinner"></div>
-          <span>Loading class attendance...</span>
-        </div>
-      </div>
-
+      <!-- Empty state -->
       <div id="no-selection-message" class="card card-body" style="text-align:center;color:var(--text-muted);padding:40px;">
         <p><i class="fas fa-filter" style="font-size: 40px; margin: 20px 0;"></i></p>
-        <p>Select teacher, class, and date above to begin taking attendance.</p>
+        <p>Select a teacher and date above to automatically load all their classes for that day.</p>
       </div>
 
-      <div id="attendance-container" style="display: none;">
-        <div class="card" style="overflow:hidden;">
-          <div class="att-toolbar">
-            <button id="btn-save-top" class="w3-button btn-primary">
-              <i class="fas fa-save"></i> Save Changes
-            </button>
-            <button class="w3-button btn-ghost" onclick="markAllPresent()">
-              <i class="fas fa-check-double"></i> Mark All Present
-            </button>
-            <span class="att-count" id="att-count"></span>
-          </div>
-          <div style="overflow-x:auto;">
-            <table class="att-table">
-              <thead>
-                <tr>
-                  <th class="att-num">#</th>
-                  <th>Student</th>
-                  <th>Code</th>
-                  <th>Notes</th>
-                  <th title="Assign TMI">TMI</th>
-                </tr>
-              </thead>
-              <tbody id="attendance-students-list"></tbody>
-            </table>
-          </div>
-          <div class="att-legend">
-            <span><span class="legend-dot" style="background:#16a34a"></span>P = Present</span>
-            <span><span class="legend-dot" style="background:#d97706"></span>T = Tardy</span>
-            <span><span class="legend-dot" style="background:#2563eb"></span>E = Excused</span>
-            <span><span class="legend-dot" style="background:#dc2626"></span>U = Unexcused</span>
-            <span><span class="legend-dot" style="background:#9ca3af"></span>? = Unknown</span>
-          </div>
-          <div class="save-button-row">
-            <button id="btn-save-bottom" class="w3-button btn-primary w3-block">
-              <i class="fas fa-save"></i> Save All Changes
-            </button>
-          </div>
-        </div>
+      <!-- No classes found state -->
+      <div id="no-classes-message" class="card card-body" style="display:none;text-align:center;color:var(--text-muted);padding:40px;">
+        <p><i class="fas fa-calendar-times" style="font-size: 40px; margin: 20px 0;"></i></p>
+        <p id="no-classes-text">No classes found for this teacher on this date.</p>
       </div>
+
+      <!-- Save All bar (shown when sections loaded) -->
+      <div id="save-all-bar" class="save-all-bar" style="display:none;">
+        <button onclick="saveAllSections()" class="w3-button btn-primary">
+          <i class="fas fa-save"></i> Save All Classes
+        </button>
+        <span class="save-all-summary" id="save-all-summary"></span>
+      </div>
+
+      <!-- Sections container -->
+      <div id="sections-container"></div>
     </div>
 
     <!-- Tab 2: Absence Summary -->
@@ -316,22 +265,26 @@
     import { initNav } from './js/nav.js';
     import { formatDate, exportCSV, showToast, ATTENDANCE_CODES } from './js/utils.js';
 
-    let currentUser = null;
-    let allClassSchedules = [];
+    // ── Module-level state ───────────────────────────────────────────────────
+    let currentUser   = null;
+    let allClassSchedules      = [];
     let allClassAttendanceLogs = [];
-    let allStudents = [];
-    let allInterventions = [];
-    let currentClassScheduleId = null;
+    let allStudents            = [];
+    let allInterventions       = [];
+
+    // sections[] is the core of the new design:
+    // each entry = { idx, className, isLab, schedule, students, state }
+    // state is keyed by student.id: { code, comment, tmi, logId }
+    let sections      = [];
     let currentTeacher = null;
-    let currentClass = null;
-    let currentDate = null;
-    let currentIsLab = false;   // true when the active class is a learning lab
-    let attendanceChanges = {};
-    let attendanceState = {};   // keyed by student.id: { code, comment, tmi }
-    let currentStudents = [];   // enrolled students for current class view
+    let currentDate    = null;
+
     let absenceTable = null;
 
-    // Initialize page
+    // Day-of-week mapping (same format used in classDays arrays)
+    const DAY_MAP = { 0: '', 1: 'M', 2: 'T', 3: 'W', 4: 'Th', 5: 'F', 6: '' };
+
+    // ── Boot ─────────────────────────────────────────────────────────────────
     initAuth().then(user => {
       currentUser = user;
       initNav('class-attendance');
@@ -351,293 +304,280 @@
     }
 
     async function loadAllData() {
-      try {
-        allClassSchedules = await getAll('classSchedules');
-        allClassAttendanceLogs = await getAll('classAttendanceLogs');
-        allStudents = await getAll('students');
-        try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
-      } catch (error) {
-        console.error('Error loading data:', error);
-        throw error;
-      }
+      allClassSchedules      = await getAll('classSchedules');
+      allClassAttendanceLogs = await getAll('classAttendanceLogs');
+      allStudents            = await getAll('students');
+      try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
     }
 
+    // ── Teacher dropdowns ────────────────────────────────────────────────────
     function populateTeacherDropdowns() {
       const uniqueTeachers = [...new Set(allClassSchedules.map(cs => cs.teacherLastName))].filter(Boolean).sort();
-      
-      const filterTeacher = document.getElementById('filter-teacher');
+
+      const filterTeacher        = document.getElementById('filter-teacher');
       const absenceFilterTeacher = document.getElementById('absence-filter-teacher');
-      
+
       uniqueTeachers.forEach(teacher => {
-        const option1 = document.createElement('option');
-        option1.value = teacher;
-        option1.textContent = teacher;
-        filterTeacher.appendChild(option1);
+        const o1 = document.createElement('option');
+        o1.value = teacher; o1.textContent = teacher;
+        filterTeacher.appendChild(o1);
 
-        const option2 = document.createElement('option');
-        option2.value = teacher;
-        option2.textContent = teacher;
-        absenceFilterTeacher.appendChild(option2);
+        const o2 = document.createElement('option');
+        o2.value = teacher; o2.textContent = teacher;
+        absenceFilterTeacher.appendChild(o2);
       });
     }
 
-    function populateClassDropdown() {
-      const selectedTeacher = document.getElementById('filter-teacher').value;
-      const filterClass = document.getElementById('filter-class');
-      
-      // Clear existing options
-      filterClass.innerHTML = '<option value="">-- Select Class --</option>';
-      
-      if (!selectedTeacher) return;
-
-      // Track whether each class name has a regular section, a lab section, or both
-      const classMap = {}; // className -> { hasRegular, hasLab }
-      allClassSchedules
-        .filter(cs => cs.teacherLastName === selectedTeacher)
-        .forEach(cs => {
-          if (!classMap[cs.className]) classMap[cs.className] = { hasRegular: false, hasLab: false };
-          if (cs.learningLab) classMap[cs.className].hasLab = true;
-          else classMap[cs.className].hasRegular = true;
-        });
-
-      // Emit regular entry first, then lab entry — both when a class has both types
-      Object.keys(classMap).sort().forEach(className => {
-        const info = classMap[className];
-        if (info.hasRegular) {
-          const opt = document.createElement('option');
-          opt.value = className;           // plain name = regular class
-          opt.textContent = className;
-          filterClass.appendChild(opt);
-        }
-        if (info.hasLab) {
-          const opt = document.createElement('option');
-          opt.value = className + '::lab'; // suffixed value = learning lab
-          opt.textContent = `${className} ⭐ Learning Lab`;
-          filterClass.appendChild(opt);
-        }
-      });
-
-      // Refresh the learning lab panel whenever classes are rebuilt
-      updateLLPanel();
-    }
-
-    // ── Learning Lab Panel ──────────────────────────────────────────────────
-    function updateLLPanel() {
-      const teacher = document.getElementById('filter-teacher').value;
-      const panel   = document.getElementById('ll-panel');
-
-      if (!teacher) { panel.style.display = 'none'; return; }
-
-      // Collect all unique learning lab classes for this teacher
-      const labClasses = new Map();
-      allClassSchedules
-        .filter(cs => cs.learningLab && cs.teacherLastName === teacher)
-        .forEach(cs => {
-          if (labClasses.has(cs.className)) return;
-          const studentCount = allClassSchedules.filter(x =>
-            x.learningLab && x.teacherLastName === teacher && x.className === cs.className
-          ).length;
-          labClasses.set(cs.className, { ...cs, studentCount });
-        });
-
-      if (labClasses.size === 0) { panel.style.display = 'none'; return; }
-
-      let html = `<div class="ll-panel-inner">
-        <span class="ll-title"><i class="fas fa-flask"></i> Learning Lab Sessions</span>
-        <div class="ll-items">`;
-
-      labClasses.forEach((cs, className) => {
-        const days = (cs.classDays || []).join('/');
-        const time = cs.startTime && cs.endTime ? `${cs.startTime}–${cs.endTime}` : '';
-        const schedule = [days, time].filter(Boolean).join(' · ');
-        const safeClass = className.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-        html += `<button class="ll-item-btn" onclick="quickLoadLab('${safeClass}')">
-          <i class="fas fa-flask" style="color:#8b5cf6;"></i>
-          <span class="ll-item-name">${className}</span>
-          ${schedule ? `<span class="ll-item-time">${schedule}</span>` : ''}
-          <span class="ll-item-count">${cs.studentCount} student${cs.studentCount !== 1 ? 's' : ''}</span>
-          <span class="ll-item-action">Take Attendance →</span>
-        </button>`;
-      });
-
-      html += `</div></div>`;
-      panel.innerHTML = html;
-      panel.style.display = 'block';
-    }
-
-    window.quickLoadLab = function(className) {
-      // Ensure class dropdown is populated for the current teacher
-      populateClassDropdown();
-      const filterClass = document.getElementById('filter-class');
-      // Use the ::lab suffix so we land on the lab entry, not a regular class of the same name
-      filterClass.value = className + '::lab';
-      applyFilters();
-    };
-
+    // ── Event listeners ──────────────────────────────────────────────────────
     function attachEventListeners() {
-      document.getElementById('filter-teacher').addEventListener('change', populateClassDropdown);
-      document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
+      document.getElementById('filter-teacher').addEventListener('change', loadTeacherDay);
+      document.getElementById('filter-class-date').addEventListener('change', loadTeacherDay);
       document.getElementById('btn-download-csv').addEventListener('click', downloadAttendanceCSV);
-      document.getElementById('btn-save-top').addEventListener('click', saveAllChanges);
-      document.getElementById('btn-save-bottom').addEventListener('click', saveAllChanges);
       document.getElementById('btn-apply-absence-filters').addEventListener('click', loadAbsenceData);
       document.getElementById('btn-download-absence-csv').addEventListener('click', downloadAbsenceCSV);
 
-      // Set today as default date
+      // Default to today
       const today = new Date().toISOString().split('T')[0];
       document.getElementById('filter-class-date').value = today;
     }
 
-    async function applyFilters() {
-      const teacher       = document.getElementById('filter-teacher').value;
-      const rawClassValue = document.getElementById('filter-class').value;
-      const classDate     = document.getElementById('filter-class-date').value;
+    // ── Core: load all classes for teacher+date ───────────────────────────────
+    async function loadTeacherDay() {
+      const teacher   = document.getElementById('filter-teacher').value;
+      const classDate = document.getElementById('filter-class-date').value;
 
-      if (!teacher || !rawClassValue || !classDate) {
-        showToast('Please select teacher, class, and date', 'error');
+      // Reset view
+      sections = [];
+      document.getElementById('sections-container').innerHTML = '';
+      document.getElementById('save-all-bar').style.display     = 'none';
+      document.getElementById('no-classes-message').style.display = 'none';
+
+      if (!teacher || !classDate) {
+        document.getElementById('no-selection-message').style.display = 'block';
         return;
       }
 
-      // Decode the ::lab suffix that distinguishes lab from regular when both exist
-      const isLabClass = rawClassValue.endsWith('::lab');
-      const className  = isLabClass ? rawClassValue.slice(0, -5) : rawClassValue;
+      document.getElementById('no-selection-message').style.display = 'none';
+      document.getElementById('filter-loading').style.display = 'block';
 
       try {
-        document.getElementById('loading-container').style.display = 'flex';
-        document.getElementById('attendance-container').style.display = 'none';
-        document.getElementById('no-selection-message').style.display = 'block';
+        currentTeacher = teacher;
+        currentDate    = classDate;
 
-        // Filter to only the regular OR lab schedules — never mix both
-        const classSchedules = allClassSchedules.filter(cs =>
-          cs.teacherLastName === teacher &&
-          cs.className === className &&
-          (isLabClass ? cs.learningLab === true : !cs.learningLab)
-        );
+        // Day-of-week abbreviation for the selected date
+        const [yr, mo, dy] = classDate.split('-').map(Number);
+        const dt      = new Date(yr, mo - 1, dy);
+        const dayAbbr = DAY_MAP[dt.getDay()]; // '' on weekends
 
-        if (classSchedules.length === 0) {
-          showToast('Class schedule not found', 'error');
-          document.getElementById('loading-container').style.display = 'none';
+        // Filter schedules: teacher matches, date range, and day-of-week
+        const teacherSchedules = allClassSchedules.filter(cs => {
+          if (cs.teacherLastName !== teacher) return false;
+          // Date range (inclusive) — skip if outside
+          if (cs.startDate && classDate < cs.startDate) return false;
+          if (cs.endDate   && classDate > cs.endDate)   return false;
+          // Day-of-week — if classDays is set and non-empty, must include today's abbr
+          if (cs.classDays && cs.classDays.length > 0) {
+            if (!dayAbbr || !cs.classDays.includes(dayAbbr)) return false;
+          }
+          return true;
+        });
+
+        // Group by className + isLab type
+        // key = className + '::' + (isLab ? 'lab' : 'regular')
+        const groupMap = new Map();
+        teacherSchedules.forEach(cs => {
+          const isLab = cs.learningLab === true;
+          const key   = cs.className + (isLab ? '::lab' : '::regular');
+          if (!groupMap.has(key)) {
+            groupMap.set(key, { className: cs.className, isLab, schedule: cs, records: [] });
+          }
+          groupMap.get(key).records.push(cs);
+        });
+
+        if (groupMap.size === 0) {
+          const dayName = dt.toLocaleDateString('en-US', { weekday: 'long' });
+          document.getElementById('no-classes-text').textContent =
+            `No classes found for ${teacher} on ${dayName}, ${formatDate(classDate)}.`;
+          document.getElementById('no-classes-message').style.display = 'block';
+          document.getElementById('filter-loading').style.display = 'none';
           return;
         }
 
-        const schedule = classSchedules[0]; // use first for class info (campus, times)
-        currentClassScheduleId = schedule.id;
-        currentTeacher = teacher;
-        currentClass = className;
-        currentDate = classDate;
-        currentIsLab = isLabClass;
-        attendanceChanges = {};
-
-        // Build enrolled student list — deduplicate by studentId in case of duplicate schedule records
-        const seenIds = new Set();
-        const enrolledStudents = classSchedules
-          .filter(cs => {
-            if (!cs.studentId || seenIds.has(cs.studentId)) return false;
-            seenIds.add(cs.studentId);
-            return true;
+        // Build sections array, sorted by startTime then className
+        sections = [...groupMap.values()]
+          .sort((a, b) => {
+            const ta = a.schedule.startTime || '';
+            const tb = b.schedule.startTime || '';
+            if (ta < tb) return -1;
+            if (ta > tb) return 1;
+            return a.className.localeCompare(b.className);
           })
-          .map(cs => allStudents.find(s => s.id === cs.studentId))
-          .filter(Boolean)
-          .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+          .map((grp, idx) => {
+            // Deduplicate students by studentId
+            const seenIds = new Set();
+            const students = grp.records
+              .filter(cs => {
+                if (!cs.studentId || seenIds.has(cs.studentId)) return false;
+                seenIds.add(cs.studentId);
+                return true;
+              })
+              .map(cs => allStudents.find(s => s.id === cs.studentId))
+              .filter(Boolean)
+              .sort((a, b) =>
+                (a.lastName  || '').localeCompare(b.lastName  || '') ||
+                (a.firstName || '').localeCompare(b.firstName || '')
+              );
 
-        // Display class info
-        displayClassInfo(schedule);
-        document.getElementById('class-info-container').style.display = 'block';
+            // Find existing logs for this class+date (respecting lab/regular type)
+            const existingLogs = allClassAttendanceLogs.filter(log =>
+              log.teacherLastName === teacher &&
+              log.className       === grp.className &&
+              (log.date === classDate || log.classDate === classDate) &&
+              (grp.isLab ? log.learningLab === true : !log.learningLab)
+            );
 
-        // Find existing logs — match teacher+class+date AND lab/regular type so they never bleed into each other
-        const existingLogs = allClassAttendanceLogs.filter(log =>
-          log.teacherLastName === teacher &&
-          log.className === className &&
-          (log.date === classDate || log.classDate === classDate) &&
-          (isLabClass ? log.learningLab === true : !log.learningLab)
-        );
+            // Seed attendance state from existing logs
+            const state = {};
+            students.forEach(s => {
+              const log = existingLogs.find(l =>
+                l.studentId === s.id || l.chattStateANumber === s.chattStateANumber
+              );
+              state[s.id] = {
+                code:    log?.attendanceCode || log?.status || 'P',
+                comment: log?.comment  || '',
+                tmi:     log?.assignTmi || false,
+                logId:   log?.id || null
+              };
+            });
 
-        // Display attendance form
-        displayAttendanceForm(enrolledStudents, existingLogs, schedule);
-        document.getElementById('no-selection-message').style.display = 'none';
-        document.getElementById('attendance-container').style.display = 'block';
-        document.getElementById('loading-container').style.display = 'none';
+            return { idx, className: grp.className, isLab: grp.isLab, schedule: grp.schedule, students, state };
+          });
+
+        renderAllSections();
 
       } catch (error) {
-        console.error('Error applying filters:', error);
-        showToast('Error loading class attendance', 'error');
-        document.getElementById('loading-container').style.display = 'none';
+        console.error('Error loading teacher day:', error);
+        showToast('Error loading classes', 'error');
+      } finally {
+        document.getElementById('filter-loading').style.display = 'none';
       }
     }
 
-    function displayClassInfo(schedule) {
-      document.getElementById('class-teacher').textContent = schedule.teacherLastName || '-';
-      document.getElementById('class-name').textContent = schedule.className || '-';
-      document.getElementById('class-date').textContent = formatDate(currentDate);
-      document.getElementById('class-campus').textContent = schedule.campus || '-';
-      
-      const timeStr = schedule.startTime && schedule.endTime 
-        ? `${schedule.startTime} - ${schedule.endTime}`
-        : '-';
-      document.getElementById('class-time').textContent = timeStr;
+    // ── Render all sections ──────────────────────────────────────────────────
+    function renderAllSections() {
+      const container = document.getElementById('sections-container');
+      container.innerHTML = '';
+
+      if (sections.length === 0) return;
+
+      const totalStudents = sections.reduce((sum, s) => sum + s.students.length, 0);
+      const summary = `${sections.length} class${sections.length !== 1 ? 'es' : ''} · ${totalStudents} student${totalStudents !== 1 ? 's' : ''}`;
+      document.getElementById('save-all-summary').textContent = summary;
+      document.getElementById('save-all-bar').style.display = 'flex';
+
+      sections.forEach(sec => {
+        container.appendChild(buildSectionEl(sec));
+      });
     }
 
-    function displayAttendanceForm(students, existingLogs, schedule) {
-      currentStudents = students;
-      attendanceState = {};
+    function buildSectionEl(sec) {
+      const idx     = sec.idx;
+      const timeStr = (sec.schedule.startTime && sec.schedule.endTime)
+        ? `${sec.schedule.startTime} – ${sec.schedule.endTime}`
+        : sec.schedule.startTime || '';
+      const campus  = sec.schedule.campus || '';
+      const meta    = [timeStr, campus].filter(Boolean).join(' · ');
 
-      // Seed state from existing logs
-      students.forEach(s => {
-        const log = existingLogs.find(l =>
-          l.studentId === s.id || l.chattStateANumber === s.chattStateANumber
-        );
-        attendanceState[s.id] = {
-          code:    log?.attendanceCode || log?.status || 'P',
-          comment: log?.comment || '',
-          tmi:     log?.assignTmi || false,
-          logId:   log?.id || null
-        };
-      });
+      const wrapper = document.createElement('div');
+      wrapper.className = 'class-section';
+      wrapper.id = `section-${idx}`;
 
-      const tbody = document.getElementById('attendance-students-list');
-      tbody.innerHTML = '';
-
-      students.forEach((student, idx) => {
-        const state = attendanceState[student.id];
-        const codes = ['P','T','E','U','?'];
-        const btnClass = c => c === '?' ? 'Q' : c;
-
+      // Build student rows HTML
+      let rowsHtml = '';
+      sec.students.forEach((student, rowIdx) => {
+        const state = sec.state[student.id] || { code: 'P', comment: '', tmi: false };
+        const codes = ['P', 'T', 'E', 'U', '?'];
         const codeBtns = codes.map(c => {
+          const cls    = c === '?' ? 'Q' : c;
           const active = state.code === c ? 'active' : '';
-          return `<button class="code-btn ${btnClass(c)} ${active}" onclick="setCode('${student.id}','${c}')" title="${c}">${c}</button>`;
+          return `<button class="code-btn ${cls} ${active}" onclick="setCodeSection(${idx},'${student.id}','${c}')">${c}</button>`;
         }).join('');
 
-        const tr = document.createElement('tr');
-        tr.className = 'att-row';
-        tr.dataset.studentId = student.id;
-        tr.dataset.code = state.code;
-        tr.innerHTML = `
-          <td class="att-num">${idx + 1}</td>
-          <td>
-            <div class="att-name">${student.lastName || ''}, ${student.firstName || ''}</div>
-            <div class="att-anum">${student.chattStateANumber || ''}</div>
-          </td>
-          <td><div class="code-btn-group">${codeBtns}</div></td>
-          <td><input class="att-comment" type="text" placeholder="Notes…" value="${(state.comment || '').replace(/"/g,'&quot;')}"
-               oninput="setComment('${student.id}', this.value)"></td>
-          <td style="text-align:center;">
-            <input class="tmi-check" type="checkbox" ${state.tmi ? 'checked' : ''}
-               onchange="setTMI('${student.id}', this.checked)" title="Assign TMI">
-          </td>
-        `;
-        tbody.appendChild(tr);
+        const safeComment = (state.comment || '').replace(/"/g, '&quot;');
+        rowsHtml += `
+          <tr class="att-row" data-student-id="${student.id}" data-code="${state.code}">
+            <td class="att-num">${rowIdx + 1}</td>
+            <td>
+              <div class="att-name">${student.lastName || ''}, ${student.firstName || ''}</div>
+              <div class="att-anum">${student.chattStateANumber || ''}</div>
+            </td>
+            <td><div class="code-btn-group">${codeBtns}</div></td>
+            <td><input class="att-comment" type="text" placeholder="Notes…" value="${safeComment}"
+                 oninput="setCommentSection(${idx},'${student.id}',this.value)"></td>
+            <td style="text-align:center;">
+              <input class="tmi-check" type="checkbox" ${state.tmi ? 'checked' : ''}
+                 onchange="setTMISection(${idx},'${student.id}',this.checked)" title="Assign TMI">
+            </td>
+          </tr>`;
       });
 
-      const countEl = document.getElementById('att-count');
-      if (countEl) countEl.textContent = `${students.length} student${students.length !== 1 ? 's' : ''}`;
+      if (sec.students.length === 0) {
+        rowsHtml = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text-muted);">No students enrolled</td></tr>`;
+      }
+
+      wrapper.innerHTML = `
+        <div class="section-header ${sec.isLab ? 'lab' : 'regular'}">
+          <div>
+            <div class="section-class-name">${sec.className}${sec.isLab ? ' <span style="font-size:14px;">⭐</span>' : ''}</div>
+            ${meta ? `<div class="section-meta">${meta}</div>` : ''}
+          </div>
+          <span class="section-badge">${sec.isLab ? 'Learning Lab' : 'Class'}</span>
+          <span class="section-badge">${sec.students.length} student${sec.students.length !== 1 ? 's' : ''}</span>
+          <div class="section-actions">
+            <button class="section-btn" onclick="markAllPresentSection(${idx})">
+              <i class="fas fa-check-double"></i> All Present
+            </button>
+            <button class="section-btn save" onclick="saveSectionByIdx(${idx})">
+              <i class="fas fa-save"></i> Save
+            </button>
+          </div>
+        </div>
+        <div style="overflow-x:auto;">
+          <table class="att-table">
+            <thead>
+              <tr>
+                <th class="att-num">#</th>
+                <th>Student</th>
+                <th>Code</th>
+                <th>Notes</th>
+                <th title="Assign TMI">TMI</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-${idx}">${rowsHtml}</tbody>
+          </table>
+        </div>
+        <div class="att-legend">
+          <span><span class="legend-dot" style="background:#16a34a"></span>P = Present</span>
+          <span><span class="legend-dot" style="background:#d97706"></span>T = Tardy</span>
+          <span><span class="legend-dot" style="background:#2563eb"></span>E = Excused</span>
+          <span><span class="legend-dot" style="background:#dc2626"></span>U = Unexcused</span>
+          <span><span class="legend-dot" style="background:#9ca3af"></span>? = Unknown</span>
+        </div>`;
+
+      return wrapper;
     }
 
-    window.setCode = function(studentId, code) {
-      if (!attendanceState[studentId]) attendanceState[studentId] = { code: 'P', comment: '', tmi: false };
-      attendanceState[studentId].code = code;
+    // ── Attendance state setters (called from inline onclick) ─────────────────
+    window.setCodeSection = function(idx, studentId, code) {
+      const sec = sections[idx];
+      if (!sec) return;
+      if (!sec.state[studentId]) sec.state[studentId] = { code: 'P', comment: '', tmi: false };
+      sec.state[studentId].code = code;
 
-      // Update button states
-      const row = document.querySelector(`tr[data-student-id="${studentId}"]`);
+      // Update DOM row in this section
+      const tbody = document.getElementById(`tbody-${idx}`);
+      if (!tbody) return;
+      const row = tbody.querySelector(`tr[data-student-id="${studentId}"]`);
       if (row) {
         row.dataset.code = code;
         row.querySelectorAll('.code-btn').forEach(btn => {
@@ -647,123 +587,171 @@
       }
     };
 
-    window.setComment = function(studentId, comment) {
-      if (!attendanceState[studentId]) attendanceState[studentId] = { code: 'P', comment: '', tmi: false };
-      attendanceState[studentId].comment = comment;
+    window.setCommentSection = function(idx, studentId, val) {
+      const sec = sections[idx];
+      if (!sec) return;
+      if (!sec.state[studentId]) sec.state[studentId] = { code: 'P', comment: '', tmi: false };
+      sec.state[studentId].comment = val;
     };
 
-    window.setTMI = function(studentId, checked) {
-      if (!attendanceState[studentId]) attendanceState[studentId] = { code: 'P', comment: '', tmi: false };
-      attendanceState[studentId].tmi = checked;
+    window.setTMISection = function(idx, studentId, checked) {
+      const sec = sections[idx];
+      if (!sec) return;
+      if (!sec.state[studentId]) sec.state[studentId] = { code: 'P', comment: '', tmi: false };
+      sec.state[studentId].tmi = checked;
     };
 
-    window.markAllPresent = function() {
-      currentStudents.forEach(s => {
-        if (attendanceState[s.id]) attendanceState[s.id].code = 'P';
-        // Update UI
-        const row = document.querySelector(`tr[data-student-id="${s.id}"]`);
-        if (row) {
+    window.markAllPresentSection = function(idx) {
+      const sec = sections[idx];
+      if (!sec) return;
+      sec.students.forEach(s => {
+        if (!sec.state[s.id]) sec.state[s.id] = { code: 'P', comment: '', tmi: false };
+        sec.state[s.id].code = 'P';
+      });
+      // Update DOM
+      const tbody = document.getElementById(`tbody-${idx}`);
+      if (tbody) {
+        tbody.querySelectorAll('.att-row').forEach(row => {
           row.dataset.code = 'P';
           row.querySelectorAll('.code-btn').forEach(btn => {
             btn.classList.toggle('active', btn.classList.contains('P'));
           });
-        }
-      });
-      showToast('All students marked present', 'success');
+        });
+      }
+      showToast(`All students in ${sec.className} marked present`, 'success');
     };
 
-    async function saveAllChanges() {
-      if (!currentDate || !currentTeacher || !currentClass) {
+    // ── Save single section ───────────────────────────────────────────────────
+    window.saveSectionByIdx = function(idx) {
+      saveSection(idx);
+    };
+
+    async function saveSection(idx) {
+      const sec = sections[idx];
+      if (!sec || !currentTeacher || !currentDate) {
         showToast('No class selected', 'error');
         return;
       }
+
       try {
-        const savePromises = [];
-
-        currentStudents.forEach(student => {
-          const state = attendanceState[student.id] || { code: 'P', comment: '', tmi: false };
-
-          // Find existing log — must also match learningLab flag so lab and regular never overwrite each other
-          const existingLog = allClassAttendanceLogs.find(l =>
-            (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
-            l.teacherLastName === currentTeacher &&
-            l.className === currentClass &&
-            (l.date === currentDate || l.classDate === currentDate) &&
-            (currentIsLab ? l.learningLab === true : !l.learningLab)
-          );
-
-          if (existingLog) {
-            savePromises.push(updateDoc('classAttendanceLogs', existingLog.id, {
-              attendanceCode: state.code,
-              comment: state.comment,
-              assignTmi: state.tmi,
-              updatedAt: new Date().toISOString()
-            }));
-          } else {
-            const newLog = {
-              studentId: student.id,
-              chattStateANumber: student.chattStateANumber || '',
-              studentName: `${student.lastName || ''}, ${student.firstName || ''}`,
-              teacherLastName: currentTeacher,
-              className: currentClass,
-              classScheduleId: currentClassScheduleId,
-              date: currentDate,
-              attendanceCode: state.code,
-              comment: state.comment,
-              assignTmi: state.tmi,
-              createdBy: currentUser?.uid || '',
-              updatedAt: new Date().toISOString()
-            };
-            if (currentIsLab) newLog.learningLab = true;
-            savePromises.push(addDoc('classAttendanceLogs', newLog));
-          }
-        });
-
+        const savePromises = buildSavePromises([sec]);
         await Promise.all(savePromises);
-        attendanceChanges = {};
-        await loadAllData(); // reload fresh before TMI check
-        await checkAndCreateTMI();
-        showToast(`Attendance saved for ${currentStudents.length} students`, 'success');
+        await loadAllData();
+        await checkAndCreateTMIForSection(sec);
+        showToast(`Saved ${sec.className}: ${sec.students.length} student${sec.students.length !== 1 ? 's' : ''}`, 'success');
       } catch (error) {
-        console.error('Error saving attendance:', error);
+        console.error('Error saving section:', error);
         showToast('Error saving attendance', 'error');
       }
     }
 
-    // ── Auto-TMI rules ──────────────────────────────────────────────────────
-    // • 1 U  = +120 min TMI (stacks; cap 420 min total)
-    // • 3 T's across all classes in one week = +90 min (once per week per student)
-    // • Assign TMI checkbox = +120 min (manual override)
-    // Records are created as "Reviewed" (confirmed by default).
-    async function checkAndCreateTMI() {
-      if (!currentDate || !currentStudents.length) return;
+    // ── Save all sections ─────────────────────────────────────────────────────
+    window.saveAllSections = async function() {
+      if (sections.length === 0) {
+        showToast('No classes to save', 'warning');
+        return;
+      }
+
+      const totalStudents = sections.reduce((sum, s) => sum + s.students.length, 0);
+
+      try {
+        const savePromises = buildSavePromises(sections);
+        await Promise.all(savePromises);
+        await loadAllData();
+
+        for (const sec of sections) {
+          await checkAndCreateTMIForSection(sec);
+        }
+
+        showToast(
+          `Saved ${sections.length} class${sections.length !== 1 ? 'es' : ''} (${totalStudents} student${totalStudents !== 1 ? 's' : ''})`,
+          'success'
+        );
+      } catch (error) {
+        console.error('Error saving all sections:', error);
+        showToast('Error saving attendance', 'error');
+      }
+    };
+
+    // Build an array of Firestore save promises for the given sections
+    function buildSavePromises(secsToSave) {
+      const promises = [];
+
+      secsToSave.forEach(sec => {
+        sec.students.forEach(student => {
+          const state = sec.state[student.id] || { code: 'P', comment: '', tmi: false };
+
+          // Find existing log — respect lab/regular type so they never overwrite each other
+          const existingLog = allClassAttendanceLogs.find(l =>
+            (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
+            l.teacherLastName === currentTeacher &&
+            l.className       === sec.className  &&
+            (l.date === currentDate || l.classDate === currentDate) &&
+            (sec.isLab ? l.learningLab === true : !l.learningLab)
+          );
+
+          if (existingLog) {
+            promises.push(updateDoc('classAttendanceLogs', existingLog.id, {
+              attendanceCode: state.code,
+              comment:        state.comment,
+              assignTmi:      state.tmi,
+              updatedAt:      new Date().toISOString()
+            }));
+          } else {
+            const newLog = {
+              studentId:         student.id,
+              chattStateANumber: student.chattStateANumber || '',
+              studentName:       `${student.lastName || ''}, ${student.firstName || ''}`,
+              teacherLastName:   currentTeacher,
+              className:         sec.className,
+              classScheduleId:   sec.schedule.id,
+              date:              currentDate,
+              attendanceCode:    state.code,
+              comment:           state.comment,
+              assignTmi:         state.tmi,
+              createdBy:         currentUser?.uid || '',
+              updatedAt:         new Date().toISOString()
+            };
+            if (sec.isLab) newLog.learningLab = true;
+            promises.push(addDoc('classAttendanceLogs', newLog));
+          }
+        });
+      });
+
+      return promises;
+    }
+
+    // ── Auto-TMI (per section) ────────────────────────────────────────────────
+    // Rules: 1 U = +120 min, 3 T's in week = +90 min, manual checkbox = +120 min (cap 420)
+    async function checkAndCreateTMIForSection(sec) {
+      if (!currentDate || !sec.students.length) return;
 
       const MAX_TMI = 420;
 
       // Compute Mon–Sun range for currentDate (timezone-safe)
       const [yr, mo, dy] = currentDate.split('-').map(Number);
-      const dt = new Date(yr, mo - 1, dy);
-      const dow = dt.getDay(); // 0=Sun, 1=Mon …
-      const toMon = (dow === 0) ? -6 : 1 - dow;
-      const mon = new Date(dt); mon.setDate(dt.getDate() + toMon);
-      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
-      const pad = n => String(n).padStart(2, '0');
-      const toStr = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
+      const dt     = new Date(yr, mo - 1, dy);
+      const dow    = dt.getDay();
+      const toMon  = (dow === 0) ? -6 : 1 - dow;
+      const mon    = new Date(dt); mon.setDate(dt.getDate() + toMon);
+      const sun    = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const pad    = n => String(n).padStart(2, '0');
+      const toStr  = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
       const weekStart = toStr(mon);
       const weekEnd   = toStr(sun);
 
       const tmiCreated = [];
       const tmiUpdated = [];
 
-      for (const student of currentStudents) {
-        const state      = attendanceState[student.id] || {};
-        const code       = state.code    || 'P';
-        const assignTmi  = state.tmi     || false;
+      for (const student of sec.students) {
+        const state       = sec.state[student.id] || {};
+        const code        = state.code   || 'P';
+        const assignTmi   = state.tmi    || false;
 
         const uTrigger        = (code === 'U');
         const overrideTrigger = assignTmi;
 
-        // Count T codes for this student this week across every class (fresh data)
+        // Count T codes for this student this week across every class
         const weekTardies = allClassAttendanceLogs.filter(log => {
           const logDate = log.date || log.classDate || '';
           return (log.studentId === student.id || log.chattStateANumber === student.chattStateANumber) &&
@@ -771,15 +759,15 @@
                  log.attendanceCode === 'T';
         }).length;
 
-        // 3T rule only fires once per week — check if already triggered
+        // 3T rule fires only once per week
         let threeTTrigger = (weekTardies >= 3);
         if (threeTTrigger) {
           const already3T = allInterventions.some(i =>
-            i.studentId     === student.id &&
-            i.interventionType === 'TMI'   &&
-            i.triggeredBy   === '3T'       &&
-            i.interventionStatus !== 'Closed' &&
-            (i.startDate || '') >= weekStart &&
+            i.studentId           === student.id &&
+            i.interventionType    === 'TMI'      &&
+            i.triggeredBy         === '3T'       &&
+            i.interventionStatus  !== 'Closed'   &&
+            (i.startDate || '') >= weekStart     &&
             (i.startDate || '') <= weekEnd
           );
           if (already3T) threeTTrigger = false;
@@ -787,8 +775,7 @@
 
         if (!uTrigger && !overrideTrigger && !threeTTrigger) continue;
 
-        // Minutes to add: U/override = 120, 3T = 90
-        const addMinutes = (uTrigger || overrideTrigger) ? 120 : 90;
+        const addMinutes  = (uTrigger || overrideTrigger) ? 120 : 90;
         const triggeredBy = uTrigger ? 'U' : (threeTTrigger ? '3T' : 'override');
         const reason      = uTrigger
           ? 'Unexcused absence (+120 min)'
@@ -796,7 +783,7 @@
           ? '3 tardies in one week (+90 min)'
           : 'Manual override (+120 min)';
 
-        // Find existing open TMI for this student and accumulate into it
+        // Accumulate into existing open TMI if one exists
         const existingTMI = allInterventions.find(i =>
           i.studentId        === student.id &&
           i.interventionType === 'TMI'      &&
@@ -804,12 +791,9 @@
         );
 
         if (existingTMI) {
-          // Add minutes, cap at 420
           const newTotal     = Math.min((existingTMI.tmiMinutes || 0) + addMinutes, MAX_TMI);
           const newRemaining = Math.max(0, newTotal - (existingTMI.tmiMinutesServed || 0));
-          const newReason    = existingTMI.reason
-            ? `${existingTMI.reason}; ${reason}`
-            : reason;
+          const newReason    = existingTMI.reason ? `${existingTMI.reason}; ${reason}` : reason;
 
           await updateDoc('interventionLogs', existingTMI.id, {
             tmiMinutes:          newTotal,
@@ -818,13 +802,11 @@
             triggeredBy:         triggeredBy,
             updatedAt:           new Date().toISOString()
           });
-          // Update local cache so subsequent students in the same save don't double-count
           existingTMI.tmiMinutes          = newTotal;
           existingTMI.tmiMinutesRemaining = newRemaining;
           existingTMI.triggeredBy         = triggeredBy;
           tmiUpdated.push(`${student.firstName} ${student.lastName} → ${newTotal} min`);
         } else {
-          // Create a new TMI record; confirmed by default ("Reviewed")
           await addDoc('interventionLogs', {
             studentId:            student.id,
             studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
@@ -835,10 +817,10 @@
             tmiMinutes:           addMinutes,
             tmiMinutesServed:     0,
             tmiMinutesRemaining:  addMinutes,
-            interventionStatus:   'Reviewed',   // confirmed by default
+            interventionStatus:   'Reviewed',
             reason:               reason,
             triggeredBy:          triggeredBy,
-            className:            currentClass,
+            className:            sec.className,
             teacherLastName:      currentTeacher,
             createDate:           new Date().toISOString()
           });
@@ -846,60 +828,48 @@
         }
       }
 
-      if (tmiCreated.length > 0) {
-        showToast(`TMI assigned: ${tmiCreated.join(', ')}`, 'warning');
-      }
-      if (tmiUpdated.length > 0) {
-        showToast(`TMI updated: ${tmiUpdated.join(', ')}`, 'warning');
-      }
+      if (tmiCreated.length > 0) showToast(`TMI assigned: ${tmiCreated.join(', ')}`, 'warning');
+      if (tmiUpdated.length > 0) showToast(`TMI updated: ${tmiUpdated.join(', ')}`, 'warning');
 
-      // Refresh local interventions cache
       try { allInterventions = await getAll('interventionLogs'); } catch(e) {}
     }
 
+    // ── Absence summary tab ───────────────────────────────────────────────────
     async function loadAbsenceData() {
       try {
         document.getElementById('absence-loading').style.display = 'flex';
-        
-        const teacher = document.getElementById('absence-filter-teacher').value;
+
+        const teacher   = document.getElementById('absence-filter-teacher').value;
         const startDate = document.getElementById('absence-filter-start-date').value;
-        const endDate = document.getElementById('absence-filter-end-date').value;
+        const endDate   = document.getElementById('absence-filter-end-date').value;
 
         let filtered = [...allClassAttendanceLogs];
 
         if (teacher) {
-          const teacherClasses = allClassSchedules
+          const teacherClassIds = allClassSchedules
             .filter(cs => cs.teacherLastName === teacher)
             .map(cs => cs.id);
-          filtered = filtered.filter(log => teacherClasses.includes(log.classScheduleId));
+          filtered = filtered.filter(log => teacherClassIds.includes(log.classScheduleId));
         }
-
-        if (startDate) {
-          filtered = filtered.filter(log => log.classDate >= startDate);
-        }
-        if (endDate) {
-          filtered = filtered.filter(log => log.classDate <= endDate);
-        }
-
-        // Filter for non-P codes
+        if (startDate) filtered = filtered.filter(log => (log.date || log.classDate || '') >= startDate);
+        if (endDate)   filtered = filtered.filter(log => (log.date || log.classDate || '') <= endDate);
         filtered = filtered.filter(log => log.attendanceCode !== 'P' && log.attendanceCode !== '?');
 
-        if (absenceTable) {
-          absenceTable.destroy();
-        }
+        if (absenceTable) absenceTable.destroy();
 
         $('#absence-tbody').html('');
         filtered.forEach(log => {
-          const schedule = allClassSchedules.find(cs => cs.id === log.classScheduleId);
-          const className = schedule?.className || 'Unknown';
+          const schedule  = allClassSchedules.find(cs => cs.id === log.classScheduleId);
+          const className = schedule?.className || log.className || 'Unknown';
           const codeColor = ATTENDANCE_CODES[log.attendanceCode]?.color || '#666';
-          const codeBadge = `<span class="attendance-badge" style="background-color: ${codeColor};">${log.attendanceCode}</span>`;
+          const codeBadge = `<span class="attendance-badge" style="background-color:${codeColor};">${log.attendanceCode}</span>`;
+          const logDate   = log.date || log.classDate || '';
 
           $('#absence-tbody').append(`
             <tr>
-              <td>${formatDate(log.classDate)}</td>
+              <td>${formatDate(logDate)}</td>
               <td>${className}</td>
-              <td>${log.studentName}</td>
+              <td>${log.studentName || ''}</td>
               <td>${codeBadge}</td>
               <td>${log.comment || '-'}</td>
             </tr>
@@ -907,14 +877,9 @@
         });
 
         absenceTable = $('#absenceTable').DataTable({
-          paging: true,
-          pageLength: 25,
-          ordering: true,
-          searching: true,
-          info: true,
-          lengthChange: true,
-          autoWidth: false,
-          destroy: true
+          paging: true, pageLength: 25, ordering: true,
+          searching: true, info: true, lengthChange: true,
+          autoWidth: false, destroy: true
         });
 
         document.getElementById('absence-loading').style.display = 'none';
@@ -927,42 +892,42 @@
 
     function initAbsenceTable() {
       absenceTable = $('#absenceTable').DataTable({
-        paging: true,
-        pageLength: 25,
-        ordering: true,
-        searching: true,
-        info: true,
-        lengthChange: true,
-        autoWidth: false
+        paging: true, pageLength: 25, ordering: true,
+        searching: true, info: true, lengthChange: true, autoWidth: false
       });
     }
 
+    // ── CSV download ──────────────────────────────────────────────────────────
     function downloadAttendanceCSV() {
-      if (!currentClassScheduleId || !currentDate) {
-        showToast('Please apply filters first', 'error');
+      if (sections.length === 0 || !currentDate) {
+        showToast('Please load a teacher\'s classes first', 'error');
         return;
       }
 
       try {
-        const logs = allClassAttendanceLogs.filter(log =>
-          log.classScheduleId === currentClassScheduleId && log.classDate === currentDate
-        );
-
-        const csvData = logs.map(log => ({
-          'Date': formatDate(log.classDate),
-          'Class': currentClass,
-          'Student': log.studentName,
-          'Code': log.attendanceCode,
-          'Comment': log.comment || '',
-          'TMI': log.assignTmi ? 'Yes' : 'No'
-        }));
+        const csvData = [];
+        sections.forEach(sec => {
+          sec.students.forEach(student => {
+            const state = sec.state[student.id] || {};
+            csvData.push({
+              'Date':    currentDate,
+              'Class':   sec.className,
+              'Type':    sec.isLab ? 'Learning Lab' : 'Class',
+              'Student': `${student.lastName || ''}, ${student.firstName || ''}`,
+              'A#':      student.chattStateANumber || '',
+              'Code':    state.code    || 'P',
+              'Comment': state.comment || '',
+              'TMI':     state.tmi ? 'Yes' : 'No'
+            });
+          });
+        });
 
         if (csvData.length === 0) {
           showToast('No attendance records to download', 'warning');
           return;
         }
 
-        exportCSV(csvData, `class-attendance-${currentClass}-${currentDate}.csv`);
+        exportCSV(csvData, `class-attendance-${currentTeacher}-${currentDate}.csv`);
       } catch (error) {
         console.error('Error downloading CSV:', error);
         showToast('Error downloading CSV', 'error');
@@ -972,19 +937,16 @@
     function downloadAbsenceCSV() {
       try {
         const rows = document.querySelectorAll('#absence-tbody tr');
-        if (rows.length === 0) {
-          showToast('No absence records to download', 'warning');
-          return;
-        }
+        if (rows.length === 0) { showToast('No absence records to download', 'warning'); return; }
 
         const csvData = [];
         rows.forEach(row => {
           const cells = row.querySelectorAll('td');
           csvData.push({
-            'Date': cells[0].textContent,
-            'Class': cells[1].textContent,
+            'Date':    cells[0].textContent,
+            'Class':   cells[1].textContent,
             'Student': cells[2].textContent,
-            'Code': cells[3].textContent,
+            'Code':    cells[3].textContent,
             'Comment': cells[4].textContent
           });
         });
@@ -996,9 +958,10 @@
       }
     }
 
+    // ── Tab switcher ──────────────────────────────────────────────────────────
     window.switchTab = function(tabName, btn) {
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b   => b.classList.remove('active'));
       document.getElementById(tabName).classList.add('active');
       if (btn) btn.classList.add('active');
       if (tabName === 'absence-tab') loadAbsenceData();
