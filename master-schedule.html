@@ -73,6 +73,25 @@
     .cal-event-time    { opacity:.75; font-size:9px; margin-top:1px; }
 
     .cal-empty-msg { display:flex; align-items:center; justify-content:center; height:200px; color:#94a3b8; font-size:14px; font-style:italic; }
+
+    /* ── Cal mode sub-tabs ── */
+    .cal-mode-tabs { display:flex; border-bottom:1px solid #e2e8f0; margin-bottom:10px; }
+    .cal-mode-tab  { flex:1; padding:6px 0; font-size:11px; font-weight:700; text-align:center; cursor:pointer; color:#64748b; background:none; border:none; border-bottom:2px solid transparent; text-transform:uppercase; letter-spacing:.04em; }
+    .cal-mode-tab.active { color:#1d4ed8; border-bottom-color:#1d4ed8; }
+    .cal-mode-tab:hover:not(.active) { color:#334155; background:#f8fafc; }
+
+    /* ── Student sidebar ── */
+    .stu-search-wrap  { position:relative; margin-bottom:8px; }
+    .stu-search-input { width:100%; padding:5px 8px; border:1px solid #cbd5e1; border-radius:4px; font-size:12px; box-sizing:border-box; }
+    .stu-search-input:focus { outline:none; border-color:#2563eb; box-shadow:0 0 0 2px #bfdbfe; }
+    .stu-dropdown     { position:absolute; top:100%; left:0; right:0; background:white; border:1px solid #e2e8f0; border-radius:4px; max-height:200px; overflow-y:auto; z-index:50; box-shadow:0 4px 12px rgba(0,0,0,.12); }
+    .stu-dropdown-item { padding:7px 10px; font-size:12px; cursor:pointer; line-height:1.3; }
+    .stu-dropdown-item:hover { background:#eff6ff; }
+    .stu-dropdown-item .stu-anum { color:#64748b; font-size:11px; }
+    .stu-selected-item { display:flex; align-items:center; gap:7px; padding:5px 4px; border-radius:4px; }
+    .stu-selected-item:hover { background:#f1f5f9; }
+    .stu-remove-btn   { margin-left:auto; font-size:15px; color:#94a3b8; cursor:pointer; line-height:1; padding:0 3px; background:none; border:none; flex-shrink:0; }
+    .stu-remove-btn:hover { color:#dc2626; }
   </style>
 </head>
 <body>
@@ -132,14 +151,41 @@
     <!-- ══ CALENDAR VIEW ══ -->
     <div id="calendarSection" style="display:none;">
       <div class="cal-outer">
-        <!-- Teacher sidebar -->
-        <div class="cal-sidebar">
-          <h4><i class="fas fa-chalkboard-teacher"></i> Teachers</h4>
-          <div class="sidebar-actions">
-            <button class="sidebar-btn" onclick="checkAllTeachers()">All</button>
-            <button class="sidebar-btn" onclick="uncheckAllTeachers()">None</button>
+        <!-- Sidebar -->
+        <div class="cal-sidebar" style="width:190px;">
+
+          <!-- Mode sub-tabs -->
+          <div class="cal-mode-tabs">
+            <button id="calModeTeacher" class="cal-mode-tab active" onclick="setCalMode('teacher')">
+              <i class="fas fa-chalkboard-teacher"></i> Teachers
+            </button>
+            <button id="calModeStudent" class="cal-mode-tab" onclick="setCalMode('student')">
+              <i class="fas fa-user-graduate"></i> Students
+            </button>
           </div>
-          <div id="teacherList"></div>
+
+          <!-- Teacher panel -->
+          <div id="teacherPanel">
+            <div class="sidebar-actions">
+              <button class="sidebar-btn" onclick="checkAllTeachers()">All</button>
+              <button class="sidebar-btn" onclick="uncheckAllTeachers()">None</button>
+            </div>
+            <div id="teacherList"></div>
+          </div>
+
+          <!-- Student panel -->
+          <div id="studentPanel" style="display:none;">
+            <div class="stu-search-wrap">
+              <input type="text" id="calStuSearch" class="stu-search-input"
+                placeholder="Search student…" oninput="calStudentSearch()" autocomplete="off">
+              <div id="calStuDropdown" class="stu-dropdown" style="display:none;"></div>
+            </div>
+            <div class="sidebar-actions">
+              <button class="sidebar-btn" onclick="calClearStudents()">Clear All</button>
+            </div>
+            <div id="selectedStudentList"></div>
+          </div>
+
         </div>
 
         <!-- Calendar -->
@@ -274,9 +320,12 @@
     let currentEditId   = null;
     let currentDeleteId = null;
     let csvData         = [];
-    let currentView     = 'table';
+    let currentView      = 'table';
+    let calMode          = 'teacher';   // 'teacher' | 'student'
+    let selectedStudents = {};          // studentId → { id, name, aNum, color }
+    let stuColorIdx      = 0;
 
-    // ── Teacher colors (10 distinct) ──
+    // ── Shared color palette ──
     const PALETTE = [
       '#2563EB','#059669','#DC2626','#7C3AED','#D97706',
       '#0891B2','#BE185D','#16A34A','#EA580C','#0F766E'
@@ -321,6 +370,7 @@
       buildTeacherColors();
       renderTable();
       buildTeacherList();
+      buildSelectedStudentList();
     }
 
     // ─────────────────────────────────────────────
@@ -333,6 +383,23 @@
       document.getElementById('tabTable').classList.toggle('active', view === 'table');
       document.getElementById('tabCal').classList.toggle('active', view === 'calendar');
       if (view === 'calendar') renderCalendar();
+    };
+
+    window.setCalMode = function(mode) {
+      calMode = mode;
+      document.getElementById('calModeTeacher').classList.toggle('active', mode === 'teacher');
+      document.getElementById('calModeStudent').classList.toggle('active', mode === 'student');
+      document.getElementById('teacherPanel').style.display = mode === 'teacher' ? '' : 'none';
+      document.getElementById('studentPanel').style.display = mode === 'student' ? '' : 'none';
+      const emptyMsg = mode === 'teacher'
+        ? 'Check a teacher to view their schedule'
+        : 'Search and select a student to view their schedule';
+      const grid = document.getElementById('calGrid');
+      const hasSelection = mode === 'teacher'
+        ? document.querySelectorAll('.teacher-cb:checked').length > 0
+        : Object.keys(selectedStudents).length > 0;
+      if (!hasSelection) grid.innerHTML = `<div class="cal-empty-msg">${emptyMsg}</div>`;
+      else renderCalendar();
     };
 
     // ─────────────────────────────────────────────
@@ -416,6 +483,77 @@
       renderCalendar();
     };
 
+    // ── Student calendar functions ──
+    window.calStudentSearch = function() {
+      const q        = document.getElementById('calStuSearch').value.toLowerCase().trim();
+      const dropdown = document.getElementById('calStuDropdown');
+      if (q.length < 1) { dropdown.style.display = 'none'; return; }
+
+      const results = allStudents.filter(s =>
+        (s.firstName || '').toLowerCase().includes(q) ||
+        (s.lastName  || '').toLowerCase().includes(q) ||
+        (s.chattStateANumber || '').toLowerCase().includes(q)
+      ).filter(s => !selectedStudents[s.id]).slice(0, 8);
+
+      if (results.length === 0) { dropdown.style.display = 'none'; return; }
+
+      dropdown.innerHTML = results.map(s =>
+        `<div class="stu-dropdown-item" onclick="calAddStudent('${s.id}','${(s.firstName+' '+s.lastName).replace(/'/g,"\\'")}','${s.chattStateANumber}')">
+          ${s.firstName} ${s.lastName}
+          <span class="stu-anum">${s.chattStateANumber}</span>
+        </div>`
+      ).join('');
+      dropdown.style.display = 'block';
+    };
+
+    window.calAddStudent = function(id, name, aNum) {
+      if (selectedStudents[id]) return;
+      const color = PALETTE[stuColorIdx % PALETTE.length];
+      stuColorIdx++;
+      selectedStudents[id] = { id, name, aNum, color };
+      document.getElementById('calStuSearch').value = '';
+      document.getElementById('calStuDropdown').style.display = 'none';
+      buildSelectedStudentList();
+      renderCalendar();
+    };
+
+    window.calRemoveStudent = function(id) {
+      delete selectedStudents[id];
+      buildSelectedStudentList();
+      renderCalendar();
+    };
+
+    window.calClearStudents = function() {
+      selectedStudents = {};
+      stuColorIdx = 0;
+      buildSelectedStudentList();
+      renderCalendar();
+    };
+
+    function buildSelectedStudentList() {
+      const list = document.getElementById('selectedStudentList');
+      const entries = Object.values(selectedStudents);
+      if (entries.length === 0) {
+        list.innerHTML = '<div style="font-size:11px;color:#94a3b8;padding:4px;">No students selected</div>';
+        return;
+      }
+      list.innerHTML = entries.map(s => `
+        <div class="stu-selected-item">
+          <span class="teacher-dot" style="background:${s.color};"></span>
+          <span class="teacher-label" style="font-size:12px;">${s.name}</span>
+          <button class="stu-remove-btn" onclick="calRemoveStudent('${s.id}')" title="Remove">×</button>
+        </div>
+      `).join('');
+    }
+
+    // Close student dropdown when clicking outside
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#calStuSearch') && !e.target.closest('#calStuDropdown')) {
+        const dd = document.getElementById('calStuDropdown');
+        if (dd) dd.style.display = 'none';
+      }
+    });
+
     function getCheckedTeachers() {
       return new Set([...document.querySelectorAll('.teacher-cb:checked')].map(cb => cb.value));
     }
@@ -456,77 +594,100 @@
       return result;
     }
 
-    window.renderCalendar = function() {
-      const checked = getCheckedTeachers();
-      const grid    = document.getElementById('calGrid');
-
-      if (checked.size === 0) {
-        grid.innerHTML = '<div class="cal-empty-msg">Check a teacher to view their schedule</div>';
-        return;
-      }
-
-      const classes = getUniqueClasses(
-        filteredSchedules.filter(s => checked.has(s.teacherLastName))
-      );
-
-      // ── Build time labels column ──
-      let timeColHtml = `<div class="cal-timecol"><div class="cal-time-header"></div>`;
+    // ── Shared: build the time-label column HTML ──
+    function buildTimeCol() {
+      let html = `<div class="cal-timecol"><div class="cal-time-header"></div>`;
       for (let i = 0; i < TOTAL_SLOTS; i++) {
         const mins = MIN_MINS + i * 30;
         const h = Math.floor(mins / 60);
         const m = mins % 60;
-        const label = m === 0
-          ? `${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}`
-          : '';
-        timeColHtml += `<div class="cal-time-label">${label}</div>`;
+        html += `<div class="cal-time-label">${m === 0 ? `${h > 12 ? h - 12 : h}${h >= 12 ? 'pm' : 'am'}` : ''}</div>`;
       }
-      timeColHtml += `</div>`;
+      return html + `</div>`;
+    }
 
-      // ── Build each day column ──
-      let dayColsHtml = '';
-      DAYS.forEach((day, di) => {
-        // Background slots
-        let slotsHtml = '';
-        for (let i = 0; i < TOTAL_SLOTS; i++) {
-          const isHour = (i % 2 === 0);
-          slotsHtml += `<div class="cal-slot${isHour ? ' on-hour' : ''}"></div>`;
+    // ── Shared: build background slot divs ──
+    function buildSlots() {
+      let html = '';
+      for (let i = 0; i < TOTAL_SLOTS; i++) {
+        html += `<div class="cal-slot${i % 2 === 0 ? ' on-hour' : ''}"></div>`;
+      }
+      return html;
+    }
+
+    // ── Shared: build one event block ──
+    function buildEvent(cls, color, subtitleLine, multipleItems) {
+      const startM = toMins(cls.startTime);
+      const endM   = toMins(cls.endTime);
+      if (!cls.startTime || !cls.endTime || startM < MIN_MINS || endM > MAX_MINS || endM <= startM) return '';
+      const top    = (startM - MIN_MINS) / 30 * SLOT_H;
+      const height = Math.max((endM - startM) / 30 * SLOT_H, SLOT_H * 0.5);
+      const isLab  = cls.learningLab ? '⭐ ' : '';
+      const title  = `${isLab}${cls.className}\n${subtitleLine}\n${fmtTime(cls.startTime)} – ${fmtTime(cls.endTime)}`;
+      return `
+        <div class="cal-event" style="top:${top}px; height:${height}px; background:${color};"
+          title="${title.replace(/"/g,'&quot;')}">
+          <div class="cal-event-name">${isLab}${cls.className}</div>
+          ${height > 38 ? `<div class="cal-event-teacher">${subtitleLine}</div>` : ''}
+          ${height > 54 ? `<div class="cal-event-time">${fmtTime(cls.startTime)} – ${fmtTime(cls.endTime)}</div>` : ''}
+        </div>`;
+    }
+
+    window.renderCalendar = function() {
+      const grid = document.getElementById('calGrid');
+
+      if (calMode === 'teacher') {
+        // ── Teacher mode ──
+        const checked = getCheckedTeachers();
+        if (checked.size === 0) {
+          grid.innerHTML = '<div class="cal-empty-msg">Check a teacher to view their schedule</div>';
+          return;
         }
-
-        // Events for this day
-        let eventsHtml = '';
-        classes.forEach(cls => {
-          if (!(cls.classDays || []).includes(day)) return;
-          const startM = toMins(cls.startTime);
-          const endM   = toMins(cls.endTime);
-          if (startM < MIN_MINS || endM > MAX_MINS || endM <= startM) return;
-
-          const top    = (startM - MIN_MINS) / 30 * SLOT_H;
-          const height = Math.max((endM - startM) / 30 * SLOT_H, SLOT_H * 0.5);
-          const color  = teacherColors[cls.teacherLastName] || '#6B7280';
-          const isLab  = cls.learningLab ? '⭐ ' : '';
-          const title  = `${isLab}${cls.className}\n${cls.teacherLastName}\n${fmtTime(cls.startTime)} – ${fmtTime(cls.endTime)}`;
-
-          eventsHtml += `
-            <div class="cal-event"
-              style="top:${top}px; height:${height}px; background:${color};"
-              title="${title.replace(/"/g,'&quot;')}">
-              <div class="cal-event-name">${isLab}${cls.className}</div>
-              ${height > 40 ? `<div class="cal-event-teacher">${cls.teacherLastName}</div>` : ''}
-              ${height > 54 ? `<div class="cal-event-time">${fmtTime(cls.startTime)} – ${fmtTime(cls.endTime)}</div>` : ''}
+        const classes = getUniqueClasses(filteredSchedules.filter(s => checked.has(s.teacherLastName)));
+        let dayColsHtml = '';
+        DAYS.forEach((day, di) => {
+          let eventsHtml = '';
+          classes.forEach(cls => {
+            if (!(cls.classDays || []).includes(day)) return;
+            const color = teacherColors[cls.teacherLastName] || '#6B7280';
+            eventsHtml += buildEvent(cls, color, cls.teacherLastName, checked.size > 1);
+          });
+          dayColsHtml += `
+            <div class="cal-day">
+              <div class="cal-day-header">${DAY_LABELS[di]}</div>
+              <div class="cal-day-body">${buildSlots()}${eventsHtml}</div>
             </div>`;
         });
+        grid.innerHTML = `<div class="cal-grid-wrap">${buildTimeCol()}${dayColsHtml}</div>`;
 
-        dayColsHtml += `
-          <div class="cal-day">
-            <div class="cal-day-header">${DAY_LABELS[di]}</div>
-            <div class="cal-day-body">
-              ${slotsHtml}
-              ${eventsHtml}
-            </div>
-          </div>`;
-      });
-
-      grid.innerHTML = `<div class="cal-grid-wrap">${timeColHtml}${dayColsHtml}</div>`;
+      } else {
+        // ── Student mode ──
+        const stuEntries = Object.values(selectedStudents);
+        if (stuEntries.length === 0) {
+          grid.innerHTML = '<div class="cal-empty-msg">Search and select a student to view their schedule</div>';
+          return;
+        }
+        let dayColsHtml = '';
+        DAYS.forEach((day, di) => {
+          let eventsHtml = '';
+          stuEntries.forEach(stu => {
+            // All classes for this student on this day
+            const stuClasses = filteredSchedules.filter(s =>
+              s.studentId === stu.id && (s.classDays || []).includes(day)
+            );
+            stuClasses.forEach(cls => {
+              const subtitle = stuEntries.length > 1 ? stu.name.split(' ').pop() : cls.teacherLastName;
+              eventsHtml += buildEvent(cls, stu.color, subtitle, stuEntries.length > 1);
+            });
+          });
+          dayColsHtml += `
+            <div class="cal-day">
+              <div class="cal-day-header">${DAY_LABELS[di]}</div>
+              <div class="cal-day-body">${buildSlots()}${eventsHtml}</div>
+            </div>`;
+        });
+        grid.innerHTML = `<div class="cal-grid-wrap">${buildTimeCol()}${dayColsHtml}</div>`;
+      }
     };
 
     // ─────────────────────────────────────────────
