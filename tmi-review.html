@@ -16,6 +16,8 @@
     .tmi-min-input   { width:70px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; text-align:center; }
     .code-pill-U  { background:#FEE2E2; color:#991B1B; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; }
     .code-pill-T  { background:#FEF3C7; color:#92400E; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; }
+    .excuse-pill-PE { background:#DCFCE7; color:#166534; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700; }
+    .excuse-pill-DE { background:#DBEAFE; color:#1E40AF; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700; }
     .expand-cell  { cursor:pointer; text-align:center; width:32px; color:#94a3b8; }
     .expand-cell:hover { color:#2563eb; }
 
@@ -279,6 +281,7 @@
             <th>Teacher</th>
             <th>Date</th>
             <th>Time</th>
+            <th>Excuse</th>
           </tr>
         </thead>
         <tbody>`;
@@ -288,12 +291,19 @@
         const pillCls = code === 'U' ? 'code-pill-U' : 'code-pill-T';
         const dateStr = formatDate(log.date || log.classDate);
         const time    = getClassTime(log);
+        let excuseHtml = '—';
+        if (log.excuseType === 'PE') {
+          excuseHtml = `<span class="excuse-pill-PE" title="${log.excuseNotes || ''}">PE</span>`;
+        } else if (log.excuseType === 'DE') {
+          excuseHtml = `<span class="excuse-pill-DE" title="${log.excuseNotes || ''}">DE</span>`;
+        }
         html += `<tr>
           <td><span class="${pillCls}">${code}</span></td>
           <td>${log.className || '—'}</td>
           <td>${log.teacherLastName || '—'}</td>
           <td>${dateStr}</td>
           <td>${time}</td>
+          <td>${excuseHtml}</td>
         </tr>`;
       });
 
