@@ -389,21 +389,31 @@
       
       if (!selectedTeacher) return;
 
-      // Get unique classes for this teacher, labeling learning labs
-      const classMap = {};
+      // Track whether each class name has a regular section, a lab section, or both
+      const classMap = {}; // className -> { hasRegular, hasLab }
       allClassSchedules
         .filter(cs => cs.teacherLastName === selectedTeacher)
         .forEach(cs => {
-          if (!classMap[cs.className]) {
-            classMap[cs.className] = cs.learningLab || false;
-          }
+          if (!classMap[cs.className]) classMap[cs.className] = { hasRegular: false, hasLab: false };
+          if (cs.learningLab) classMap[cs.className].hasLab = true;
+          else classMap[cs.className].hasRegular = true;
         });
 
+      // Emit regular entry first, then lab entry — both when a class has both types
       Object.keys(classMap).sort().forEach(className => {
-        const option = document.createElement('option');
-        option.value = className;
-        option.textContent = classMap[className] ? `${className} ⭐ Learning Lab` : className;
-        filterClass.appendChild(option);
+        const info = classMap[className];
+        if (info.hasRegular) {
+          const opt = document.createElement('option');
+          opt.value = className;           // plain name = regular class
+          opt.textContent = className;
+          filterClass.appendChild(opt);
+        }
+        if (info.hasLab) {
+          const opt = document.createElement('option');
+          opt.value = className + '::lab'; // suffixed value = learning lab
+          opt.textContent = `${className} ⭐ Learning Lab`;
+          filterClass.appendChild(opt);
+        }
       });
 
       // Refresh the learning lab panel whenever classes are rebuilt
@@ -458,7 +468,8 @@
       // Ensure class dropdown is populated for the current teacher
       populateClassDropdown();
       const filterClass = document.getElementById('filter-class');
-      filterClass.value = className;
+      // Use the ::lab suffix so we land on the lab entry, not a regular class of the same name
+      filterClass.value = className + '::lab';
       applyFilters();
     };
 
@@ -477,23 +488,29 @@
     }
 
     async function applyFilters() {
-      const teacher = document.getElementById('filter-teacher').value;
-      const className = document.getElementById('filter-class').value;
-      const classDate = document.getElementById('filter-class-date').value;
+      const teacher       = document.getElementById('filter-teacher').value;
+      const rawClassValue = document.getElementById('filter-class').value;
+      const classDate     = document.getElementById('filter-class-date').value;
 
-      if (!teacher || !className || !classDate) {
+      if (!teacher || !rawClassValue || !classDate) {
         showToast('Please select teacher, class, and date', 'error');
         return;
       }
+
+      // Decode the ::lab suffix that distinguishes lab from regular when both exist
+      const isLabClass = rawClassValue.endsWith('::lab');
+      const className  = isLabClass ? rawClassValue.slice(0, -5) : rawClassValue;
 
       try {
         document.getElementById('loading-container').style.display = 'flex';
         document.getElementById('attendance-container').style.display = 'none';
         document.getElementById('no-selection-message').style.display = 'block';
 
-        // Our model: one schedule doc per student — find ALL for this teacher+class
+        // Filter to only the regular OR lab schedules — never mix both
         const classSchedules = allClassSchedules.filter(cs =>
-          cs.teacherLastName === teacher && cs.className === className
+          cs.teacherLastName === teacher &&
+          cs.className === className &&
+          (isLabClass ? cs.learningLab === true : !cs.learningLab)
         );
 
         if (classSchedules.length === 0) {
