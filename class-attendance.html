@@ -110,6 +110,20 @@
       box-shadow: 0 2px 4px rgba(0,0,0,.08);
     }
     .save-all-summary { font-size: 13px; color: var(--text-secondary); margin-left: auto; }
+
+    /* ── Saved confirmation ── */
+    .section-saved-indicator {
+      display: none; align-items: center; gap: 5px;
+      font-size: 12px; font-weight: 600; color: rgba(255,255,255,.95);
+      background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.35);
+      border-radius: 20px; padding: 3px 10px; white-space: nowrap;
+    }
+    .section-saved-indicator.visible { display: flex; }
+    .section-btn.btn-saved {
+      background: rgba(134,239,172,.4) !important;
+      border-color: rgba(134,239,172,1) !important;
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -533,10 +547,14 @@
           <span class="section-badge">${sec.isLab ? 'Learning Lab' : 'Class'}</span>
           <span class="section-badge">${sec.students.length} student${sec.students.length !== 1 ? 's' : ''}</span>
           <div class="section-actions">
+            <span class="section-saved-indicator" id="saved-ind-${idx}">
+              <i class="fas fa-check-circle"></i>
+              <span id="saved-time-${idx}"></span>
+            </span>
             <button class="section-btn" onclick="markAllPresentSection(${idx})">
               <i class="fas fa-check-double"></i> All Present
             </button>
-            <button class="section-btn save" onclick="saveSectionByIdx(${idx})">
+            <button class="section-btn save" id="save-btn-${idx}" onclick="saveSectionByIdx(${idx})">
               <i class="fas fa-save"></i> Save
             </button>
           </div>
@@ -620,6 +638,36 @@
       showToast(`All students in ${sec.className} marked present`, 'success');
     };
 
+    // ── Visual save confirmation ──────────────────────────────────────────────
+    function markSectionSaved(idx) {
+      const indicator = document.getElementById(`saved-ind-${idx}`);
+      const saveBtn   = document.getElementById(`save-btn-${idx}`);
+      const timeEl    = document.getElementById(`saved-time-${idx}`);
+
+      if (!indicator || !saveBtn) return;
+
+      // Format current time as H:MM AM/PM
+      const now = new Date();
+      const h   = now.getHours();
+      const m   = String(now.getMinutes()).padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12  = h % 12 || 12;
+      if (timeEl) timeEl.textContent = `Saved ${h12}:${m} ${ampm}`;
+
+      // Show the indicator (stays permanently)
+      indicator.classList.add('visible');
+
+      // Flash the save button to "Saved" state briefly
+      const originalHTML = saveBtn.innerHTML;
+      saveBtn.innerHTML  = '<i class="fas fa-check-circle"></i> Saved';
+      saveBtn.classList.add('btn-saved');
+
+      setTimeout(() => {
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+        saveBtn.classList.remove('btn-saved');
+      }, 2500);
+    }
+
     // ── Save single section ───────────────────────────────────────────────────
     window.saveSectionByIdx = function(idx) {
       saveSection(idx);
@@ -637,6 +685,7 @@
         await Promise.all(savePromises);
         await loadAllData();
         await checkAndCreateTMIForSection(sec);
+        markSectionSaved(idx);
         showToast(`Saved ${sec.className}: ${sec.students.length} student${sec.students.length !== 1 ? 's' : ''}`, 'success');
       } catch (error) {
         console.error('Error saving section:', error);
@@ -661,6 +710,9 @@
         for (const sec of sections) {
           await checkAndCreateTMIForSection(sec);
         }
+
+        // Mark every section as saved
+        sections.forEach((_, idx) => markSectionSaved(idx));
 
         showToast(
           `Saved ${sections.length} class${sections.length !== 1 ? 'es' : ''} (${totalStudents} student${totalStudents !== 1 ? 's' : ''})`,
