@@ -75,23 +75,46 @@
     .todo-text { font-size: 14px; color: var(--text-primary); flex: 1; }
     .todo-empty { text-align: center; padding: 28px 0; color: var(--text-muted); font-size: 13px; }
     .todo-empty i { font-size: 28px; display: block; margin-bottom: 8px; opacity: .4; }
-    .cal-event-time   { font-size: 11px; font-weight: 700; color: #2563eb; min-width: 54px; white-space: nowrap; padding-top: 2px; }
-    .cal-event-allday { font-size: 11px; font-weight: 700; color: #9333ea; min-width: 54px; padding-top: 2px; }
-    .cal-event-bar    { width: 3px; border-radius: 2px; background: #2563eb; flex-shrink: 0; align-self: stretch; min-height: 18px; }
-    .cal-event-name   { font-size: 13px; font-weight: 600; color: #1e293b; line-height: 1.3; }
-    .cal-event-loc    { font-size: 11px; color: #64748b; margin-top: 2px; }
-    .cal-empty-msg    { text-align: center; padding: 28px 0; color: #94a3b8; }
-    .cal-empty-msg i  { font-size: 28px; margin-bottom: 8px; }
-
-    .cal-setup-box    { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 18px; text-align: center; margin-bottom: 12px; }
-    .cal-setup-box p  { font-size: 13px; color: #475569; margin: 4px 0 10px; }
-    .cal-url-input    { width: 100%; padding: 7px 11px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; box-sizing: border-box; margin-bottom: 8px; }
-    .cal-url-input:focus { outline: none; border-color: #2563eb; }
-    .cal-link-btn     { font-size: 11px; color: #64748b; cursor: pointer; background: none; border: none; padding: 0; }
-    .cal-link-btn:hover { color: #2563eb; text-decoration: underline; }
-
     /* ── Card for weather slot ── */
     #weatherSection { border-radius: 12px; overflow: hidden; }
+
+    /* ── Quick-access shortcuts ── */
+    .quick-access {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 640px) { .quick-access { grid-template-columns: 1fr; } }
+
+    .quick-btn {
+      display: flex; flex-direction: column; align-items: flex-start;
+      padding: 26px 24px 22px; border-radius: 14px;
+      text-decoration: none; color: white;
+      transition: transform .15s, box-shadow .15s;
+      position: relative; overflow: hidden; cursor: pointer;
+    }
+    .quick-btn::after {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(255,255,255,0); transition: background .15s;
+    }
+    .quick-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(0,0,0,.20); }
+    .quick-btn:hover::after { background: rgba(255,255,255,.06); }
+    .quick-btn:active { transform: translateY(-1px); }
+
+    .quick-btn.class-att  { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+    .quick-btn.learn-lab  { background: linear-gradient(135deg, #0891b2 0%, #0369a1 100%); }
+    .quick-btn.tmi-review { background: linear-gradient(135deg, #d97706 0%, #dc2626 100%); }
+
+    .qb-icon  { font-size: 36px; margin-bottom: 16px; opacity: .92; }
+    .qb-label { font-size: 19px; font-weight: 800; margin-bottom: 5px; line-height: 1.2; }
+    .qb-desc  { font-size: 13px; opacity: .78; line-height: 1.4; }
+    .qb-arrow {
+      position: absolute; bottom: 20px; right: 22px;
+      font-size: 15px; opacity: .55;
+      transition: opacity .15s, right .15s;
+    }
+    .quick-btn:hover .qb-arrow { opacity: .9; right: 18px; }
   </style>
 </head>
 <body>
@@ -105,28 +128,26 @@
       </div>
     </div>
 
-    <!-- Stats row -->
-    <div class="grid-stats">
-      <div class="stat-card">
-        <div class="stat-icon blue"><i class="fas fa-users"></i></div>
-        <div class="stat-value" id="stat-students">—</div>
-        <div class="stat-label">Total Students</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon yellow"><i class="fas fa-times-circle"></i></div>
-        <div class="stat-value" id="stat-absences">—</div>
-        <div class="stat-label">Today's Absences</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon green"><i class="fas fa-calendar-check"></i></div>
-        <div class="stat-value" id="stat-classes">—</div>
-        <div class="stat-label">Classes Today</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
-        <div class="stat-value" id="stat-tardies">—</div>
-        <div class="stat-label">Tardies This Week</div>
-      </div>
+    <!-- Quick-access shortcuts -->
+    <div class="quick-access">
+      <a href="class-attendance.html" class="quick-btn class-att">
+        <div class="qb-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="qb-label">Class Attendance</div>
+        <div class="qb-desc">Log &amp; review student attendance by class</div>
+        <i class="fas fa-arrow-right qb-arrow"></i>
+      </a>
+      <a href="learning-lab.html" class="quick-btn learn-lab">
+        <div class="qb-icon"><i class="fas fa-flask"></i></div>
+        <div class="qb-label">Learning Lab</div>
+        <div class="qb-desc">Track student learning lab sessions</div>
+        <i class="fas fa-arrow-right qb-arrow"></i>
+      </a>
+      <a href="tmi-review.html" class="quick-btn tmi-review">
+        <div class="qb-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="qb-label">TMI Review</div>
+        <div class="qb-desc">Review &amp; manage intervention records</div>
+        <i class="fas fa-arrow-right qb-arrow"></i>
+      </a>
     </div>
 
     <!-- Weather + Calendar row -->
@@ -163,107 +184,21 @@
       </div>
     </div>
 
-    <!-- Recent Absences -->
-    <div class="card">
-      <div class="card-header">
-        <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
-          <div class="card-title">Recent Absences &amp; Tardies</div>
-          <a href="daily-attendance.html" class="w3-button btn-ghost" style="font-size:12px;padding:4px 8px;">View All</a>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="table-wrap">
-          <table id="absTable" class="w3-table w3-striped">
-            <thead>
-              <tr>
-                <th>Date</th><th>Student</th><th>Code</th><th>Class</th><th>Teacher</th>
-              </tr>
-            </thead>
-            <tbody id="absTableBody"></tbody>
-          </table>
-        </div>
-        <div id="absEmpty" class="empty-state" style="display:none;">
-          <div class="empty-icon"><i class="fas fa-inbox"></i></div>
-          <div class="empty-title">No Recent Absences</div>
-          <div class="empty-subtitle">No T/U/E records found</div>
-        </div>
-      </div>
-    </div>
 
   </div>
 
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll } from './js/db.js';
-    import { formatDate } from './js/utils.js';
 
     await initAuth();
     if (!getCurrentUser()) { window.location.href = 'index.html'; }
     initNav('home');
 
     // ── Date display ──
-    const today    = new Date();
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+    const today = new Date();
     document.getElementById('current-date').textContent =
       today.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-
-    // Week bounds (Mon–Sun)
-    const dow      = today.getDay();
-    const mondayMs = today.getTime() - ((dow === 0 ? 6 : dow - 1) * 86400000);
-    const weekStart = new Date(mondayMs);
-    const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth()+1).padStart(2,'0')}-${String(weekStart.getDate()).padStart(2,'0')}`;
-
-    // ── Load Firebase data ──
-    const [students, attLogs] = await Promise.all([
-      getAll('students'),
-      getAll('classAttendanceLogs')
-    ]);
-
-    // Stats
-    document.getElementById('stat-students').textContent = students.length;
-
-    const todayAbs = attLogs.filter(l =>
-      (l.classDate === todayStr || l.date === todayStr) &&
-      (l.attendanceCode === 'U' || l.attendanceCode === 'E')
-    );
-    document.getElementById('stat-absences').textContent = todayAbs.length;
-
-    const classesToday = [...new Set(
-      attLogs.filter(l => l.classDate === todayStr || l.date === todayStr).map(l => l.className)
-    )].filter(Boolean);
-    document.getElementById('stat-classes').textContent = classesToday.length;
-
-    const weekTardies = attLogs.filter(l => {
-      const d = l.classDate || l.date || '';
-      return d >= weekStartStr && d <= todayStr && l.attendanceCode === 'T';
-    });
-    document.getElementById('stat-tardies').textContent = weekTardies.length;
-
-    // Recent absences table
-    const codeColor = { U:'#dc2626', T:'#d97706', E:'#2563eb' };
-    const recent = attLogs
-      .filter(l => ['U','T','E'].includes(l.attendanceCode))
-      .sort((a, b) => ((b.classDate||b.date||'')).localeCompare((a.classDate||a.date||'')))
-      .slice(0, 12);
-
-    const tbody = document.getElementById('absTableBody');
-    if (recent.length > 0) {
-      recent.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${formatDate(r.classDate || r.date)}</td>
-          <td>${r.studentName || '—'}</td>
-          <td><span style="background:${codeColor[r.attendanceCode]||'#64748b'};color:white;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;">${r.attendanceCode}</span></td>
-          <td>${r.className || '—'}</td>
-          <td>${r.teacherLastName || '—'}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    } else {
-      document.getElementById('absTable').style.display = 'none';
-      document.getElementById('absEmpty').style.display = 'block';
-    }
 
     // ══════════════════════════════════════
     //  WEATHER — Open-Meteo (no API key)
