@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ER Emailer - P2MT</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    /* ── Page shell ── */
+    .er-page { max-width: 100%; padding: 14px 20px 40px; }
+
+    /* ── Top bar ── */
+    .er-topbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+    .er-topbar h1 { font-size: 21px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 9px; }
+    .er-topbar h1 i { color: var(--primary); }
+    .er-topbar .spacer { flex: 1; }
+    .er-date-wrap { display: flex; align-items: center; gap: 8px; }
+    .er-date-wrap label { font-size: 13px; font-weight: 600; color: #475569; }
+    .er-date-wrap input[type="date"] { padding: 7px 11px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: var(--text-primary); outline: none; }
+    .er-date-wrap input:focus { border-color: var(--primary); }
+
+    /* ── Outlook button ── */
+    .btn-outlook { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; border: 1.5px solid; transition: all .15s; white-space: nowrap; }
+    .btn-outlook.disconnected { border-color: #0078d4; color: #0078d4; background: white; }
+    .btn-outlook.disconnected:hover { background: #f0f8ff; }
+    .btn-outlook.connected { border-color: #16a34a; color: #16a34a; background: #f0fdf4; cursor: default; }
+    .btn-outlook .odot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    /* ── Tabs ── */
+    .er-tabs { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 20px; }
+    .er-tab { padding: 9px 22px; font-weight: 600; font-size: 14px; color: #64748b; cursor: pointer; border: none; border-bottom: 2.5px solid transparent; margin-bottom: -2px; background: none; display: inline-flex; align-items: center; gap: 7px; transition: color .15s; }
+    .er-tab:hover { color: var(--primary); }
+    .er-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* ── Grid tab ── */
+    .grid-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+    .grid-summary { font-size: 13px; color: var(--text-muted); }
+    .grid-summary strong { color: var(--text-primary); }
+    .btn-sm { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid; transition: all .12s; }
+    .btn-sm.outline { border-color: #e2e8f0; color: #475569; background: white; }
+    .btn-sm.outline:hover { border-color: #94a3b8; }
+    .btn-sm.danger { border-color: #fca5a5; color: #dc2626; background: white; }
+    .btn-sm.danger:hover { background: #fef2f2; }
+
+    /* ── The table ── */
+    .grid-scroll { overflow-x: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; }
+    .er-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+    .er-table thead tr { background: var(--primary); }
+    .er-table th { padding: 0; font-size: 11px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; border-right: 1px solid rgba(255,255,255,.15); }
+    .er-table th:last-child { border-right: none; }
+    .er-table td { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; padding: 0; }
+    .er-table td:last-child { border-right: none; }
+    .er-table tr:last-child td { border-bottom: none; }
+    .er-table tbody tr:hover td { background: #f8fafc !important; }
+
+    /* Sticky name column */
+    .th-name, .td-name {
+      position: sticky; left: 0; z-index: 2;
+      background: var(--primary);
+      min-width: 160px; max-width: 180px;
+    }
+    .td-name { background: white; z-index: 1; }
+    .er-table tbody tr:hover .td-name { background: #f8fafc !important; }
+    .name-cell { padding: 9px 12px; font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+    .th-name-inner { padding: 10px 12px; }
+
+    /* Workshop header cells */
+    .th-workshop { min-width: 90px; max-width: 110px; }
+    .workshop-header-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 6px; cursor: pointer; user-select: none; transition: background .1s; }
+    .workshop-header-cell:hover { background: rgba(255,255,255,.12); }
+    .wh-name { font-size: 11px; font-weight: 700; text-align: center; line-height: 1.3; }
+    .wh-room { font-size: 10px; opacity: .75; }
+    .wh-count { font-size: 10px; background: rgba(255,255,255,.25); border-radius: 10px; padding: 1px 6px; margin-top: 2px; }
+
+    /* Checkbox cells */
+    .th-email { min-width: 190px; }
+    .th-guardian { min-width: 190px; }
+    .cell-chk { text-align: center; padding: 8px 4px; }
+    .cell-chk input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
+    .cell-chk.locked { background: #1e1e1e !important; }
+    .cell-chk.locked input { display: none; }
+    .cell-email { padding: 8px 10px; font-size: 12px; color: var(--text-muted); }
+    .guardian-input { border: none; outline: none; font-size: 12px; color: var(--text-muted); width: 100%; background: transparent; padding: 8px 10px; }
+    .guardian-input:focus { color: var(--text-primary); background: #eff6ff; }
+    .guardian-input::placeholder { color: #cbd5e1; }
+
+    /* Status indicator in name column */
+    .assigned-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
+    .assigned-dot.ok   { background: #16a34a; }
+    .assigned-dot.none { background: #e2e8f0; }
+
+    /* ── Send bar ── */
+    .send-bar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; padding: 14px 18px; background: white; border: 1.5px solid #e2e8f0; border-radius: 10px; }
+    .send-bar .sb-stat { font-size: 13px; color: var(--text-muted); }
+    .send-bar .sb-stat strong { color: var(--text-primary); }
+    .send-bar .spacer { flex: 1; }
+    .send-bar .rcpt-toggle { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+    .rcpt-toggle label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+    .rcpt-toggle input { accent-color: var(--primary); }
+    .btn-send-er { display: inline-flex; align-items: center; gap: 8px; padding: 9px 22px; background: #0078d4; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: background .15s; }
+    .btn-send-er:hover:not(:disabled) { background: #106ebe; }
+    .btn-send-er:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* ── ER Tab (setup / template) ── */
+    .er-setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 900px) { .er-setup-grid { grid-template-columns: 1fr; } }
+
+    .setup-card { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 20px; }
+    .setup-card h3 { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 16px; display: flex; align-items: center; gap: 8px; }
+    .setup-card h3 i { color: var(--primary); }
+
+    /* Workshop list */
+    .workshop-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+    .workshop-row { display: flex; align-items: center; gap: 8px; }
+    .workshop-row .w-name { flex: 1; padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 13px; outline: none; }
+    .workshop-row .w-name:focus { border-color: var(--primary); }
+    .workshop-row .w-room { width: 80px; padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 13px; outline: none; text-align: center; }
+    .workshop-row .w-room:focus { border-color: var(--primary); }
+    .workshop-row .w-del { width: 30px; height: 30px; border-radius: 6px; border: 1.5px solid #fca5a5; color: #dc2626; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .workshop-row .w-del:hover { background: #fef2f2; }
+    .add-workshop-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border: 1.5px dashed #c7d2fe; color: var(--primary); background: white; border-radius: 7px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .12s; width: 100%; justify-content: center; }
+    .add-workshop-btn:hover { background: #eff6ff; border-color: var(--primary); }
+    .save-workshops-btn { margin-top: 12px; padding: 8px 18px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+    .save-workshops-btn:hover { opacity: .9; }
+
+    /* Template editor */
+    .mf-row { margin-bottom: 13px; }
+    .mf-row label { display: block; font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+    .mf-row input, .mf-row textarea { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; font-family: inherit; outline: none; box-sizing: border-box; color: var(--text-primary); resize: vertical; }
+    .mf-row input:focus, .mf-row textarea:focus { border-color: var(--primary); }
+
+    .var-pills { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 12px; }
+    .var-pill { font-size: 11px; font-weight: 600; background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; border-radius: 5px; padding: 3px 9px; cursor: pointer; font-family: monospace; transition: all .1s; }
+    .var-pill:hover { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+    .save-tmpl-btn { padding: 8px 18px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; margin-top: 4px; }
+    .save-tmpl-btn:hover { opacity: .9; }
+
+    /* ── Azure setup modal ── */
+    .modal-bd { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 2000; align-items: center; justify-content: center; padding: 16px; }
+    .modal-bd.open { display: flex; }
+    .modal-box { background: white; border-radius: 14px; padding: 26px 26px 20px; width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 70px rgba(0,0,0,.22); }
+    .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .modal-head h2 { font-size: 17px; font-weight: 700; margin: 0; }
+    .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: #94a3b8; line-height: 1; }
+    .modal-close:hover { color: #475569; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .btn-cancel { padding: 8px 16px; border: 1.5px solid #e2e8f0; background: white; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; color: #475569; }
+    .azure-steps { list-style: none; padding: 0; margin: 0; counter-reset: s; }
+    .azure-step { display: flex; gap: 11px; margin-bottom: 13px; counter-increment: s; }
+    .azure-step::before { content: counter(s); min-width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: white; font-weight: 700; font-size: 11px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .azure-step div { font-size: 13px; line-height: 1.55; }
+    .azure-step code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; }
+    .azure-step a { color: var(--primary); }
+    .btn-ms { padding: 9px 18px; background: #0078d4; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="nav-container"></div>
+  <div class="er-page">
+
+    <!-- Top bar -->
+    <div class="er-topbar">
+      <h1><i class="fas fa-bolt"></i> ER Emailer</h1>
+      <div class="er-date-wrap">
+        <label>ER Date:</label>
+        <input type="date" id="er-date" onchange="onDateChange()">
+      </div>
+      <div class="spacer"></div>
+      <button id="btn-outlook" class="btn-outlook disconnected" onclick="connectOutlook()">
+        <i class="fab fa-microsoft"></i> Connect Outlook
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="er-tabs">
+      <button class="er-tab active" id="tab-btn-emailer" onclick="switchTab('emailer')">
+        <i class="fas fa-table"></i> Emailer
+      </button>
+      <button class="er-tab" id="tab-btn-er" onclick="switchTab('er')">
+        <i class="fas fa-cog"></i> ER Setup
+      </button>
+    </div>
+
+    <!-- ══ Tab: Emailer ═══════════════════════════════════════════════════ -->
+    <div id="tab-emailer">
+      <div class="grid-controls">
+        <span class="grid-summary" id="grid-summary">Loading…</span>
+        <div style="flex:1;"></div>
+        <button class="btn-sm outline" onclick="clearAll()"><i class="fas fa-times"></i> Clear All</button>
+      </div>
+
+      <div class="grid-scroll">
+        <table class="er-table" id="er-table">
+          <thead id="er-thead"></thead>
+          <tbody id="er-tbody"></tbody>
+        </table>
+      </div>
+
+      <!-- Send bar -->
+      <div class="send-bar">
+        <div class="sb-stat" id="sb-assigned"></div>
+        <div class="sb-stat" id="sb-missing-email"></div>
+        <div class="spacer"></div>
+        <div class="rcpt-toggle">
+          <span style="font-size:13px; font-weight:600; color:#475569;">Send to:</span>
+          <label><input type="radio" name="rcpt-mode" value="student" checked> Student only</label>
+          <label><input type="radio" name="rcpt-mode" value="both"> Student + Guardian</label>
+        </div>
+        <button class="btn-send-er" id="btn-send-er" onclick="sendEmails()">
+          <i class="fas fa-paper-plane"></i> <span id="send-btn-txt">Send Emails</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ Tab: ER Setup ═══════════════════════════════════════════════════ -->
+    <div id="tab-er" style="display:none;">
+      <div class="er-setup-grid">
+
+        <!-- Workshops + Rooms -->
+        <div class="setup-card">
+          <h3><i class="fas fa-chalkboard-teacher"></i> Workshops &amp; Rooms</h3>
+          <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Define available workshops and update room numbers before each ER day.</p>
+          <div class="workshop-list" id="workshop-list">
+            <!-- rows injected -->
+          </div>
+          <button class="add-workshop-btn" onclick="addWorkshopRow()">
+            <i class="fas fa-plus"></i> Add Workshop
+          </button>
+          <br>
+          <button class="save-workshops-btn" onclick="saveWorkshops()">
+            <i class="fas fa-save"></i> Save Workshops
+          </button>
+        </div>
+
+        <!-- Email Template -->
+        <div class="setup-card">
+          <h3><i class="fas fa-envelope-open-text"></i> Email Template</h3>
+          <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Click a variable to insert it at the cursor position.</p>
+
+          <div class="var-pills" id="var-pills"></div>
+
+          <div class="mf-row">
+            <label>Subject *</label>
+            <input type="text" id="tmpl-subject" placeholder="Early Release Workshop Assignment — {{date}}">
+          </div>
+          <div class="mf-row">
+            <label>Body *</label>
+            <textarea id="tmpl-body" rows="12" placeholder="Dear {{firstName}},&#10;&#10;Your Early Release workshop assignment for {{date}} is:&#10;&#10;  Workshop: {{workshopName}}&#10;  Room: {{room}}&#10;&#10;Please report to Room {{room}} at the start of the Early Release period.&#10;&#10;Thank you,&#10;[Your name]"></textarea>
+          </div>
+          <button class="save-tmpl-btn" onclick="saveTemplate()">
+            <i class="fas fa-save"></i> Save Template
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /er-page -->
+
+  <!-- Azure setup modal -->
+  <div id="modal-azure" class="modal-bd">
+    <div class="modal-box">
+      <div class="modal-head">
+        <h2><i class="fab fa-microsoft" style="color:#0078d4; margin-right:7px;"></i>Set Up Outlook Sending</h2>
+        <button class="modal-close" onclick="document.getElementById('modal-azure').classList.remove('open')">&times;</button>
+      </div>
+      <p style="font-size:13px; color:var(--text-muted); margin: 0 0 18px;">One-time Azure setup needed to send through your Outlook account.</p>
+      <ol class="azure-steps">
+        <li class="azure-step"><div>Go to <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank">portal.azure.com → App registrations</a> and click <strong>New registration</strong>.</div></li>
+        <li class="azure-step"><div>Name the app (e.g. <code>P2MT Email</code>). Set account type to <em>"Any org + personal"</em>. Under Redirect URI, pick <strong>Single-page application (SPA)</strong> and enter: <code id="az-redirect"></code></div></li>
+        <li class="azure-step"><div>Go to <strong>API permissions → Add → Microsoft Graph → Delegated → <code>Mail.Send</code></strong> then <strong>Grant admin consent</strong>.</div></li>
+        <li class="azure-step"><div>Copy the <strong>Application (client) ID</strong> from the Overview page and paste it below.</div></li>
+      </ol>
+      <div style="margin-top:16px;">
+        <label style="font-size:12px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">CLIENT ID</label>
+        <input type="text" id="azure-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="width:100%; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; font-family:monospace; outline:none; box-sizing:border-box;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="document.getElementById('modal-azure').classList.remove('open')">Cancel</button>
+        <button class="btn-ms" onclick="saveAzureId()"><i class="fab fa-microsoft"></i> Save &amp; Connect</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
+
+  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+  <script type="module">
+    import { initAuth }   from './js/auth.js';
+    import { initNav }    from './js/nav.js';
+    import { getAll, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import { showToast }  from './js/utils.js';
+
+    // ── Data ─────────────────────────────────────────────────────────────────────
+    let students   = [];
+    let workshops  = [];
+    let assignments = {};    // { studentId: workshopId } for current date
+    let template   = { subject: '', body: '' };
+    let guardianEmails = {};  // { studentId: email }
+    let currentDate = '';
+
+    // ── MSAL ─────────────────────────────────────────────────────────────────────
+    let msalClient  = null;
+    let msalAccount = null;
+    const SCOPES    = ['Mail.Send', 'User.Read'];
+
+    // ── Template variables ────────────────────────────────────────────────────────
+    const VARS = [
+      { key: 'firstName',    label: 'First Name'    },
+      { key: 'studentName',  label: 'Full Name'     },
+      { key: 'workshopName', label: 'Workshop'      },
+      { key: 'room',         label: 'Room'          },
+      { key: 'date',         label: 'ER Date'       },
+      { key: 'dayOfWeek',    label: 'Day of Week'   },
+      { key: 'studentEmail', label: 'Student Email' },
+    ];
+
+    // ── Boot ──────────────────────────────────────────────────────────────────────
+    initAuth().then(() => {
+      initNav('er-emailer');
+      setDefaultDate();
+      buildVarPills();
+      document.getElementById('az-redirect').textContent =
+        window.location.origin + window.location.pathname;
+      initMsalFromCache();
+      loadAll();
+    });
+
+    function setDefaultDate() {
+      const n = new Date();
+      const d = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+      document.getElementById('er-date').value = d;
+      currentDate = d;
+    }
+
+    async function loadAll() {
+      try {
+        const [s, w, t, g] = await Promise.all([
+          getAll('students'),
+          getAll('erWorkshops'),
+          getAll('erTemplate'),
+          getAll('guardianEmails'),
+        ]);
+
+        students  = s.sort((a, b) => a.lastName.localeCompare(b.lastName));
+        workshops = (w || []).sort((a, b) => (a.order || 0) - (b.order || 0));
+        template  = t?.[0] || { subject: 'Early Release Workshop Assignment — {{date}}', body: DEFAULT_BODY };
+        g.forEach(rec => { guardianEmails[rec.studentId] = rec.email; });
+
+        // Pre-populate workshop list from defaults if none saved yet
+        if (!workshops.length) workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
+
+        loadTemplateIntoForm();
+        renderWorkshopList();
+        await loadAssignmentsForDate(currentDate);
+        renderGrid();
+      } catch (err) {
+        console.error(err);
+        showToast('Error loading data', 'error');
+      }
+    }
+
+    async function loadAssignmentsForDate(date) {
+      assignments = {};
+      try {
+        const rows = await getWhere('erAssignments', 'date', date);
+        rows.forEach(r => { assignments[r.studentId] = r.workshopId; });
+      } catch (err) {
+        console.error('Error loading assignments:', err);
+      }
+    }
+
+    window.onDateChange = async function() {
+      currentDate = document.getElementById('er-date').value;
+      if (!currentDate) return;
+      await loadAssignmentsForDate(currentDate);
+      renderGrid();
+    };
+
+    // ── Tab switching ─────────────────────────────────────────────────────────────
+    window.switchTab = function(tab) {
+      document.getElementById('tab-emailer').style.display = tab === 'emailer' ? '' : 'none';
+      document.getElementById('tab-er').style.display      = tab === 'er'      ? '' : 'none';
+      document.getElementById('tab-btn-emailer').classList.toggle('active', tab === 'emailer');
+      document.getElementById('tab-btn-er').classList.toggle('active',      tab === 'er');
+    };
+
+    // ── Grid rendering ────────────────────────────────────────────────────────────
+    function renderGrid() {
+      if (!workshops.length || !students.length) return;
+
+      // ── Header ──
+      const thead = document.getElementById('er-thead');
+      let thHtml = `<tr>
+        <th class="th-name"><div class="th-name-inner">Name</div></th>`;
+      workshops.forEach(w => {
+        const cnt = Object.values(assignments).filter(wid => wid === w.id).length;
+        thHtml += `<th class="th-workshop">
+          <div class="workshop-header-cell" onclick="assignAll('${w.id}')" title="Click to assign all unassigned students to ${esc(w.name)}">
+            <span class="wh-name">${esc(w.name)}</span>
+            ${w.room ? `<span class="wh-room">Rm ${esc(w.room)}</span>` : ''}
+            <span class="wh-count">${cnt}</span>
+          </div>
+        </th>`;
+      });
+      thHtml += `<th class="th-email"><div style="padding:10px 12px;">Student Email</div></th>
+        <th class="th-guardian"><div style="padding:10px 12px;">Guardian Email</div></th>
+      </tr>`;
+      thead.innerHTML = thHtml;
+
+      // ── Body ──
+      const tbody = document.getElementById('er-tbody');
+      let tbHtml = '';
+      students.forEach(student => {
+        const assignedWid = assignments[student.id] || null;
+        const hasDot = assignedWid ? 'ok' : 'none';
+        tbHtml += `<tr>
+          <td class="td-name">
+            <div class="name-cell">
+              <span class="assigned-dot ${hasDot}"></span>
+              ${esc(student.lastName)}, ${esc(student.firstName)}
+            </div>
+          </td>`;
+        workshops.forEach(w => {
+          const checked = assignedWid === w.id ? 'checked' : '';
+          tbHtml += `<td class="cell-chk">
+            <input type="checkbox" ${checked}
+              data-student="${student.id}"
+              data-workshop="${w.id}"
+              onchange="onCheckChange(this)">
+          </td>`;
+        });
+        const gEmail = guardianEmails[student.id] || '';
+        tbHtml += `<td class="cell-email">${esc(student.email || '')}</td>
+          <td>
+            <input class="guardian-input"
+              type="email"
+              placeholder="guardian@email.com"
+              value="${esc(gEmail)}"
+              data-student="${student.id}"
+              onblur="saveGuardianEmail(this)">
+          </td>
+        </tr>`;
+      });
+      tbody.innerHTML = tbHtml;
+
+      updateSummary();
+    }
+
+    function updateSummary() {
+      const total    = students.length;
+      const assigned = students.filter(s => assignments[s.id]).length;
+      const noEmail  = students.filter(s => assignments[s.id] && !s.email).length;
+
+      document.getElementById('grid-summary').innerHTML =
+        `<strong>${assigned}</strong> of ${total} students assigned`;
+      document.getElementById('sb-assigned').innerHTML =
+        `<strong>${assigned}</strong> assigned &nbsp;|&nbsp; <strong>${total - assigned}</strong> unassigned`;
+      document.getElementById('sb-missing-email').innerHTML =
+        noEmail > 0 ? `<span style="color:#dc2626;"><i class="fas fa-exclamation-circle"></i> ${noEmail} missing student email</span>` : '';
+      document.getElementById('send-btn-txt').textContent =
+        `Send ${assigned} Email${assigned !== 1 ? 's' : ''}`;
+    }
+
+    // ── Checkbox change → save assignment ─────────────────────────────────────────
+    window.onCheckChange = async function(chk) {
+      const studentId  = chk.dataset.student;
+      const workshopId = chk.dataset.workshop;
+
+      if (chk.checked) {
+        // Uncheck all others in this row
+        document.querySelectorAll(`input[data-student="${studentId}"]`).forEach(c => {
+          if (c !== chk) c.checked = false;
+        });
+        assignments[studentId] = workshopId;
+        await saveAssignment(studentId, workshopId);
+      } else {
+        // Unchecking → remove assignment
+        delete assignments[studentId];
+        await deleteAssignment(studentId);
+      }
+
+      // Update the green dot on the name cell
+      const dot = chk.closest('tr').querySelector('.assigned-dot');
+      if (dot) {
+        dot.className = `assigned-dot ${assignments[studentId] ? 'ok' : 'none'}`;
+      }
+      updateSummary();
+      // Refresh workshop count badges
+      renderWorkshopCounts();
+    };
+
+    function renderWorkshopCounts() {
+      workshops.forEach(w => {
+        const cnt = Object.values(assignments).filter(wid => wid === w.id).length;
+        document.querySelectorAll(`.wh-count`).forEach((el, i) => {
+          if (workshops[i]?.id === w.id) el.textContent = cnt;
+        });
+      });
+      // Re-render header to update counts efficiently
+      const countEls = document.querySelectorAll('.wh-count');
+      countEls.forEach((el, i) => {
+        if (workshops[i]) {
+          el.textContent = Object.values(assignments).filter(wid => wid === workshops[i].id).length;
+        }
+      });
+    }
+
+    async function saveAssignment(studentId, workshopId) {
+      try {
+        // Check if assignment exists
+        const existing = await getWhere('erAssignments', 'studentId', studentId);
+        const forDate  = existing.find(r => r.date === currentDate);
+        if (forDate) {
+          await updateDoc('erAssignments', forDate.id, { workshopId, date: currentDate, studentId });
+        } else {
+          await addDoc('erAssignments', { studentId, workshopId, date: currentDate });
+        }
+      } catch (err) { console.error('Save assignment error:', err); }
+    }
+
+    async function deleteAssignment(studentId) {
+      try {
+        const existing = await getWhere('erAssignments', 'studentId', studentId);
+        const forDate  = existing.find(r => r.date === currentDate);
+        if (forDate) await deleteDoc('erAssignments', forDate.id);
+      } catch (err) { console.error('Delete assignment error:', err); }
+    }
+
+    // ── Assign all unassigned to a workshop ────────────────────────────────────────
+    window.assignAll = async function(workshopId) {
+      const w = workshops.find(x => x.id === workshopId);
+      if (!w) return;
+      const unassigned = students.filter(s => !assignments[s.id]);
+      if (!unassigned.length) { showToast('All students are already assigned', 'info'); return; }
+
+      for (const s of unassigned) {
+        assignments[s.id] = workshopId;
+        document.querySelectorAll(`input[data-student="${s.id}"][data-workshop="${workshopId}"]`)
+          .forEach(c => { c.checked = true; });
+        await saveAssignment(s.id, workshopId);
+      }
+      renderGrid();
+      showToast(`Assigned ${unassigned.length} students to ${w.name}`, 'success');
+    };
+
+    // ── Clear all assignments ──────────────────────────────────────────────────────
+    window.clearAll = async function() {
+      if (!confirm('Clear all assignments for this date?')) return;
+      const assigned = students.filter(s => assignments[s.id]);
+      for (const s of assigned) {
+        await deleteAssignment(s.id);
+      }
+      assignments = {};
+      renderGrid();
+      showToast('All assignments cleared', 'success');
+    };
+
+    // ── Guardian email save ───────────────────────────────────────────────────────
+    window.saveGuardianEmail = async function(input) {
+      const studentId = input.dataset.student;
+      const email     = input.value.trim();
+      guardianEmails[studentId] = email;
+      try {
+        const existing = await getWhere('guardianEmails', 'studentId', studentId);
+        if (existing.length) {
+          await updateDoc('guardianEmails', existing[0].id, { studentId, email });
+        } else if (email) {
+          await addDoc('guardianEmails', { studentId, email });
+        }
+      } catch (err) { console.error('Guardian email save error:', err); }
+    };
+
+    // ── Workshop management ───────────────────────────────────────────────────────
+    function renderWorkshopList() {
+      const container = document.getElementById('workshop-list');
+      container.innerHTML = workshops.map((w, i) => `
+        <div class="workshop-row" data-idx="${i}">
+          <input class="w-name" type="text" value="${esc(w.name)}" placeholder="Workshop name">
+          <input class="w-room" type="text" value="${esc(w.room || '')}" placeholder="Room">
+          <button class="w-del" onclick="removeWorkshopRow(${i})" title="Remove"><i class="fas fa-times"></i></button>
+        </div>
+      `).join('');
+    }
+
+    window.addWorkshopRow = function() {
+      workshops.push({ name: '', room: '', order: workshops.length });
+      renderWorkshopList();
+      // Focus the new name input
+      const rows = document.querySelectorAll('.workshop-row');
+      rows[rows.length - 1]?.querySelector('.w-name')?.focus();
+    };
+
+    window.removeWorkshopRow = function(idx) {
+      workshops.splice(idx, 1);
+      renderWorkshopList();
+    };
+
+    window.saveWorkshops = async function() {
+      // Read current values from the DOM
+      const rows = document.querySelectorAll('.workshop-row');
+      const updated = [];
+      rows.forEach((row, i) => {
+        const name = row.querySelector('.w-name').value.trim();
+        const room = row.querySelector('.w-room').value.trim();
+        if (name) updated.push({ ...workshops[i], name, room, order: i });
+      });
+
+      try {
+        // Delete removed workshops
+        for (const w of workshops) {
+          if (w.id && !updated.find(u => u.id === w.id)) {
+            await deleteDoc('erWorkshops', w.id);
+          }
+        }
+        // Save each
+        const saved = [];
+        for (const w of updated) {
+          if (w.id) {
+            await updateDoc('erWorkshops', w.id, { name: w.name, room: w.room, order: w.order });
+            saved.push(w);
+          } else {
+            const id = await addDoc('erWorkshops', { name: w.name, room: w.room, order: w.order });
+            saved.push({ ...w, id });
+          }
+        }
+        workshops = saved;
+        renderWorkshopList();
+        renderGrid();
+        showToast('Workshops saved', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error saving workshops', 'error');
+      }
+    };
+
+    // ── Template management ────────────────────────────────────────────────────────
+    function loadTemplateIntoForm() {
+      document.getElementById('tmpl-subject').value = template.subject || '';
+      document.getElementById('tmpl-body').value    = template.body    || '';
+    }
+
+    window.saveTemplate = async function() {
+      const subject = document.getElementById('tmpl-subject').value.trim();
+      const body    = document.getElementById('tmpl-body').value.trim();
+      if (!subject || !body) { showToast('Subject and body are required', 'error'); return; }
+      try {
+        const existing = await getAll('erTemplate');
+        const data = { subject, body };
+        if (existing.length) {
+          await updateDoc('erTemplate', existing[0].id, data);
+          template = { ...existing[0], ...data };
+        } else {
+          const id = await addDoc('erTemplate', data);
+          template = { ...data, id };
+        }
+        showToast('Template saved', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error saving template', 'error');
+      }
+    };
+
+    // ── Variable pills ─────────────────────────────────────────────────────────────
+    function buildVarPills() {
+      document.getElementById('var-pills').innerHTML =
+        VARS.map(v => `<span class="var-pill" onclick="insertVar('{{${v.key}}}')">{{${v.key}}}</span>`).join('');
+    }
+
+    window.insertVar = function(text) {
+      const subj = document.getElementById('tmpl-subject');
+      const body = document.getElementById('tmpl-body');
+      const target = document.activeElement === subj ? subj : body;
+      const s = target.selectionStart, e = target.selectionEnd;
+      target.value = target.value.slice(0, s) + text + target.value.slice(e);
+      target.selectionStart = target.selectionEnd = s + text.length;
+      target.focus();
+    };
+
+    // ── Send emails ────────────────────────────────────────────────────────────────
+    window.sendEmails = async function() {
+      const subject = template.subject;
+      const body    = template.body;
+      if (!subject || !body) {
+        showToast('Please save an email template in the ER Setup tab first', 'warning');
+        switchTab('er');
+        return;
+      }
+      if (!msalAccount) {
+        showToast('Connect your Outlook account first', 'warning');
+        connectOutlook();
+        return;
+      }
+
+      const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
+      const assigned = students.filter(s => assignments[s.id]);
+      if (!assigned.length) { showToast('No students assigned', 'warning'); return; }
+
+      const btn = document.getElementById('btn-send-er');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+
+      const dateLabel = fmtDate(currentDate);
+      const dayLabel  = fmtDOW(currentDate);
+      let sent = 0, failed = 0;
+
+      try {
+        const token = await getToken();
+
+        for (const student of assigned) {
+          const wid       = assignments[student.id];
+          const workshop  = workshops.find(w => w.id === wid);
+          if (!workshop) { failed++; continue; }
+
+          const data = {
+            firstName:    student.firstName,
+            studentName:  `${student.firstName} ${student.lastName}`,
+            workshopName: workshop.name,
+            room:         workshop.room || 'TBD',
+            date:         dateLabel,
+            dayOfWeek:    dayLabel,
+            studentEmail: student.email || '',
+          };
+
+          const mergedSubject = merge(subject, data);
+          const mergedBody    = merge(body, data);
+
+          const toList = [{ emailAddress: { address: student.email } }];
+          const ccList = [];
+          if (mode === 'both') {
+            const gEmail = guardianEmails[student.id];
+            if (gEmail) ccList.push({ emailAddress: { address: gEmail } });
+          }
+
+          if (!student.email) { failed++; continue; }
+
+          const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              message: {
+                subject: mergedSubject,
+                body: { contentType: 'Text', content: mergedBody },
+                toRecipients: toList,
+                ...(ccList.length ? { ccRecipients: ccList } : {}),
+              },
+              saveToSentItems: true,
+            }),
+          });
+
+          res.ok ? sent++ : failed++;
+        }
+
+        if (failed === 0) {
+          showToast(`✓ Sent ${sent} email${sent !== 1 ? 's' : ''} successfully!`, 'success');
+        } else {
+          showToast(`Sent ${sent}, failed ${failed}`, 'warning');
+        }
+      } catch (err) {
+        console.error('Send error:', err);
+        showToast('Token error — please reconnect Outlook', 'error');
+        msalAccount = null;
+        updateOutlookBtn();
+      } finally {
+        btn.disabled = false;
+        const cnt = students.filter(s => assignments[s.id]).length;
+        btn.innerHTML = `<i class="fas fa-paper-plane"></i> <span id="send-btn-txt">Send ${cnt} Email${cnt !== 1 ? 's' : ''}</span>`;
+      }
+    };
+
+    // ── MSAL / Outlook ─────────────────────────────────────────────────────────────
+    function makeMsal(cid) {
+      return new msal.PublicClientApplication({
+        auth: {
+          clientId:    cid,
+          authority:   'https://login.microsoftonline.com/common',
+          redirectUri: window.location.origin + window.location.pathname,
+        },
+        cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
+      });
+    }
+
+    function initMsalFromCache() {
+      const cid = localStorage.getItem('p2mt_azure_client_id');
+      if (!cid) return;
+      msalClient = makeMsal(cid);
+      const accounts = msalClient.getAllAccounts();
+      if (accounts.length) { msalAccount = accounts[0]; updateOutlookBtn(); }
+    }
+
+    window.connectOutlook = function() {
+      const cid = localStorage.getItem('p2mt_azure_client_id');
+      if (!cid) {
+        document.getElementById('azure-client-id').value = '';
+        document.getElementById('modal-azure').classList.add('open');
+        return;
+      }
+      doLogin(cid);
+    };
+
+    window.saveAzureId = async function() {
+      const cid = document.getElementById('azure-client-id').value.trim();
+      if (!cid) { showToast('Please enter a client ID', 'error'); return; }
+      localStorage.setItem('p2mt_azure_client_id', cid);
+      document.getElementById('modal-azure').classList.remove('open');
+      doLogin(cid);
+    };
+
+    async function doLogin(cid) {
+      try {
+        msalClient  = makeMsal(cid);
+        const resp  = await msalClient.loginPopup({ scopes: SCOPES });
+        msalAccount = resp.account;
+        updateOutlookBtn();
+        showToast(`Connected as ${msalAccount.username}`, 'success');
+      } catch (err) {
+        console.error('MSAL error:', err);
+        showToast('Could not connect to Outlook', 'error');
+      }
+    }
+
+    async function getToken() {
+      if (!msalClient || !msalAccount) throw new Error('Not connected');
+      try {
+        const r = await msalClient.acquireTokenSilent({ scopes: SCOPES, account: msalAccount });
+        return r.accessToken;
+      } catch {
+        const r = await msalClient.acquireTokenPopup({ scopes: SCOPES });
+        msalAccount = r.account;
+        return r.accessToken;
+      }
+    }
+
+    function updateOutlookBtn() {
+      const btn = document.getElementById('btn-outlook');
+      if (msalAccount) {
+        btn.className = 'btn-outlook connected';
+        btn.innerHTML = `<span class="odot"></span> ${msalAccount.username}`;
+        btn.onclick   = () => {};
+      } else {
+        btn.className = 'btn-outlook disconnected';
+        btn.innerHTML = '<i class="fab fa-microsoft"></i> Connect Outlook';
+        btn.onclick   = connectOutlook;
+      }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────────
+    function merge(text, data) {
+      return Object.entries(data).reduce(
+        (t, [k, v]) => t.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v ?? ''), text
+      );
+    }
+
+    function fmtDate(d) {
+      if (!d) return '';
+      const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? new Date(+m[1], +m[2]-1, +m[3]).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : d;
+    }
+
+    function fmtDOW(d) {
+      if (!d) return '';
+      const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? new Date(+m[1], +m[2]-1, +m[3]).toLocaleDateString('en-US', { weekday: 'long' }) : '';
+    }
+
+    function esc(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Defaults ───────────────────────────────────────────────────────────────────
+    const DEFAULT_WORKSHOPS = [
+      'English 3', 'English 4', 'Biology', 'Scientific Research', 'Creative Writing',
+      'STEM 4', 'Applied Math', 'Algebra 2', 'Precal/Calc', 'Multimedia',
+      'Coding 1/2', 'Gov/Econ', 'VGD',
+    ];
+
+    const DEFAULT_BODY =
+`Dear {{firstName}},
+
+Your Early Release workshop assignment for {{date}} is:
+
+  Workshop: {{workshopName}}
+  Room: {{room}}
+
+Please report to Room {{room}} at the start of the Early Release period.
+
+If you have any questions, please contact your teacher.
+
+Thank you`;
+
+    // Close modals on backdrop click
+    document.querySelectorAll('.modal-bd').forEach(bd => {
+      bd.addEventListener('click', e => { if (e.target === bd) bd.classList.remove('open'); });
+    });
+
+  </script>
+</body>
+</html>
