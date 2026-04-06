@@ -28,7 +28,8 @@ const navItems = [
     ]
   },
 
-  { id: 'pbl-planner', label: 'PBL', href: './pbl-planner.html', icon: 'fa-lightbulb' },
+  { id: 'pbl-planner',     label: 'PBL',   href: './pbl-planner.html',     icon: 'fa-lightbulb' },
+  { id: 'email-templates', label: 'Email', href: './email-templates.html', icon: 'fa-envelope'  },
 
   {
     id: 'admin-group', label: 'Admin', icon: 'fa-tools', group: true,

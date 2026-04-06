@@ -110,6 +110,9 @@
         <button class="w3-button btn-primary w3-margin" id="btn-download-teams">
           <i class="fas fa-download"></i> Download Roster CSV
         </button>
+        <button class="w3-button w3-margin" id="btn-email-team" style="background:#0078d4;color:white;" onclick="emailTeamFromPlanner()">
+          <i class="fas fa-envelope"></i> Send Email to Team
+        </button>
       </div>
       <div class="table-wrap">
       <table id="teams-table" class="w3-table w3-striped w3-bordered">
@@ -724,6 +727,13 @@
       });
       exportCSV(headers, rows, 'pbl-teams.csv');
     }
+
+    // Navigate to Email Templates with the currently-filtered project pre-selected
+    window.emailTeamFromPlanner = function() {
+      const pblId = document.getElementById('filter-pbl-teams').value;
+      const url   = './email-templates.html?tab=send' + (pblId ? `&pblId=${encodeURIComponent(pblId)}` : '');
+      window.location.href = url;
+    };
 
     window.addEventListener('click', (event) => {
       const modalPbl = document.getElementById('modal-pbl');
