@@ -152,7 +152,9 @@ export function initNav(activePage) {
   navContainer.innerHTML = `
     <nav class="p2mt-nav">
       <a href="./dashboard.html" class="p2mt-nav-brand" title="P2MT Home">
-        <div class="p2mt-nav-logo">P2</div>
+        <div class="p2mt-nav-logo">
+          <img src="./img/logo.png" alt="STEM School" onerror="this.parentElement.innerHTML='<span style=&quot;font-size:14px;font-weight:800;color:white;&quot;>P2</span>'">
+        </div>
         <span class="p2mt-nav-name">P2MT</span>
       </a>
       <div class="p2mt-nav-links" id="nav-links">${linksHTML}</div>

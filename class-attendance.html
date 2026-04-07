@@ -111,6 +111,31 @@
     }
     .save-all-summary { font-size: 13px; color: var(--text-secondary); margin-left: auto; }
 
+    /* ── Unsaved banner ── */
+    .unsaved-banner {
+      display: none; align-items: center; gap: 14px; flex-wrap: wrap;
+      padding: 13px 18px; border-radius: 10px; margin-bottom: 16px;
+      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+      color: white; box-shadow: 0 4px 16px rgba(180,83,9,.30);
+      animation: bannerIn .25s ease-out;
+    }
+    .unsaved-banner.visible  { display: flex; }
+    .unsaved-banner.all-done {
+      background: linear-gradient(135deg, #059669 0%, #047857 100%);
+      box-shadow: 0 4px 16px rgba(5,150,105,.28);
+    }
+    @keyframes bannerIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:translateY(0); } }
+    .ub-icon  { font-size: 20px; flex-shrink: 0; }
+    .ub-text  { flex: 1; font-size: 14px; font-weight: 700; }
+    .ub-sub   { font-size: 12px; font-weight: 400; opacity: .85; margin-top: 1px; }
+    .ub-btn   {
+      padding: 7px 16px; border-radius: 7px;
+      border: 2px solid rgba(255,255,255,.7); background: rgba(255,255,255,.15);
+      color: white; font-weight: 700; font-size: 13px; cursor: pointer;
+      transition: background .15s; white-space: nowrap;
+    }
+    .ub-btn:hover { background: rgba(255,255,255,.3); }
+
     /* ── Saved confirmation ── */
     .section-saved-indicator {
       display: none; align-items: center; gap: 5px;
@@ -163,6 +188,18 @@
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Unsaved-classes banner -->
+    <div class="unsaved-banner" id="unsaved-banner">
+      <div class="ub-icon"><i class="fas fa-exclamation-triangle" id="ub-icon-el"></i></div>
+      <div>
+        <div class="ub-text" id="ub-title">Classes have not been saved</div>
+        <div class="ub-sub"  id="ub-sub"></div>
+      </div>
+      <button class="ub-btn" id="ub-save-btn" onclick="saveAllSections()">
+        <i class="fas fa-save"></i> Save All Now
+      </button>
     </div>
 
     <!-- Tab Navigation -->
@@ -289,9 +326,10 @@
     // sections[] is the core of the new design:
     // each entry = { idx, className, isLab, schedule, students, state }
     // state is keyed by student.id: { code, comment, tmi, logId }
-    let sections      = [];
+    let sections       = [];
     let currentTeacher = null;
     let currentDate    = null;
+    let savedSections  = new Set(); // idx values of sections saved this session
 
     let absenceTable = null;
 
@@ -360,9 +398,11 @@
 
       // Reset view
       sections = [];
+      savedSections = new Set();
       document.getElementById('sections-container').innerHTML = '';
       document.getElementById('save-all-bar').style.display     = 'none';
       document.getElementById('no-classes-message').style.display = 'none';
+      document.getElementById('unsaved-banner').classList.remove('visible', 'all-done');
 
       if (!teacher || !classDate) {
         document.getElementById('no-selection-message').style.display = 'block';
@@ -466,7 +506,10 @@
             return { idx, className: grp.className, isLab: grp.isLab, schedule: grp.schedule, students, state };
           });
 
+        // Reset per-session saved tracking when loading new teacher/date
+        savedSections = new Set();
         renderAllSections();
+        updateAttBanner();   // show banner based on existing Firebase logs
 
       } catch (error) {
         console.error('Error loading teacher day:', error);
@@ -667,6 +710,10 @@
       // Show the indicator (stays permanently)
       indicator.classList.add('visible');
 
+      // Track as saved and refresh the banner
+      savedSections.add(idx);
+      updateAttBanner();
+
       // Flash the save button to "Saved" state briefly
       const originalHTML = saveBtn.innerHTML;
       saveBtn.innerHTML  = '<i class="fas fa-check-circle"></i> Saved';
@@ -676,6 +723,58 @@
         saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
         saveBtn.classList.remove('btn-saved');
       }, 2500);
+    }
+
+    // ── Unsaved banner ────────────────────────────────────────────────────────
+    function updateAttBanner() {
+      const banner  = document.getElementById('unsaved-banner');
+      const title   = document.getElementById('ub-title');
+      const sub     = document.getElementById('ub-sub');
+      const iconEl  = document.getElementById('ub-icon-el');
+      const saveBtn = document.getElementById('ub-save-btn');
+      if (!banner) return;
+
+      const total  = sections.length;
+      if (total === 0) { banner.classList.remove('visible', 'all-done'); return; }
+
+      // Check how many sections are "saved" — either via this session's save action
+      // OR by having existing logs in Firebase for this teacher+date
+      const alreadySaved = sections.filter((sec, idx) => {
+        if (savedSections.has(idx)) return true;
+        // Check Firebase cache
+        return allClassAttendanceLogs.some(l =>
+          l.teacherLastName === currentTeacher &&
+          (l.date || l.classDate) === currentDate &&
+          l.className === sec.className &&
+          (sec.isLab ? l.learningLab === true : !l.learningLab)
+        );
+      });
+
+      const savedCount   = alreadySaved.length;
+      const unsavedCount = total - savedCount;
+
+      if (unsavedCount === 0) {
+        // All saved
+        banner.classList.remove('visible');
+        banner.classList.add('all-done', 'visible');
+        iconEl.className    = 'fas fa-check-circle';
+        title.textContent   = '✓ All classes saved for today';
+        sub.textContent     = `${total} class${total !== 1 ? 'es' : ''} logged successfully.`;
+        saveBtn.style.display = 'none';
+        setTimeout(() => banner.classList.remove('visible', 'all-done'), 6000);
+      } else {
+        banner.classList.remove('all-done');
+        banner.classList.add('visible');
+        iconEl.className   = 'fas fa-exclamation-triangle';
+        saveBtn.style.display = '';
+        if (savedCount === 0) {
+          title.textContent = 'Classes have not been saved';
+          sub.textContent   = `${total} class${total !== 1 ? 'es' : ''} loaded — none saved yet.`;
+        } else {
+          title.textContent = `${unsavedCount} of ${total} class${total !== 1 ? 'es' : ''} not saved`;
+          sub.textContent   = `${savedCount} saved, ${unsavedCount} still unsaved.`;
+        }
+      }
     }
 
     // ── Save single section ───────────────────────────────────────────────────
