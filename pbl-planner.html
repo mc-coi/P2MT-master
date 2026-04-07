@@ -8,6 +8,39 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
+  <style>
+    /* ── Drag-and-drop Team Builder ── */
+    .student-chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 10px; background: #3b82f6; color: white;
+      border-radius: 20px; font-size: 12px; font-weight: 600;
+      cursor: grab; user-select: none; white-space: nowrap;
+      transition: transform .1s, opacity .1s, box-shadow .1s;
+      box-shadow: 0 1px 3px rgba(59,130,246,.35);
+    }
+    .student-chip:hover { background: #2563eb; box-shadow: 0 3px 8px rgba(59,130,246,.4); }
+    .student-chip:active { cursor: grabbing; }
+    .student-chip.dragging { opacity: .35; transform: scale(.93); }
+    .chip-remove {
+      cursor: pointer; opacity: .7; font-size: 13px; line-height: 1;
+      padding: 0 1px; font-weight: 900;
+    }
+    .chip-remove:hover { opacity: 1; }
+
+    .team-card {
+      background: white; border-radius: 12px;
+      border: 1.5px solid #e2e8f0; padding: 13px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .team-drop-zone {
+      min-height: 52px; border: 1.5px dashed #e2e8f0;
+      border-radius: 8px; padding: 8px;
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      transition: border-color .15s, background .15s;
+    }
+    .team-drop-zone.drag-over { border-color: #6366f1; background: #eef2ff; }
+    .team-drop-zone .drop-hint { color: #cbd5e1; font-size: 12px; }
+  </style>
 </head>
 <body>
   <div id="nav-container"></div>
@@ -80,6 +113,7 @@
               <th>Time</th>
               <th>Location</th>
               <th>City/State</th>
+              <th>Students</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -89,46 +123,48 @@
       </div>
     </div>
 
-    <!-- Tab 3: PBL Teams -->
-    <div id="tab-content-teams" class="tab-content w3-card w3-padding" style="display:none;">
-      <div class="w3-row w3-margin-bottom">
-        <div class="w3-col m4 w3-padding-small">
-          <label>Filter by PBL Project</label>
-          <select id="filter-pbl-teams" class="w3-select w3-border">
-            <option value="">All Projects</option>
-          </select>
+    <!-- Tab 3: PBL Teams – Drag & Drop Builder -->
+    <div id="tab-content-teams" class="tab-content" style="display:none;">
+
+      <!-- Top controls bar -->
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;background:#f8fafc;border-radius:10px;border:1.5px solid #e2e8f0;margin-bottom:18px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <label style="font-size:12px;font-weight:700;color:#64748b;white-space:nowrap;">Class</label>
+          <select id="builder-class" onchange="builderOnClassChange()" style="padding:7px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;background:white;min-width:150px;cursor:pointer;"></select>
         </div>
-        <div class="w3-col m2 w3-padding-small">
-          <label>&nbsp;</label>
-          <button class="w3-button btn-primary w3-block" id="btn-filter-teams">Filter</button>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <button onclick="builderAddTeam()" style="padding:8px 14px;border-radius:8px;border:1.5px solid #cbd5e1;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#475569;">
+            <i class="fas fa-plus" style="margin-right:5px;"></i>Add Team
+          </button>
+          <button onclick="downloadTeamsCSV()" style="padding:8px 14px;border-radius:8px;border:1.5px solid #cbd5e1;background:white;font-size:13px;font-weight:600;cursor:pointer;color:#475569;">
+            <i class="fas fa-download" style="margin-right:5px;"></i>CSV
+          </button>
+          <button onclick="emailTeamFromPlanner()" style="padding:8px 14px;border-radius:8px;border:none;background:#0078d4;color:white;font-size:13px;font-weight:600;cursor:pointer;">
+            <i class="fas fa-envelope" style="margin-right:5px;"></i>Email
+          </button>
+          <button id="builder-save-btn" onclick="builderSaveAll()" style="padding:8px 20px;border-radius:8px;border:none;background:#059669;color:white;font-size:13px;font-weight:700;cursor:pointer;">
+            <i class="fas fa-save" style="margin-right:6px;"></i>Save Teams
+          </button>
         </div>
       </div>
-      <div class="w3-margin-bottom">
-        <button class="w3-button btn-primary w3-margin" id="btn-add-student">
-          <i class="fas fa-plus"></i> Add Student to Project
-        </button>
-        <button class="w3-button btn-primary w3-margin" id="btn-download-teams">
-          <i class="fas fa-download"></i> Download Roster CSV
-        </button>
-        <button class="w3-button w3-margin" id="btn-email-team" style="background:#0078d4;color:white;" onclick="emailTeamFromPlanner()">
-          <i class="fas fa-envelope"></i> Send Email to Team
-        </button>
+
+      <!-- Student pool -->
+      <div style="margin-bottom:20px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <span style="font-size:13px;font-weight:700;color:#1e293b;">Students &nbsp;<span id="pool-count" style="font-size:12px;color:#94a3b8;font-weight:400;"></span></span>
+          <input type="text" id="pool-search" oninput="builderRender()" placeholder="Search…" style="padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;width:190px;">
+        </div>
+        <div id="student-pool"
+          ondragover="event.preventDefault();event.dataTransfer.dropEffect='move';this.style.borderColor='#6366f1';this.style.background='#eef2ff';"
+          ondragleave="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc';"
+          ondrop="builderDropToPool(event)"
+          style="min-height:60px;background:#f8fafc;border:2px dashed #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:7px;align-items:center;transition:border-color .15s,background .15s;">
+        </div>
       </div>
-      <div class="table-wrap">
-      <table id="teams-table" class="w3-table w3-striped w3-bordered">
-          <thead>
-            <tr class="w3-teal">
-              <th>Student Name</th>
-              <th>ChattState A#</th>
-              <th>Team Number</th>
-              <th>Grad Year</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="teams-tbody">
-          </tbody>
-        </table>
-      </div>
+
+      <!-- Teams grid -->
+      <div id="teams-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;"></div>
+
     </div>
   </div>
 
@@ -207,27 +243,7 @@
     </div>
   </div>
 
-  <!-- Add Student to Team Modal -->
-  <div id="modal-add-student" class="w3-modal">
-    <div class="w3-modal-content w3-card w3-padding">
-      <span class="w3-closebtn" onclick="document.getElementById('modal-add-student').style.display='none'">&times;</span>
-      <h3>Add Student to Project</h3>
-      <div>
-        <label>PBL Project</label>
-        <select id="team-add-pblId" class="w3-select w3-border w3-margin-bottom">
-          <option value="">Select PBL...</option>
-        </select>
-        <label>Student</label>
-        <select id="team-add-student" class="w3-select w3-border w3-margin-bottom">
-          <option value="">Select Student...</option>
-        </select>
-        <label>Team Number</label>
-        <input type="number" id="team-add-teamNumber" class="w3-input w3-border w3-margin-bottom">
-        <button class="w3-button btn-primary w3-margin-top" id="btn-confirm-add-student">Add</button>
-        <button class="w3-button btn-danger w3-margin-top" onclick="document.getElementById('modal-add-student').style.display='none'">Cancel</button>
-      </div>
-    </div>
-  </div>
+  <!-- Add Student modal removed – use drag-and-drop Teams builder instead -->
 
   <!-- ══ PBL Email Modal ══════════════════════════════════════════════════════ -->
   <div id="modal-email" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:16px;">
@@ -393,8 +409,7 @@
       } else if (tab === 'teams') {
         document.getElementById('tab-content-teams').style.display = 'block';
         document.getElementById('tab-teams').classList.add('w3-teal');
-        populatePblSelectForTeams();
-        renderTeams();
+        initBuilder();
       }
     }
 
@@ -407,10 +422,7 @@
       document.getElementById('btn-save-event').addEventListener('click', saveEvent);
       document.getElementById('btn-filter-events').addEventListener('click', filterEvents);
 
-      document.getElementById('btn-add-student').addEventListener('click', openAddStudentModal);
-      document.getElementById('btn-confirm-add-student').addEventListener('click', addStudentToTeam);
-      document.getElementById('btn-filter-teams').addEventListener('click', filterTeams);
-      document.getElementById('btn-download-teams').addEventListener('click', downloadTeamsCSV);
+      // Teams handled by drag-and-drop builder (no separate listeners needed)
     }
 
     function renderPbls() {
@@ -554,32 +566,153 @@
       });
     }
 
+    // Convert HH:MM (24h) to h:MM AM/PM
+    function fmt12h(t) {
+      if (!t) return '';
+      const [h, m] = t.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12  = h % 12 || 12;
+      return `${h12}:${String(m).padStart(2,'0')} ${ampm}`;
+    }
+
     function renderEvents(filteredEvents = null) {
-      const data = filteredEvents || events;
+      const data  = filteredEvents || events;
       const tbody = document.getElementById('events-tbody');
       tbody.innerHTML = '';
 
       data.forEach(event => {
-        const pbl = pbls.find(p => p.id === event.pblId);
-        const pblName = pbl ? `${pbl.className} - ${pbl.pblName}` : 'Unknown';
-        const timeStr = `${event.startTime || ''} - ${event.endTime || ''}`.trim();
+        const pbl      = pbls.find(p => p.id === event.pblId);
+        const pblName  = pbl ? `${pbl.className} - ${pbl.pblName}` : 'Unknown';
+        const startStr = fmt12h(event.startTime);
+        const endStr   = fmt12h(event.endTime);
+        const timeStr  = startStr && endStr ? `${startStr} – ${endStr}` : startStr || endStr || '—';
 
+        // Students in this PBL
+        const pblStudents = teams
+          .filter(t => t.pblId === event.pblId)
+          .map(t => {
+            const s = students.find(s =>
+              s.id === t.studentId ||
+              (t.chattStateANumber && s.chattStateANumber === t.chattStateANumber)
+            );
+            return s ? `${s.firstName} ${s.lastName}` : null;
+          })
+          .filter(Boolean);
+
+        const studentCount = pblStudents.length;
+        const studentsHtml = pblStudents
+          .map(name => `<span style="display:inline-block;padding:2px 8px;background:#dbeafe;color:#1e40af;border-radius:10px;font-size:11px;font-weight:600;margin:2px;">${escEmail(name)}</span>`)
+          .join('');
+
+        // Main event row
         const tr = document.createElement('tr');
+        tr.id = `ev-row-${event.id}`;
         tr.innerHTML = `
-          <td>${pblName}</td>
-          <td>${event.eventCategory}</td>
-          <td>${event.eventDate}</td>
-          <td>${timeStr}</td>
-          <td>${event.eventLocation}</td>
-          <td>${event.eventCity || ''}, ${event.eventState || ''}</td>
+          <td>${escEmail(pblName)}</td>
+          <td>${escEmail(event.eventCategory || '')}</td>
+          <td>${event.eventDate || ''}</td>
+          <td style="white-space:nowrap;">${timeStr}</td>
+          <td>${escEmail(event.eventLocation || '')}</td>
+          <td>${escEmail((event.eventCity || '') + (event.eventCity && event.eventState ? ', ' : '') + (event.eventState || ''))}</td>
           <td>
+            <button onclick="toggleEventStudents('${event.id}')"
+              style="padding:3px 10px;border-radius:12px;border:1.5px solid #bfdbfe;background:${studentCount ? '#dbeafe' : '#f1f5f9'};color:${studentCount ? '#1e40af' : '#94a3b8'};font-size:12px;font-weight:700;cursor:pointer;">
+              ${studentCount} student${studentCount !== 1 ? 's' : ''} <i class="fas fa-chevron-down" style="font-size:9px;margin-left:3px;" id="ev-chev-${event.id}"></i>
+            </button>
+          </td>
+          <td style="white-space:nowrap;">
             <button class="w3-button w3-small w3-blue" onclick="editEvent('${event.id}')">Edit</button>
             <button class="w3-button w3-small w3-red" onclick="deleteEvent('${event.id}')">Delete</button>
-          </td>
-        `;
+            ${studentCount ? `<button class="w3-button w3-small" onclick="syncEventToAttendance('${event.id}')" style="background:#7c3aed;color:white;" title="Write PBL comment to attendance logs for this date"><i class="fas fa-sync-alt"></i> Sync</button>` : ''}
+          </td>`;
         tbody.appendChild(tr);
+
+        // Expandable student row (hidden by default)
+        const trStudents = document.createElement('tr');
+        trStudents.id    = `ev-students-${event.id}`;
+        trStudents.style.display = 'none';
+        trStudents.innerHTML = `
+          <td colspan="8" style="background:#f8fafc;padding:10px 16px;border-top:none;">
+            <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">
+              Students in ${escEmail(pbl?.pblName || 'this PBL')}
+            </div>
+            <div>${studentsHtml || '<span style="color:#94a3b8;font-size:12px;">No students assigned yet</span>'}</div>
+            ${studentCount ? `<div style="margin-top:8px;font-size:11px;color:#64748b;">
+              <i class="fas fa-info-circle"></i> Clicking <strong>Sync</strong> will write
+              "<em>${escEmail((pbl?.pblName || '') + ' - ' + (event.eventCategory || '') + ' - ' + startStr)}</em>"
+              as the attendance comment for these students on <strong>${event.eventDate}</strong>.
+            </div>` : ''}
+          </td>`;
+        tbody.appendChild(trStudents);
       });
     }
+
+    window.toggleEventStudents = function(eventId) {
+      const row  = document.getElementById(`ev-students-${eventId}`);
+      const chev = document.getElementById(`ev-chev-${eventId}`);
+      if (!row) return;
+      const open = row.style.display !== 'none';
+      row.style.display  = open ? 'none' : '';
+      if (chev) chev.className = `fas fa-chevron-${open ? 'down' : 'up'}`;
+      row.style.fontSize = '12px';
+    };
+
+    window.syncEventToAttendance = async function(eventId) {
+      const event = events.find(e => e.id === eventId);
+      const pbl   = pbls.find(p => p.id === event?.pblId);
+      if (!event || !pbl) return;
+
+      const startStr  = fmt12h(event.startTime);
+      const comment   = `${pbl.pblName} - ${event.eventCategory} - ${startStr}`.trim().replace(/ - $/, '');
+      const eventDate = event.eventDate;
+
+      // Load all attendance logs (or use cached if already fetched in this tab)
+      let attLogs;
+      try {
+        attLogs = await getAll('classAttendanceLogs');
+      } catch(e) {
+        showToast('Could not load attendance logs', 'error');
+        return;
+      }
+
+      // Get students for this PBL
+      const pblEntries = teams.filter(t => t.pblId === event.pblId);
+      if (!pblEntries.length) { showToast('No students assigned to this PBL', 'error'); return; }
+
+      const ops = [];
+      let matched = 0;
+
+      for (const entry of pblEntries) {
+        const student = students.find(s =>
+          s.id === entry.studentId ||
+          (entry.chattStateANumber && s.chattStateANumber === entry.chattStateANumber)
+        );
+        if (!student) continue;
+
+        const studentLogs = attLogs.filter(l =>
+          (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
+          (l.date === eventDate || l.classDate === eventDate)
+        );
+
+        studentLogs.forEach(log => {
+          ops.push(updateDoc('classAttendanceLogs', log.id, { comment }));
+          matched++;
+        });
+      }
+
+      if (!ops.length) {
+        showToast(`No attendance logs found for ${eventDate} — save attendance first`, 'error');
+        return;
+      }
+
+      try {
+        await Promise.all(ops);
+        showToast(`Updated ${matched} attendance comment${matched !== 1 ? 's' : ''} for ${pbl.pblName}`, 'success');
+      } catch(e) {
+        console.error('Sync error', e);
+        showToast('Error syncing attendance comments', 'error');
+      }
+    };
 
     function openEventModal() {
       currentEditingEventId = null;
@@ -681,131 +814,247 @@
       renderEvents(filtered);
     }
 
-    function populatePblSelectForTeams() {
-      const filterSelect = document.getElementById('filter-pbl-teams');
-      const addSelect = document.getElementById('team-add-pblId');
-      filterSelect.innerHTML = '<option value="">All Projects</option>';
-      addSelect.innerHTML = '<option value="">Select PBL...</option>';
+    // ══════════════════════════════════════════════════════════════
+    //  DRAG & DROP TEAM BUILDER
+    // ══════════════════════════════════════════════════════════════
+    let builderAssignments = new Map(); // studentId  -> teamNumber
+    let builderTeamPbls    = new Map(); // teamNumber -> pblId
+    let builderTeamCount   = 3;
+    let builderDragId      = null;
 
-      pbls.forEach(pbl => {
-        const filterOption = document.createElement('option');
-        filterOption.value = pbl.id;
-        filterOption.textContent = `${pbl.className} - ${pbl.pblName}`;
-        filterSelect.appendChild(filterOption);
+    function initBuilder() {
+      // Populate class filter from unique PBL classNames
+      const classes = [...new Set(pbls.map(p => p.className).filter(Boolean))].sort();
+      const sel = document.getElementById('builder-class');
+      sel.innerHTML = '<option value="">All Classes</option>' +
+        classes.map(c => `<option value="${escEmail(c)}">${escEmail(c)}</option>`).join('');
 
-        const addOption = document.createElement('option');
-        addOption.value = pbl.id;
-        addOption.textContent = `${pbl.className} - ${pbl.pblName}`;
-        addSelect.appendChild(addOption);
-      });
-    }
+      // Load existing assignments — normalise to studentId
+      builderAssignments.clear();
+      builderTeamPbls.clear();
+      builderTeamCount = 3;
 
-    function renderTeams(filteredTeams = null) {
-      const data = filteredTeams || teams;
-      const tbody = document.getElementById('teams-tbody');
-      tbody.innerHTML = '';
-
-      data.forEach(team => {
-        const student = students.find(s => s.chattStateANumber === team.chattStateANumber);
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${team.studentName}</td>
-          <td>${team.chattStateANumber}</td>
-          <td><input type="number" class="w3-input w3-small" value="${team.pblTeamNumber || ''}" data-team-id="${team.id}" onchange="updateTeamNumber('${team.id}', this.value)"></td>
-          <td>${student?.graduationYear || ''}</td>
-          <td>
-            <button class="w3-button w3-small w3-red" onclick="removeStudentFromTeam('${team.id}')">Remove</button>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    function openAddStudentModal() {
-      document.getElementById('team-add-pblId').value = '';
-      document.getElementById('team-add-student').value = '';
-      document.getElementById('team-add-teamNumber').value = '';
-
-      const select = document.getElementById('team-add-student');
-      select.innerHTML = '<option value="">Select Student...</option>';
-      students.forEach(student => {
-        const option = document.createElement('option');
-        option.value = student.id;
-        option.textContent = `${student.firstName} ${student.lastName} (${student.chattStateANumber})`;
-        select.appendChild(option);
+      teams.forEach(t => {
+        let sid = t.studentId;
+        if (!sid && t.chattStateANumber) {
+          const s = students.find(s => s.chattStateANumber === t.chattStateANumber);
+          sid = s?.id;
+        }
+        if (!sid || !t.pblTeamNumber) return;
+        builderAssignments.set(sid, t.pblTeamNumber);
+        if (!builderTeamPbls.has(t.pblTeamNumber)) builderTeamPbls.set(t.pblTeamNumber, t.pblId || '');
+        if (t.pblTeamNumber > builderTeamCount) builderTeamCount = t.pblTeamNumber;
       });
 
-      document.getElementById('modal-add-student').style.display = 'block';
+      builderRender();
     }
 
-    async function addStudentToTeam() {
-      const pblId = document.getElementById('team-add-pblId').value;
-      const studentId = document.getElementById('team-add-student').value;
-      const teamNumber = document.getElementById('team-add-teamNumber').value;
+    window.builderOnClassChange = function() { builderRender(); };
 
-      if (!pblId || !studentId) {
-        showToast('Please select PBL and student', 'error');
-        return;
-      }
-
-      const student = students.find(s => s.id === studentId);
-      const pbl = pbls.find(p => p.id === pblId);
-
-      try {
-        const data = {
-          pblId: pblId,
-          className: pbl.className,
-          schoolYear: pbl.schoolYear,
-          semester: pbl.semester || '',
-          quarter: pbl.quarter,
-          pblTeamNumber: parseInt(teamNumber) || null,
-          studentId: studentId,
-          chattStateANumber: student.chattStateANumber,
-          studentName: `${student.firstName} ${student.lastName}`
-        };
-
-        const docId = await addDoc('pblTeams', data);
-        teams.push({ ...data, id: docId });
-        renderTeams();
-        document.getElementById('modal-add-student').style.display = 'none';
-        showToast('Student added to team successfully', 'success');
-      } catch (error) {
-        console.error('Error adding student:', error);
-        showToast('Error adding student', 'error');
-      }
-    }
-
-    window.updateTeamNumber = async function(teamId, teamNumber) {
-      try {
-        await updateDoc('pblTeams', teamId, { pblTeamNumber: parseInt(teamNumber) || null });
-        const team = teams.find(t => t.id === teamId);
-        if (team) team.pblTeamNumber = parseInt(teamNumber) || null;
-        showToast('Team number updated', 'success');
-      } catch (error) {
-        console.error('Error updating team number:', error);
-        showToast('Error updating team number', 'error');
-      }
+    window.builderAddTeam = function() {
+      builderTeamCount++;
+      builderRender();
     };
 
-    window.removeStudentFromTeam = async function(teamId) {
-      if (!await confirmTypedDelete('Remove this student from the team? This cannot be undone.')) return;
+    function builderGetFilteredStudents() {
+      const q = (document.getElementById('pool-search')?.value || '').toLowerCase().trim();
+      return students.filter(s =>
+        !q || `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+        (s.chattStateANumber || '').toLowerCase().includes(q)
+      );
+    }
 
-      try {
-        await deleteDoc('pblTeams', teamId);
-        teams = teams.filter(t => t.id !== teamId);
-        renderTeams();
-        showToast('Student removed from team', 'success');
-      } catch (error) {
-        console.error('Error removing student:', error);
-        showToast('Error removing student', 'error');
+    function builderGetVisiblePbls() {
+      const cls = document.getElementById('builder-class')?.value || '';
+      return cls ? pbls.filter(p => p.className === cls) : pbls;
+    }
+
+    window.builderRender = function() {
+      const allStudents   = builderGetFilteredStudents();
+      const visiblePbls   = builderGetVisiblePbls();
+      const unassigned    = allStudents.filter(s => !builderAssignments.has(s.id));
+
+      // ── Pool ──────────────────────────────────────────
+      const pool = document.getElementById('student-pool');
+      document.getElementById('pool-count').textContent = `(${unassigned.length} unassigned of ${students.length})`;
+      pool.innerHTML = unassigned.length
+        ? unassigned.map(s => chipHtml(s, null)).join('')
+        : '<span style="color:#94a3b8;font-size:13px;">All students are assigned — drag from teams to unassign</span>';
+
+      // ── Teams grid ────────────────────────────────────
+      const grid = document.getElementById('teams-grid');
+      grid.innerHTML = '';
+
+      for (let n = 1; n <= builderTeamCount; n++) {
+        const teamStudents = students.filter(s => builderAssignments.get(s.id) === n);
+        const selPblId     = builderTeamPbls.get(n) || '';
+
+        const pblOptions = '<option value="">Choose PBL…</option>' +
+          visiblePbls.map(p =>
+            `<option value="${p.id}" ${selPblId === p.id ? 'selected' : ''}>${escEmail(p.pblName)} (${escEmail(p.className)})</option>`
+          ).join('');
+
+        const card = document.createElement('div');
+        card.className = 'team-card';
+        card.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:14px;font-weight:700;color:#1e293b;">Team ${n}</span>
+            <button onclick="builderRemoveTeam(${n})" title="Remove team"
+              style="background:none;border:none;cursor:pointer;color:#cbd5e1;font-size:14px;padding:2px 5px;border-radius:4px;"
+              onmouseover="this.style.color='#ef4444';this.style.background='#fee2e2';"
+              onmouseout="this.style.color='#cbd5e1';this.style.background='none';">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <select onchange="builderSetTeamPbl(${n}, this.value)"
+            style="width:100%;padding:6px 8px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:12px;outline:none;background:white;cursor:pointer;">
+            ${pblOptions}
+          </select>
+          <div class="team-drop-zone" id="team-drop-${n}"
+            ondragover="event.preventDefault();event.dataTransfer.dropEffect='move';document.getElementById('team-drop-${n}').classList.add('drag-over');"
+            ondragleave="document.getElementById('team-drop-${n}').classList.remove('drag-over');"
+            ondrop="builderDropToTeam(event,${n})">
+            ${teamStudents.length
+              ? teamStudents.map(s => chipHtml(s, n)).join('')
+              : '<span class="drop-hint">Drop students here</span>'}
+          </div>`;
+        grid.appendChild(card);
       }
+
+      // Attach drag listeners to every chip
+      document.querySelectorAll('.student-chip').forEach(chip => {
+        chip.addEventListener('dragstart', e => {
+          builderDragId = chip.dataset.id;
+          setTimeout(() => chip.classList.add('dragging'), 0);
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        chip.addEventListener('dragend', () => chip.classList.remove('dragging'));
+      });
     };
 
-    function filterTeams() {
-      const pblId = document.getElementById('filter-pbl-teams').value;
-      const filtered = pblId ? teams.filter(t => t.pblId === pblId) : teams;
-      renderTeams(filtered);
+    function chipHtml(student, teamNumber) {
+      const name = escEmail(`${student.firstName} ${student.lastName}`);
+      const rmBtn = teamNumber !== null
+        ? `<span class="chip-remove" onclick="builderRemoveStudent('${student.id}')" title="Remove">×</span>`
+        : '';
+      return `<span class="student-chip" draggable="true" data-id="${student.id}">${name}${rmBtn}</span>`;
     }
+
+    window.builderDropToTeam = function(event, n) {
+      event.preventDefault();
+      document.getElementById(`team-drop-${n}`)?.classList.remove('drag-over');
+      if (!builderDragId) return;
+      builderAssignments.set(builderDragId, n);
+      builderDragId = null;
+      builderRender();
+    };
+
+    window.builderDropToPool = function(event) {
+      event.preventDefault();
+      const pool = document.getElementById('student-pool');
+      pool.style.borderColor = '#e2e8f0';
+      pool.style.background  = '#f8fafc';
+      if (!builderDragId) return;
+      builderAssignments.delete(builderDragId);
+      builderDragId = null;
+      builderRender();
+    };
+
+    window.builderRemoveStudent = function(sid) {
+      builderAssignments.delete(sid);
+      builderRender();
+    };
+
+    window.builderSetTeamPbl = function(n, pblId) {
+      builderTeamPbls.set(n, pblId);
+    };
+
+    window.builderRemoveTeam = function(n) {
+      // Return students to pool
+      builderAssignments.forEach((t, sid) => { if (t === n) builderAssignments.delete(sid); });
+      // Shift higher team numbers down
+      const newA = new Map(), newP = new Map();
+      builderAssignments.forEach((t, sid) => newA.set(sid, t > n ? t - 1 : t));
+      builderTeamPbls.forEach((pid, t) => { if (t !== n) newP.set(t > n ? t - 1 : t, pid); });
+      builderAssignments = newA;
+      builderTeamPbls    = newP;
+      builderTeamCount--;
+      builderRender();
+    };
+
+    window.builderSaveAll = async function() {
+      const btn = document.getElementById('builder-save-btn');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>Saving…';
+
+      try {
+        // Build desired state: studentId -> {teamNum, pblId}
+        const desired = new Map();
+        builderAssignments.forEach((teamNum, sid) => {
+          desired.set(sid, { teamNum, pblId: builderTeamPbls.get(teamNum) || '' });
+        });
+
+        // Build existing state from teams array (normalised to studentId)
+        const existingBySid = new Map();
+        teams.forEach(t => {
+          let sid = t.studentId;
+          if (!sid && t.chattStateANumber) {
+            const s = students.find(s => s.chattStateANumber === t.chattStateANumber);
+            sid = s?.id;
+          }
+          if (sid) existingBySid.set(sid, t);
+        });
+
+        const ops = [];
+
+        // Creates & updates
+        desired.forEach(({ teamNum, pblId }, sid) => {
+          const student  = students.find(s => s.id === sid);
+          if (!student) return;
+          const pbl      = pbls.find(p => p.id === pblId);
+          const existing = existingBySid.get(sid);
+          const data = {
+            pblId,
+            pblTeamNumber:     teamNum,
+            studentId:         sid,
+            studentName:       `${student.firstName} ${student.lastName}`,
+            chattStateANumber: student.chattStateANumber,
+            className:         pbl?.className  || '',
+            schoolYear:        pbl?.schoolYear || '',
+            semester:          pbl?.semester   || '',
+            quarter:           pbl?.quarter    || null,
+          };
+          if (existing) {
+            if (existing.pblTeamNumber !== teamNum || existing.pblId !== pblId) {
+              ops.push(updateDoc('pblTeams', existing.id, data).then(() => {
+                const idx = teams.findIndex(t => t.id === existing.id);
+                if (idx >= 0) teams[idx] = { ...teams[idx], ...data };
+              }));
+            }
+          } else {
+            ops.push(addDoc('pblTeams', data).then(docId => teams.push({ ...data, id: docId })));
+          }
+        });
+
+        // Deletes
+        existingBySid.forEach((doc, sid) => {
+          if (!desired.has(sid)) {
+            ops.push(deleteDoc('pblTeams', doc.id).then(() => {
+              teams = teams.filter(t => t.id !== doc.id);
+            }));
+          }
+        });
+
+        await Promise.all(ops);
+        showToast(`Teams saved (${ops.length} change${ops.length !== 1 ? 's' : ''})`, 'success');
+      } catch(e) {
+        console.error('Save error', e);
+        showToast('Error saving teams', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-save" style="margin-right:6px;"></i>Save Teams';
+      }
+    };
 
     function downloadTeamsCSV() {
       const headers = ['Student Name', 'ChattState A#', 'Team Number', 'Class', 'PBL Name', 'Quarter'];
@@ -870,7 +1119,7 @@
       const projEvents = pblId ? events.filter(e => e.pblId === pblId) : [];
       const eSel = document.getElementById('pbl-email-event');
       eSel.innerHTML = '<option value="">None — skip event variables</option>' +
-        projEvents.map(e => `<option value="${e.id}">${escEmail(e.category)} — ${pblFmtDate(e.date)}</option>`).join('');
+        projEvents.map(e => `<option value="${e.id}">${escEmail(e.eventCategory)} — ${pblFmtDate(e.eventDate)}</option>`).join('');
 
       const projTeams = pblId ? teams.filter(t => t.pblId === pblId) : [];
       const teamNums  = [...new Set(projTeams.map(t => t.pblTeamNumber || t.teamNumber))].filter(Boolean).sort((a,b)=>a-b);
@@ -964,8 +1213,8 @@
         pblClass:       pbl?.className || '',
         sponsorName:    pbl?.pblSponsor || '',
         sponsorContact: pbl?.pblSponsorPersonName || '',
-        eventName:      event?.category || '',
-        eventDate:      event ? pblFmtDate(event.date) : '',
+        eventName:      event?.eventCategory || '',
+        eventDate:      event ? pblFmtDate(event.eventDate) : '',
         eventTime:      event ? pblFmtTime(event.startTime) : '',
         eventEndTime:   event ? pblFmtTime(event.endTime) : '',
         eventLocation:  event?.location || '',
@@ -1095,11 +1344,9 @@
     window.addEventListener('click', (event) => {
       const modalPbl     = document.getElementById('modal-pbl');
       const modalEvent   = document.getElementById('modal-event');
-      const modalStudent = document.getElementById('modal-add-student');
       const modalEmail   = document.getElementById('modal-email');
       if (event.target === modalPbl)     modalPbl.style.display     = 'none';
       if (event.target === modalEvent)   modalEvent.style.display   = 'none';
-      if (event.target === modalStudent) modalStudent.style.display = 'none';
       if (event.target === modalEmail)   modalEmail.style.display   = 'none';
     });
   </script>
