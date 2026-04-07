@@ -497,8 +497,10 @@
 
   <!-- Firebase / Auth logic -->
   <script type="module">
-    import { initAuth, signInWithGoogle, getCurrentUser } from './js/auth.js';
+    import { initAuth, signInWithGoogle } from './js/auth.js';
     import { getWhere } from './js/db.js';
+    import { signOut as firebaseSignOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+    import { auth } from './firebase-config.js';
 
     // ── Helpers ──────────────────────────────────────────────────
     function showError(message) {
@@ -521,6 +523,14 @@
       if (btn) btn.disabled = on;
     }
 
+    // ── Show access-denied message if redirected from a protected page ──
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('denied') === '1') {
+      showError('Access denied. Your Google account is not registered as an authorized staff member. Please contact your administrator.');
+      // Clean up the URL so a refresh doesn't re-show the message confusingly
+      history.replaceState(null, '', window.location.pathname);
+    }
+
     // ── Auto-redirect if already signed in ───────────────────────
     initAuth().then(async (user) => {
       if (!user) return;
@@ -530,9 +540,10 @@
         if (results && results.length > 0) {
           window.location.href = './dashboard.html';
         } else {
+          // Signed in but not on the allowlist — sign them out
+          await firebaseSignOut(auth);
           setLoading(false);
-          showError('Access denied. Your account is not authorized to use this system. Please contact your administrator.');
-          document.getElementById('google-signin-btn').disabled = true;
+          showError('Access denied. Your Google account (' + user.email + ') is not registered as an authorized staff member. Please contact your administrator.');
         }
       } catch (err) {
         console.error('Authorization check failed:', err);
@@ -553,8 +564,10 @@
         if (results && results.length > 0) {
           window.location.href = './dashboard.html';
         } else {
+          // Sign them back out — don't leave an unauthorized session open
+          await firebaseSignOut(auth);
           setLoading(false);
-          showError('Access denied. Your account is not authorized. Please contact your administrator.');
+          showError('Access denied. ' + user.email + ' is not registered as an authorized staff member. Please contact your administrator.');
         }
       } catch (error) {
         console.error('Sign-in error:', error);
@@ -563,7 +576,7 @@
         if (error.code === 'auth/popup-blocked') {
           showError('Pop-up was blocked by your browser. Please allow pop-ups for this site and try again.');
         } else if (error.code === 'auth/popup-closed-by-user') {
-          showError('Sign-in was cancelled. Please try again.');
+          // User cancelled — not really an error, just reset silently
         } else {
           showError('Failed to sign in. Please check your connection and try again.');
         }

@@ -8,15 +8,38 @@ import {
   signOut as firebaseSignOut,
   onAuthStateChanged
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { getWhere } from './db.js';
 
 const googleProvider = new GoogleAuthProvider();
 
 // Initialize authentication and set up state listener
+// On protected pages, also verifies the signed-in email is in the staff allowlist.
 export function initAuth() {
   return new Promise((resolve) => {
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // User is logged in
+        const isLoginPage =
+          window.location.pathname.includes('index.html') ||
+          window.location.pathname === '/';
+
+        if (!isLoginPage) {
+          // Verify this email is registered as staff
+          try {
+            const results = await getWhere('staff', 'email', '==', user.email);
+            if (!results || results.length === 0) {
+              // Not authorized — sign out and send back to login with denied flag
+              await firebaseSignOut(auth);
+              window.location.href = './index.html?denied=1';
+              resolve(null);
+              return;
+            }
+          } catch (err) {
+            console.error('Staff allowlist check failed:', err);
+            // Fail open on network/Firestore errors so a temporary outage
+            // doesn't lock everyone out of the app.
+          }
+        }
+
         resolve(user);
       } else {
         // User is not logged in, redirect to login page
