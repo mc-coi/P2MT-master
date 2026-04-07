@@ -154,6 +154,62 @@
     .azure-step code { background: #f1f5f9; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 11px; }
     .azure-step a { color: var(--primary); }
     .btn-ms { padding: 9px 18px; background: #0078d4; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+
+    /* ── Notify bar ── */
+    .notify-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding: 12px 18px; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; }
+    .notify-bar .nb-label { font-size: 13px; font-weight: 700; color: #92400e; display: flex; align-items: center; gap: 7px; }
+    .notify-bar select { padding: 7px 11px; border: 1.5px solid #fbbf24; border-radius: 7px; font-size: 13px; outline: none; background: white; color: #1e293b; }
+    .notify-bar select:focus { border-color: #d97706; }
+    .notify-bar .nb-hint { font-size: 12px; color: #a16207; flex: 1; }
+    .btn-notify { display: inline-flex; align-items: center; gap: 8px; padding: 9px 22px; background: #d97706; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: background .15s; white-space: nowrap; }
+    .btn-notify:hover:not(:disabled) { background: #b45309; }
+    .btn-notify:disabled { background: #94a3b8; cursor: not-allowed; }
+
+    /* ── ER Attendance tab ── */
+    .att-topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+    .att-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; border-radius: 12px; padding: 4px 12px; }
+    .att-badge.blue  { background: #eff6ff; color: #3b82f6; border: 1px solid #bfdbfe; }
+    .att-badge.green { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .att-badge.red   { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+
+    .att-er-wrap { border: 1.5px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+    .att-er-table { width: 100%; border-collapse: collapse; }
+    .att-er-table thead th {
+      background: var(--primary); color: white; padding: 11px 14px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; white-space: nowrap;
+    }
+    .att-er-row { transition: background .12s; }
+    .att-er-row:hover td { background: #f8fafc; }
+    .att-er-row td { padding: 9px 12px; vertical-align: middle; font-size: 14px; border-bottom: 1px solid #f1f5f9; }
+    .att-er-row:last-child td { border-bottom: none; }
+
+    /* Complete row = green */
+    .att-er-row.done td { background: #f0fdf4 !important; }
+    .att-er-row.done:hover td { background: #dcfce7 !important; }
+    .att-er-row.done .att-name { color: #15803d; }
+
+    .att-num { width: 36px; text-align: center; color: #94a3b8; font-size: 12px; }
+    .att-name { font-weight: 600; color: var(--text-primary); }
+    .att-sub  { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+
+    /* Room select */
+    .room-sel { border: 1.5px solid #e2e8f0; border-radius: 7px; padding: 6px 10px; font-size: 13px; color: #1e293b; outline: none; min-width: 160px; background: white; }
+    .room-sel:focus { border-color: var(--primary); }
+
+    /* P / A toggle */
+    .pa-group { display: flex; gap: 5px; }
+    .pa-btn { width: 42px; height: 34px; border-radius: 7px; border: 2px solid; font-weight: 800; font-size: 14px; cursor: pointer; background: transparent; transition: all .12s; }
+    .pa-btn:hover { opacity: .8; }
+    .pa-btn.P { border-color: #16a34a; color: #16a34a; }
+    .pa-btn.P.active { background: #16a34a; color: white; box-shadow: 0 0 0 2px #bbf7d0; }
+    .pa-btn.A { border-color: #dc2626; color: #dc2626; }
+    .pa-btn.A.active { background: #dc2626; color: white; box-shadow: 0 0 0 2px #fca5a5; }
+
+    /* Complete checkbox */
+    .complete-wrap { display: flex; justify-content: center; }
+    .complete-chk { width: 20px; height: 20px; cursor: pointer; accent-color: #16a34a; }
+
+    .att-empty { padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
   </style>
 </head>
 <body>
@@ -177,6 +233,9 @@
     <div class="er-tabs">
       <button class="er-tab active" id="tab-btn-emailer" onclick="switchTab('emailer')">
         <i class="fas fa-table"></i> Emailer
+      </button>
+      <button class="er-tab" id="tab-btn-er-attendance" onclick="switchTab('er-attendance')">
+        <i class="fas fa-clipboard-check"></i> ER Attendance
       </button>
       <button class="er-tab" id="tab-btn-er" onclick="switchTab('er')">
         <i class="fas fa-cog"></i> ER Setup
@@ -212,6 +271,49 @@
           <i class="fas fa-paper-plane"></i> <span id="send-btn-txt">Send Emails</span>
         </button>
       </div>
+
+      <!-- Notify bar -->
+      <div class="notify-bar">
+        <span class="nb-label"><i class="fas fa-bell"></i> Notify</span>
+        <select id="notify-tmpl-select">
+          <option value="main">Email Template</option>
+          <option value="notify">Notify Template</option>
+        </select>
+        <span class="nb-hint"><code style="background:#fef3c7;padding:1px 5px;border-radius:4px;font-size:11px;">{{classes}}</code> = student's assigned workshop &nbsp;·&nbsp; Sends only to assigned students</span>
+        <button class="btn-notify" id="btn-notify" onclick="sendNotifyEmails()">
+          <i class="fas fa-bell"></i> Notify
+        </button>
+      </div>
+    </div>
+
+    <!-- ══ Tab: ER Attendance ═══════════════════════════════════════════════ -->
+    <div id="tab-er-attendance" style="display:none;">
+      <div class="att-topbar">
+        <span class="att-badge blue" id="att-badge-total"><i class="fas fa-users"></i> <span id="att-total-txt">0 students</span></span>
+        <span class="att-badge green" id="att-badge-present"><i class="fas fa-check-circle"></i> <span id="att-present-txt">0 present</span></span>
+        <span class="att-badge red" id="att-badge-absent"><i class="fas fa-times-circle"></i> <span id="att-absent-txt">0 absent</span></span>
+        <span class="att-badge green" id="att-badge-complete"><i class="fas fa-flag-checkered"></i> <span id="att-complete-txt">0 complete</span></span>
+        <div style="flex:1;"></div>
+        <button class="btn-sm outline" onclick="attMarkAllPresent()"><i class="fas fa-check-double"></i> All Present</button>
+        <button class="btn-sm outline" onclick="attSaveAll()" style="border-color:#a7f3d0;color:#065f46;"><i class="fas fa-save"></i> Save All</button>
+      </div>
+
+      <div class="att-er-wrap">
+        <table class="att-er-table">
+          <thead>
+            <tr>
+              <th style="width:40px;">#</th>
+              <th>Student</th>
+              <th>Teacher / Room</th>
+              <th style="width:110px; text-align:center;">Status</th>
+              <th style="width:90px; text-align:center;"><i class="fas fa-flag-checkered"></i> Done</th>
+            </tr>
+          </thead>
+          <tbody id="att-er-tbody">
+            <tr><td colspan="5" class="att-empty"><i class="fas fa-calendar-day" style="font-size:28px;display:block;margin-bottom:10px;"></i>Select a date above to load assigned students.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- ══ Tab: ER Setup ═══════════════════════════════════════════════════ -->
@@ -237,7 +339,7 @@
         <!-- Email Template -->
         <div class="setup-card">
           <h3><i class="fas fa-envelope-open-text"></i> Email Template</h3>
-          <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Click a variable to insert it at the cursor position.</p>
+          <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Used by <strong>Send Emails</strong>. Click a variable to insert.</p>
 
           <div class="var-pills" id="var-pills"></div>
 
@@ -247,7 +349,7 @@
           </div>
           <div class="mf-row">
             <label>Body *</label>
-            <textarea id="tmpl-body" rows="12" placeholder="Dear {{firstName}},&#10;&#10;Your Early Release workshop assignment for {{date}} is:&#10;&#10;  Workshop: {{workshopName}}&#10;  Room: {{room}}&#10;&#10;Please report to Room {{room}} at the start of the Early Release period.&#10;&#10;Thank you,&#10;[Your name]"></textarea>
+            <textarea id="tmpl-body" rows="10" placeholder="Dear {{firstName}},&#10;&#10;Your Early Release workshop assignment for {{date}} is:&#10;&#10;  Workshop: {{workshopName}}&#10;  Room: {{room}}&#10;&#10;Please report to Room {{room}} at the start of the Early Release period.&#10;&#10;Thank you,&#10;[Your name]"></textarea>
           </div>
           <button class="save-tmpl-btn" onclick="saveTemplate()">
             <i class="fas fa-save"></i> Save Template
@@ -255,6 +357,43 @@
         </div>
 
       </div>
+
+      <!-- Notify Template (full-width below) -->
+      <div class="setup-card" style="margin-top:20px;">
+        <h3><i class="fas fa-bell" style="color:#d97706;"></i> Notify Template</h3>
+        <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Used by the <strong>Notify</strong> button in the Emailer tab. Click a variable to insert.</p>
+
+        <div class="var-pills" id="notify-var-pills"></div>
+
+        <div class="er-setup-grid" style="margin-top:0;">
+          <div>
+            <div class="mf-row">
+              <label>Subject *</label>
+              <input type="text" id="notify-tmpl-subject" placeholder="ER Reminder — {{date}}">
+            </div>
+            <div class="mf-row">
+              <label>Body *</label>
+              <textarea id="notify-tmpl-body" rows="10" placeholder="Dear {{firstName}},&#10;&#10;This is a reminder about your Early Release assignment for {{date}}.&#10;&#10;  Workshop: {{classes}}&#10;  Room: {{room}}&#10;&#10;Please report on time.&#10;&#10;Thank you"></textarea>
+            </div>
+            <button class="save-tmpl-btn" style="background:#d97706;" onclick="saveNotifyTemplate()">
+              <i class="fas fa-save"></i> Save Notify Template
+            </button>
+          </div>
+          <div style="background:#fffbeb;border-radius:8px;padding:14px;font-size:13px;color:#92400e;border:1px solid #fde68a;align-self:start;">
+            <div style="font-weight:700;margin-bottom:8px;"><i class="fas fa-info-circle"></i> Available variables</div>
+            <div style="display:flex;flex-direction:column;gap:5px;font-family:monospace;font-size:12px;">
+              <span><code>{{firstName}}</code> — student first name</span>
+              <span><code>{{studentName}}</code> — full name</span>
+              <span><code>{{classes}}</code> — assigned workshop(s)</span>
+              <span><code>{{room}}</code> — workshop room</span>
+              <span><code>{{date}}</code> — ER date</span>
+              <span><code>{{dayOfWeek}}</code> — day name</span>
+              <span><code>{{studentEmail}}</code> — student email</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /er-page -->
@@ -297,9 +436,13 @@
     let students   = [];
     let workshops  = [];
     let assignments = {};    // { studentId: workshopId } for current date
-    let template   = { subject: '', body: '' };
-    let guardianEmails = {};  // { studentId: email }
-    let currentDate = '';
+    let template        = { subject: '', body: '' };
+    let notifyTemplate  = { subject: '', body: '' };
+    let guardianEmails  = {};  // { studentId: email }
+    let currentDate     = '';
+
+    // ER Attendance state: { studentId: { teacherRoom, status:'P'|'A'|null, complete:bool, logId:null } }
+    let attState = {};
 
     // ── MSAL ─────────────────────────────────────────────────────────────────────
     let msalClient  = null;
@@ -311,6 +454,7 @@
       { key: 'firstName',    label: 'First Name'    },
       { key: 'studentName',  label: 'Full Name'     },
       { key: 'workshopName', label: 'Workshop'      },
+      { key: 'classes',      label: 'Classes'       },
       { key: 'room',         label: 'Room'          },
       { key: 'date',         label: 'ER Date'       },
       { key: 'dayOfWeek',    label: 'Day of Week'   },
@@ -337,25 +481,30 @@
 
     async function loadAll() {
       try {
-        const [s, w, t, g] = await Promise.all([
+        const [s, w, t, nt, g] = await Promise.all([
           getAll('students'),
           getAll('erWorkshops'),
           getAll('erTemplate'),
+          getAll('erNotifyTemplate'),
           getAll('guardianEmails'),
         ]);
 
         students  = s.sort((a, b) => a.lastName.localeCompare(b.lastName));
         workshops = (w || []).sort((a, b) => (a.order || 0) - (b.order || 0));
-        template  = t?.[0] || { subject: 'Early Release Workshop Assignment — {{date}}', body: DEFAULT_BODY };
+        template        = t?.[0]  || { subject: 'Early Release Workshop Assignment — {{date}}', body: DEFAULT_BODY };
+        notifyTemplate  = nt?.[0] || { subject: 'ER Reminder — {{date}}', body: DEFAULT_NOTIFY_BODY };
         g.forEach(rec => { guardianEmails[rec.studentId] = rec.email; });
 
         // Pre-populate workshop list from defaults if none saved yet
         if (!workshops.length) workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
 
         loadTemplateIntoForm();
+        loadNotifyTemplateIntoForm();
+        buildNotifyVarPills();
         renderWorkshopList();
         await loadAssignmentsForDate(currentDate);
         renderGrid();
+        await loadAttendanceForDate(currentDate);
       } catch (err) {
         console.error(err);
         showToast('Error loading data', 'error');
@@ -377,14 +526,17 @@
       if (!currentDate) return;
       await loadAssignmentsForDate(currentDate);
       renderGrid();
+      await loadAttendanceForDate(currentDate);
+      renderAttendanceTab();
     };
 
     // ── Tab switching ─────────────────────────────────────────────────────────────
     window.switchTab = function(tab) {
-      document.getElementById('tab-emailer').style.display = tab === 'emailer' ? '' : 'none';
-      document.getElementById('tab-er').style.display      = tab === 'er'      ? '' : 'none';
-      document.getElementById('tab-btn-emailer').classList.toggle('active', tab === 'emailer');
-      document.getElementById('tab-btn-er').classList.toggle('active',      tab === 'er');
+      ['emailer', 'er-attendance', 'er'].forEach(t => {
+        document.getElementById(`tab-${t}`).style.display        = t === tab ? '' : 'none';
+        document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === tab);
+      });
+      if (tab === 'er-attendance') renderAttendanceTab();
     };
 
     // ── Grid rendering ────────────────────────────────────────────────────────────
@@ -666,17 +818,290 @@
     // ── Variable pills ─────────────────────────────────────────────────────────────
     function buildVarPills() {
       document.getElementById('var-pills').innerHTML =
-        VARS.map(v => `<span class="var-pill" onclick="insertVar('{{${v.key}}}')">{{${v.key}}}</span>`).join('');
+        VARS.map(v => `<span class="var-pill" onclick="insertVar('main','{{${v.key}}}')">{{${v.key}}}</span>`).join('');
     }
 
-    window.insertVar = function(text) {
-      const subj = document.getElementById('tmpl-subject');
-      const body = document.getElementById('tmpl-body');
+    function buildNotifyVarPills() {
+      document.getElementById('notify-var-pills').innerHTML =
+        VARS.map(v => `<span class="var-pill" onclick="insertVar('notify','{{${v.key}}}')">{{${v.key}}}</span>`).join('');
+    }
+
+    window.insertVar = function(tmplTarget, text) {
+      const subj = document.getElementById(tmplTarget === 'notify' ? 'notify-tmpl-subject' : 'tmpl-subject');
+      const body = document.getElementById(tmplTarget === 'notify' ? 'notify-tmpl-body'    : 'tmpl-body');
       const target = document.activeElement === subj ? subj : body;
       const s = target.selectionStart, e = target.selectionEnd;
       target.value = target.value.slice(0, s) + text + target.value.slice(e);
       target.selectionStart = target.selectionEnd = s + text.length;
       target.focus();
+    };
+
+    // ── Notify template management ─────────────────────────────────────────────────
+    function loadNotifyTemplateIntoForm() {
+      document.getElementById('notify-tmpl-subject').value = notifyTemplate.subject || '';
+      document.getElementById('notify-tmpl-body').value    = notifyTemplate.body    || '';
+    }
+
+    window.saveNotifyTemplate = async function() {
+      const subject = document.getElementById('notify-tmpl-subject').value.trim();
+      const body    = document.getElementById('notify-tmpl-body').value.trim();
+      if (!subject || !body) { showToast('Subject and body are required', 'error'); return; }
+      try {
+        const existing = await getAll('erNotifyTemplate');
+        const data = { subject, body };
+        if (existing.length) {
+          await updateDoc('erNotifyTemplate', existing[0].id, data);
+          notifyTemplate = { ...existing[0], ...data };
+        } else {
+          const id = await addDoc('erNotifyTemplate', data);
+          notifyTemplate = { ...data, id };
+        }
+        showToast('Notify template saved', 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error saving notify template', 'error');
+      }
+    };
+
+    // ── Notify send ────────────────────────────────────────────────────────────────
+    window.sendNotifyEmails = async function() {
+      const tmplChoice = document.getElementById('notify-tmpl-select').value;
+      const tmpl = tmplChoice === 'notify' ? notifyTemplate : template;
+
+      if (!tmpl.subject || !tmpl.body) {
+        showToast('Please save the selected template in ER Setup first', 'warning');
+        switchTab('er');
+        return;
+      }
+      if (!msalAccount) {
+        showToast('Connect your Outlook account first', 'warning');
+        connectOutlook();
+        return;
+      }
+
+      const assigned = students.filter(s => assignments[s.id]);
+      if (!assigned.length) { showToast('No students assigned', 'warning'); return; }
+
+      const btn = document.getElementById('btn-notify');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+
+      const dateLabel = fmtDate(currentDate);
+      const dayLabel  = fmtDOW(currentDate);
+      let sent = 0, failed = 0;
+
+      try {
+        const token = await getToken();
+
+        for (const student of assigned) {
+          if (!student.email) { failed++; continue; }
+          const wid      = assignments[student.id];
+          const workshop = workshops.find(w => w.id === wid);
+
+          const data = {
+            firstName:    student.firstName,
+            studentName:  `${student.firstName} ${student.lastName}`,
+            workshopName: workshop?.name || '',
+            classes:      workshop ? (workshop.room ? `${workshop.name} (Room ${workshop.room})` : workshop.name) : '',
+            room:         workshop?.room || 'TBD',
+            date:         dateLabel,
+            dayOfWeek:    dayLabel,
+            studentEmail: student.email,
+          };
+
+          const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: {
+                subject: merge(tmpl.subject, data),
+                body: { contentType: 'Text', content: merge(tmpl.body, data) },
+                toRecipients: [{ emailAddress: { address: student.email } }],
+              },
+              saveToSentItems: true,
+            }),
+          });
+          res.ok ? sent++ : failed++;
+        }
+
+        showToast(
+          failed === 0 ? `✓ Notified ${sent} student${sent !== 1 ? 's' : ''}` : `Sent ${sent}, failed ${failed}`,
+          failed === 0 ? 'success' : 'warning'
+        );
+      } catch (err) {
+        console.error('Notify error:', err);
+        showToast('Token error — please reconnect Outlook', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-bell"></i> Notify';
+      }
+    };
+
+    // ── ER Attendance ─────────────────────────────────────────────────────────────
+    async function loadAttendanceForDate(date) {
+      attState = {};
+      try {
+        const rows = await getWhere('erAttendance', 'date', date);
+        rows.forEach(r => {
+          attState[r.studentId] = {
+            teacherRoom: r.teacherRoom || '',
+            status:      r.status      || null,
+            complete:    r.complete    || false,
+            logId:       r.id,
+          };
+        });
+      } catch (err) { console.error('Error loading ER attendance:', err); }
+    }
+
+    function renderAttendanceTab() {
+      const tbody = document.getElementById('att-er-tbody');
+      if (!tbody) return;
+
+      // Only show students who are assigned for this date
+      const assignedStudents = students.filter(s => assignments[s.id]);
+
+      if (!assignedStudents.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="att-empty"><i class="fas fa-user-slash" style="font-size:28px;display:block;margin-bottom:10px;"></i>No students are assigned to workshops for this date yet.</td></tr>`;
+        updateAttBadges(0, 0, 0, 0);
+        return;
+      }
+
+      // Build room options from workshops
+      const roomOpts = workshops.map(w =>
+        `<option value="${esc(w.name)}">${esc(w.name)}${w.room ? ' — Rm ' + esc(w.room) : ''}</option>`
+      ).join('');
+
+      tbody.innerHTML = assignedStudents.map((student, idx) => {
+        const st          = attState[student.id] || { teacherRoom: '', status: null, complete: false };
+        const defaultRoom = (() => {
+          const wid = assignments[student.id];
+          const w   = workshops.find(x => x.id === wid);
+          return st.teacherRoom || (w ? w.name : '');
+        })();
+        const pActive = st.status === 'P' ? 'active' : '';
+        const aActive = st.status === 'A' ? 'active' : '';
+        const doneClass = st.complete ? 'done' : '';
+
+        return `<tr class="att-er-row ${doneClass}" id="att-row-${student.id}">
+          <td class="att-num">${idx + 1}</td>
+          <td>
+            <div class="att-name">${esc(student.lastName)}, ${esc(student.firstName)}</div>
+            <div class="att-sub">${esc(student.chattStateANumber || student.email || '')}</div>
+          </td>
+          <td class="att-er-room">
+            <select class="room-sel" onchange="attSetRoom('${student.id}', this.value)">
+              <option value="">— Select Room —</option>
+              ${roomOpts}
+            </select>
+          </td>
+          <td style="text-align:center;">
+            <div class="pa-group" style="justify-content:center;">
+              <button class="pa-btn P ${pActive}" onclick="attSetStatus('${student.id}','P')">P</button>
+              <button class="pa-btn A ${aActive}" onclick="attSetStatus('${student.id}','A')">A</button>
+            </div>
+          </td>
+          <td>
+            <div class="complete-wrap">
+              <input type="checkbox" class="complete-chk" ${st.complete ? 'checked' : ''}
+                onchange="attSetComplete('${student.id}', this.checked)">
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+      // Set the selected room option in each row's <select>
+      assignedStudents.forEach(student => {
+        const st          = attState[student.id] || {};
+        const wid         = assignments[student.id];
+        const w           = workshops.find(x => x.id === wid);
+        const room        = st.teacherRoom || (w ? w.name : '');
+        const row         = document.getElementById(`att-row-${student.id}`);
+        const sel         = row?.querySelector('.room-sel');
+        if (sel && room) sel.value = room;
+      });
+
+      updateAttBadges(
+        assignedStudents.length,
+        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'P').length,
+        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'A').length,
+        assignedStudents.filter(s => attState[s.id]?.complete).length
+      );
+    }
+
+    function updateAttBadges(total, present, absent, complete) {
+      document.getElementById('att-total-txt').textContent   = `${total} student${total !== 1 ? 's' : ''}`;
+      document.getElementById('att-present-txt').textContent = `${present} present`;
+      document.getElementById('att-absent-txt').textContent  = `${absent} absent`;
+      document.getElementById('att-complete-txt').textContent= `${complete} complete`;
+    }
+
+    window.attSetStatus = function(studentId, status) {
+      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null };
+      attState[studentId].status = status;
+
+      // Update DOM buttons
+      const row = document.getElementById(`att-row-${studentId}`);
+      if (row) {
+        row.querySelectorAll('.pa-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.classList.contains(status));
+        });
+      }
+      attSaveRow(studentId);
+      refreshAttBadges();
+    };
+
+    window.attSetRoom = function(studentId, room) {
+      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null };
+      attState[studentId].teacherRoom = room;
+      attSaveRow(studentId);
+    };
+
+    window.attSetComplete = function(studentId, checked) {
+      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null };
+      attState[studentId].complete = checked;
+
+      // Toggle green row class
+      const row = document.getElementById(`att-row-${studentId}`);
+      if (row) row.classList.toggle('done', checked);
+
+      attSaveRow(studentId);
+      refreshAttBadges();
+    };
+
+    function refreshAttBadges() {
+      const assignedStudents = students.filter(s => assignments[s.id]);
+      updateAttBadges(
+        assignedStudents.length,
+        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'P').length,
+        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'A').length,
+        assignedStudents.filter(s => attState[s.id]?.complete).length
+      );
+    }
+
+    async function attSaveRow(studentId) {
+      const st = attState[studentId];
+      if (!st || !currentDate) return;
+      const data = { studentId, date: currentDate, teacherRoom: st.teacherRoom, status: st.status, complete: st.complete };
+      try {
+        if (st.logId) {
+          await updateDoc('erAttendance', st.logId, data);
+        } else {
+          const id = await addDoc('erAttendance', data);
+          attState[studentId].logId = id;
+        }
+      } catch (err) { console.error('Error saving ER attendance row:', err); }
+    }
+
+    window.attMarkAllPresent = function() {
+      const assignedStudents = students.filter(s => assignments[s.id]);
+      assignedStudents.forEach(s => window.attSetStatus(s.id, 'P'));
+      showToast('All students marked Present', 'success');
+    };
+
+    window.attSaveAll = async function() {
+      const assignedStudents = students.filter(s => assignments[s.id]);
+      for (const s of assignedStudents) await attSaveRow(s.id);
+      showToast(`Saved attendance for ${assignedStudents.length} students`, 'success');
     };
 
     // ── Send emails ────────────────────────────────────────────────────────────────
@@ -718,6 +1143,7 @@
             firstName:    student.firstName,
             studentName:  `${student.firstName} ${student.lastName}`,
             workshopName: workshop.name,
+            classes:      workshop.room ? `${workshop.name} (Room ${workshop.room})` : workshop.name,
             room:         workshop.room || 'TBD',
             date:         dateLabel,
             dayOfWeek:    dayLabel,
@@ -890,6 +1316,17 @@ Your Early Release workshop assignment for {{date}} is:
 Please report to Room {{room}} at the start of the Early Release period.
 
 If you have any questions, please contact your teacher.
+
+Thank you`;
+
+    const DEFAULT_NOTIFY_BODY =
+`Dear {{firstName}},
+
+This is a reminder about your Early Release assignment for {{date}}.
+
+  Class / Workshop: {{classes}}
+
+Please report on time.
 
 Thank you`;
 
