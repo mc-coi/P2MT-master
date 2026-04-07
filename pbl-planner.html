@@ -759,6 +759,7 @@
           semester: pbl.semester || '',
           quarter: pbl.quarter,
           pblTeamNumber: parseInt(teamNumber) || null,
+          studentId: studentId,
           chattStateANumber: student.chattStateANumber,
           studentName: `${student.firstName} ${student.lastName}`
         };
@@ -901,7 +902,10 @@
       if (teamNum) projTeams = projTeams.filter(t => String(t.pblTeamNumber || t.teamNumber) === String(teamNum));
 
       const msgs = projTeams.map(entry => {
-        const student = students.find(s => s.id === entry.studentId);
+        const student = students.find(s =>
+          s.id === entry.studentId ||
+          (entry.chattStateANumber && s.chattStateANumber === entry.chattStateANumber)
+        );
         if (!student) return null;
         const data = pblBuildData(student, entry, pbl, event);
         return {
