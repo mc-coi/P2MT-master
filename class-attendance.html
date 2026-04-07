@@ -969,7 +969,7 @@
     // so absences from a closed period never bleed into the next one.
     async function checkAndCreateTMIForSection(sec) {
       if (!currentDate || !sec.students.length) return;
-      const MAX_TMI = 420;
+      const MAX_TMI = 240;
 
       // ── Determine the window ─────────────────────────────────────────────────
       const tmiPeriod = getTmiPeriodWindow(currentDate);
