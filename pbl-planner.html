@@ -659,59 +659,8 @@
 
     window.syncEventToAttendance = async function(eventId) {
       const event = events.find(e => e.id === eventId);
-      const pbl   = pbls.find(p => p.id === event?.pblId);
-      if (!event || !pbl) return;
-
-      const startStr  = fmt12h(event.startTime);
-      const comment   = `${pbl.pblName} - ${event.eventCategory} - ${startStr}`.trim().replace(/ - $/, '');
-      const eventDate = event.eventDate;
-
-      // Load all attendance logs (or use cached if already fetched in this tab)
-      let attLogs;
-      try {
-        attLogs = await getAll('classAttendanceLogs');
-      } catch(e) {
-        showToast('Could not load attendance logs', 'error');
-        return;
-      }
-
-      // Get students for this PBL
-      const pblEntries = teams.filter(t => t.pblId === event.pblId);
-      if (!pblEntries.length) { showToast('No students assigned to this PBL', 'error'); return; }
-
-      const ops = [];
-      let matched = 0;
-
-      for (const entry of pblEntries) {
-        const student = students.find(s =>
-          s.id === entry.studentId ||
-          (entry.chattStateANumber && s.chattStateANumber === entry.chattStateANumber)
-        );
-        if (!student) continue;
-
-        const studentLogs = attLogs.filter(l =>
-          (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
-          (l.date === eventDate || l.classDate === eventDate)
-        );
-
-        studentLogs.forEach(log => {
-          ops.push(updateDoc('classAttendanceLogs', log.id, { comment }));
-          matched++;
-        });
-      }
-
-      if (!ops.length) {
-        showToast(`No attendance logs found for ${eventDate} — save attendance first`, 'error');
-        return;
-      }
-
-      try {
-        await Promise.all(ops);
-        showToast(`Updated ${matched} attendance comment${matched !== 1 ? 's' : ''} for ${pbl.pblName}`, 'success');
-      } catch(e) {
-        console.error('Sync error', e);
-        showToast('Error syncing attendance comments', 'error');
-      }
+      if (!event) return;
+      await autoSyncEventComments(event, { silent: false });
     };
 
     function openEventModal() {
@@ -788,9 +737,56 @@
         }
         document.getElementById('modal-event').style.display = 'none';
         renderEvents();
+
+        // Auto-sync attendance comments for any logs already saved on this date
+        autoSyncEventComments(data);
+
       } catch (error) {
         console.error('Error saving event:', error);
         showToast('Error saving event', 'error');
+      }
+    }
+
+    // ── Shared sync: write PBL comment to existing attendance logs for the event date ──
+    async function autoSyncEventComments(eventData, { silent = true } = {}) {
+      try {
+        const pbl = pbls.find(p => p.id === eventData.pblId);
+        if (!pbl || !eventData.eventDate) return;
+
+        const startStr   = fmt12h(eventData.startTime);
+        const comment    = [pbl.pblName, eventData.eventCategory, startStr].filter(Boolean).join(' - ');
+        const eventDate  = eventData.eventDate;
+        const pblEntries = teams.filter(t => t.pblId === eventData.pblId);
+        if (!pblEntries.length) return;
+
+        const attLogs = await getAll('classAttendanceLogs');
+        const ops = [];
+
+        for (const entry of pblEntries) {
+          const student = students.find(s =>
+            s.id === entry.studentId ||
+            (entry.chattStateANumber && s.chattStateANumber === entry.chattStateANumber)
+          );
+          if (!student) continue;
+
+          attLogs
+            .filter(l =>
+              (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
+              (l.date === eventDate || l.classDate === eventDate)
+            )
+            .forEach(log => ops.push(updateDoc('classAttendanceLogs', log.id, { comment })));
+        }
+
+        if (ops.length) {
+          await Promise.all(ops);
+          if (!silent)
+            showToast(`Updated ${ops.length} attendance comment${ops.length !== 1 ? 's' : ''} for ${pbl.pblName}`, 'success');
+        } else if (!silent) {
+          showToast(`No saved attendance logs found for ${eventDate} — comments will auto-fill when teachers open attendance`, 'info');
+        }
+      } catch(e) {
+        console.warn('autoSyncEventComments failed:', e);
+        if (!silent) showToast('Error syncing attendance comments', 'error');
       }
     }
 

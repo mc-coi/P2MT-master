@@ -322,6 +322,9 @@
     let allClassAttendanceLogs = [];
     let allStudents            = [];
     let allInterventions       = [];
+    let allPblEvents           = [];
+    let allPblTeams            = [];
+    let allPbls                = [];
 
     // sections[] is the core of the new design:
     // each entry = { idx, className, isLab, schedule, students, state }
@@ -357,6 +360,14 @@
       allClassAttendanceLogs = await getAll('classAttendanceLogs');
       allStudents            = await getAll('students');
       try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
+      // PBL data for pre-filling attendance comments (non-critical)
+      try {
+        [allPblEvents, allPblTeams, allPbls] = await Promise.all([
+          getAll('pblEvents'),
+          getAll('pblTeams'),
+          getAll('pbls'),
+        ]);
+      } catch(e) { /* non-critical — attendance still works without PBL data */ }
     }
 
     // ── Teacher dropdowns ────────────────────────────────────────────────────
@@ -502,6 +513,27 @@
                 logId:   log?.id || null
               };
             });
+
+            // Pre-fill PBL event comment for students with no comment yet
+            if (allPblEvents.length && allPblTeams.length) {
+              students.forEach(s => {
+                if (state[s.id].comment) return; // already has a comment — keep it
+                // Find any PBL team this student belongs to
+                const entry = allPblTeams.find(t =>
+                  t.studentId === s.id || t.chattStateANumber === s.chattStateANumber
+                );
+                if (!entry) return;
+                // Find a PBL event on this exact date
+                const evt = allPblEvents.find(e =>
+                  e.pblId === entry.pblId && e.eventDate === classDate
+                );
+                if (!evt) return;
+                const pbl   = allPbls.find(p => p.id === evt.pblId);
+                const time  = fmt12(evt.startTime);
+                const parts = [pbl?.pblName, evt.eventCategory, time].filter(Boolean);
+                state[s.id].comment = parts.join(' - ');
+              });
+            }
 
             return { idx, className: grp.className, isLab: grp.isLab, schedule: grp.schedule, students, state };
           });
