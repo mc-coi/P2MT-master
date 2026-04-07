@@ -929,48 +929,58 @@
     }
 
     // ── TMI period-window helper ──────────────────────────────────────────────
-    // Finds the TMI period that contains dateStr using the school calendar.
-    // A period begins on a 'startTmiPeriod' date and ends on the next 'tmiDay'.
-    // Returns { start, end } or null if no period is defined for dateStr.
+    // A TMI period begins on a calendar day marked 'startTmiPeriod' and ends on
+    // the very next calendar day marked 'tmiDay' (inclusive).  Once a tmiDay
+    // passes, its absences are isolated from the next period.
+    // Returns { start, end, key } or null if dateStr falls outside any period.
     function getTmiPeriodWindow(dateStr) {
       if (!allSchoolCalendar.length) return null;
       const sorted = allSchoolCalendar
         .filter(c => c.classDate)
         .sort((a, b) => a.classDate.localeCompare(b.classDate));
 
-      // Most recent startTmiPeriod on or before dateStr
+      // Most recent 'startTmiPeriod' on or before dateStr
       const starts = sorted.filter(c => c.startTmiPeriod && c.classDate <= dateStr);
       if (!starts.length) return null;
       const periodStart = starts[starts.length - 1].classDate;
 
-      // Next tmiDay on or after that startTmiPeriod date
-      const ends = sorted.filter(c => c.tmiDay && c.classDate >= periodStart);
+      // Next 'tmiDay' STRICTLY AFTER periodStart (the closing day of that period)
+      const ends = sorted.filter(c => c.tmiDay && c.classDate > periodStart);
       if (!ends.length) return null;
       const periodEnd = ends[0].classDate;
 
-      // dateStr must fall within the period
+      // dateStr must fall within [periodStart, periodEnd] — dates after the
+      // tmiDay are outside this period and belong to the next one.
       if (dateStr > periodEnd) return null;
-      return { start: periodStart, end: periodEnd };
+
+      return { start: periodStart, end: periodEnd, key: `${periodStart}__${periodEnd}` };
     }
 
     // ── Auto-TMI (per section) ────────────────────────────────────────────────
-    // Rules: 1 U = +120 min, 3+ T's in TMI period = +90 min (once per period),
-    //        manual TMI checkbox = +120 min  (cap 420 min total)
+    // Recalculates the TOTAL TMI minutes from scratch on every save — idempotent.
+    //
+    // Rules (all scoped to the current TMI period):
+    //   • Each U across any class  = +120 min
+    //   • Manual TMI checkbox (non-U log) = +120 min per occurrence
+    //   • 3 or more T's across all classes = +90 min (once per period)
+    //   • Hard cap: 420 min total
+    //
+    // Each period gets its own interventionLog record (keyed by tmiPeriodKey),
+    // so absences from a closed period never bleed into the next one.
     async function checkAndCreateTMIForSection(sec) {
       if (!currentDate || !sec.students.length) return;
-
       const MAX_TMI = 420;
 
-      // Determine window: use school-calendar TMI period when available,
-      // otherwise fall back to the Mon–Sun week of currentDate.
+      // ── Determine the window ─────────────────────────────────────────────────
       const tmiPeriod = getTmiPeriodWindow(currentDate);
-      let windowStart, windowEnd;
+      let windowStart, windowEnd, periodKey;
 
       if (tmiPeriod) {
         windowStart = tmiPeriod.start;
         windowEnd   = tmiPeriod.end;
+        periodKey   = tmiPeriod.key;
       } else {
-        // Fallback: Mon–Sun week (timezone-safe)
+        // No TMI period defined in the calendar — fall back to Mon–Sun week
         const [yr, mo, dy] = currentDate.split('-').map(Number);
         const dt    = new Date(yr, mo - 1, dy);
         const dow   = dt.getDay();
@@ -981,95 +991,87 @@
         const toStr = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
         windowStart = toStr(mon);
         windowEnd   = toStr(sun);
+        periodKey   = `week__${windowStart}__${windowEnd}`;
       }
-
-      const periodLabel = tmiPeriod ? 'TMI period' : 'week';
 
       const tmiCreated = [];
       const tmiUpdated = [];
 
       for (const student of sec.students) {
-        const state       = sec.state[student.id] || {};
-        const code        = state.code   || 'P';
-        const assignTmi   = state.tmi    || false;
-
-        const uTrigger        = (code === 'U');
-        const overrideTrigger = assignTmi;
-
-        // Count T codes for this student across ALL classes within the TMI period
-        const periodTardies = allClassAttendanceLogs.filter(log => {
+        // ── Gather all logs for this student within the period ────────────────
+        // allClassAttendanceLogs was just refreshed by loadAllData() before
+        // this function runs, so it includes the logs that were just saved.
+        const periodLogs = allClassAttendanceLogs.filter(log => {
           const logDate = log.date || log.classDate || '';
-          return (log.studentId === student.id || log.chattStateANumber === student.chattStateANumber) &&
-                 logDate >= windowStart && logDate <= windowEnd &&
-                 log.attendanceCode === 'T';
-        }).length;
+          return (log.studentId === student.id ||
+                  log.chattStateANumber === student.chattStateANumber) &&
+                 logDate >= windowStart &&
+                 logDate <= windowEnd;
+        });
 
-        // 3T rule fires only once per TMI period
-        let threeTTrigger = (periodTardies >= 3);
-        if (threeTTrigger) {
-          const already3T = allInterventions.some(i =>
-            i.studentId           === student.id &&
-            i.interventionType    === 'TMI'      &&
-            i.triggeredBy         === '3T'       &&
-            i.interventionStatus  !== 'Closed'   &&
-            (i.startDate || '') >= windowStart   &&
-            (i.startDate || '') <= windowEnd
-          );
-          if (already3T) threeTTrigger = false;
-        }
+        const uCount  = periodLogs.filter(l => l.attendanceCode === 'U').length;
+        const tCount  = periodLogs.filter(l => l.attendanceCode === 'T').length;
+        // Manual override only counts for logs that are NOT already a U
+        // (a U log with the checkbox set doesn't double-bill)
+        const overrideCount = periodLogs.filter(
+          l => l.assignTmi && l.attendanceCode !== 'U'
+        ).length;
 
-        if (!uTrigger && !overrideTrigger && !threeTTrigger) continue;
+        const totalMinutes = Math.min(
+          (uCount * 120) + (overrideCount * 120) + (tCount >= 3 ? 90 : 0),
+          MAX_TMI
+        );
 
-        const addMinutes  = (uTrigger || overrideTrigger) ? 120 : 90;
-        const triggeredBy = uTrigger ? 'U' : (threeTTrigger ? '3T' : 'override');
-        const reason      = uTrigger
-          ? 'Unexcused absence (+120 min)'
-          : threeTTrigger
-          ? `3 tardies in ${periodLabel} (+90 min)`
-          : 'Manual override (+120 min)';
+        // ── Build human-readable reason ───────────────────────────────────────
+        const parts = [];
+        if (uCount > 0)        parts.push(`${uCount}× unexcused (${uCount * 120} min)`);
+        if (overrideCount > 0) parts.push(`${overrideCount}× manual override (${overrideCount * 120} min)`);
+        if (tCount >= 3)       parts.push(`${tCount} tardies in period (+90 min)`);
+        const reason = parts.length ? parts.join('; ') : 'No triggering events';
 
-        // Accumulate into existing open TMI if one exists
+        // ── Find the record for THIS specific period (by periodKey) ───────────
+        // Using periodKey prevents old open records from other periods being
+        // modified — each period is fully isolated.
         const existingTMI = allInterventions.find(i =>
           i.studentId        === student.id &&
           i.interventionType === 'TMI'      &&
-          i.interventionStatus !== 'Closed'
+          i.tmiPeriodKey     === periodKey
         );
 
         if (existingTMI) {
-          const newTotal     = Math.min((existingTMI.tmiMinutes || 0) + addMinutes, MAX_TMI);
-          const newRemaining = Math.max(0, newTotal - (existingTMI.tmiMinutesServed || 0));
-          const newReason    = existingTMI.reason ? `${existingTMI.reason}; ${reason}` : reason;
-
-          await updateDoc('interventionLogs', existingTMI.id, {
-            tmiMinutes:          newTotal,
-            tmiMinutesRemaining: newRemaining,
-            reason:              newReason,
-            triggeredBy:         triggeredBy,
-            updatedAt:           new Date().toISOString()
-          });
-          existingTMI.tmiMinutes          = newTotal;
-          existingTMI.tmiMinutesRemaining = newRemaining;
-          existingTMI.triggeredBy         = triggeredBy;
-          tmiUpdated.push(`${student.firstName} ${student.lastName} → ${newTotal} min`);
-        } else {
+          // SET (not increment) — safe to re-run on every save
+          const newRemaining = Math.max(0, totalMinutes - (existingTMI.tmiMinutesServed || 0));
+          if (existingTMI.tmiMinutes !== totalMinutes) {
+            await updateDoc('interventionLogs', existingTMI.id, {
+              tmiMinutes:          totalMinutes,
+              tmiMinutesRemaining: newRemaining,
+              reason,
+              updatedAt:           new Date().toISOString()
+            });
+            existingTMI.tmiMinutes          = totalMinutes;
+            existingTMI.tmiMinutesRemaining = newRemaining;
+            tmiUpdated.push(`${student.firstName} ${student.lastName} → ${totalMinutes} min`);
+          }
+        } else if (totalMinutes > 0) {
+          // Create a new record scoped to this period
           await addDoc('interventionLogs', {
             studentId:            student.id,
             studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
             chattStateANumber:    student.chattStateANumber || '',
             interventionType:     'TMI',
             interventionLevel:    1,
-            startDate:            currentDate,
-            tmiMinutes:           addMinutes,
+            startDate:            windowStart,
+            tmiPeriodKey:         periodKey,
+            tmiMinutes:           totalMinutes,
             tmiMinutesServed:     0,
-            tmiMinutesRemaining:  addMinutes,
+            tmiMinutesRemaining:  totalMinutes,
             interventionStatus:   'Reviewed',
-            reason:               reason,
-            triggeredBy:          triggeredBy,
+            reason,
             className:            sec.className,
             teacherLastName:      currentTeacher,
             createDate:           new Date().toISOString()
           });
-          tmiCreated.push(`${student.firstName} ${student.lastName} (${addMinutes} min)`);
+          tmiCreated.push(`${student.firstName} ${student.lastName} (${totalMinutes} min)`);
         }
       }
 
