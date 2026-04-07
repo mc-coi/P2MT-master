@@ -180,7 +180,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, updateDoc } from './js/db.js';
-    import { formatDate, exportCSV, showToast } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, confirmTypedDelete } from './js/utils.js';
 
     let interventions = [];
     let students = [];
@@ -452,7 +452,7 @@
         showToast('Time served updated', 'success');
 
         if (served >= assigned && item) {
-          if (confirm(`${item.studentName} has served all ${assigned} required minutes. Mark as complete and remove from list?`)) {
+          if (await confirmTypedDelete(`Mark ${item.studentName} as complete and remove from the TMI list? They have served all ${assigned} required minutes.`)) {
             await markComplete(id);
             return;
           }

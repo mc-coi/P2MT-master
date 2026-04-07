@@ -291,7 +291,7 @@
     import { initAuth }   from './js/auth.js';
     import { initNav }    from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
-    import { showToast }  from './js/utils.js';
+    import { showToast, confirmTypedDelete }  from './js/utils.js';
 
     // ── Data ─────────────────────────────────────────────────────────────────────
     let students   = [];
@@ -548,7 +548,7 @@
 
     // ── Clear all assignments ──────────────────────────────────────────────────────
     window.clearAll = async function() {
-      if (!confirm('Clear all assignments for this date?')) return;
+      if (!await confirmTypedDelete('Clear all assignments for this date? This cannot be undone.')) return;
       const assigned = students.filter(s => assignments[s.id]);
       for (const s of assigned) {
         await deleteAssignment(s.id);

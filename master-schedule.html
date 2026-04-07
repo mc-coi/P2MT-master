@@ -279,19 +279,7 @@
     </div>
   </div>
 
-  <!-- Delete Modal -->
-  <div id="deleteModal" class="w3-modal">
-    <div class="w3-modal-content w3-card" style="max-width:400px;">
-      <button class="modal-close-btn" onclick="closeDeleteModal()">×</button>
-      <div class="modal-body"><h2>Delete Schedule Entry</h2>
-        <p>Are you sure you want to delete this schedule entry?</p>
-        <div class="w3-row w3-margin-top">
-          <button class="w3-button btn-danger w3-half" onclick="confirmDelete()"><i class="fas fa-trash"></i> Delete</button>
-          <button class="w3-button btn-ghost w3-half" onclick="closeDeleteModal()"><i class="fas fa-times"></i> Cancel</button>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Delete confirmation handled by confirmTypedDelete() in utils.js -->
 
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
@@ -302,7 +290,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
-    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
+    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
 
     // Expose to inline handlers
     window.getAll = getAll; window.getById = getById; window.addDoc = addDoc;
@@ -795,22 +783,13 @@
     // ─────────────────────────────────────────────
     //  DELETE
     // ─────────────────────────────────────────────
-    window.openDeleteModal = function(id) {
-      currentDeleteId = id;
-      document.getElementById('deleteModal').style.display = 'block';
-    };
-    window.closeDeleteModal = function() {
-      document.getElementById('deleteModal').style.display = 'none';
-      currentDeleteId = null;
-    };
-    window.confirmDelete = async function() {
+    window.openDeleteModal = async function(id) {
+      const ok = await confirmTypedDelete('Delete this schedule entry? This cannot be undone.');
+      if (!ok) return;
       try {
-        if (currentDeleteId) {
-          await deleteDoc('classSchedules', currentDeleteId);
-          showToast('Schedule deleted', 'success');
-          closeDeleteModal();
-          await loadSchedules();
-        }
+        await deleteDoc('classSchedules', id);
+        showToast('Schedule deleted', 'success');
+        await loadSchedules();
       } catch (err) {
         console.error(err);
         showToast('Error deleting schedule', 'error');

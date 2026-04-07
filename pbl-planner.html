@@ -238,7 +238,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
-    import { showToast, exportCSV } from './js/utils.js';
+    import { showToast, exportCSV, confirmTypedDelete } from './js/utils.js';
 
     let pbls = [];
     let events = [];
@@ -412,7 +412,7 @@
     }
 
     window.deletePbl = async function(pblId) {
-      if (!confirm('Are you sure you want to delete this PBL?')) return;
+      if (!await confirmTypedDelete('Delete this PBL project and all associated events and teams? This cannot be undone.')) return;
 
       try {
         await deleteDoc('pbls', pblId);
@@ -568,7 +568,7 @@
     }
 
     window.deleteEvent = async function(eventId) {
-      if (!confirm('Are you sure you want to delete this event?')) return;
+      if (!await confirmTypedDelete('Delete this event? This cannot be undone.')) return;
 
       try {
         await deleteDoc('pblEvents', eventId);
@@ -693,7 +693,7 @@
     };
 
     window.removeStudentFromTeam = async function(teamId) {
-      if (!confirm('Are you sure you want to remove this student from the team?')) return;
+      if (!await confirmTypedDelete('Remove this student from the team? This cannot be undone.')) return;
 
       try {
         await deleteDoc('pblTeams', teamId);

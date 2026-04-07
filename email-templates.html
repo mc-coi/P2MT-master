@@ -388,7 +388,7 @@
     import { initAuth }            from './js/auth.js';
     import { initNav }             from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
-    import { showToast }           from './js/utils.js';
+    import { showToast, confirmTypedDelete } from './js/utils.js';
 
     // ── Data ────────────────────────────────────────────────────────────────────
     let templates = [];
@@ -547,7 +547,7 @@
     };
 
     window.deleteTemplate = async function(id) {
-      if (!confirm('Delete this template?')) return;
+      if (!await confirmTypedDelete('Delete this email template? This cannot be undone.')) return;
       try {
         await deleteDoc('p2mtTemplates', id);
         templates = templates.filter(t => t.id !== id);

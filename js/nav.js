@@ -17,20 +17,19 @@ const navItems = [
       { id: 'daily-attendance', label: 'Daily',        href: './daily-attendance.html', icon: 'fa-clipboard-list' },
       { id: 'master-schedule',  label: 'Master',       href: './master-schedule.html',  icon: 'fa-calendar-alt' },
       { id: 'learning-lab',     label: 'Learning Lab', href: './learning-lab.html',     icon: 'fa-flask' },
+      { id: 'tmi-review',       label: 'TMI Review',   href: './tmi-review.html',       icon: 'fa-search' },
+      { id: 'tmi-approval',     label: 'TMI Final',    href: './tmi-approval.html',     icon: 'fa-check-double' },
     ]
   },
 
   {
-    id: 'tmi-group', label: 'TMI', icon: 'fa-exclamation-triangle', group: true,
+    id: 'pbl-group', label: 'PBL', icon: 'fa-lightbulb', group: true,
     children: [
-      { id: 'tmi-review',   label: 'Review', href: './tmi-review.html',   icon: 'fa-search' },
-      { id: 'tmi-approval', label: 'Final',  href: './tmi-approval.html', icon: 'fa-check-double' },
+      { id: 'pbl-planner',     label: 'PBL Planner', href: './pbl-planner.html',     icon: 'fa-lightbulb' },
+      { id: 'email-templates', label: 'Email',        href: './email-templates.html', icon: 'fa-envelope'  },
+      { id: 'er-emailer',      label: 'ER Emailer',   href: './er-emailer.html',      icon: 'fa-bolt'      },
     ]
   },
-
-  { id: 'pbl-planner',     label: 'PBL',      href: './pbl-planner.html',     icon: 'fa-lightbulb' },
-  { id: 'email-templates', label: 'Email',     href: './email-templates.html', icon: 'fa-envelope'  },
-  { id: 'er-emailer',      label: 'ER Emailer', href: './er-emailer.html',      icon: 'fa-bolt'      },
 
   {
     id: 'admin-group', label: 'Admin', icon: 'fa-tools', group: true,

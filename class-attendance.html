@@ -84,7 +84,7 @@
       background: linear-gradient(135deg, var(--primary) 0%, #3730a3 100%); color: white;
     }
     .section-header.lab {
-      background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%); color: white;
+      background: linear-gradient(135deg, #0891b2 0%, #059669 100%); color: white;
     }
     .section-class-name { font-size: 16px; font-weight: 700; }
     .section-meta { font-size: 13px; opacity: .85; }
@@ -493,11 +493,21 @@
       });
     }
 
+    function fmt12(t) {
+      if (!t) return '';
+      const [hStr, mStr] = t.split(':');
+      let h = parseInt(hStr, 10);
+      const m = mStr || '00';
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${m} ${ampm}`;
+    }
+
     function buildSectionEl(sec) {
       const idx     = sec.idx;
       const timeStr = (sec.schedule.startTime && sec.schedule.endTime)
-        ? `${sec.schedule.startTime} – ${sec.schedule.endTime}`
-        : sec.schedule.startTime || '';
+        ? `${fmt12(sec.schedule.startTime)} – ${fmt12(sec.schedule.endTime)}`
+        : fmt12(sec.schedule.startTime) || '';
       const campus  = sec.schedule.campus || '';
       const meta    = [timeStr, campus].filter(Boolean).join(' · ');
 

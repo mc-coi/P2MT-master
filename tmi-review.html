@@ -192,7 +192,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, updateDoc } from './js/db.js';
-    import { formatDate, showToast } from './js/utils.js';
+    import { formatDate, showToast, confirmTypedDelete } from './js/utils.js';
 
     let allTMI          = [];   // interventionLogs where type === 'TMI'
     let filteredTMI     = [];
@@ -511,7 +511,7 @@
     };
 
     window.dismissTMI = async function(id) {
-      if (!confirm('Remove this TMI assignment? This cannot be undone.')) return;
+      if (!await confirmTypedDelete('Remove this TMI assignment? This cannot be undone.')) return;
       try {
         await updateDoc('interventionLogs', id, { interventionStatus: 'Closed' });
         allTMI = allTMI.filter(t => t.id !== id);

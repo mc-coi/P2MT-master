@@ -278,3 +278,93 @@ export function getInitials(name) {
   const parts = name.trim().split(/\s+/);
   return parts.map(p => p.charAt(0).toUpperCase()).join('');
 }
+
+// Show a "type DELETE to confirm" modal. Returns a Promise<boolean>.
+// Usage: if (await confirmTypedDelete('Delete student John Doe?')) { ...do delete... }
+export function confirmTypedDelete(message = 'This action cannot be undone.') {
+  return new Promise((resolve) => {
+    const id = 'typed-delete-modal-' + generateId();
+
+    const overlay = document.createElement('div');
+    overlay.id = id;
+    overlay.style.cssText = `
+      position:fixed; inset:0; z-index:9999;
+      background:rgba(0,0,0,0.55); backdrop-filter:blur(3px);
+      display:flex; align-items:center; justify-content:center;
+    `;
+
+    overlay.innerHTML = `
+      <div style="
+        background:#fff; border-radius:14px; padding:28px 32px; max-width:420px; width:90%;
+        box-shadow:0 20px 60px rgba(0,0,0,0.25); font-family:inherit;
+        animation:toastIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+      ">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+          <div style="
+            width:42px;height:42px;border-radius:50%;background:#FEE2E2;
+            display:flex;align-items:center;justify-content:center;flex-shrink:0;
+          ">
+            <i class="fas fa-exclamation-triangle" style="color:#DC2626;font-size:18px;"></i>
+          </div>
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#111;">Confirm Deletion</div>
+            <div style="font-size:12px;color:#6B7280;margin-top:2px;">This action is permanent and cannot be undone.</div>
+          </div>
+        </div>
+        <p style="font-size:13px;color:#374151;margin:0 0 18px;line-height:1.5;">${message}</p>
+        <p style="font-size:13px;color:#6B7280;margin:0 0 8px;">
+          Type <strong style="color:#DC2626;font-family:monospace;">DELETE</strong> to confirm:
+        </p>
+        <input id="${id}-input" type="text" autocomplete="off" placeholder="DELETE"
+          style="
+            width:100%;box-sizing:border-box;padding:10px 12px;border:2px solid #E5E7EB;
+            border-radius:8px;font-size:14px;font-family:monospace;outline:none;
+            transition:border-color 0.15s;
+          "
+        />
+        <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+          <button id="${id}-cancel" style="
+            padding:9px 20px;border-radius:8px;border:none;cursor:pointer;
+            background:#F3F4F6;color:#374151;font-size:13px;font-weight:600;
+            transition:background 0.15s;
+          ">Cancel</button>
+          <button id="${id}-confirm" disabled style="
+            padding:9px 20px;border-radius:8px;border:none;cursor:not-allowed;
+            background:#FCA5A5;color:#fff;font-size:13px;font-weight:600;
+            transition:background 0.15s, opacity 0.15s; opacity:0.6;
+          ">Delete</button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const input   = document.getElementById(`${id}-input`);
+    const confirmBtn = document.getElementById(`${id}-confirm`);
+    const cancelBtn  = document.getElementById(`${id}-cancel`);
+
+    // Enable confirm button only when user typed exactly "DELETE"
+    input.addEventListener('input', () => {
+      const ready = input.value === 'DELETE';
+      confirmBtn.disabled = !ready;
+      confirmBtn.style.background  = ready ? '#DC2626' : '#FCA5A5';
+      confirmBtn.style.cursor      = ready ? 'pointer'  : 'not-allowed';
+      confirmBtn.style.opacity     = ready ? '1'        : '0.6';
+      input.style.borderColor      = input.value.length === 0 ? '#E5E7EB'
+                                   : ready               ? '#059669'
+                                   :                       '#F87171';
+    });
+
+    function cleanup(result) {
+      overlay.remove();
+      resolve(result);
+    }
+
+    confirmBtn.addEventListener('click', () => { if (input.value === 'DELETE') cleanup(true); });
+    cancelBtn.addEventListener('click',  () => cleanup(false));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(false); });
+
+    // Focus the input after mount
+    requestAnimationFrame(() => input.focus());
+  });
+}
