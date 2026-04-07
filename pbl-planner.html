@@ -623,7 +623,7 @@
           <td style="white-space:nowrap;">
             <button class="w3-button w3-small w3-blue" onclick="editEvent('${event.id}')">Edit</button>
             <button class="w3-button w3-small w3-red" onclick="deleteEvent('${event.id}')">Delete</button>
-            ${studentCount ? `<button class="w3-button w3-small" onclick="syncEventToAttendance('${event.id}')" style="background:#7c3aed;color:white;" title="Write PBL comment to attendance logs for this date"><i class="fas fa-sync-alt"></i> Sync</button>` : ''}
+            ${studentCount ? `<button id="sync-btn-${event.id}" class="w3-button w3-small" onclick="syncEventToAttendance('${event.id}')" style="background:#7c3aed;color:white;transition:background .2s,transform .1s;min-width:72px;" title="Write PBL comment to attendance logs for this date"><i class="fas fa-sync-alt" id="sync-icon-${event.id}"></i> <span id="sync-txt-${event.id}">Sync</span></button>` : ''}
           </td>`;
         tbody.appendChild(tr);
 
@@ -660,7 +660,75 @@
     window.syncEventToAttendance = async function(eventId) {
       const event = events.find(e => e.id === eventId);
       if (!event) return;
-      await autoSyncEventComments(event, { silent: false });
+
+      const btn  = document.getElementById(`sync-btn-${eventId}`);
+      const icon = document.getElementById(`sync-icon-${eventId}`);
+      const txt  = document.getElementById(`sync-txt-${eventId}`);
+
+      // ── Loading state ──
+      if (btn) {
+        btn.disabled = true;
+        btn.style.background = '#6d28d9';
+        btn.style.transform  = 'scale(.97)';
+      }
+      if (icon) { icon.className = 'fas fa-spinner fa-spin'; }
+      if (txt)  { txt.textContent = 'Syncing…'; }
+
+      let success = false;
+      let count   = 0;
+
+      // Patch autoSyncEventComments to tell us what happened
+      try {
+        const pbl = pbls.find(p => p.id === event.pblId);
+        if (pbl && event.eventDate) {
+          const startStr   = fmt12h(event.startTime);
+          const comment    = [pbl.pblName, event.eventCategory, startStr].filter(Boolean).join(' - ');
+          const pblEntries = teams.filter(t => t.pblId === event.pblId);
+          const attLogs    = await getAll('classAttendanceLogs');
+          const ops = [];
+
+          for (const entry of pblEntries) {
+            const student = students.find(s =>
+              s.id === entry.studentId ||
+              (entry.chattStateANumber && s.chattStateANumber === entry.chattStateANumber)
+            );
+            if (!student) continue;
+            attLogs
+              .filter(l =>
+                (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
+                (l.date === event.eventDate || l.classDate === event.eventDate)
+              )
+              .forEach(log => ops.push(updateDoc('classAttendanceLogs', log.id, { comment })));
+          }
+
+          count = ops.length;
+          if (ops.length) await Promise.all(ops);
+        }
+        success = true;
+      } catch(e) {
+        console.error('Sync error', e);
+        success = false;
+      }
+
+      // ── Result state ──
+      if (btn) {
+        btn.disabled = false;
+        btn.style.transform = 'scale(1)';
+        btn.style.background = success ? '#059669' : '#dc2626';
+      }
+      if (icon) { icon.className = success ? 'fas fa-check' : 'fas fa-times'; }
+      if (txt)  { txt.textContent = success ? (count ? `${count} updated` : 'No logs yet') : 'Error'; }
+
+      if (success && count)       showToast(`Updated ${count} attendance comment${count !== 1 ? 's' : ''}`, 'success');
+      else if (success && !count) showToast(`No saved logs for ${event.eventDate} — comments will auto-fill when teachers open attendance`, 'info');
+      else                        showToast('Error syncing attendance comments', 'error');
+
+      // ── Reset back to normal after 3 s ──
+      setTimeout(() => {
+        if (btn)  { btn.style.background = '#7c3aed'; }
+        if (icon) { icon.className = 'fas fa-sync-alt'; }
+        if (txt)  { txt.textContent = 'Sync'; }
+      }, 3000);
     };
 
     function openEventModal() {

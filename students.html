@@ -13,6 +13,31 @@
     .action-button { margin: 2px; font-size: 0.9rem; }
     .modal-form { max-width: 600px; }
     .spinner { display: inline-block; margin-right: 8px; }
+
+    /* Tab navigation */
+    .tab-nav { border-bottom: 2px solid #e0e0e0; margin-bottom: 16px; display: flex; gap: 0; }
+    .tab-btn { background: none; border: none; border-bottom: 3px solid transparent; padding: 10px 22px; cursor: pointer; font-size: 1rem; color: #666; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
+    .tab-btn:hover { color: #333; }
+    .tab-btn.active { color: #00796b; border-bottom-color: #00796b; font-weight: 600; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Interventions list */
+    .int-student-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #eee; }
+    .int-student-row:hover { background: #f9f9f9; }
+    .int-student-name { font-weight: 500; }
+    .int-student-meta { font-size: 0.82rem; color: #888; }
+    .int-actions { display: flex; gap: 6px; }
+    #interventionListWrap { border: 1px solid #ddd; border-radius: 6px; overflow: hidden; }
+    .int-empty { padding: 24px; text-align: center; color: #aaa; }
+    .int-badge { display: inline-block; background: #e8f5e9; color: #2e7d32; border-radius: 12px; padding: 1px 9px; font-size: 0.78rem; margin-left: 8px; font-weight: 600; }
+
+    /* View modal table */
+    .int-view-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .int-view-table th { background: #00796b; color: #fff; padding: 8px 10px; text-align: left; }
+    .int-view-table td { padding: 7px 10px; border-bottom: 1px solid #eee; }
+    .int-view-table tr:last-child td { border-bottom: none; }
+    .int-level-chip { display: inline-block; background: #fff3e0; color: #e65100; border-radius: 10px; padding: 1px 8px; font-size: 0.78rem; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -37,6 +62,19 @@
         <input type="file" id="file-upload" style="display:none;" accept=".csv">
       </div>
     </div>
+
+    <!-- Tab Navigation -->
+    <div class="tab-nav">
+      <button class="tab-btn active" id="tab-btn-students" onclick="switchTab('students')">
+        <i class="fas fa-users"></i> Students
+      </button>
+      <button class="tab-btn" id="tab-btn-interventions" onclick="switchTab('interventions')">
+        <i class="fas fa-clipboard-list"></i> Interventions
+      </button>
+    </div>
+
+    <!-- ===== STUDENTS TAB ===== -->
+    <div id="tab-students" class="tab-content active">
 
     <!-- Filter Bar -->
     <div class="filter-bar">
@@ -66,10 +104,10 @@
             <label class="form-label">House</label>
             <select id="house-filter" class="w3-select w3-border">
               <option value="">All Houses</option>
-              <option value="Alpha">Alpha</option>
-              <option value="Beta">Beta</option>
-              <option value="Gamma">Gamma</option>
-              <option value="Delta">Delta</option>
+              <option value="Mirzakhani">Mirzakhani</option>
+              <option value="Einstein">Einstein</option>
+              <option value="Tesla">Tesla</option>
+              <option value="Staupers">Staupers</option>
             </select>
           </div>
         </div>
@@ -93,7 +131,20 @@
         </tbody>
       </table>
     </div>
-  </div>
+
+    </div><!-- end #tab-students -->
+
+    <!-- ===== INTERVENTIONS TAB ===== -->
+    <div id="tab-interventions" class="tab-content">
+      <div style="margin-bottom:14px;">
+        <input type="text" id="int-search" class="w3-input w3-border" placeholder="Search student name..." style="max-width:360px;" oninput="renderInterventionList()">
+      </div>
+      <div id="interventionListWrap">
+        <div class="int-empty" id="int-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+      </div>
+    </div><!-- end #tab-interventions -->
+
+  </div><!-- end .page-container -->
 
   <!-- Add/Edit Student Modal -->
   <div id="addEditModal" class="w3-modal">
@@ -140,10 +191,10 @@
           <label class="form-label">House</label>
           <select id="house" class="w3-select w3-border w3-margin-bottom" required>
             <option value="">Select House</option>
-            <option value="Alpha">Alpha</option>
-            <option value="Beta">Beta</option>
-            <option value="Gamma">Gamma</option>
-            <option value="Delta">Delta</option>
+            <option value="Mirzakhani">Mirzakhani</option>
+            <option value="Einstein">Einstein</option>
+            <option value="Tesla">Tesla</option>
+            <option value="Staupers">Staupers</option>
           </select>
         </div>
         
@@ -220,6 +271,73 @@
     </div>
   </div>
 
+  <!-- ===== ASSIGN INTERVENTION MODAL ===== -->
+  <div id="assignInterventionModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form" style="max-width:520px;">
+      <header class="modal-header">
+        <h3><i class="fas fa-clipboard-list"></i> Assign Intervention</h3>
+        <button class="modal-close-btn" onclick="closeAssignModal()">×</button>
+      </header>
+      <form id="assignInterventionForm" class="modal-body" onsubmit="saveIntervention(event)">
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label" style="font-weight:600;font-size:1rem;" id="assign-student-name-label">Student</label>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="int-category" class="w3-select w3-border w3-margin-bottom" required onchange="updateLevelOptions()">
+            <option value="">Select Category</option>
+            <option value="Attendance">Attendance</option>
+            <option value="Bullying/Harassment">Bullying/Harassment</option>
+            <option value="Conduct">Conduct</option>
+            <option value="Academic">Academic</option>
+            <option value="Dress Code">Dress Code</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Level</label>
+          <select id="int-level" class="w3-select w3-border w3-margin-bottom" required>
+            <option value="">Select Category First</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Date &amp; Time</label>
+          <input type="datetime-local" id="int-datetime" class="w3-input w3-border w3-margin-bottom" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Comments</label>
+          <textarea id="int-comments" class="w3-input w3-border w3-margin-bottom" rows="3" placeholder="Optional notes…"></textarea>
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="w3-button btn-primary"><i class="fas fa-save"></i> Save</button>
+          <button type="button" class="w3-button btn-ghost" onclick="closeAssignModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== VIEW INTERVENTIONS MODAL ===== -->
+  <div id="viewInterventionModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width:720px;width:95%;">
+      <header class="modal-header">
+        <h3><i class="fas fa-history"></i> Intervention History — <span id="view-student-name-label"></span></h3>
+        <button class="modal-close-btn" onclick="closeViewModal()">×</button>
+      </header>
+      <div class="modal-body" style="overflow-x:auto;padding-bottom:0;">
+        <div id="int-view-content">
+          <div class="int-empty"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="w3-button btn-ghost" onclick="closeViewModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -237,6 +355,19 @@
     let currentDeleteId = null;
     let currentAttendanceId = null;
 
+    // Interventions state
+    let interventionsData = [];        // all records from Firebase
+    let assignStudentId = null;        // student being assigned
+    let viewStudentId = null;          // student being viewed
+
+    const INTERVENTION_LEVELS = {
+      'Attendance':          3,
+      'Bullying/Harassment': 3,
+      'Conduct':             6,
+      'Academic':            4,
+      'Dress Code':          4
+    };
+
     window.closeAddEditModal = closeAddEditModal;
     window.closeDeleteModal = closeDeleteModal;
     window.closeAttendanceModal = closeAttendanceModal;
@@ -244,6 +375,16 @@
     window.deleteStudent = deleteStudent;
     window.addAttendance = addAttendance;
     window.confirmDelete = confirmDelete;
+
+    // Intervention globals
+    window.switchTab = switchTab;
+    window.renderInterventionList = renderInterventionList;
+    window.openAssignModal = openAssignModal;
+    window.closeAssignModal = closeAssignModal;
+    window.saveIntervention = saveIntervention;
+    window.openViewModal = openViewModal;
+    window.closeViewModal = closeViewModal;
+    window.updateLevelOptions = updateLevelOptions;
 
     initAuth().then(user => {
       if (!user) {
@@ -258,6 +399,8 @@
       await loadStudents();
       setupEventListeners();
       renderTable();
+      // Pre-load interventions in background
+      loadInterventions().catch(() => {});
     }
 
     async function loadStudents() {
@@ -554,6 +697,185 @@
           showToast('Error parsing CSV file', 'error');
         }
       });
+    }
+
+    // =====================================================
+    // TAB SWITCHING
+    // =====================================================
+    function switchTab(tab) {
+      ['students', 'interventions'].forEach(t => {
+        document.getElementById('tab-' + t).classList.toggle('active', t === tab);
+        document.getElementById('tab-btn-' + t).classList.toggle('active', t === tab);
+      });
+      if (tab === 'interventions') {
+        renderInterventionList();
+      }
+    }
+
+    // =====================================================
+    // INTERVENTIONS — LOAD & RENDER LIST
+    // =====================================================
+    async function loadInterventions() {
+      try {
+        interventionsData = await getAll('studentInterventions');
+      } catch (err) {
+        console.error('Error loading interventions:', err);
+        interventionsData = [];
+      }
+    }
+
+    function renderInterventionList() {
+      const search = (document.getElementById('int-search')?.value || '').toLowerCase();
+      const wrap = document.getElementById('interventionListWrap');
+
+      const filtered = studentsData.filter(s => {
+        const name = `${s.firstName} ${s.lastName}`.toLowerCase();
+        return !search || name.includes(search);
+      }).sort((a, b) => a.lastName.localeCompare(b.lastName));
+
+      if (filtered.length === 0) {
+        wrap.innerHTML = '<div class="int-empty">No students found.</div>';
+        return;
+      }
+
+      wrap.innerHTML = filtered.map(s => {
+        const count = interventionsData.filter(r => r.studentId === s.id).length;
+        const badge = count > 0 ? `<span class="int-badge">${count} record${count > 1 ? 's' : ''}</span>` : '';
+        return `
+          <div class="int-student-row">
+            <div>
+              <span class="int-student-name">${s.lastName}, ${s.firstName}</span>${badge}
+              <div class="int-student-meta">${s.yearOfGraduation} · ${s.house || '—'}</div>
+            </div>
+            <div class="int-actions">
+              <button class="w3-button w3-small btn-ghost action-button" onclick="openViewModal('${s.id}')">
+                <i class="fas fa-eye"></i> View
+              </button>
+              <button class="w3-button w3-small btn-primary action-button" onclick="openAssignModal('${s.id}')">
+                <i class="fas fa-plus"></i> Assign
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    // =====================================================
+    // ASSIGN MODAL
+    // =====================================================
+    function openAssignModal(studentId) {
+      assignStudentId = studentId;
+      const s = studentsData.find(x => x.id === studentId);
+      document.getElementById('assign-student-name-label').textContent = `${s.firstName} ${s.lastName}`;
+      document.getElementById('assignInterventionForm').reset();
+      document.getElementById('int-level').innerHTML = '<option value="">Select Category First</option>';
+
+      // Default datetime to now (local)
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      const local = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      document.getElementById('int-datetime').value = local;
+
+      document.getElementById('assignInterventionModal').style.display = 'block';
+    }
+
+    function closeAssignModal() {
+      document.getElementById('assignInterventionModal').style.display = 'none';
+      assignStudentId = null;
+    }
+
+    function updateLevelOptions() {
+      const cat = document.getElementById('int-category').value;
+      const maxLevel = INTERVENTION_LEVELS[cat] || 0;
+      const sel = document.getElementById('int-level');
+      if (!cat) {
+        sel.innerHTML = '<option value="">Select Category First</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">Select Level</option>' +
+        Array.from({ length: maxLevel }, (_, i) =>
+          `<option value="${i+1}">Level ${i+1}</option>`
+        ).join('');
+    }
+
+    async function saveIntervention(e) {
+      e.preventDefault();
+      const s = studentsData.find(x => x.id === assignStudentId);
+      const record = {
+        studentId:    assignStudentId,
+        studentName:  `${s.firstName} ${s.lastName}`,
+        category:     document.getElementById('int-category').value,
+        level:        parseInt(document.getElementById('int-level').value, 10),
+        dateTime:     document.getElementById('int-datetime').value,
+        comments:     document.getElementById('int-comments').value.trim(),
+        createdAt:    new Date().toISOString()
+      };
+
+      try {
+        await addDoc('studentInterventions', record);
+        showToast('Intervention saved', 'success');
+        closeAssignModal();
+        await loadInterventions();
+        renderInterventionList();
+      } catch (err) {
+        console.error('Error saving intervention:', err);
+        showToast('Error saving intervention', 'error');
+      }
+    }
+
+    // =====================================================
+    // VIEW MODAL
+    // =====================================================
+    async function openViewModal(studentId) {
+      viewStudentId = studentId;
+      const s = studentsData.find(x => x.id === studentId);
+      document.getElementById('view-student-name-label').textContent = `${s.firstName} ${s.lastName}`;
+      document.getElementById('int-view-content').innerHTML = '<div class="int-empty"><i class="fas fa-spinner fa-spin"></i> Loading…</div>';
+      document.getElementById('viewInterventionModal').style.display = 'block';
+
+      // Ensure latest data
+      await loadInterventions();
+      const records = interventionsData
+        .filter(r => r.studentId === studentId)
+        .sort((a, b) => b.dateTime.localeCompare(a.dateTime));
+
+      const content = document.getElementById('int-view-content');
+      if (records.length === 0) {
+        content.innerHTML = '<div class="int-empty">No interventions recorded for this student yet.</div>';
+        return;
+      }
+
+      content.innerHTML = `
+        <table class="int-view-table">
+          <thead>
+            <tr>
+              <th>Date &amp; Time</th>
+              <th>Category</th>
+              <th>Level</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${records.map(r => {
+              const dt = r.dateTime ? new Date(r.dateTime) : null;
+              const dtStr = dt ? dt.toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) : r.dateTime;
+              return `<tr>
+                <td style="white-space:nowrap;">${dtStr}</td>
+                <td>${r.category}</td>
+                <td><span class="int-level-chip">Level ${r.level}</span></td>
+                <td>${r.comments || '<em style="color:#bbb;">—</em>'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    function closeViewModal() {
+      document.getElementById('viewInterventionModal').style.display = 'none';
+      viewStudentId = null;
+    }
+
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
   </script>
 </body>
