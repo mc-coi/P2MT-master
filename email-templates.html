@@ -49,7 +49,7 @@
     .no-templates p { font-size: 15px; margin: 0; }
 
     /* ── Send workflow layout ── */
-    .send-layout { display: grid; grid-template-columns: 310px 1fr; gap: 18px; align-items: start; }
+    .send-layout { display: grid; grid-template-columns: 320px 1fr; gap: 18px; align-items: start; }
     @media (max-width: 820px) { .send-layout { grid-template-columns: 1fr; } }
 
     .send-panel { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 20px; }
@@ -58,19 +58,23 @@
 
     .form-row { margin-bottom: 13px; }
     .form-row label { display: block; font-size: 12px; font-weight: 600; color: #475569; margin-bottom: 5px; }
-    .form-row select { width: 100%; padding: 8px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: var(--text-primary); outline: none; background: white; }
-    .form-row select:focus { border-color: var(--primary); }
+    .form-row select, .form-row input[type="text"] { width: 100%; padding: 8px 10px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: var(--text-primary); outline: none; background: white; box-sizing: border-box; }
+    .form-row select:focus, .form-row input[type="text"]:focus { border-color: var(--primary); }
     .form-row .hint { font-size: 11px; color: #94a3b8; margin-top: 3px; }
 
-    /* ── Recipient radio options ── */
-    .rcpt-opts { display: flex; flex-direction: column; gap: 10px; }
-    .rcpt-opt { display: flex; flex-direction: column; }
-    .rcpt-opt-label { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; }
-    .rcpt-opt-label input[type="radio"] { accent-color: var(--primary); width: 15px; height: 15px; }
-    .rcpt-sub { display: none; margin-top: 7px; padding-left: 23px; }
-    .rcpt-sub.visible { display: block; }
-    .rcpt-sub select { width: 100%; padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 14px; color: var(--text-primary); outline: none; background: white; }
-    .rcpt-sub select:focus { border-color: var(--primary); }
+    /* ── Student checklist ── */
+    .student-checklist { border: 1.5px solid #e2e8f0; border-radius: 8px; max-height: 240px; overflow-y: auto; background: #fafafa; }
+    .student-check-item { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: background .1s; }
+    .student-check-item:last-child { border-bottom: none; }
+    .student-check-item:hover { background: #f0f9ff; }
+    .student-check-item input[type="checkbox"] { accent-color: var(--primary); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+    .student-check-item label { font-size: 13px; color: var(--text-primary); cursor: pointer; flex: 1; }
+    .student-check-item .no-email { font-size: 11px; color: #94a3b8; margin-left: 4px; }
+    .checklist-empty { padding: 20px; text-align: center; color: #94a3b8; font-size: 13px; }
+    .sel-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; color: #64748b; }
+    .sel-bar button { padding: 3px 10px; border-radius: 5px; border: 1px solid #e2e8f0; background: white; font-size: 11px; font-weight: 600; cursor: pointer; color: #475569; }
+    .sel-bar button:hover { border-color: var(--primary); color: var(--primary); }
+    .sel-count { font-weight: 700; color: var(--primary); }
 
     /* ── Preview panel ── */
     .preview-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 380px; color: var(--text-muted); gap: 12px; text-align: center; }
@@ -179,7 +183,7 @@
     <div id="tab-send" style="display:none;">
       <div class="send-layout">
 
-        <!-- Left: selectors -->
+        <!-- Left: template + student selection -->
         <div class="send-panel">
           <p class="panel-section-title">Compose</p>
 
@@ -190,57 +194,24 @@
             </select>
           </div>
 
-          <div class="form-row">
-            <label>PBL Project</label>
-            <select id="send-pbl" onchange="onPblChange()">
-              <option value="">Select project…</option>
-            </select>
-          </div>
-
-          <div class="form-row">
-            <label>Event</label>
-            <select id="send-event" onchange="rebuildPreview()">
-              <option value="">None — skip event variables</option>
-            </select>
-            <div class="hint">Populates {{eventDate}}, {{eventTime}}, {{eventLocation}}, etc.</div>
-          </div>
-
           <hr class="panel-divider">
 
           <p class="panel-section-title">Recipients</p>
-          <div class="rcpt-opts">
 
-            <div class="rcpt-opt">
-              <label class="rcpt-opt-label">
-                <input type="radio" name="rcpt" value="all" checked onchange="onRcptChange()">
-                All students in project
-              </label>
+          <div class="form-row">
+            <input type="text" id="student-search" placeholder="&#xf002; Search students by name…" oninput="filterStudentList()" style="font-family: inherit;">
+          </div>
+
+          <div class="sel-bar">
+            <div>
+              <button onclick="selectAllStudents()">Select All</button>
+              <button onclick="clearStudents()" style="margin-left:4px;">Clear</button>
             </div>
+            <span><span class="sel-count" id="sel-count">0</span> selected</span>
+          </div>
 
-            <div class="rcpt-opt">
-              <label class="rcpt-opt-label">
-                <input type="radio" name="rcpt" value="team" onchange="onRcptChange()">
-                By team
-              </label>
-              <div id="sub-team" class="rcpt-sub">
-                <select id="send-team" onchange="rebuildPreview()">
-                  <option value="">Select team…</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="rcpt-opt">
-              <label class="rcpt-opt-label">
-                <input type="radio" name="rcpt" value="individual" onchange="onRcptChange()">
-                Individual student
-              </label>
-              <div id="sub-individual" class="rcpt-sub">
-                <select id="send-student" onchange="rebuildPreview()">
-                  <option value="">Select student…</option>
-                </select>
-              </div>
-            </div>
-
+          <div id="student-checklist" class="student-checklist">
+            <div class="checklist-empty">Loading students…</div>
           </div>
         </div>
 
@@ -409,7 +380,9 @@
 
     // ── Variable definitions ────────────────────────────────────────────────────
     const VARS = [
-      { key: 'studentName',    label: 'Student Name'    },
+      { key: 'studentName',    label: 'Full Name'       },
+      { key: 'firstName',      label: 'First Name'      },
+      { key: 'lastName',       label: 'Last Name'       },
       { key: 'studentEmail',   label: 'Student Email'   },
       { key: 'teamNumber',     label: 'Team #'          },
       { key: 'pblName',        label: 'Project Name'    },
@@ -452,15 +425,14 @@
       }
     }
 
-    // ── URL param handling (e.g. from PBL planner "Send Email" button) ──────────
+    // ── URL param handling ───────────────────────────────────────────────────────
     function handleUrlParams() {
       const p = new URLSearchParams(window.location.search);
       if (p.get('tab') === 'send') switchTab('send');
-      const pblId = p.get('pblId');
-      if (pblId) {
-        const sel = document.getElementById('send-pbl');
-        sel.value = pblId;
-        onPblChange();
+      const tmplId = p.get('templateId');
+      if (tmplId) {
+        document.getElementById('send-template').value = tmplId;
+        rebuildPreview();
       }
     }
 
@@ -584,83 +556,99 @@
     }
 
     // ── Send workflow ─────────────────────────────────────────────────────────────
+    let filteredStudentIds = null; // null = show all
+
     function populateSendDropdowns() {
-      // Templates
+      // Templates dropdown
       const ts = document.getElementById('send-template');
       const tv = ts.value;
       ts.innerHTML = '<option value="">Select template…</option>' +
         templates.map(t => `<option value="${t.id}">${esc(t.name || t.templateTitle || 'Untitled')}</option>`).join('');
       if (tv) ts.value = tv;
 
-      // PBL projects
-      const ps = document.getElementById('send-pbl');
-      const pv = ps.value;
-      ps.innerHTML = '<option value="">Select project…</option>' +
-        pbls.map(p => `<option value="${p.id}">${esc(p.pblName)} (${esc(p.className)})</option>`).join('');
-      if (pv) ps.value = pv;
+      // Student checklist
+      renderStudentChecklist();
     }
 
-    window.onPblChange = function() {
-      const pblId = document.getElementById('send-pbl').value;
+    function renderStudentChecklist(query = '') {
+      const list = document.getElementById('student-checklist');
+      const q    = query.toLowerCase();
+      const sorted = [...students].sort((a, b) =>
+        (a.lastName || '').localeCompare(b.lastName || '')
+      );
+      const visible = q
+        ? sorted.filter(s =>
+            `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+            (s.chattStateANumber || '').toLowerCase().includes(q)
+          )
+        : sorted;
 
-      // Events for this project
-      const projEvents = pblId ? allEvents.filter(e => e.pblId === pblId) : [];
-      const evSel = document.getElementById('send-event');
-      evSel.innerHTML = '<option value="">None — skip event variables</option>' +
-        projEvents.map(e => `<option value="${e.id}">${esc(e.category)} — ${fmtDate(e.date)}</option>`).join('');
+      if (!visible.length) {
+        list.innerHTML = `<div class="checklist-empty">${q ? 'No students match your search' : 'No students loaded'}</div>`;
+        updateSelCount();
+        return;
+      }
 
-      // Team numbers
-      const projTeams = pblId ? teams.filter(t => t.pblId === pblId) : [];
-      const teamNums  = [...new Set(projTeams.map(t => Number(t.teamNumber)))].sort((a, b) => a - b);
-      const tSel = document.getElementById('send-team');
-      tSel.innerHTML = '<option value="">Select team…</option>' +
-        teamNums.map(n => `<option value="${n}">Team ${n}</option>`).join('');
+      // Preserve existing checked state
+      const checked = getCheckedIds();
+      list.innerHTML = visible.map(s => {
+        const name    = esc(`${s.lastName}, ${s.firstName}`);
+        const isChk   = checked.has(s.id) ? 'checked' : '';
+        const noEmail = !s.email ? '<span class="no-email">(no email)</span>' : '';
+        return `<div class="student-check-item" onclick="toggleStudent('${s.id}',this)">
+          <input type="checkbox" id="chk-${s.id}" data-sid="${s.id}" ${isChk} onclick="event.stopPropagation();updateSelCount();rebuildPreview();">
+          <label for="chk-${s.id}" onclick="event.preventDefault();">${name}${noEmail}</label>
+        </div>`;
+      }).join('');
+      updateSelCount();
+    }
 
-      // Individual students (sorted by last name)
-      const sIds = [...new Set(projTeams.map(t => t.studentId))];
-      const proj$ = students.filter(s => sIds.includes(s.id))
-                            .sort((a, b) => a.lastName.localeCompare(b.lastName));
-      const sSel = document.getElementById('send-student');
-      sSel.innerHTML = '<option value="">Select student…</option>' +
-        proj$.map(s => `<option value="${s.id}">${esc(s.lastName)}, ${esc(s.firstName)}</option>`).join('');
-
+    window.toggleStudent = function(id, row) {
+      const cb = row.querySelector(`input[type="checkbox"]`);
+      cb.checked = !cb.checked;
+      updateSelCount();
       rebuildPreview();
     };
 
-    window.onRcptChange = function() {
-      const mode = document.querySelector('input[name="rcpt"]:checked')?.value || 'all';
-      document.getElementById('sub-team').classList.toggle('visible',       mode === 'team');
-      document.getElementById('sub-individual').classList.toggle('visible', mode === 'individual');
+    function getCheckedIds() {
+      const cbs = document.querySelectorAll('#student-checklist input[type="checkbox"]:checked');
+      return new Set([...cbs].map(c => c.dataset.sid));
+    }
+
+    function updateSelCount() {
+      const n = getCheckedIds().size;
+      const el = document.getElementById('sel-count');
+      if (el) el.textContent = n;
+    }
+
+    window.filterStudentList = function() {
+      const q = document.getElementById('student-search').value;
+      renderStudentChecklist(q);
+    };
+
+    window.selectAllStudents = function() {
+      document.querySelectorAll('#student-checklist input[type="checkbox"]').forEach(cb => cb.checked = true);
+      updateSelCount();
+      rebuildPreview();
+    };
+
+    window.clearStudents = function() {
+      document.querySelectorAll('#student-checklist input[type="checkbox"]').forEach(cb => cb.checked = false);
+      updateSelCount();
       rebuildPreview();
     };
 
     window.rebuildPreview = function() {
-      const tmpl  = templates.find(t => t.id === document.getElementById('send-template').value);
-      const pbl   = pbls.find(p => p.id === document.getElementById('send-pbl').value);
-      const event = allEvents.find(e => e.id === document.getElementById('send-event').value) || null;
-      const mode  = document.querySelector('input[name="rcpt"]:checked')?.value || 'all';
+      const tmpl = templates.find(t => t.id === document.getElementById('send-template').value);
+      if (!tmpl) { showEmptyPreview('Select a template to get started'); return; }
 
-      if (!tmpl || !pbl) {
-        showEmptyPreview();
-        return;
-      }
+      const checkedIds = getCheckedIds();
+      if (!checkedIds.size) { showEmptyPreview('Select at least one student to preview'); return; }
 
-      let projTeams = teams.filter(t => t.pblId === pbl.id);
-
-      if (mode === 'team') {
-        const num = Number(document.getElementById('send-team').value);
-        if (!num) { showEmptyPreview('Select a team number'); return; }
-        projTeams = projTeams.filter(t => Number(t.teamNumber) === num);
-      } else if (mode === 'individual') {
-        const sid = document.getElementById('send-student').value;
-        if (!sid) { showEmptyPreview('Select a student'); return; }
-        projTeams = projTeams.filter(t => t.studentId === sid);
-      }
-
-      const msgs = projTeams.map(entry => {
-        const student = students.find(s => s.id === entry.studentId);
+      const msgs = [...checkedIds].map(sid => {
+        const student = students.find(s => s.id === sid);
         if (!student) return null;
-        const data = buildData(student, entry, pbl, event);
+        const data = buildData(student);
         return {
           to:      student.email || '',
           name:    `${student.firstName} ${student.lastName}`,
@@ -714,11 +702,14 @@
       );
     }
 
-    function buildData(student, teamEntry, pbl, event) {
+    // Build template merge data from a student (and optional PBL/event context)
+    function buildData(student, teamEntry = null, pbl = null, event = null) {
       return {
         studentName:    `${student.firstName} ${student.lastName}`,
+        firstName:      student.firstName || '',
+        lastName:       student.lastName || '',
         studentEmail:   student.email || '',
-        teamNumber:     String(teamEntry?.teamNumber ?? ''),
+        teamNumber:     String(teamEntry?.teamNumber ?? teamEntry?.pblTeamNumber ?? ''),
         pblName:        pbl?.pblName || '',
         pblClass:       pbl?.className || '',
         sponsorName:    pbl?.pblSponsor || '',

@@ -23,7 +23,7 @@ const navItems = [
   },
 
   {
-    id: 'pbl-group', label: 'PBL', icon: 'fa-lightbulb', group: true,
+    id: 'pbl-group', label: 'Contact', icon: 'fa-paper-plane', group: true,
     children: [
       { id: 'pbl-planner',     label: 'PBL Planner', href: './pbl-planner.html',     icon: 'fa-lightbulb' },
       { id: 'email-templates', label: 'Email',        href: './email-templates.html', icon: 'fa-envelope'  },

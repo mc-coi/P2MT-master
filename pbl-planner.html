@@ -229,11 +229,105 @@
     </div>
   </div>
 
+  <!-- ══ PBL Email Modal ══════════════════════════════════════════════════════ -->
+  <div id="modal-email" style="display:none;position:fixed;inset:0;z-index:3000;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#fff;border-radius:14px;width:100%;max-width:780px;max-height:90vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.25);display:flex;flex-direction:column;">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;border-bottom:1.5px solid #e2e8f0;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:38px;height:38px;border-radius:50%;background:#dbeafe;display:flex;align-items:center;justify-content:center;">
+            <i class="fas fa-envelope" style="color:#3b82f6;font-size:15px;"></i>
+          </div>
+          <div>
+            <div style="font-size:16px;font-weight:700;color:#111;">Email Team</div>
+            <div style="font-size:12px;color:#64748b;" id="email-modal-subtitle">Select a project and template</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button id="pbl-btn-outlook" onclick="pblConnectOutlook()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid #0078d4;color:#0078d4;background:white;">
+            <i class="fab fa-microsoft"></i> Connect Outlook
+          </button>
+          <button onclick="closeEmailModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1;padding:0 4px;">&times;</button>
+        </div>
+      </div>
+
+      <!-- Body: two-column -->
+      <div style="display:grid;grid-template-columns:260px 1fr;gap:0;flex:1;min-height:0;">
+
+        <!-- Left controls -->
+        <div style="padding:20px;border-right:1.5px solid #e2e8f0;display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Template</label>
+            <select id="pbl-email-template" onchange="pblRebuildPreview()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;background:white;">
+              <option value="">Select template…</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Project</label>
+            <select id="pbl-email-project" onchange="pblOnProjectChange()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;background:white;">
+              <option value="">Select project…</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Event (optional)</label>
+            <select id="pbl-email-event" onchange="pblRebuildPreview()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;background:white;">
+              <option value="">None — skip event variables</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;">Team (optional)</label>
+            <select id="pbl-email-team" onchange="pblRebuildPreview()" style="width:100%;padding:8px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;background:white;">
+              <option value="">All teams</option>
+            </select>
+          </div>
+          <div id="pbl-rcpt-info" style="font-size:12px;color:#64748b;background:#f8fafc;border-radius:7px;padding:10px;"></div>
+        </div>
+
+        <!-- Right: preview -->
+        <div style="padding:20px;display:flex;flex-direction:column;gap:12px;">
+          <div id="pbl-preview-empty" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:280px;color:#94a3b8;gap:10px;text-align:center;">
+            <i class="fas fa-envelope-open-text" style="font-size:40px;opacity:.2;"></i>
+            <p style="font-size:14px;margin:0;max-width:260px;" id="pbl-preview-msg">Select a template and project to preview</p>
+          </div>
+          <div id="pbl-preview-content" style="display:none;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;">Preview</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button id="pbl-btn-prev" onclick="pblPreviewStep(-1)" style="width:28px;height:28px;border-radius:50%;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-chevron-left"></i></button>
+                <span style="font-size:12px;color:#64748b;min-width:48px;text-align:center;" id="pbl-prev-count">1 of 1</span>
+                <button id="pbl-btn-next" onclick="pblPreviewStep(1)"  style="width:28px;height:28px;border-radius:50%;border:1.5px solid #e2e8f0;background:white;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;"><i class="fas fa-chevron-right"></i></button>
+              </div>
+            </div>
+            <div style="background:#f8fafc;border-radius:8px;padding:11px 14px;font-size:13px;border:1px solid #e2e8f0;">
+              <div style="display:flex;gap:8px;margin-bottom:4px;"><span style="font-weight:700;color:#475569;min-width:56px;">To:</span><span id="pbl-prev-to" style="color:#111;"></span></div>
+              <div style="display:flex;gap:8px;"><span style="font-weight:700;color:#475569;min-width:56px;">Subject:</span><span id="pbl-prev-subject" style="color:#111;"></span></div>
+            </div>
+            <div id="pbl-prev-body" style="border:1.5px solid #e2e8f0;border-radius:8px;padding:14px;font-size:13px;line-height:1.65;color:#111;min-height:160px;max-height:260px;overflow-y:auto;white-space:pre-wrap;background:white;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:16px 24px;border-top:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;">
+        <span style="font-size:13px;color:#64748b;" id="pbl-send-label"></span>
+        <div style="display:flex;gap:10px;">
+          <button onclick="closeEmailModal()" style="padding:9px 18px;border:1.5px solid #e2e8f0;background:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;color:#475569;">Cancel</button>
+          <button id="pbl-btn-send" onclick="pblSendAll()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 22px;background:#0078d4;color:white;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
+            <i class="fas fa-paper-plane"></i> <span id="pbl-btn-send-txt">Send</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- MSAL for Outlook sending -->
+  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <script type="module">
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
@@ -728,20 +822,281 @@
       exportCSV(headers, rows, 'pbl-teams.csv');
     }
 
-    // Navigate to Email Templates with the currently-filtered project pre-selected
-    window.emailTeamFromPlanner = function() {
-      const pblId = document.getElementById('filter-pbl-teams').value;
-      const url   = './email-templates.html?tab=send' + (pblId ? `&pblId=${encodeURIComponent(pblId)}` : '');
-      window.location.href = url;
+    // ── Email Modal ───────────────────────────────────────────────────────────────
+    let pblEmailTemplates  = [];
+    let pblPreviewMsgs     = [];
+    let pblPreviewIdx      = 0;
+    let pblMsalClient      = null;
+    let pblMsalAccount     = null;
+    const PBL_EMAIL_SCOPES = ['Mail.Send', 'User.Read'];
+
+    // Open the email modal, pre-select PBL from current filter
+    window.emailTeamFromPlanner = async function() {
+      const modal = document.getElementById('modal-email');
+      modal.style.display = 'flex';
+
+      // Load templates if not yet loaded
+      if (!pblEmailTemplates.length) {
+        try {
+          pblEmailTemplates = await getAll('p2mtTemplates');
+        } catch(e) { showToast('Could not load templates', 'error'); }
+      }
+
+      // Populate template selector
+      const tSel = document.getElementById('pbl-email-template');
+      tSel.innerHTML = '<option value="">Select template…</option>' +
+        pblEmailTemplates.map(t => `<option value="${t.id}">${escEmail(t.name || 'Untitled')}</option>`).join('');
+
+      // Populate project selector, pre-select current filter
+      const pSel = document.getElementById('pbl-email-project');
+      const currentPbl = document.getElementById('filter-pbl-teams').value;
+      pSel.innerHTML = '<option value="">Select project…</option>' +
+        pbls.map(p => `<option value="${p.id}">${escEmail(p.pblName)} (${escEmail(p.className)})</option>`).join('');
+      if (currentPbl) { pSel.value = currentPbl; pblOnProjectChange(); }
+
+      // Init MSAL from cache
+      pblInitMsalFromCache();
+      pblUpdateOutlookBtn();
+      pblRebuildPreview();
+    };
+
+    window.closeEmailModal = function() {
+      document.getElementById('modal-email').style.display = 'none';
+    };
+
+    window.pblOnProjectChange = function() {
+      const pblId = document.getElementById('pbl-email-project').value;
+      const projEvents = pblId ? events.filter(e => e.pblId === pblId) : [];
+      const eSel = document.getElementById('pbl-email-event');
+      eSel.innerHTML = '<option value="">None — skip event variables</option>' +
+        projEvents.map(e => `<option value="${e.id}">${escEmail(e.category)} — ${pblFmtDate(e.date)}</option>`).join('');
+
+      const projTeams = pblId ? teams.filter(t => t.pblId === pblId) : [];
+      const teamNums  = [...new Set(projTeams.map(t => t.pblTeamNumber || t.teamNumber))].filter(Boolean).sort((a,b)=>a-b);
+      const tSel = document.getElementById('pbl-email-team');
+      tSel.innerHTML = '<option value="">All teams</option>' +
+        teamNums.map(n => `<option value="${n}">Team ${n}</option>`).join('');
+
+      pblRebuildPreview();
+    };
+
+    window.pblRebuildPreview = function() {
+      const tmpl   = pblEmailTemplates.find(t => t.id === document.getElementById('pbl-email-template').value);
+      const pblId  = document.getElementById('pbl-email-project').value;
+      const pbl    = pbls.find(p => p.id === pblId) || null;
+      const event  = events.find(e => e.id === document.getElementById('pbl-email-event').value) || null;
+      const teamNum= document.getElementById('pbl-email-team').value;
+
+      if (!tmpl || !pbl) {
+        document.getElementById('pbl-preview-empty').style.display  = 'flex';
+        document.getElementById('pbl-preview-content').style.display = 'none';
+        document.getElementById('pbl-preview-msg').textContent = !tmpl ? 'Select a template to continue' : 'Select a project to continue';
+        document.getElementById('pbl-send-label').textContent  = '';
+        document.getElementById('pbl-btn-send-txt').textContent = 'Send';
+        document.getElementById('pbl-rcpt-info').textContent   = '';
+        return;
+      }
+
+      let projTeams = teams.filter(t => t.pblId === pblId);
+      if (teamNum) projTeams = projTeams.filter(t => String(t.pblTeamNumber || t.teamNumber) === String(teamNum));
+
+      const msgs = projTeams.map(entry => {
+        const student = students.find(s => s.id === entry.studentId);
+        if (!student) return null;
+        const data = pblBuildData(student, entry, pbl, event);
+        return {
+          to:      student.email || student.chattStateEmail || '',
+          name:    `${student.firstName} ${student.lastName}`,
+          subject: pblMerge(tmpl.subject || '', data),
+          body:    pblMerge(tmpl.body    || '', data),
+        };
+      }).filter(Boolean);
+
+      pblPreviewMsgs = msgs;
+      pblPreviewIdx  = 0;
+
+      const info = `${msgs.length} student${msgs.length !== 1 ? 's' : ''} in ${pbl.pblName}${teamNum ? ` — Team ${teamNum}` : ''}`;
+      document.getElementById('pbl-rcpt-info').textContent    = info;
+      document.getElementById('email-modal-subtitle').textContent = info;
+
+      if (!msgs.length) {
+        document.getElementById('pbl-preview-empty').style.display  = 'flex';
+        document.getElementById('pbl-preview-content').style.display = 'none';
+        document.getElementById('pbl-preview-msg').textContent = 'No students found for this selection';
+        return;
+      }
+
+      document.getElementById('pbl-preview-empty').style.display  = 'none';
+      document.getElementById('pbl-preview-content').style.display = 'flex';
+      document.getElementById('pbl-send-label').textContent  = `${msgs.length} recipient${msgs.length !== 1 ? 's' : ''}`;
+      document.getElementById('pbl-btn-send-txt').textContent = `Send ${msgs.length} Email${msgs.length !== 1 ? 's' : ''}`;
+      pblRenderSlide();
+    };
+
+    function pblRenderSlide() {
+      const msg = pblPreviewMsgs[pblPreviewIdx];
+      if (!msg) return;
+      document.getElementById('pbl-prev-to').textContent      = msg.to ? `${msg.name} <${msg.to}>` : `${msg.name} (no email)`;
+      document.getElementById('pbl-prev-subject').textContent = msg.subject;
+      document.getElementById('pbl-prev-body').textContent    = msg.body;
+      document.getElementById('pbl-prev-count').textContent   = `${pblPreviewIdx + 1} of ${pblPreviewMsgs.length}`;
+      document.getElementById('pbl-btn-prev').disabled = pblPreviewIdx === 0;
+      document.getElementById('pbl-btn-next').disabled = pblPreviewIdx === pblPreviewMsgs.length - 1;
+    }
+
+    window.pblPreviewStep = function(dir) {
+      const next = pblPreviewIdx + dir;
+      if (next >= 0 && next < pblPreviewMsgs.length) { pblPreviewIdx = next; pblRenderSlide(); }
+    };
+
+    function pblBuildData(student, teamEntry, pbl, event) {
+      return {
+        studentName:    `${student.firstName} ${student.lastName}`,
+        firstName:      student.firstName || '',
+        lastName:       student.lastName  || '',
+        studentEmail:   student.email || student.chattStateEmail || '',
+        teamNumber:     String(teamEntry?.pblTeamNumber || teamEntry?.teamNumber || ''),
+        pblName:        pbl?.pblName || '',
+        pblClass:       pbl?.className || '',
+        sponsorName:    pbl?.pblSponsor || '',
+        sponsorContact: pbl?.pblSponsorPersonName || '',
+        eventName:      event?.category || '',
+        eventDate:      event ? pblFmtDate(event.date) : '',
+        eventTime:      event ? pblFmtTime(event.startTime) : '',
+        eventEndTime:   event ? pblFmtTime(event.endTime) : '',
+        eventLocation:  event?.location || '',
+        eventAddress:   event ? [event.address1, event.address2].filter(Boolean).join(', ') : '',
+        eventCityState: event ? [event.city, event.state].filter(Boolean).join(', ') : '',
+      };
+    }
+
+    function pblMerge(text, data) {
+      return Object.entries(data).reduce(
+        (t, [k, v]) => t.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v ?? ''), text
+      );
+    }
+
+    function pblFmtDate(d) {
+      if (!d) return '';
+      const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? new Date(+m[1], +m[2]-1, +m[3]).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : d;
+    }
+    function pblFmtTime(t) {
+      if (!t) return '';
+      const [h, mi] = t.split(':').map(Number);
+      const d = new Date(); d.setHours(h, mi, 0);
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    function escEmail(s) {
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── MSAL for PBL email ────────────────────────────────────────────────────────
+    function pblMakeMsal(clientId) {
+      return new msal.PublicClientApplication({
+        auth: { clientId, authority: 'https://login.microsoftonline.com/common', redirectUri: window.location.origin + window.location.pathname },
+        cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
+      });
+    }
+    function pblInitMsalFromCache() {
+      const cid = localStorage.getItem('p2mt_azure_client_id');
+      if (!cid) return;
+      pblMsalClient = pblMakeMsal(cid);
+      const accts   = pblMsalClient.getAllAccounts();
+      if (accts.length) { pblMsalAccount = accts[0]; }
+    }
+    window.pblConnectOutlook = async function() {
+      let cid = localStorage.getItem('p2mt_azure_client_id');
+      if (!cid) {
+        cid = prompt('Enter your Azure Application (Client) ID:');
+        if (!cid) return;
+        localStorage.setItem('p2mt_azure_client_id', cid.trim());
+      }
+      try {
+        pblMsalClient  = pblMakeMsal(cid.trim());
+        const resp     = await pblMsalClient.loginPopup({ scopes: PBL_EMAIL_SCOPES });
+        pblMsalAccount = resp.account;
+        pblUpdateOutlookBtn();
+        showToast(`Connected as ${pblMsalAccount.username}`, 'success');
+      } catch(e) { showToast('Could not connect to Outlook', 'error'); }
+    };
+    async function pblGetToken() {
+      if (!pblMsalClient || !pblMsalAccount) throw new Error('Not connected');
+      try {
+        const r = await pblMsalClient.acquireTokenSilent({ scopes: PBL_EMAIL_SCOPES, account: pblMsalAccount });
+        return r.accessToken;
+      } catch {
+        const r = await pblMsalClient.acquireTokenPopup({ scopes: PBL_EMAIL_SCOPES });
+        pblMsalAccount = r.account;
+        return r.accessToken;
+      }
+    }
+    function pblUpdateOutlookBtn() {
+      const btn = document.getElementById('pbl-btn-outlook');
+      if (!btn) return;
+      if (pblMsalAccount) {
+        btn.style.borderColor = '#16a34a';
+        btn.style.color       = '#16a34a';
+        btn.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;margin-right:4px;"></span>${pblMsalAccount.username}`;
+        btn.onclick   = () => {};
+      } else {
+        btn.style.borderColor = '#0078d4';
+        btn.style.color       = '#0078d4';
+        btn.innerHTML = '<i class="fab fa-microsoft"></i> Connect Outlook';
+        btn.onclick   = pblConnectOutlook;
+      }
+    }
+
+    window.pblSendAll = async function() {
+      if (!pblPreviewMsgs.length) return;
+      if (!pblMsalAccount) {
+        showToast('Connect your Outlook account first', 'warning');
+        pblConnectOutlook();
+        return;
+      }
+      const btn = document.getElementById('pbl-btn-send');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+      let sent = 0, failed = 0;
+      try {
+        const token = await pblGetToken();
+        for (const msg of pblPreviewMsgs) {
+          if (!msg.to) { failed++; continue; }
+          const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              message: {
+                subject: msg.subject,
+                body: { contentType: 'Text', content: msg.body },
+                toRecipients: [{ emailAddress: { address: msg.to } }],
+              },
+              saveToSentItems: true,
+            }),
+          });
+          res.ok ? sent++ : failed++;
+        }
+        showToast(failed === 0 ? `✓ Sent ${sent} email${sent!==1?'s':''}!` : `Sent ${sent}, failed ${failed}`, failed === 0 ? 'success' : 'warning');
+        if (failed === 0) closeEmailModal();
+      } catch(e) {
+        showToast('Could not get Outlook token — please reconnect', 'error');
+        pblMsalAccount = null;
+        pblUpdateOutlookBtn();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-paper-plane"></i> <span id="pbl-btn-send-txt">Send ${pblPreviewMsgs.length} Email${pblPreviewMsgs.length!==1?'s':''}</span>`;
+      }
     };
 
     window.addEventListener('click', (event) => {
-      const modalPbl = document.getElementById('modal-pbl');
-      const modalEvent = document.getElementById('modal-event');
+      const modalPbl     = document.getElementById('modal-pbl');
+      const modalEvent   = document.getElementById('modal-event');
       const modalStudent = document.getElementById('modal-add-student');
-      if (event.target === modalPbl) modalPbl.style.display = 'none';
-      if (event.target === modalEvent) modalEvent.style.display = 'none';
+      const modalEmail   = document.getElementById('modal-email');
+      if (event.target === modalPbl)     modalPbl.style.display     = 'none';
+      if (event.target === modalEvent)   modalEvent.style.display   = 'none';
       if (event.target === modalStudent) modalStudent.style.display = 'none';
+      if (event.target === modalEmail)   modalEmail.style.display   = 'none';
     });
   </script>
 </body>
