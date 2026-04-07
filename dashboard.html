@@ -78,32 +78,6 @@
     /* ── Card for weather slot ── */
     #weatherSection { border-radius: 12px; overflow: hidden; }
 
-    /* ── Attendance alert banner ── */
-    .att-alert {
-      display: none; align-items: center; gap: 14px; flex-wrap: wrap;
-      padding: 14px 20px; border-radius: 10px; margin-bottom: 20px;
-      background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-      color: white; box-shadow: 0 4px 16px rgba(180,83,9,.35);
-      animation: bannerIn .3s cubic-bezier(.34,1.56,.64,1);
-    }
-    .att-alert.visible { display: flex; }
-    .att-alert.all-saved {
-      background: linear-gradient(135deg, #059669 0%, #047857 100%);
-      box-shadow: 0 4px 16px rgba(5,150,105,.3);
-    }
-    @keyframes bannerIn { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
-    .att-alert-icon { font-size: 22px; flex-shrink: 0; }
-    .att-alert-body { flex: 1; }
-    .att-alert-title { font-size: 15px; font-weight: 800; line-height: 1.2; }
-    .att-alert-sub   { font-size: 12px; opacity: .85; margin-top: 2px; }
-    .att-alert-btn {
-      padding: 8px 18px; border-radius: 8px; border: 2px solid rgba(255,255,255,.7);
-      background: rgba(255,255,255,.15); color: white; font-weight: 700; font-size: 13px;
-      cursor: pointer; white-space: nowrap; text-decoration: none;
-      transition: background .15s;
-    }
-    .att-alert-btn:hover { background: rgba(255,255,255,.3); }
-
     /* ── Quick-access shortcuts ── */
     .quick-access {
       display: grid;
@@ -154,41 +128,7 @@
       </div>
     </div>
 
-    <!-- Attendance alert banner -->
-    <div class="att-alert" id="att-alert">
-      <div class="att-alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
-      <div class="att-alert-body">
-        <div class="att-alert-title" id="att-alert-title">Classes have not been saved for today</div>
-        <div class="att-alert-sub"  id="att-alert-sub">Attendance logs are missing for today's date.</div>
-      </div>
-      <a href="class-attendance.html" class="att-alert-btn">
-        <i class="fas fa-calendar-check"></i> Log Attendance
-      </a>
-    </div>
-
-    <!-- Quick-access shortcuts -->
-    <div class="quick-access">
-      <a href="class-attendance.html" class="quick-btn class-att">
-        <div class="qb-icon"><i class="fas fa-calendar-check"></i></div>
-        <div class="qb-label">Class Attendance</div>
-        <div class="qb-desc">Log &amp; review student attendance by class</div>
-        <i class="fas fa-arrow-right qb-arrow"></i>
-      </a>
-      <a href="learning-lab.html" class="quick-btn learn-lab">
-        <div class="qb-icon"><i class="fas fa-flask"></i></div>
-        <div class="qb-label">Learning Lab</div>
-        <div class="qb-desc">Track student learning lab sessions</div>
-        <i class="fas fa-arrow-right qb-arrow"></i>
-      </a>
-      <a href="tmi-review.html" class="quick-btn tmi-review">
-        <div class="qb-icon"><i class="fas fa-exclamation-triangle"></i></div>
-        <div class="qb-label">TMI Review</div>
-        <div class="qb-desc">Review &amp; manage intervention records</div>
-        <i class="fas fa-arrow-right qb-arrow"></i>
-      </a>
-    </div>
-
-    <!-- Weather + Calendar row -->
+    <!-- Weather + To-Do row -->
     <div class="grid-2" style="align-items:stretch; margin-bottom:24px;">
 
       <!-- Weather -->
@@ -222,13 +162,33 @@
       </div>
     </div>
 
+    <!-- Quick-access shortcuts -->
+    <div class="quick-access">
+      <a href="class-attendance.html" class="quick-btn class-att">
+        <div class="qb-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="qb-label">Class Attendance</div>
+        <div class="qb-desc">Log &amp; review student attendance by class</div>
+        <i class="fas fa-arrow-right qb-arrow"></i>
+      </a>
+      <a href="learning-lab.html" class="quick-btn learn-lab">
+        <div class="qb-icon"><i class="fas fa-flask"></i></div>
+        <div class="qb-label">Learning Lab</div>
+        <div class="qb-desc">Track student learning lab sessions</div>
+        <i class="fas fa-arrow-right qb-arrow"></i>
+      </a>
+      <a href="tmi-review.html" class="quick-btn tmi-review">
+        <div class="qb-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="qb-label">TMI Review</div>
+        <div class="qb-desc">Review &amp; manage intervention records</div>
+        <i class="fas fa-arrow-right qb-arrow"></i>
+      </a>
+    </div>
 
   </div>
 
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll } from './js/db.js';
 
     await initAuth();
     if (!getCurrentUser()) { window.location.href = 'index.html'; }
@@ -238,70 +198,6 @@
     const today = new Date();
     document.getElementById('current-date').textContent =
       today.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-
-    // ── Attendance saved check ──────────────────────────────────────────────────
-    // Runs in the background; shows a banner if today is a weekday and no
-    // attendance logs have been saved yet.
-    (async function checkAttendanceSaved() {
-      try {
-        const dow = today.getDay(); // 0=Sun, 6=Sat
-        if (dow === 0 || dow === 6) return; // skip weekends
-
-        // Build today's ISO date without UTC shift
-        const todayISO = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
-
-        // Load both collections in parallel
-        const [schedules, logs] = await Promise.all([
-          getAll('classSchedules'),
-          getAll('classAttendanceLogs'),
-        ]);
-
-        // Need at least one class schedule to make the check meaningful
-        if (!schedules.length) return;
-
-        // Count how many unique (teacher+class) combos have logs for today
-        const todayLogs   = logs.filter(l => (l.date || l.classDate) === todayISO);
-        const loggedCombos = new Set(todayLogs.map(l => `${l.teacherLastName}::${l.className}`));
-
-        // Count expected combos from schedules active today
-        // (any schedule without endDate before today, or startDate after today, counts)
-        const expectedCombos = new Set(
-          schedules
-            .filter(s => {
-              if (s.startDate && todayISO < s.startDate) return false;
-              if (s.endDate   && todayISO > s.endDate)   return false;
-              return true;
-            })
-            .map(s => `${s.teacherLastName}::${s.className}`)
-        );
-
-        if (expectedCombos.size === 0) return;
-
-        const unsavedCount = [...expectedCombos].filter(c => !loggedCombos.has(c)).length;
-        const totalCount   = expectedCombos.size;
-
-        const banner = document.getElementById('att-alert');
-        if (unsavedCount === 0) {
-          // All saved — show a brief green confirmation
-          banner.classList.add('all-saved', 'visible');
-          document.getElementById('att-alert-title').textContent = '✓ All classes saved for today';
-          document.getElementById('att-alert-sub').textContent   = `Attendance logged for all ${totalCount} class${totalCount !== 1 ? 'es' : ''}.`;
-          banner.querySelector('.att-alert-btn').style.display    = 'none';
-          setTimeout(() => banner.classList.remove('visible'), 5000);
-        } else {
-          banner.classList.add('visible');
-          document.getElementById('att-alert-title').textContent =
-            unsavedCount === totalCount
-              ? 'Classes have not been saved for today'
-              : `${unsavedCount} of ${totalCount} classes not saved for today`;
-          document.getElementById('att-alert-sub').textContent =
-            `Today is ${today.toLocaleDateString('en-US',{weekday:'long'})} — ${unsavedCount} class${unsavedCount!==1?'es have':' has'} no attendance logged yet.`;
-        }
-      } catch(e) {
-        // Silently fail — attendance check is non-critical
-        console.warn('Attendance check error:', e);
-      }
-    })();
 
     // ══════════════════════════════════════
     //  WEATHER — Open-Meteo (no API key)
