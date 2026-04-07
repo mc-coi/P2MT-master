@@ -15,12 +15,18 @@
     <div class="filter-bar">
       <h2>School Calendar</h2>
       <div class="w3-row">
-        <div class="w3-col m6">
+        <div class="w3-col m12" style="display:flex;flex-wrap:wrap;gap:4px;padding:4px 0;">
           <button class="w3-button btn-primary w3-margin" id="btn-save-changes">
             <i class="fas fa-save"></i> Save Changes
           </button>
           <button class="w3-button btn-primary w3-margin" id="btn-add-date-range">
             <i class="fas fa-plus"></i> Add Date Range
+          </button>
+          <button class="w3-button w3-orange w3-margin" id="btn-clear-all">
+            <i class="fas fa-eraser"></i> Clear All Checks
+          </button>
+          <button class="w3-button w3-red w3-margin" id="btn-reset-dates">
+            <i class="fas fa-trash-alt"></i> Reset All Dates
           </button>
         </div>
       </div>
@@ -64,7 +70,6 @@
               <th>Jr Up</th>
               <th>Start TMI</th>
               <th>TMI Day</th>
-              <th>Day #</th>
             </tr>
           </thead>
           <tbody id="calendar-tbody">
@@ -76,9 +81,27 @@
 
   <!-- Add Date Range Modal -->
   <div id="modal-add-dates" class="w3-modal">
-    <div class="w3-modal-content w3-card w3-padding">
+    <div class="w3-modal-content w3-card w3-padding" style="max-width:460px;">
       <span class="w3-closebtn" onclick="document.getElementById('modal-add-dates').style.display='none'">&times;</span>
-      <h3>Add Date Range to Calendar</h3>
+      <h3>Add Dates to Calendar</h3>
+
+      <!-- Quick school-year shortcut -->
+      <div style="background:#f0f4ff;border-radius:8px;padding:12px;margin-bottom:16px;">
+        <label style="font-weight:600;font-size:0.9rem;">Quick Fill — School Year</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+          <select id="quick-year-select" class="w3-select w3-border" style="max-width:170px;">
+            <option value="">Select year…</option>
+            <option value="2024">2024–2025</option>
+            <option value="2025">2025–2026</option>
+            <option value="2026">2026–2027</option>
+            <option value="2027">2027–2028</option>
+            <option value="2028">2028–2029</option>
+          </select>
+          <button type="button" class="w3-button btn-primary w3-small" onclick="fillSchoolYear()">Fill Dates</button>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:5px;">Fills Aug 1 → May 31 for that school year (adjust below if needed)</div>
+      </div>
+
       <div class="w3-margin-bottom">
         <label>Start Date</label>
         <input type="date" id="input-start-date" class="w3-input w3-border w3-margin-bottom">
@@ -90,6 +113,22 @@
     </div>
   </div>
 
+  <!-- Confirm Action Modal -->
+  <div id="modal-confirm-action" class="w3-modal">
+    <div class="w3-modal-content w3-card w3-padding" style="max-width:440px;">
+      <h3 id="confirm-modal-title" style="margin-top:0;"></h3>
+      <p id="confirm-modal-body" style="color:#555;"></p>
+      <div id="confirm-delete-section" style="display:none;margin-bottom:12px;">
+        <label style="font-weight:600;font-size:0.9rem;">Type <strong>DELETE</strong> to confirm:</label>
+        <input type="text" id="confirm-delete-input" class="w3-input w3-border w3-margin-top" placeholder="Type DELETE…">
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="confirm-modal-ok" class="w3-button w3-red">Confirm</button>
+        <button class="w3-button w3-light-gray" onclick="closeConfirmModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -97,11 +136,12 @@
   <script type="module">
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, addDoc, updateDoc, getWhere } from './js/db.js';
+    import { getAll, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
     import { showToast } from './js/utils.js';
 
     let calendarData = [];
     let changedRows = new Set();
+    let pendingConfirmAction = null; // 'clear' | 'reset'
 
     initAuth().then(user => {
       initNav('school-calendar');
@@ -151,11 +191,10 @@
           <td>${getCheckboxCell('juniorUpDay', row)}</td>
           <td>${getCheckboxCell('startTmiPeriod', row)}</td>
           <td>${getCheckboxCell('tmiDay', row)}</td>
-          <td><input type="number" class="w3-input w3-small" value="${row.dayNumber || ''}" data-field="dayNumber" data-id="${row.id}" ${isWeekend ? 'disabled' : ''}></td>
         `;
 
         if (!isWeekend) {
-          tr.querySelectorAll('input[type="checkbox"], input[type="number"]').forEach(input => {
+          tr.querySelectorAll('input[type="checkbox"]').forEach(input => {
             input.addEventListener('change', (e) => {
               changedRows.add(row.id);
               tr.classList.add('w3-pale-yellow');
@@ -213,11 +252,101 @@
       document.getElementById('btn-confirm-add-dates').addEventListener('click', addDateRange);
       document.getElementById('btn-load-filter').addEventListener('click', filterByDateRange);
 
+      document.getElementById('btn-clear-all').addEventListener('click', () => {
+        if (calendarData.length === 0) { showToast('No calendar data loaded', 'info'); return; }
+        pendingConfirmAction = 'clear';
+        document.getElementById('confirm-modal-title').textContent = 'Clear All Checks';
+        document.getElementById('confirm-modal-body').textContent =
+          `This will uncheck every checkbox across all ${calendarData.length} calendar dates and save to the database. The dates themselves will be kept. This cannot be undone.`;
+        document.getElementById('confirm-delete-section').style.display = 'none';
+        document.getElementById('confirm-modal-ok').textContent = 'Clear All';
+        document.getElementById('confirm-modal-ok').className = 'w3-button w3-orange';
+        document.getElementById('modal-confirm-action').style.display = 'block';
+      });
+
+      document.getElementById('btn-reset-dates').addEventListener('click', () => {
+        if (calendarData.length === 0) { showToast('No calendar data loaded', 'info'); return; }
+        pendingConfirmAction = 'reset';
+        document.getElementById('confirm-modal-title').textContent = 'Reset All Dates';
+        document.getElementById('confirm-modal-body').textContent =
+          `This will permanently delete all ${calendarData.length} dates from the calendar. This cannot be undone.`;
+        document.getElementById('confirm-delete-section').style.display = 'block';
+        document.getElementById('confirm-delete-input').value = '';
+        document.getElementById('confirm-modal-ok').textContent = 'Delete All Dates';
+        document.getElementById('confirm-modal-ok').className = 'w3-button w3-red';
+        document.getElementById('modal-confirm-action').style.display = 'block';
+      });
+
+      document.getElementById('confirm-modal-ok').addEventListener('click', handleConfirmOk);
+
       document.querySelectorAll('.w3-closebtn').forEach(btn => {
         btn.addEventListener('click', (e) => {
           e.target.closest('.w3-modal').style.display = 'none';
         });
       });
+    }
+
+    window.closeConfirmModal = function() {
+      document.getElementById('modal-confirm-action').style.display = 'none';
+      pendingConfirmAction = null;
+    };
+
+    async function handleConfirmOk() {
+      if (pendingConfirmAction === 'clear') {
+        await clearAllChecks();
+      } else if (pendingConfirmAction === 'reset') {
+        const typed = document.getElementById('confirm-delete-input').value.trim();
+        if (typed !== 'DELETE') {
+          showToast('Please type DELETE to confirm', 'warning');
+          return;
+        }
+        await resetAllDates();
+      }
+      closeConfirmModal();
+    }
+
+    // Uncheck every boolean field on every calendar row and save to Firestore
+    async function clearAllChecks() {
+      const BOOL_FIELDS = [
+        'stemSchoolDay','phaseIISchoolDay','chattStateSchoolDay',
+        'seniorErDay','seniorUpDay','juniorErDay','juniorUpDay',
+        'startTmiPeriod','tmiDay'
+      ];
+      const cleared = {};
+      BOOL_FIELDS.forEach(f => cleared[f] = false);
+
+      try {
+        showToast('Clearing all checks…', 'info');
+        await Promise.all(calendarData.map(row => updateDoc('schoolCalendar', row.id, cleared)));
+        calendarData.forEach(row => Object.assign(row, cleared));
+        changedRows.clear();
+        renderCalendarTable(calendarData);
+        showToast(`Cleared all checks on ${calendarData.length} dates`, 'success');
+      } catch (err) {
+        console.error('Error clearing checks:', err);
+        showToast('Error clearing checks', 'error');
+      }
+    }
+
+    // Delete every calendar entry from Firestore and clear local state
+    async function resetAllDates() {
+      try {
+        const count = calendarData.length;
+        showToast('Deleting all dates…', 'info');
+        await Promise.all(calendarData.map(row => deleteDoc('schoolCalendar', row.id)));
+        calendarData = [];
+        changedRows.clear();
+        renderCalendarTable([]);
+        // Reset month filter selects
+        ['filter-start-month','filter-end-month'].forEach(id => {
+          const sel = document.getElementById(id);
+          sel.innerHTML = '<option value="">Select...</option>';
+        });
+        showToast(`Deleted all ${count} calendar dates`, 'success');
+      } catch (err) {
+        console.error('Error resetting dates:', err);
+        showToast('Error deleting dates', 'error');
+      }
     }
 
     async function saveChanges() {
@@ -236,10 +365,6 @@
 
           tr.querySelectorAll('input[type="checkbox"]').forEach(input => {
             updates[input.dataset.field] = input.checked;
-          });
-
-          tr.querySelectorAll('input[type="number"]').forEach(input => {
-            updates[input.dataset.field] = parseInt(input.value) || null;
           });
 
           await updateDoc('schoolCalendar', rowId, updates);
@@ -286,7 +411,6 @@
               const newDoc = {
                 classDate: dateStr,
                 day: dayOfWeek,
-                dayNumber: null,
                 stemSchoolDay: false,
                 phaseIISchoolDay: false,
                 chattStateSchoolDay: false,
@@ -342,11 +466,21 @@
     }
 
     window.addEventListener('click', (event) => {
-      const modal = document.getElementById('modal-add-dates');
-      if (event.target === modal) {
-        modal.style.display = 'none';
-      }
+      const addModal     = document.getElementById('modal-add-dates');
+      const confirmModal = document.getElementById('modal-confirm-action');
+      if (event.target === addModal)     addModal.style.display     = 'none';
+      if (event.target === confirmModal) closeConfirmModal();
     });
+
+    // Fill start/end dates from a school year quick-select (Aug 1 → May 31)
+    window.fillSchoolYear = function() {
+      const yr = document.getElementById('quick-year-select').value;
+      if (!yr) { showToast('Please select a year first', 'warning'); return; }
+      const y = parseInt(yr, 10);
+      document.getElementById('input-start-date').value = `${y}-08-01`;
+      document.getElementById('input-end-date').value   = `${y + 1}-05-31`;
+      showToast(`Dates set to Aug 1, ${y} → May 31, ${y + 1}`, 'info');
+    };
   </script>
 </body>
 </html>

@@ -325,6 +325,7 @@
     let allPblEvents           = [];
     let allPblTeams            = [];
     let allPbls                = [];
+    let allSchoolCalendar      = [];
 
     // sections[] is the core of the new design:
     // each entry = { idx, className, isLab, schedule, students, state }
@@ -360,6 +361,8 @@
       allClassAttendanceLogs = await getAll('classAttendanceLogs');
       allStudents            = await getAll('students');
       try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
+      // School calendar (for Phase II gate + TMI period window — non-critical)
+      try { allSchoolCalendar = await getAll('schoolCalendar'); } catch(e) { allSchoolCalendar = []; }
       // PBL data for pre-filling attendance comments (non-critical)
       try {
         [allPblEvents, allPblTeams, allPbls] = await Promise.all([
@@ -430,6 +433,21 @@
         // Local Date object for display only (day name in no-classes message)
         const [yr, mo, dy] = classDate.split('-').map(Number);
         const dt = new Date(yr, mo - 1, dy);
+        const dayName     = dt.toLocaleDateString('en-US', { weekday: 'long' });
+        const displayDate = dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+
+        // ── Phase II gate ──────────────────────────────────────────────────────
+        // If the school calendar has an entry for this date and it is NOT a
+        // Phase II school day, block attendance from loading.
+        const calEntry = allSchoolCalendar.find(c => c.classDate === classDate);
+        if (calEntry && !calEntry.phaseIISchoolDay) {
+          document.getElementById('no-classes-text').textContent =
+            `${dayName}, ${displayDate} is not a Phase II school day.`;
+          document.getElementById('no-classes-message').style.display = 'block';
+          document.getElementById('filter-loading').style.display    = 'none';
+          return;
+        }
+        // (If date is not in the calendar at all, allow attendance normally)
 
         // Filter schedules: teacher + date range only.
         // We intentionally do NOT filter by classDays here — regular class
@@ -457,9 +475,6 @@
         });
 
         if (groupMap.size === 0) {
-            // Use dt (local Date object) directly — avoids formatDate's UTC shift
-          const dayName    = dt.toLocaleDateString('en-US', { weekday: 'long' });
-          const displayDate = dt.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
           document.getElementById('no-classes-text').textContent =
             `No classes found for ${teacher} on ${dayName}, ${displayDate}.`;
           document.getElementById('no-classes-message').style.display = 'block';
@@ -913,24 +928,62 @@
       return promises;
     }
 
+    // ── TMI period-window helper ──────────────────────────────────────────────
+    // Finds the TMI period that contains dateStr using the school calendar.
+    // A period begins on a 'startTmiPeriod' date and ends on the next 'tmiDay'.
+    // Returns { start, end } or null if no period is defined for dateStr.
+    function getTmiPeriodWindow(dateStr) {
+      if (!allSchoolCalendar.length) return null;
+      const sorted = allSchoolCalendar
+        .filter(c => c.classDate)
+        .sort((a, b) => a.classDate.localeCompare(b.classDate));
+
+      // Most recent startTmiPeriod on or before dateStr
+      const starts = sorted.filter(c => c.startTmiPeriod && c.classDate <= dateStr);
+      if (!starts.length) return null;
+      const periodStart = starts[starts.length - 1].classDate;
+
+      // Next tmiDay on or after that startTmiPeriod date
+      const ends = sorted.filter(c => c.tmiDay && c.classDate >= periodStart);
+      if (!ends.length) return null;
+      const periodEnd = ends[0].classDate;
+
+      // dateStr must fall within the period
+      if (dateStr > periodEnd) return null;
+      return { start: periodStart, end: periodEnd };
+    }
+
     // ── Auto-TMI (per section) ────────────────────────────────────────────────
-    // Rules: 1 U = +120 min, 3 T's in week = +90 min, manual checkbox = +120 min (cap 420)
+    // Rules: 1 U = +120 min, 3+ T's in TMI period = +90 min (once per period),
+    //        manual TMI checkbox = +120 min  (cap 420 min total)
     async function checkAndCreateTMIForSection(sec) {
       if (!currentDate || !sec.students.length) return;
 
       const MAX_TMI = 420;
 
-      // Compute Mon–Sun range for currentDate (timezone-safe)
-      const [yr, mo, dy] = currentDate.split('-').map(Number);
-      const dt     = new Date(yr, mo - 1, dy);
-      const dow    = dt.getDay();
-      const toMon  = (dow === 0) ? -6 : 1 - dow;
-      const mon    = new Date(dt); mon.setDate(dt.getDate() + toMon);
-      const sun    = new Date(mon); sun.setDate(mon.getDate() + 6);
-      const pad    = n => String(n).padStart(2, '0');
-      const toStr  = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
-      const weekStart = toStr(mon);
-      const weekEnd   = toStr(sun);
+      // Determine window: use school-calendar TMI period when available,
+      // otherwise fall back to the Mon–Sun week of currentDate.
+      const tmiPeriod = getTmiPeriodWindow(currentDate);
+      let windowStart, windowEnd;
+
+      if (tmiPeriod) {
+        windowStart = tmiPeriod.start;
+        windowEnd   = tmiPeriod.end;
+      } else {
+        // Fallback: Mon–Sun week (timezone-safe)
+        const [yr, mo, dy] = currentDate.split('-').map(Number);
+        const dt    = new Date(yr, mo - 1, dy);
+        const dow   = dt.getDay();
+        const toMon = (dow === 0) ? -6 : 1 - dow;
+        const mon   = new Date(dt); mon.setDate(dt.getDate() + toMon);
+        const sun   = new Date(mon); sun.setDate(mon.getDate() + 6);
+        const pad   = n => String(n).padStart(2, '0');
+        const toStr = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
+        windowStart = toStr(mon);
+        windowEnd   = toStr(sun);
+      }
+
+      const periodLabel = tmiPeriod ? 'TMI period' : 'week';
 
       const tmiCreated = [];
       const tmiUpdated = [];
@@ -943,24 +996,24 @@
         const uTrigger        = (code === 'U');
         const overrideTrigger = assignTmi;
 
-        // Count T codes for this student this week across every class
-        const weekTardies = allClassAttendanceLogs.filter(log => {
+        // Count T codes for this student across ALL classes within the TMI period
+        const periodTardies = allClassAttendanceLogs.filter(log => {
           const logDate = log.date || log.classDate || '';
           return (log.studentId === student.id || log.chattStateANumber === student.chattStateANumber) &&
-                 logDate >= weekStart && logDate <= weekEnd &&
+                 logDate >= windowStart && logDate <= windowEnd &&
                  log.attendanceCode === 'T';
         }).length;
 
-        // 3T rule fires only once per week
-        let threeTTrigger = (weekTardies >= 3);
+        // 3T rule fires only once per TMI period
+        let threeTTrigger = (periodTardies >= 3);
         if (threeTTrigger) {
           const already3T = allInterventions.some(i =>
             i.studentId           === student.id &&
             i.interventionType    === 'TMI'      &&
             i.triggeredBy         === '3T'       &&
             i.interventionStatus  !== 'Closed'   &&
-            (i.startDate || '') >= weekStart     &&
-            (i.startDate || '') <= weekEnd
+            (i.startDate || '') >= windowStart   &&
+            (i.startDate || '') <= windowEnd
           );
           if (already3T) threeTTrigger = false;
         }
@@ -972,7 +1025,7 @@
         const reason      = uTrigger
           ? 'Unexcused absence (+120 min)'
           : threeTTrigger
-          ? '3 tardies in one week (+90 min)'
+          ? `3 tardies in ${periodLabel} (+90 min)`
           : 'Manual override (+120 min)';
 
         // Accumulate into existing open TMI if one exists
