@@ -857,8 +857,9 @@
     function fmtTime(t) {
       if (!t) return '';
       const [h, mi] = t.split(':').map(Number);
-      const d = new Date(); d.setHours(h, mi, 0);
-      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12  = h % 12 || 12;
+      return `${h12}:${String(mi).padStart(2, '0')} ${ampm}`;
     }
     function esc(s) {
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
