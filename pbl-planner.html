@@ -1161,12 +1161,20 @@
       tSel.innerHTML = '<option value="">Select template…</option>' +
         pblEmailTemplates.map(t => `<option value="${t.id}">${escEmail(t.name || 'Untitled')}</option>`).join('');
 
-      // Populate project selector, pre-select current filter
+      // Populate project selector, pre-select based on the active class filter
       const pSel = document.getElementById('pbl-email-project');
-      const currentPbl = document.getElementById('filter-pbl-teams').value;
+      const activeClass = (document.getElementById('builder-class')?.value || '').trim();
       pSel.innerHTML = '<option value="">Select project…</option>' +
         pbls.map(p => `<option value="${p.id}">${escEmail(p.pblName)} (${escEmail(p.className)})</option>`).join('');
-      if (currentPbl) { pSel.value = currentPbl; pblOnProjectChange(); }
+
+      // If the builder is filtered to a single class, try to pre-select the matching PBL
+      if (activeClass) {
+        const matchingPbls = pbls.filter(p => p.className === activeClass);
+        if (matchingPbls.length === 1) {
+          pSel.value = matchingPbls[0].id;
+          pblOnProjectChange();
+        }
+      }
 
       // Init MSAL from cache
       pblInitMsalFromCache();
