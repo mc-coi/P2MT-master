@@ -143,7 +143,6 @@
               <th>Name</th>
               <th>Position</th>
               <th>Email</th>
-              <th>Phone</th>
               <th>House</th>
               <th>Status</th>
               <th>Actions</th>
@@ -595,7 +594,6 @@
           <td>${staff.lastName}, ${staff.firstName}</td>
           <td>${staff.position}</td>
           <td>${staff.email}</td>
-          <td>${staff.phoneNumber || ''}</td>
           <td>${staff.house || ''}</td>
           <td>${staff.status}</td>
           <td>
@@ -947,7 +945,6 @@
           'Last Name': s.lastName,
           'Position': s.position,
           'Email': s.email,
-          'Phone': s.phoneNumber || '',
           'ChattState A#': s.chattStateANumber || '',
           'Myers-Brigg': s.myersBrigg || '',
           'House': s.house || '',
@@ -1003,7 +1000,6 @@
         'Last Name': 'Smith',
         'Position': 'Teacher',
         'Email': 'jane@example.com',
-        'Phone': '555-1234',
         'ChattState A#': 'S12345',
         'Myers-Brigg': 'ENFP',
         'House': 'Beta',
@@ -1120,7 +1116,6 @@
                     lastName: row['Last Name'] || '',
                     position: row['Position'] || '',
                     email: row['Email'] || '',
-                    phoneNumber: row['Phone'] || '',
                     chattStateANumber: row['ChattState A#'] || '',
                     myersBrigg: row['Myers-Brigg'] || '',
                     house: row['House'] || '',

@@ -143,6 +143,49 @@
 
     .new-tmpl-btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; transition: opacity .15s; margin-bottom: 16px; }
     .new-tmpl-btn:hover { opacity: .9; }
+
+    /* ── Dark mode overrides ── */
+    [data-theme="dark"] .template-card { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .template-card:hover { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(16,185,129,0.15); }
+    [data-theme="dark"] .var-chip { background: rgba(59,130,246,0.15); color: #93C5FD; }
+
+    [data-theme="dark"] .card-btn.edit { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .card-btn.edit:hover { background: var(--surface-2); border-color: var(--border-strong); }
+    [data-theme="dark"] .card-btn.del { background: var(--surface); }
+    [data-theme="dark"] .card-btn.del:hover { background: var(--danger-light); }
+
+    [data-theme="dark"] .send-panel { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .form-row select,
+    [data-theme="dark"] .form-row input[type="text"] { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+
+    [data-theme="dark"] .student-checklist { background: var(--surface-2); border-color: var(--border); }
+    [data-theme="dark"] .student-check-item { border-bottom-color: var(--border); color: var(--text-primary); }
+    [data-theme="dark"] .student-check-item:hover { background: rgba(16,185,129,0.08); }
+
+    [data-theme="dark"] .sel-bar button { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .sel-bar button:hover { background: var(--surface-2); }
+
+    [data-theme="dark"] .prev-btn { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .prev-btn:hover { background: var(--surface-2); }
+    [data-theme="dark"] .preview-meta { background: var(--surface-2); border-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .preview-body-wrap { background: var(--surface-2); border-color: var(--border); color: var(--text-primary); }
+
+    [data-theme="dark"] .modal-box { background: var(--surface); }
+    [data-theme="dark"] .modal-close { color: var(--text-muted); }
+    [data-theme="dark"] .modal-close:hover { color: var(--text-primary); }
+
+    [data-theme="dark"] .var-picker { background: var(--surface-2); border-color: var(--border); }
+    [data-theme="dark"] .var-btn { background: var(--surface); color: #93C5FD; border-color: rgba(59,130,246,0.3); }
+    [data-theme="dark"] .var-btn:hover { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+    [data-theme="dark"] .azure-step-body code { background: var(--surface-2); color: var(--text-secondary); }
+
+    [data-theme="dark"] .btn-cancel { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .btn-cancel:hover { border-color: var(--border-strong); }
+
+    [data-theme="dark"] .btn-outlook.disconnected { background: var(--surface); }
+    [data-theme="dark"] .btn-outlook.disconnected:hover { background: var(--surface-2); }
+    [data-theme="dark"] .btn-outlook.connected { background: rgba(22,163,74,0.12); }
   </style>
 </head>
 <body>

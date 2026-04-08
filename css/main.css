@@ -1636,6 +1636,78 @@ select:focus-visible, textarea:focus-visible {
 [data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border-strong); }
 [data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
+/* ── Dark: hardcoded badge/chip/pill colors ───────────────────── */
+/* These use fixed hex pastels in light mode that become unreadable
+   with dark-mode white text — override every one. */
+
+[data-theme="dark"] .badge-gray     { background: #334155;                   color: #94A3B8; }
+[data-theme="dark"] .badge-purple   { background: rgba(124,58,237,0.22);     color: #C4B5FD; }
+[data-theme="dark"] .badge-cyan     { background: rgba(8,145,178,0.22);      color: #67E8F9; }
+[data-theme="dark"] .badge-orange   { background: rgba(234,88,12,0.22);      color: #FB923C; }
+[data-theme="dark"] .badge-info     { background: rgba(59,130,246,0.2);      color: #93C5FD; }
+[data-theme="dark"] .badge-success  { background: rgba(16,185,129,0.2);      color: #6EE7B7; }
+[data-theme="dark"] .badge-warning  { background: rgba(245,158,11,0.2);      color: #FDE68A; }
+[data-theme="dark"] .badge-danger   { background: rgba(239,68,68,0.2);       color: #FCA5A5; }
+
+/* Attendance code badges */
+[data-theme="dark"] .att-P { background: rgba(16,185,129,0.2);  color: #6EE7B7; }
+[data-theme="dark"] .att-T { background: rgba(245,158,11,0.2);  color: #FDE68A; }
+[data-theme="dark"] .att-E { background: rgba(59,130,246,0.2);  color: #93C5FD; }
+[data-theme="dark"] .att-U { background: rgba(239,68,68,0.2);   color: #FCA5A5; }
+[data-theme="dark"] .att-Q { background: rgba(124,58,237,0.22); color: #C4B5FD; }
+[data-theme="dark"] .att-W { background: #334155;                color: #94A3B8; }
+[data-theme="dark"] .att-H { background: rgba(234,88,12,0.22);  color: #FB923C; }
+[data-theme="dark"] .att-L { background: rgba(202,138,4,0.22);  color: #FDE047; }
+
+/* Attendance status classes (backward compat) */
+[data-theme="dark"] .attendance-present   { background: rgba(16,185,129,0.2);  color: #6EE7B7; }
+[data-theme="dark"] .attendance-tardy     { background: rgba(245,158,11,0.2);  color: #FDE68A; }
+[data-theme="dark"] .attendance-unexcused { background: rgba(239,68,68,0.2);   color: #FCA5A5; }
+[data-theme="dark"] .attendance-excused   { background: rgba(59,130,246,0.2);  color: #93C5FD; }
+[data-theme="dark"] .attendance-quarantine{ background: rgba(124,58,237,0.22); color: #C4B5FD; }
+[data-theme="dark"] .attendance-withdrawn { background: #334155;               color: #94A3B8; }
+[data-theme="dark"] .attendance-homebound { background: rgba(234,88,12,0.22);  color: #FB923C; }
+[data-theme="dark"] .attendance-late-start{ background: rgba(202,138,4,0.22);  color: #FDE047; }
+
+/* Intervention level badges */
+[data-theme="dark"] .level-1 { background: rgba(16,185,129,0.2);  color: #6EE7B7; }
+[data-theme="dark"] .level-2 { background: rgba(16,185,129,0.2);  color: #6EE7B7; }
+[data-theme="dark"] .level-3 { background: rgba(245,158,11,0.2);  color: #FDE68A; }
+[data-theme="dark"] .level-4 { background: rgba(234,88,12,0.22);  color: #FB923C; }
+[data-theme="dark"] .level-5 { background: rgba(239,68,68,0.2);   color: #FCA5A5; }
+
+/* Day badges */
+[data-theme="dark"] .day-M  { background: rgba(59,130,246,0.2);  color: #93C5FD; }
+[data-theme="dark"] .day-T  { background: rgba(8,145,178,0.22);  color: #67E8F9; }
+[data-theme="dark"] .day-W  { background: rgba(16,185,129,0.2);  color: #6EE7B7; }
+[data-theme="dark"] .day-Th { background: rgba(234,88,12,0.22);  color: #FB923C; }
+[data-theme="dark"] .day-F  { background: rgba(124,58,237,0.22); color: #C4B5FD; }
+
+/* Badge-intervention backward compat */
+[data-theme="dark"] .badge-intervention-low    { background: rgba(16,185,129,0.2); color: #6EE7B7; }
+[data-theme="dark"] .badge-intervention-medium { background: rgba(245,158,11,0.2); color: #FDE68A; }
+[data-theme="dark"] .badge-intervention-high   { background: rgba(239,68,68,0.2);  color: #FCA5A5; }
+
+/* Dark: stat icon tints */
+[data-theme="dark"] .stat-icon.blue   { background: rgba(59,130,246,0.2);  color: #93C5FD; }
+[data-theme="dark"] .stat-icon.green  { background: rgba(16,185,129,0.2);  color: #6EE7B7; }
+[data-theme="dark"] .stat-icon.yellow { background: rgba(245,158,11,0.2);  color: #FDE68A; }
+[data-theme="dark"] .stat-icon.red    { background: rgba(239,68,68,0.2);   color: #FCA5A5; }
+[data-theme="dark"] .stat-icon.indigo { background: rgba(16,185,129,0.2);  color: #34D399; }
+[data-theme="dark"] .stat-icon.cyan   { background: rgba(8,145,178,0.22);  color: #67E8F9; }
+
+/* Dark: alert boxes */
+[data-theme="dark"] .alert-info    { background: rgba(59,130,246,0.15);  color: #93C5FD; border-color: rgba(59,130,246,0.3); }
+[data-theme="dark"] .alert-success { background: rgba(16,185,129,0.15);  color: #6EE7B7; border-color: rgba(16,185,129,0.3); }
+[data-theme="dark"] .alert-warning { background: rgba(245,158,11,0.15);  color: #FDE68A; border-color: rgba(245,158,11,0.3); }
+[data-theme="dark"] .alert-danger  { background: rgba(239,68,68,0.15);   color: #FCA5A5; border-color: rgba(239,68,68,0.3); }
+
+/* Dark: W3 pale colors */
+[data-theme="dark"] .w3-pale-blue   { background-color: rgba(59,130,246,0.15)  !important; color: #93C5FD !important; }
+[data-theme="dark"] .w3-pale-green  { background-color: rgba(16,185,129,0.15)  !important; color: #6EE7B7 !important; }
+[data-theme="dark"] .w3-pale-yellow { background-color: rgba(245,158,11,0.15)  !important; color: #FDE68A !important; }
+[data-theme="dark"] .w3-pale-red    { background-color: rgba(239,68,68,0.15)   !important; color: #FCA5A5 !important; }
+
 /* ── Dark Mode Toggle Button ──────────────────────────────────── */
 .dark-toggle {
   display: flex;

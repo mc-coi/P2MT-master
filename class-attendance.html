@@ -150,6 +150,20 @@
       border-color: rgba(134,239,172,1) !important;
       color: white;
     }
+
+    /* ── Dark mode overrides ── */
+    [data-theme="dark"] .filter-card { background: var(--surface); }
+    [data-theme="dark"] .att-row { border-bottom-color: var(--border); }
+    [data-theme="dark"] .att-row:hover { background: var(--surface-2) !important; }
+    [data-theme="dark"] .att-row[data-code="U"] { background: rgba(220,38,38,0.1); }
+    [data-theme="dark"] .att-row[data-code="T"] { background: rgba(217,119,6,0.1); }
+    [data-theme="dark"] .att-row[data-code="E"] { background: rgba(37,99,235,0.1); }
+    [data-theme="dark"] .att-row[data-code="P"] { background: rgba(22,163,74,0.1); }
+    [data-theme="dark"] .att-row[data-code="?"] { background: var(--surface); }
+    [data-theme="dark"] .att-comment { background: var(--surface-2); border-color: var(--border); color: var(--text-primary); }
+    [data-theme="dark"] .att-legend { background: var(--surface); border-top-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .class-section { background: var(--surface); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+    [data-theme="dark"] .save-all-bar { background: var(--surface); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
   </style>
 </head>
 <body>

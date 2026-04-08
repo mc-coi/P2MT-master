@@ -39,6 +39,21 @@
     .int-view-table td { padding: 7px 10px; border-bottom: 1px solid #eee; }
     .int-view-table tr:last-child td { border-bottom: none; }
     .int-level-chip { display: inline-block; background: #fff3e0; color: #e65100; border-radius: 10px; padding: 1px 8px; font-size: 0.78rem; font-weight: 600; }
+
+    /* ── Dark mode overrides ── */
+    [data-theme="dark"] .tab-nav { border-bottom-color: var(--border); }
+    [data-theme="dark"] .tab-btn { color: var(--text-secondary); }
+    [data-theme="dark"] .tab-btn:hover { color: var(--text-primary); }
+    [data-theme="dark"] .tab-btn.active { color: #34D399; border-bottom-color: #34D399; }
+    [data-theme="dark"] .int-student-row { border-bottom-color: var(--border); }
+    [data-theme="dark"] .int-student-row:hover { background: var(--surface-2); }
+    [data-theme="dark"] .int-student-meta { color: var(--text-muted); }
+    [data-theme="dark"] #interventionListWrap { border-color: var(--border); }
+    [data-theme="dark"] .int-empty { color: var(--text-muted); }
+    [data-theme="dark"] .int-badge { background: rgba(16,185,129,0.2); color: #6EE7B7; }
+    [data-theme="dark"] .int-view-table th { background: #059669; }
+    [data-theme="dark"] .int-view-table td { border-bottom-color: var(--border); }
+    [data-theme="dark"] .int-level-chip { background: rgba(230,81,0,0.22); color: #FB923C; }
   </style>
 </head>
 <body>

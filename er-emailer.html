@@ -211,6 +211,58 @@
     .complete-chk { width: 20px; height: 20px; cursor: pointer; accent-color: #16a34a; }
 
     .att-empty { padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
+
+    /* ── Dark mode overrides ── */
+    [data-theme="dark"] .modal-box { background: var(--surface); }
+    [data-theme="dark"] .modal-close { color: var(--text-muted); }
+    [data-theme="dark"] .modal-close:hover { color: var(--text-primary); }
+    [data-theme="dark"] .modal-bd { background: rgba(2,6,23,0.7); }
+    [data-theme="dark"] .btn-cancel { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .azure-step code { background: var(--surface-2); color: var(--text-secondary); }
+
+    [data-theme="dark"] .send-bar { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .setup-card { background: var(--surface); border-color: var(--border); }
+
+    [data-theme="dark"] .btn-outlook.disconnected { background: var(--surface); }
+    [data-theme="dark"] .btn-outlook.disconnected:hover { background: var(--surface-2); }
+    [data-theme="dark"] .btn-outlook.connected { background: rgba(22,163,74,0.12); }
+
+    [data-theme="dark"] .btn-sm.outline { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
+    [data-theme="dark"] .btn-sm.danger { background: var(--surface); }
+    [data-theme="dark"] .btn-sm.danger:hover { background: var(--danger-light); }
+
+    [data-theme="dark"] .workshop-row .w-del { background: var(--surface); }
+    [data-theme="dark"] .workshop-row .w-del:hover { background: var(--danger-light); }
+    [data-theme="dark"] .add-workshop-btn { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .add-workshop-btn:hover { background: var(--surface-2); border-color: var(--primary); }
+
+    [data-theme="dark"] .var-pill { background: rgba(59,130,246,0.15); color: #93C5FD; border-color: rgba(59,130,246,0.3); }
+    [data-theme="dark"] .var-pill:hover { background: #3b82f6; color: white; border-color: #3b82f6; }
+
+    [data-theme="dark"] .notify-bar { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); }
+    [data-theme="dark"] .notify-bar .nb-label { color: #FDE68A; }
+    [data-theme="dark"] .notify-bar .nb-hint { color: #FCD34D; }
+    [data-theme="dark"] .notify-bar select { background: var(--surface); color: var(--text-primary); border-color: rgba(245,158,11,0.4); }
+
+    [data-theme="dark"] .att-er-wrap { border-color: var(--border); }
+    [data-theme="dark"] .att-er-row:hover td { background: var(--surface-2) !important; }
+    [data-theme="dark"] .att-er-row td { border-bottom-color: var(--border); }
+    [data-theme="dark"] .att-er-row.done td { background: rgba(16,185,129,0.1) !important; }
+    [data-theme="dark"] .att-er-row.done:hover td { background: rgba(16,185,129,0.18) !important; }
+    [data-theme="dark"] .att-er-row.done .att-name { color: #34D399; }
+
+    [data-theme="dark"] .att-badge.blue  { background: rgba(59,130,246,0.15);  color: #93C5FD; border-color: rgba(59,130,246,0.3); }
+    [data-theme="dark"] .att-badge.green { background: rgba(16,185,129,0.15);  color: #6EE7B7; border-color: rgba(16,185,129,0.3); }
+    [data-theme="dark"] .att-badge.red   { background: rgba(239,68,68,0.15);   color: #FCA5A5; border-color: rgba(239,68,68,0.3); }
+
+    [data-theme="dark"] .td-name { background: var(--surface); }
+    [data-theme="dark"] .att-er-row:hover .td-name { background: var(--surface-2) !important; }
+
+    [data-theme="dark"] .room-sel { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+    [data-theme="dark"] .guardian-input { background: var(--surface); }
+    [data-theme="dark"] .guardian-input:focus { background: rgba(59,130,246,0.1); }
+
+    [data-theme="dark"] .cell-chk { background: var(--surface-2); }
   </style>
 </head>
 <body>
