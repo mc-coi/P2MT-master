@@ -714,13 +714,14 @@
         pblClass:       pbl?.className || '',
         sponsorName:    pbl?.pblSponsor || '',
         sponsorContact: pbl?.pblSponsorPersonName || '',
-        eventName:      event?.category || '',
-        eventDate:      event ? fmtDate(event.date) : '',
+        eventName:      event?.eventCategory || '',
+        eventDate:      event ? fmtDate(event.eventDate) : '',
         eventTime:      event ? fmtTime(event.startTime) : '',
         eventEndTime:   event ? fmtTime(event.endTime) : '',
-        eventLocation:  event?.location || '',
-        eventAddress:   event ? [event.address1, event.address2].filter(Boolean).join(', ') : '',
-        eventCityState: event ? [event.city, event.state].filter(Boolean).join(', ') : '',
+        eventLocation:  event?.eventLocation || '',
+        eventAddress:   event ? [event.eventStreetAddress1, event.eventStreetAddress2].filter(Boolean).join(', ') : '',
+        eventCityState: event ? [event.eventCity, event.eventState].filter(Boolean).join(', ') : '',
+        eventZip:       event?.eventZip || '',
       };
     }
 

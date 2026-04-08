@@ -1289,9 +1289,10 @@
         eventDate:      event ? pblFmtDate(event.eventDate) : '',
         eventTime:      event ? pblFmtTime(event.startTime) : '',
         eventEndTime:   event ? pblFmtTime(event.endTime) : '',
-        eventLocation:  event?.location || '',
-        eventAddress:   event ? [event.address1, event.address2].filter(Boolean).join(', ') : '',
-        eventCityState: event ? [event.city, event.state].filter(Boolean).join(', ') : '',
+        eventLocation:  event?.eventLocation || '',
+        eventAddress:   event ? [event.eventStreetAddress1, event.eventStreetAddress2].filter(Boolean).join(', ') : '',
+        eventCityState: event ? [event.eventCity, event.eventState].filter(Boolean).join(', ') : '',
+        eventZip:       event?.eventZip || '',
       };
     }
 
