@@ -69,6 +69,34 @@
           <input type="file" id="file-upload-students" style="display:none;" accept=".csv">
         </div>
       </div>
+      <!-- Student Filters -->
+      <div class="w3-row w3-margin-bottom">
+        <div class="w3-col m4 w3-padding-small">
+          <select id="admin-house-filter" class="w3-select w3-border">
+            <option value="">All Houses</option>
+            <option value="Mirzakhani">Mirzakhani</option>
+            <option value="Staupers">Staupers</option>
+            <option value="Tesla">Tesla</option>
+            <option value="Einstein">Einstein</option>
+          </select>
+        </div>
+        <div class="w3-col m4 w3-padding-small">
+          <select id="admin-grade-filter" class="w3-select w3-border">
+            <option value="">All Grad Years</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+            <option value="2028">2028</option>
+            <option value="2029">2029</option>
+            <option value="2030">2030</option>
+          </select>
+        </div>
+        <div class="w3-col m4 w3-padding-small">
+          <button class="w3-button w3-light-grey w3-border w3-round" onclick="clearStudentFilters()" style="width:100%;">
+            <i class="fas fa-times"></i> Clear Filters
+          </button>
+        </div>
+      </div>
       <div class="w3-card w3-white w3-responsive">
         <table id="studentsTable" class="w3-table w3-striped w3-bordered">
           <thead class="w3-teal">
@@ -314,14 +342,6 @@
             <input type="email" id="staff-email" class="w3-input w3-border" required></div>
         </div>
         <div class="form-row">
-          <div><label class="w3-text-teal"><b>Phone</b></label>
-            <input type="tel" id="staff-phoneNumber" class="w3-input w3-border"></div>
-          <div><label class="w3-text-teal"><b>ChattState A#</b></label>
-            <input type="text" id="staff-chattStateANumber" class="w3-input w3-border"></div>
-        </div>
-        <div class="form-row">
-          <div><label class="w3-text-teal"><b>Myers-Brigg</b></label>
-            <input type="text" id="staff-myersBrigg" class="w3-input w3-border"></div>
           <div><label class="w3-text-teal"><b>House</b></label>
             <select id="staff-house" class="w3-select w3-border">
               <option value="">Select</option>
@@ -330,18 +350,12 @@
               <option value="Tesla">Tesla</option>
               <option value="Einstein">Einstein</option>
             </select></div>
-        </div>
-        <div class="form-row">
-          <div><label class="w3-text-teal"><b>House Grade</b></label>
-            <input type="text" id="staff-houseGrade" class="w3-input w3-border"></div>
           <div><label class="w3-text-teal"><b>Status</b></label>
             <select id="staff-status" class="w3-select w3-border">
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select></div>
         </div>
-        <label class="w3-text-teal"><b>Twitter Account</b></label>
-        <input type="text" id="staff-twitterAccount" class="w3-input w3-border w3-margin-bottom">
         <button type="submit" class="w3-button btn-primary w3-round">Save</button>
       </form>
     </div>
@@ -528,12 +542,30 @@
 
       document.getElementById('btn-add-intervention-type').addEventListener('click', () => openInterventionTypeModal());
       document.getElementById('interventionTypeForm').addEventListener('submit', handleInterventionTypeFormSubmit);
+
+      document.getElementById('admin-house-filter').addEventListener('change', renderStudentsTable);
+      document.getElementById('admin-grade-filter').addEventListener('change', renderStudentsTable);
     }
 
+    window.clearStudentFilters = function() {
+      document.getElementById('admin-house-filter').value = '';
+      document.getElementById('admin-grade-filter').value = '';
+      renderStudentsTable();
+    };
+
     function renderStudentsTable() {
+      const houseFilter = document.getElementById('admin-house-filter').value;
+      const gradeFilter = document.getElementById('admin-grade-filter').value;
+
+      const filtered = studentsData.filter(s => {
+        if (houseFilter && s.house !== houseFilter) return false;
+        if (gradeFilter && String(s.yearOfGraduation) !== gradeFilter) return false;
+        return true;
+      });
+
       const tbody = document.getElementById('students-tbody');
       tbody.innerHTML = '';
-      studentsData.forEach(student => {
+      filtered.forEach(student => {
         const row = tbody.insertRow();
         row.innerHTML = `
           <td>${student.lastName}, ${student.firstName}</td>
@@ -711,12 +743,7 @@
       document.getElementById('staff-lastName').value = staff.lastName;
       document.getElementById('staff-position').value = staff.position;
       document.getElementById('staff-email').value = staff.email;
-      document.getElementById('staff-phoneNumber').value = staff.phoneNumber || '';
-      document.getElementById('staff-chattStateANumber').value = staff.chattStateANumber || '';
-      document.getElementById('staff-myersBrigg').value = staff.myersBrigg || '';
       document.getElementById('staff-house').value = staff.house || '';
-      document.getElementById('staff-houseGrade').value = staff.houseGrade || '';
-      document.getElementById('staff-twitterAccount').value = staff.twitterAccount || '';
       document.getElementById('staff-status').value = staff.status;
       
       document.getElementById('staffModal').style.display = 'block';
@@ -729,12 +756,7 @@
         lastName: document.getElementById('staff-lastName').value,
         position: document.getElementById('staff-position').value,
         email: document.getElementById('staff-email').value,
-        phoneNumber: document.getElementById('staff-phoneNumber').value,
-        chattStateANumber: document.getElementById('staff-chattStateANumber').value,
-        myersBrigg: document.getElementById('staff-myersBrigg').value,
         house: document.getElementById('staff-house').value,
-        houseGrade: document.getElementById('staff-houseGrade').value,
-        twitterAccount: document.getElementById('staff-twitterAccount').value,
         status: document.getElementById('staff-status').value
       };
 

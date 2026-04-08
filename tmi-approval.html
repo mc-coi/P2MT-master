@@ -104,17 +104,12 @@
           <thead>
             <tr class="btn-primary">
               <th>Student Name</th>
-              <th>ChattState A#</th>
-              <th>Grad Year</th>
-              <th>House</th>
               <th>TMI Minutes Assigned</th>
               <th>TMI Served</th>
               <th>TMI Remaining</th>
               <th>Status</th>
               <th>Reason</th>
               <th>Teacher Review</th>
-              <th>Parent Notified</th>
-              <th>Student Notified</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -123,6 +118,33 @@
       </div>
       <div id="noDataMsg" class="w3-panel btn-ghost w3-round w3-center">
         Select TMI period dates and load data to begin final approval process.
+      </div>
+    </div>
+  </div>
+
+  <!-- Email Student Modal -->
+  <div id="emailStudentModal" class="w3-modal" style="display:none;z-index:10;">
+    <div class="w3-modal-content w3-card-4 modal-content" style="max-width:660px;">
+      <header class="modal-header">
+        <button class="modal-close-btn" onclick="closeModal('emailStudentModal')">×</button>
+        <h2><i class="fas fa-envelope"></i> Email Student</h2>
+      </header>
+      <div class="page-container">
+        <p style="margin:0 0 12px;"><b>To:</b> <span id="email-student-name" style="color:#2563eb;"></span></p>
+        <label style="font-weight:600;display:block;margin-bottom:4px;">Select Template</label>
+        <select id="email-template-select" class="w3-select w3-border w3-margin-bottom" style="max-width:400px;" onchange="previewEmailTemplate()">
+          <option value="">— Choose a template —</option>
+        </select>
+        <label style="font-weight:600;display:block;margin-bottom:4px;">Preview</label>
+        <div id="email-preview" class="w3-panel w3-white w3-border" style="min-height:120px;white-space:pre-wrap;font-size:13px;color:#334155;border-radius:6px;padding:12px;">
+          Select a template above to preview the email.
+        </div>
+        <div class="w3-bar w3-margin-top">
+          <button class="w3-bar-item w3-button btn-primary w3-round" onclick="copyEmailToClipboard()">
+            <i class="fas fa-copy"></i> Copy to Clipboard
+          </button>
+          <button class="w3-bar-item w3-button btn-ghost w3-round" onclick="closeModal('emailStudentModal')">Cancel</button>
+        </div>
       </div>
     </div>
   </div>
@@ -342,9 +364,6 @@
         let row = `
           <tr class="${rowClass}">
             <td style="font-weight:600;">${student.studentName}</td>
-            <td>${student.chattStateA}</td>
-            <td>${student.gradYear}</td>
-            <td>${student.house}</td>
             <td style="text-align:center;">${student.tmiMinutes} min</td>
             <td>
               <div class="served-cell">
@@ -370,22 +389,17 @@
               ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;"><i class="fas fa-check"></i> Reviewed</span>'
               : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;">Pending</span>'
             }</td>
-            <td><input type="checkbox" class="parent-notified" data-id="${student.id}" ${student.parentNotified ? 'checked' : ''}></td>
-            <td><input type="checkbox" class="student-notified" data-id="${student.id}" ${student.studentNotified ? 'checked' : ''}></td>
-            <td onclick="event.stopPropagation()">
+            <td onclick="event.stopPropagation()" style="white-space:nowrap;">
               <button class="w3-button w3-small btn-primary action-btn"
-                onclick="showStudentNotification('${student.id}','${student.studentName.replace(/'/g,"\\'")}')">
-                <i class="fas fa-user"></i>
+                onclick="openEmailModal('${student.id}','${student.studentName.replace(/'/g,"\\'")}',${isComplete})"
+                title="Email student">
+                <i class="fas fa-envelope"></i> Email Student
               </button>
-              <button class="w3-button w3-small btn-primary action-btn"
-                onclick="showParentNotification('${student.id}','${student.studentName.replace(/'/g,"\\'")}')">
-                <i class="fas fa-users"></i>
-              </button>
+              ${isComplete ? '' : `
               <button class="w3-button w3-small w3-green action-btn"
-                onclick="markComplete('${student.id}')"
-                title="Mark complete &amp; remove from list">
-                <i class="fas fa-check-double"></i>
-              </button>
+                onclick="markTimeServed('${student.id}','${student.studentName.replace(/'/g,"\\'")}')">
+                <i class="fas fa-check-double"></i> Time Served
+              </button>`}
             </td>
           </tr>
         `;
@@ -401,27 +415,13 @@
         await saveServedMinutes(id, served, assigned);
       });
 
-      $('.parent-notified').on('change', function() {
-        const id = $(this).data('id');
-        const s = tmiData.find(s => s.id === id);
-        if (s) s.parentNotified = $(this).prop('checked');
-        updateDoc('interventionLogs', id, { parentNotification: $(this).prop('checked') });
-      });
-
-      $('.student-notified').on('change', function() {
-        const id = $(this).data('id');
-        const s = tmiData.find(s => s.id === id);
-        if (s) s.studentNotified = $(this).prop('checked');
-        updateDoc('interventionLogs', id, { studentNotification: $(this).prop('checked') });
-      });
-
       tmiTable = $('#tmiTable').DataTable({
         paging: true,
         pageLength: 25,
         ordering: true,
         searching: true,
         destroy: true,
-        columnDefs: [{ orderable: false, targets: [5, 12] }]
+        columnDefs: [{ orderable: false, targets: [2, 7] }]
       });
     }
 
@@ -661,6 +661,74 @@
     function closeModal(modalId) {
       document.getElementById(modalId).style.display = 'none';
     }
+
+    // ── Email Student modal ───────────────────────────────────────
+    let emailModalStudent = null; // the tmiData entry currently being emailed
+
+    window.openEmailModal = function(id, name, isComplete) {
+      emailModalStudent = tmiData.find(s => s.id === id) || { id, studentName: name };
+
+      document.getElementById('email-student-name').textContent = name;
+      document.getElementById('email-preview').textContent = 'Select a template above to preview the email.';
+
+      // Populate template dropdown
+      const sel = document.getElementById('email-template-select');
+      sel.innerHTML = '<option value="">— Choose a template —</option>';
+      templates.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.templateName || t.emailSubject || '(untitled)';
+        sel.appendChild(opt);
+      });
+
+      document.getElementById('emailStudentModal').style.display = 'block';
+    };
+
+    window.previewEmailTemplate = function() {
+      const sel = document.getElementById('email-template-select');
+      const tmpl = templates.find(t => t.id === sel.value);
+      if (!tmpl) {
+        document.getElementById('email-preview').textContent = 'Select a template above to preview the email.';
+        return;
+      }
+      // Merge student name if template uses {{studentName}}
+      const studentName = emailModalStudent?.studentName || '';
+      const tmiMinutes  = emailModalStudent?.tmiMinutes  || '';
+      const tmiServed   = emailModalStudent?.tmiServed   || '';
+      const tmiRemaining = emailModalStudent?.tmiRemaining || '';
+      let body = (tmpl.templateContent || '')
+        .replace(/\{\{studentName\}\}/gi, studentName)
+        .replace(/\{\{tmiMinutes\}\}/gi, tmiMinutes)
+        .replace(/\{\{tmiServed\}\}/gi, tmiServed)
+        .replace(/\{\{tmiRemaining\}\}/gi, tmiRemaining);
+      document.getElementById('email-preview').textContent = body;
+    };
+
+    window.copyEmailToClipboard = function() {
+      const text = document.getElementById('email-preview').textContent;
+      navigator.clipboard.writeText(text).then(() => showToast('Email copied to clipboard', 'success'));
+    };
+
+    // ── Mark time served (close record) ──────────────────────────
+    window.markTimeServed = async function(id, name) {
+      if (!confirm(`Mark ${name} as time served and remove from the list?`)) return;
+      try {
+        const item = tmiData.find(s => s.id === id);
+        await updateDoc('interventionLogs', id, {
+          interventionStatus:  'Closed',
+          tmiMinutesServed:    item ? item.tmiMinutes : undefined,
+          tmiMinutesRemaining: 0,
+          completedAt: new Date().toISOString()
+        });
+        tmiData = tmiData.filter(s => s.id !== id);
+        renderTMITable();
+        refreshSummary();
+        showToast(`${name} marked as time served — removed from list`, 'success');
+      } catch (err) {
+        console.error(err);
+        showToast('Error marking time served', 'error');
+      }
+    };
 
     window.showStudentNotification = showStudentNotification;
     window.showParentNotification = showParentNotification;

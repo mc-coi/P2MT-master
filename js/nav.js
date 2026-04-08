@@ -27,7 +27,7 @@ const navItems = [
     children: [
       { id: 'pbl-planner',     label: 'PBL Planner', href: './pbl-planner.html',     icon: 'fa-lightbulb' },
       { id: 'email-templates', label: 'Email',        href: './email-templates.html', icon: 'fa-envelope'  },
-      { id: 'er-emailer',      label: 'ER Emailer',   href: './er-emailer.html',      icon: 'fa-bolt'      },
+      { id: 'er-emailer',      label: 'ER Selector',  href: './er-emailer.html',      icon: 'fa-bolt'      },
     ]
   },
 
