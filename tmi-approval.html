@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <script src="./js/theme-init.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TMI Final Approval - P2MT</title>
   <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
@@ -533,8 +534,8 @@
       }
 
       $('#notifTo').text(studentName);
-      $('#notifSubject').text(template.emailSubject || 'TMI Notification');
-      $('#notifContent').text(template.templateContent || '');
+      $('#notifSubject').text(template.subject || template.emailSubject || 'TMI Notification');
+      $('#notifContent').text(template.body || template.templateContent || '');
       $('#copySingleNotifBtn').off('click').on('click', () => {
         copySingleNotification();
       });
@@ -554,8 +555,8 @@
 
       let parentName = parent ? parent.firstName : 'Parent';
       $('#notifTo').text(parentName);
-      $('#notifSubject').text(template.emailSubject || 'TMI Notification');
-      $('#notifContent').text(template.templateContent || '');
+      $('#notifSubject').text(template.subject || template.emailSubject || 'TMI Notification');
+      $('#notifContent').text(template.body || template.templateContent || '');
       $('#copySingleNotifBtn').off('click').on('click', () => {
         copySingleNotification();
       });
@@ -575,15 +576,15 @@
             if (template) {
               let notifHtml = `
                 <div class="filter-bar"><h3>${student.studentName} (Student)</h3>
-                  <p><b>Subject:</b> ${template.emailSubject || ''}</p>
-                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.templateContent || ''}</p>
+                  <p><b>Subject:</b> ${template.subject || template.emailSubject || ''}</p>
+                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.body || template.templateContent || ''}</p>
                 </div>
               `;
               $('#notificationsList').append(notifHtml);
               allNotifications.push({
                 to: student.studentName,
-                subject: template.emailSubject,
-                content: template.templateContent
+                subject: template.subject || template.emailSubject,
+                content: template.body || template.templateContent
               });
             }
           }
@@ -594,15 +595,15 @@
             if (template && parent) {
               let notifHtml = `
                 <div class="filter-bar"><h3>${parent.firstName} (Parent of ${student.studentName})</h3>
-                  <p><b>Subject:</b> ${template.emailSubject || ''}</p>
-                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.templateContent || ''}</p>
+                  <p><b>Subject:</b> ${template.subject || template.emailSubject || ''}</p>
+                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.body || template.templateContent || ''}</p>
                 </div>
               `;
               $('#notificationsList').append(notifHtml);
               allNotifications.push({
                 to: parent.firstName,
-                subject: template.emailSubject,
-                content: template.templateContent
+                subject: template.subject || template.emailSubject,
+                content: template.body || template.templateContent
               });
             }
           }
@@ -677,7 +678,7 @@
       templates.forEach(t => {
         const opt = document.createElement('option');
         opt.value = t.id;
-        opt.textContent = t.templateName || t.emailSubject || '(untitled)';
+        opt.textContent = t.name || t.templateName || '(untitled)';
         sel.appendChild(opt);
       });
 
@@ -696,7 +697,7 @@
       const tmiMinutes  = emailModalStudent?.tmiMinutes  || '';
       const tmiServed   = emailModalStudent?.tmiServed   || '';
       const tmiRemaining = emailModalStudent?.tmiRemaining || '';
-      let body = (tmpl.templateContent || '')
+      let body = (tmpl.body || tmpl.templateContent || '')
         .replace(/\{\{studentName\}\}/gi, studentName)
         .replace(/\{\{tmiMinutes\}\}/gi, tmiMinutes)
         .replace(/\{\{tmiServed\}\}/gi, tmiServed)

@@ -4,6 +4,13 @@
 import { getCurrentUser, signOut } from './auth.js';
 import { getInitials } from './utils.js';
 
+// ── Dark mode ─────────────────────────────────────────────────────────────────
+(function applyThemeEarly() {
+  // Run immediately (before DOMContentLoaded) so there's no flash of wrong theme
+  const saved = localStorage.getItem('p2mt-theme');
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+})();
+
 // ── Nav structure ─────────────────────────────────────────────────────────────
 // Plain items render as links; group items (group:true) render as dropdowns.
 const navItems = [
@@ -149,6 +156,8 @@ export function initNav(activePage) {
     </div>
   ` : '';
 
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
   navContainer.innerHTML = `
     <nav class="p2mt-nav">
       <a href="./dashboard.html" class="p2mt-nav-brand" title="P2MT Home">
@@ -160,6 +169,9 @@ export function initNav(activePage) {
       <div class="p2mt-nav-links" id="nav-links">${linksHTML}</div>
       <div class="p2mt-nav-right">
         ${userSectionHTML}
+        <button class="dark-toggle" id="dark-mode-toggle" aria-label="Toggle dark mode" title="${isDark ? 'Switch to light mode' : 'Switch to dark mode'}">
+          <i class="fas ${isDark ? 'fa-sun' : 'fa-moon'}"></i>
+        </button>
         <button class="p2mt-nav-mobile-toggle" id="mobile-toggle" aria-label="Open menu">
           <i class="fas fa-bars"></i>
         </button>
@@ -238,6 +250,28 @@ export function initNav(activePage) {
   if (signoutBtn) {
     signoutBtn.addEventListener('click', async () => {
       try { await signOut(); } catch (error) { console.error('Error signing out:', error); }
+    });
+  }
+
+  // ── Dark mode toggle ─────────────────────────────────────────────────────
+  const darkToggle = document.getElementById('dark-mode-toggle');
+  if (darkToggle) {
+    darkToggle.addEventListener('click', () => {
+      const html      = document.documentElement;
+      const nowDark   = html.getAttribute('data-theme') === 'dark';
+      const nextTheme = nowDark ? 'light' : 'dark';
+
+      if (nextTheme === 'dark') {
+        html.setAttribute('data-theme', 'dark');
+      } else {
+        html.removeAttribute('data-theme');
+      }
+      localStorage.setItem('p2mt-theme', nextTheme);
+
+      // Update icon + tooltip
+      const icon = darkToggle.querySelector('i');
+      if (icon) icon.className = nextTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+      darkToggle.title = nextTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
     });
   }
 }

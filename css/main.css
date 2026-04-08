@@ -1475,3 +1475,190 @@ select:focus-visible, textarea:focus-visible {
 
 /* ─── Selection ──────────────────────────────────────────────── */
 ::selection { background: rgba(79,70,229,0.2); color: var(--text-primary); }
+
+/* ═══════════════════════════════════════════════════════════════
+   DARK MODE
+   Applied via [data-theme="dark"] on <html>.
+   Primary brand colour swaps from indigo → emerald green.
+═══════════════════════════════════════════════════════════════ */
+[data-theme="dark"] {
+  /* Brand — green replaces indigo */
+  --primary:        #10B981;
+  --primary-dark:   #059669;
+  --primary-light:  #064E3B;
+  --accent:         #34D399;
+
+  /* Semantic (keep vivid enough on dark bg) */
+  --success:        #34D399;
+  --success-light:  #064E3B;
+  --warning:        #FBBF24;
+  --warning-light:  #451A03;
+  --danger:         #F87171;
+  --danger-light:   #450A0A;
+  --info:           #60A5FA;
+  --info-light:     #1E3A5F;
+
+  /* Neutrals */
+  --bg:             #0F172A;
+  --surface:        #1E293B;
+  --surface-2:      #263548;
+  --border:         #334155;
+  --border-strong:  #475569;
+
+  /* Text */
+  --text-primary:   #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted:     #64748B;
+  --text-inverted:  #0F172A;
+
+  /* Nav */
+  --nav-bg:         #020617;
+  --nav-hover:      rgba(255,255,255,0.06);
+  --nav-active-bg:  rgba(16,185,129,0.22);
+  --nav-active-text:#6EE7B7;
+  --nav-text:       #94A3B8;
+
+  /* Shadows — deeper on dark */
+  --shadow-sm:  0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md:  0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -1px rgba(0,0,0,0.2);
+  --shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -2px rgba(0,0,0,0.3);
+  --shadow-xl:  0 20px 25px -5px rgba(0,0,0,0.6), 0 10px 10px -5px rgba(0,0,0,0.3);
+}
+
+/* Dark: focus ring colour */
+[data-theme="dark"] .w3-input:focus,
+[data-theme="dark"] .w3-select:focus,
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.25);
+}
+
+/* Dark: DataTables filter focus */
+[data-theme="dark"] .dataTables_wrapper .dataTables_filter input:focus {
+  box-shadow: 0 0 0 3px rgba(16,185,129,0.25);
+}
+
+/* Dark: primary button glow */
+[data-theme="dark"] .w3-blue:hover,
+[data-theme="dark"] .btn-primary:hover {
+  box-shadow: 0 4px 12px rgba(16,185,129,0.4) !important;
+}
+
+/* Dark: spinner colour */
+[data-theme="dark"] .spinner {
+  border-color: rgba(16,185,129,0.2);
+  border-top-color: var(--primary);
+}
+
+/* Dark: selection highlight */
+[data-theme="dark"] ::selection {
+  background: rgba(16,185,129,0.3);
+  color: var(--text-primary);
+}
+
+/* Dark: table hover */
+[data-theme="dark"] .w3-table tr:hover td,
+[data-theme="dark"] table.dataTable tbody tr:hover td {
+  background: rgba(16,185,129,0.08) !important;
+}
+[data-theme="dark"] .w3-striped tbody tr:nth-child(even):hover td {
+  background: rgba(16,185,129,0.08) !important;
+}
+
+/* Dark: class info card border */
+[data-theme="dark"] .class-info-card {
+  border-color: #10B981;
+  border-left-color: #10B981;
+  background: rgba(16,185,129,0.1);
+}
+
+/* Dark: active tab btn */
+[data-theme="dark"] .tab-btn.active {
+  color: var(--primary);
+}
+
+/* Dark: badge-primary */
+[data-theme="dark"] .badge-primary {
+  background: rgba(16,185,129,0.2);
+  color: #34D399;
+}
+
+/* Dark: count badge in page header */
+[data-theme="dark"] .page-header h1 .count-badge {
+  background: rgba(16,185,129,0.2);
+  color: #34D399;
+}
+
+/* Dark: nav group menu & user dropdown get dark surface */
+[data-theme="dark"] .p2mt-nav-group-menu,
+[data-theme="dark"] .p2mt-dropdown {
+  background: var(--surface);
+  border-color: var(--border);
+}
+[data-theme="dark"] .p2mt-nav-group-menu a:hover,
+[data-theme="dark"] .p2mt-dropdown-item:hover {
+  background: var(--surface-2);
+}
+[data-theme="dark"] .p2mt-nav-group-menu a.active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-text);
+}
+
+/* Dark: modal overlay darker */
+[data-theme="dark"] .w3-modal {
+  background: rgba(2,6,23,0.75);
+}
+
+/* Dark: modal close btn */
+[data-theme="dark"] .modal-close-btn {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+[data-theme="dark"] .modal-close-btn:hover {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+/* Dark: w3-modal-content footer */
+[data-theme="dark"] .w3-modal-content footer.w3-container,
+[data-theme="dark"] .modal-footer {
+  background: var(--surface-2);
+  border-top-color: var(--border);
+}
+
+/* Dark: DataTables search icon recolor */
+[data-theme="dark"] .dataTables_wrapper .dataTables_filter input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'%3E%3C/circle%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'%3E%3C/line%3E%3C/svg%3E");
+}
+
+/* Dark: scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: var(--border-strong); }
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Dark Mode Toggle Button ──────────────────────────────────── */
+.dark-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--nav-hover);
+  color: var(--nav-text);
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition);
+  flex-shrink: 0;
+}
+.dark-toggle:hover {
+  background: rgba(255,255,255,0.12);
+  color: white;
+}
+[data-theme="dark"] .dark-toggle {
+  color: #FBBF24;
+}
+[data-theme="dark"] .dark-toggle:hover {
+  color: #FDE68A;
+}
