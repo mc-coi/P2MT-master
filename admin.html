@@ -325,10 +325,10 @@
           <div><label class="w3-text-teal"><b>House</b></label>
             <select id="staff-house" class="w3-select w3-border">
               <option value="">Select</option>
-              <option value="Alpha">Alpha</option>
-              <option value="Beta">Beta</option>
-              <option value="Gamma">Gamma</option>
-              <option value="Delta">Delta</option>
+              <option value="Mirzakhani">Mirzakhani</option>
+              <option value="Staupers">Staupers</option>
+              <option value="Tesla">Tesla</option>
+              <option value="Einstein">Einstein</option>
             </select></div>
         </div>
         <div class="form-row">
@@ -547,8 +547,8 @@
           </td>
         `;
       });
-      if (document.getElementById('studentsTable').dataTable) {
-        document.getElementById('studentsTable').dataTable.destroy();
+      if ($.fn.DataTable.isDataTable('#studentsTable')) {
+        $('#studentsTable').DataTable().destroy();
       }
       $('#studentsTable').DataTable({ paging: true, pageLength: 10, ordering: true });
     }
@@ -571,8 +571,8 @@
           </td>
         `;
       });
-      if (document.getElementById('staffTable').dataTable) {
-        document.getElementById('staffTable').dataTable.destroy();
+      if ($.fn.DataTable.isDataTable('#staffTable')) {
+        $('#staffTable').DataTable().destroy();
       }
       $('#staffTable').DataTable({ paging: true, pageLength: 10, ordering: true });
     }
@@ -596,8 +596,8 @@
         `;
       });
       
-      if (document.getElementById('parentsTable').dataTable) {
-        document.getElementById('parentsTable').dataTable.destroy();
+      if ($.fn.DataTable.isDataTable('#parentsTable')) {
+        $('#parentsTable').DataTable().destroy();
       }
       $('#parentsTable').DataTable({ paging: true, pageLength: 10, ordering: true, searching: false });
     }
@@ -616,8 +616,8 @@
           </td>
         `;
       });
-      if (document.getElementById('interventionTypesTable').dataTable) {
-        document.getElementById('interventionTypesTable').dataTable.destroy();
+      if ($.fn.DataTable.isDataTable('#interventionTypesTable')) {
+        $('#interventionTypesTable').DataTable().destroy();
       }
       $('#interventionTypesTable').DataTable({ paging: true, pageLength: 10, ordering: true });
     }
@@ -669,7 +669,7 @@
           await updateDoc('students', currentEditId, studentData);
           showToast('Student updated', 'success');
         } else {
-          await addDoc('students', generateId(), studentData);
+          await addDoc('students', studentData);
           showToast('Student added', 'success');
         }
         closeStudentModal();
@@ -743,7 +743,7 @@
           await updateDoc('staff', currentEditId, staffData);
           showToast('Staff updated', 'success');
         } else {
-          await addDoc('staff', generateId(), staffData);
+          await addDoc('staff', staffData);
           showToast('Staff added', 'success');
         }
         closeStaffModal();
