@@ -1557,13 +1557,54 @@ select:focus-visible, textarea:focus-visible {
   color: var(--text-primary);
 }
 
+/* Dark: DataTables CDN sets background-color:#fff on tbody tr directly,
+   which shows through td-level overrides. Override at the tr level first,
+   then at td level for hovers. */
+[data-theme="dark"] table.dataTable tbody tr {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] table.dataTable.stripe tbody tr.odd,
+[data-theme="dark"] table.dataTable.display tbody tr.odd,
+[data-theme="dark"] .w3-striped table.dataTable tbody tr:nth-child(odd),
+[data-theme="dark"] table.dataTable tbody tr:nth-child(odd) {
+  background-color: var(--surface) !important;
+}
+[data-theme="dark"] table.dataTable.stripe tbody tr.even,
+[data-theme="dark"] table.dataTable.display tbody tr.even,
+[data-theme="dark"] table.dataTable tbody tr:nth-child(even) {
+  background-color: var(--surface-2) !important;
+}
+
 /* Dark: table hover */
 [data-theme="dark"] .w3-table tr:hover td,
+[data-theme="dark"] table.dataTable tbody tr:hover,
 [data-theme="dark"] table.dataTable tbody tr:hover td {
-  background: rgba(16,185,129,0.08) !important;
+  background-color: rgba(16,185,129,0.1) !important;
 }
 [data-theme="dark"] .w3-striped tbody tr:nth-child(even):hover td {
-  background: rgba(16,185,129,0.08) !important;
+  background-color: rgba(16,185,129,0.1) !important;
+}
+
+/* Dark: DataTables thead */
+[data-theme="dark"] table.dataTable thead th,
+[data-theme="dark"] table.dataTable thead td {
+  color: var(--text-muted);
+  background-color: var(--surface-2) !important;
+  border-bottom-color: var(--border) !important;
+}
+
+/* Dark: DataTables paginate buttons background */
+[data-theme="dark"] .dataTables_wrapper .paginate_button {
+  background: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+}
+[data-theme="dark"] .dataTables_wrapper .dataTables_length select,
+[data-theme="dark"] .dataTables_wrapper .dataTables_filter input {
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary) !important;
 }
 
 /* Dark: class info card border */

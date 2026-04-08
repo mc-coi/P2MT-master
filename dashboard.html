@@ -116,6 +116,32 @@
       transition: opacity .15s, right .15s;
     }
     .quick-btn:hover .qb-arrow { opacity: .9; right: 18px; }
+
+    /* ── Attendance Alerts ── */
+    .alert-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      text-decoration: none; transition: background .12s;
+    }
+    .alert-row:last-child { border-bottom: none; }
+    .alert-row:hover { background: var(--surface-2); text-decoration: none; }
+    .alert-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .alert-dot.critical { background: #EF4444; box-shadow: 0 0 0 3px rgba(239,68,68,.2); }
+    .alert-dot.warning  { background: #F59E0B; box-shadow: 0 0 0 3px rgba(245,158,11,.2); }
+    .alert-name  { font-weight: 600; font-size: 13px; color: var(--text-primary); flex: 1; }
+    .alert-badge {
+      font-size: 11px; font-weight: 700; padding: 2px 9px;
+      border-radius: 999px; white-space: nowrap;
+    }
+    .alert-badge.critical { background: #FEE2E2; color: #991B1B; }
+    .alert-badge.warning  { background: #FEF3C7; color: #92400E; }
+    [data-theme="dark"] .alert-badge.critical { background: rgba(239,68,68,.2); color: #FCA5A5; }
+    [data-theme="dark"] .alert-badge.warning  { background: rgba(245,158,11,.2); color: #FDE68A; }
+    .alert-date  { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+    .alerts-empty { text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13px; }
+    .alerts-empty i { font-size: 28px; display: block; margin-bottom: 8px; opacity: .35; color: #10B981; }
   </style>
 </head>
 <body>
@@ -163,6 +189,19 @@
       </div>
     </div>
 
+    <!-- Attendance Alerts -->
+    <div class="card w3-margin-bottom">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fas fa-exclamation-triangle" style="margin-right:6px;color:#EF4444;"></i>Attendance Alerts
+        </div>
+        <span id="alert-count-badge" style="display:none;" class="badge badge-danger"></span>
+      </div>
+      <div id="alerts-body" style="padding:0;">
+        <div class="loading-container" style="padding:28px;"><div class="spinner"></div></div>
+      </div>
+    </div>
+
     <!-- Quick-access shortcuts -->
     <div class="quick-access">
       <a href="class-attendance.html" class="quick-btn class-att">
@@ -190,6 +229,7 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
+    import { getAll } from './js/db.js';
 
     await initAuth();
     if (!getCurrentUser()) { window.location.href = 'index.html'; }
@@ -353,6 +393,118 @@
 
     // Initial render
     todoRender();
+
+    // ══════════════════════════════════════
+    //  ATTENDANCE ALERTS
+    // ══════════════════════════════════════
+    (async function loadAlerts() {
+      const body = document.getElementById('alerts-body');
+      try {
+        const [students, logs] = await Promise.all([
+          getAll('students'),
+          getAll('dailyAttendanceLogs')
+        ]);
+
+        // Index students by chattStateANumber for fast lookup
+        const studentByANum = {};
+        students.forEach(s => {
+          if (s.chattStateANumber) studentByANum[s.chattStateANumber] = s;
+        });
+
+        // Group logs by chattStateANumber, sorted newest-first
+        const logsByStudent = {};
+        logs.forEach(l => {
+          if (!l.chattStateANumber) return;
+          (logsByStudent[l.chattStateANumber] = logsByStudent[l.chattStateANumber] || []).push(l);
+        });
+        for (const k in logsByStudent) {
+          logsByStudent[k].sort((a, b) => (b.absenceDate || '').localeCompare(a.absenceDate || ''));
+        }
+
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 30);
+
+        const alerts = [];
+
+        for (const [aNum, studentLogs] of Object.entries(logsByStudent)) {
+          const s = studentByANum[aNum];
+          if (!s) continue;
+
+          // 1. Consecutive unexcused absences (U) — check the most recent streak
+          let streak = 0;
+          for (const l of studentLogs) {
+            if (l.attendanceCode === 'U') streak++;
+            else break;
+          }
+          if (streak >= 3) {
+            alerts.push({
+              severity: 'critical',
+              studentId: s.id,
+              name: `${s.lastName}, ${s.firstName}`,
+              label: `${streak} consecutive unexcused`,
+              date: studentLogs[0]?.absenceDate || ''
+            });
+            continue; // don't double-alert the same student
+          }
+
+          // 2. Frequent tardies/unexcused in last 30 days
+          const recent = studentLogs.filter(l => new Date(l.absenceDate) >= cutoff);
+          const uCount = recent.filter(l => l.attendanceCode === 'U').length;
+          const tCount = recent.filter(l => l.attendanceCode === 'T').length;
+
+          if (uCount >= 3) {
+            alerts.push({
+              severity: 'critical',
+              studentId: s.id,
+              name: `${s.lastName}, ${s.firstName}`,
+              label: `${uCount} unexcused in 30 days`,
+              date: studentLogs[0]?.absenceDate || ''
+            });
+          } else if (tCount >= 3) {
+            alerts.push({
+              severity: 'warning',
+              studentId: s.id,
+              name: `${s.lastName}, ${s.firstName}`,
+              label: `${tCount} tardies in 30 days`,
+              date: studentLogs[0]?.absenceDate || ''
+            });
+          }
+        }
+
+        // Sort: critical first, then alpha by name
+        alerts.sort((a, b) => {
+          if (a.severity !== b.severity) return a.severity === 'critical' ? -1 : 1;
+          return a.name.localeCompare(b.name);
+        });
+
+        if (alerts.length === 0) {
+          body.innerHTML = `<div class="alerts-empty">
+            <i class="fas fa-check-circle"></i>
+            No attendance concerns right now — all clear!
+          </div>`;
+          return;
+        }
+
+        const badge = document.getElementById('alert-count-badge');
+        badge.textContent = alerts.length;
+        badge.style.display = 'inline-flex';
+
+        body.innerHTML = alerts.map(a => {
+          const dateStr = a.date ? new Date(a.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
+          return `<a href="student-profile.html?id=${a.studentId}" class="alert-row">
+            <span class="alert-dot ${a.severity}"></span>
+            <span class="alert-name">${a.name}</span>
+            <span class="alert-badge ${a.severity}">${a.label}</span>
+            ${dateStr ? `<span class="alert-date">Last: ${dateStr}</span>` : ''}
+            <i class="fas fa-chevron-right" style="font-size:11px;color:var(--text-muted);"></i>
+          </a>`;
+        }).join('');
+
+      } catch(e) {
+        console.error('Alert load error:', e);
+        body.innerHTML = `<div class="alerts-empty"><i class="fas fa-exclamation-circle"></i>Could not load alerts</div>`;
+      }
+    })();
 
   </script>
 </body>

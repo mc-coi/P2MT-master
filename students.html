@@ -354,6 +354,30 @@
     </div>
   </div>
 
+  <!-- ===== ASSIGN TMI MODAL ===== -->
+  <div id="assignTMIModal" class="w3-modal">
+    <div class="w3-modal-content w3-card modal-form" style="max-width:480px;">
+      <header class="modal-header">
+        <h3><i class="fas fa-clock"></i> Assign TMI — <span id="tmi-student-name-label"></span></h3>
+        <button class="modal-close-btn" onclick="closeAssignTMIModal()">×</button>
+      </header>
+      <form id="assignTMIForm" class="modal-body" onsubmit="saveAssignTMI(event)">
+        <div class="form-group">
+          <label class="form-label">TMI Minutes</label>
+          <input type="number" id="tmi-minutes" class="w3-input w3-border" min="5" step="5" placeholder="e.g. 30" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reason / Comment</label>
+          <textarea id="tmi-reason" class="w3-input w3-border" rows="3" placeholder="Why is TMI being assigned?" required></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="w3-button w3-orange"><i class="fas fa-clock"></i> Assign TMI</button>
+          <button type="button" class="w3-button btn-ghost" onclick="closeAssignTMIModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
@@ -375,6 +399,7 @@
     let interventionsData = [];        // all records from Firebase
     let assignStudentId = null;        // student being assigned
     let viewStudentId = null;          // student being viewed
+    let tmiStudentId = null;           // student receiving TMI
 
     const INTERVENTION_LEVELS = {
       'Attendance':          3,
@@ -401,6 +426,9 @@
     window.openViewModal = openViewModal;
     window.closeViewModal = closeViewModal;
     window.updateLevelOptions = updateLevelOptions;
+    window.openAssignTMIModal = openAssignTMIModal;
+    window.closeAssignTMIModal = closeAssignTMIModal;
+    window.saveAssignTMI = saveAssignTMI;
 
     initAuth().then(user => {
       if (!user) {
@@ -770,6 +798,9 @@
               <button class="w3-button w3-small btn-primary action-button" onclick="openAssignModal('${s.id}')">
                 <i class="fas fa-plus"></i> Assign
               </button>
+              <button class="w3-button w3-small w3-orange action-button" onclick="openAssignTMIModal('${s.id}')">
+                <i class="fas fa-clock"></i> Assign TMI
+              </button>
             </div>
           </div>`;
       }).join('');
@@ -892,6 +923,52 @@
 
     function generateId() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    // =====================================================
+    // ASSIGN TMI MODAL
+    // =====================================================
+    function openAssignTMIModal(studentId) {
+      tmiStudentId = studentId;
+      const s = studentsData.find(x => x.id === studentId);
+      document.getElementById('tmi-student-name-label').textContent = `${s.firstName} ${s.lastName}`;
+      document.getElementById('assignTMIForm').reset();
+      document.getElementById('assignTMIModal').style.display = 'block';
+    }
+
+    function closeAssignTMIModal() {
+      document.getElementById('assignTMIModal').style.display = 'none';
+      tmiStudentId = null;
+    }
+
+    async function saveAssignTMI(e) {
+      e.preventDefault();
+      const s = studentsData.find(x => x.id === tmiStudentId);
+      const minutes = parseInt(document.getElementById('tmi-minutes').value, 10);
+      const reason  = document.getElementById('tmi-reason').value.trim();
+
+      const record = {
+        interventionType:     'TMI',
+        interventionStatus:   'Pending',
+        studentId:            tmiStudentId,
+        studentName:          `${s.firstName} ${s.lastName}`,
+        chattStateANumber:    s.chattStateANumber || '',
+        house:                s.house || '',
+        yearOfGraduation:     s.yearOfGraduation || '',
+        tmiMinutes:           minutes,
+        tmiMinutesRemaining:  minutes,
+        comment:              reason,
+        createdAt:            new Date().toISOString()
+      };
+
+      try {
+        await addDoc('interventionLogs', record);
+        showToast(`TMI assigned to ${s.firstName} ${s.lastName}`, 'success');
+        closeAssignTMIModal();
+      } catch (err) {
+        console.error('Error assigning TMI:', err);
+        showToast('Error assigning TMI', 'error');
+      }
     }
   </script>
 </body>

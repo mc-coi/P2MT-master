@@ -229,6 +229,80 @@
             text-transform: uppercase;
         }
 
+        /* ── Parent info card ── */
+        .parent-section { margin-bottom: 20px; }
+        .parent-block-title {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: .06em; color: var(--text-muted); margin-bottom: 10px;
+            padding-bottom: 6px; border-bottom: 1px solid var(--border);
+        }
+        .parent-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px;
+        }
+
+        /* ── Contact log ── */
+        .contact-log-row {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 14px 0; border-bottom: 1px solid var(--border);
+        }
+        .contact-log-row:last-child { border-bottom: none; }
+        .contact-icon {
+            width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px; color: white;
+        }
+        .contact-icon.call    { background: #10B981; }
+        .contact-icon.email   { background: #3B82F6; }
+        .contact-icon.person  { background: #8B5CF6; }
+        .contact-icon.text    { background: #F59E0B; }
+        .contact-icon.letter  { background: #6B7280; }
+        .contact-meta { flex: 1; min-width: 0; }
+        .contact-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+        .contact-type-label { font-weight: 600; font-size: 13px; color: var(--text-primary); }
+        .contact-outcome { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+        .outcome-reached { background: #D1FAE5; color: #065F46; }
+        .outcome-voicemail { background: #FEF3C7; color: #92400E; }
+        .outcome-no-answer { background: #FEE2E2; color: #991B1B; }
+        .outcome-sent { background: #DBEAFE; color: #1E40AF; }
+        [data-theme="dark"] .outcome-reached   { background: rgba(16,185,129,.2); color: #6EE7B7; }
+        [data-theme="dark"] .outcome-voicemail { background: rgba(245,158,11,.2); color: #FDE68A; }
+        [data-theme="dark"] .outcome-no-answer { background: rgba(239,68,68,.2);  color: #FCA5A5; }
+        [data-theme="dark"] .outcome-sent      { background: rgba(59,130,246,.2); color: #93C5FD; }
+        .contact-date  { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+        .contact-notes { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+        .contact-staff { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+        /* ── Interventions tab ── */
+        .int-profile-row {
+            display: flex; align-items: flex-start; gap: 12px;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
+        }
+        .int-profile-row:last-child { border-bottom: none; }
+
+        /* ── Dark mode ── */
+        [data-theme="dark"] .avatar-circle.blue   { background: linear-gradient(135deg,#2563eb,#1d4ed8); }
+        [data-theme="dark"] .avatar-circle.green  { background: linear-gradient(135deg,#059669,#047857); }
+        [data-theme="dark"] .avatar-circle.red    { background: linear-gradient(135deg,#dc2626,#b91c1c); }
+        [data-theme="dark"] .avatar-circle.purple { background: linear-gradient(135deg,#7c3aed,#6d28d9); }
+        [data-theme="dark"] .avatar-circle.orange { background: linear-gradient(135deg,#d97706,#b45309); }
+        [data-theme="dark"] .graduation-badge { background: var(--surface-2); color: var(--text-secondary); }
+        [data-theme="dark"] .info-label  { color: var(--text-muted); }
+        [data-theme="dark"] .info-value  { color: var(--text-primary); }
+        [data-theme="dark"] .stat-small  { background: var(--surface-2); }
+        [data-theme="dark"] .stat-small-value { color: var(--text-primary); }
+        [data-theme="dark"] .stat-small-label { color: var(--text-muted); }
+        [data-theme="dark"] .class-card  { background: var(--surface); border-color: var(--border); }
+        [data-theme="dark"] .class-card .class-name { color: var(--text-primary); }
+        [data-theme="dark"] .class-card .class-detail { color: var(--text-muted); }
+        [data-theme="dark"] .class-card .class-detail i { color: var(--primary); }
+        [data-theme="dark"] .pbl-card  { background: var(--surface); border-color: var(--border); }
+        [data-theme="dark"] .pbl-card .pbl-name { color: var(--text-primary); }
+        [data-theme="dark"] .pbl-card .pbl-detail { color: var(--text-muted); }
+        [data-theme="dark"] .timeline-item::before { background: var(--border); }
+        [data-theme="dark"] .timeline-dot { background: var(--surface); border-color: var(--primary); color: var(--primary); }
+        [data-theme="dark"] .timeline-title { color: var(--text-primary); }
+        [data-theme="dark"] .profile-header-info h1 { color: var(--text-primary); }
+
         @media (max-width: 768px) {
             .profile-header-content {
                 flex-direction: column;
@@ -293,6 +367,13 @@
                 <div class="stat-value" id="stat-pbl-teams">0</div>
                 <div class="stat-label">PBL Teams</div>
             </div>
+            <div class="stat-card">
+                <div class="stat-icon yellow">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <div class="stat-value" id="stat-interventions">0</div>
+                <div class="stat-label">Interventions</div>
+            </div>
         </div>
 
         <!-- Student info card -->
@@ -324,9 +405,11 @@
 
         <!-- Tab bar -->
         <div class="tab-bar">
-            <button class="tab-btn active" onclick="switchTab(event, 'attendance')">Attendance</button>
-            <button class="tab-btn" onclick="switchTab(event, 'schedule')">Schedule</button>
-            <button class="tab-btn" onclick="switchTab(event, 'pbl')">PBL Teams</button>
+            <button class="tab-btn active" onclick="switchTab(event, 'attendance')"><i class="fas fa-calendar-check" style="margin-right:5px;"></i>Attendance</button>
+            <button class="tab-btn" onclick="switchTab(event, 'schedule')"><i class="fas fa-book" style="margin-right:5px;"></i>Schedule</button>
+            <button class="tab-btn" onclick="switchTab(event, 'pbl')"><i class="fas fa-lightbulb" style="margin-right:5px;"></i>PBL Teams</button>
+            <button class="tab-btn" onclick="switchTab(event, 'parent-contacts')"><i class="fas fa-phone" style="margin-right:5px;"></i>Parent Contacts</button>
+            <button class="tab-btn" onclick="switchTab(event, 'interventions')"><i class="fas fa-clipboard-list" style="margin-right:5px;"></i>Interventions</button>
         </div>
 
         <!-- Tab content panels -->
@@ -398,6 +481,101 @@
                 <div class="empty-subtitle">This student is not in any PBL teams</div>
             </div>
         </div>
+
+        <!-- Tab 5 - Parent Contacts -->
+        <div id="parent-contacts" class="tab-content">
+            <!-- Parent info pulled from parents collection -->
+            <div class="card w3-margin-bottom" id="parent-info-card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-users" style="margin-right:6px;"></i>Guardian Information</div>
+                </div>
+                <div class="card-body" id="parent-info-body">
+                    <div class="loading-container" style="padding:20px;"><div class="spinner"></div></div>
+                </div>
+            </div>
+            <!-- Contact log -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-history" style="margin-right:6px;"></i>Contact Log</div>
+                    <button class="w3-button btn-primary w3-small" onclick="openLogContactModal()">
+                        <i class="fas fa-plus"></i> Log Contact
+                    </button>
+                </div>
+                <div class="card-body" id="contact-log-body" style="padding-top:0;">
+                    <div class="loading-container" style="padding:20px;"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 6 - Interventions -->
+        <div id="interventions" class="tab-content">
+            <div class="card">
+                <div class="card-body" id="interventions-body">
+                    <div class="loading-container" style="padding:20px;"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Log Contact Modal -->
+    <div id="logContactModal" class="w3-modal">
+        <div class="w3-modal-content w3-card" style="max-width:480px;">
+            <header class="modal-header">
+                <h3><i class="fas fa-phone"></i> Log Parent Contact</h3>
+                <button class="modal-close-btn" onclick="closeLogContactModal()">×</button>
+            </header>
+            <form id="logContactForm" class="modal-body" onsubmit="saveContactLog(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Date</label>
+                        <input type="date" id="lc-date" class="w3-input w3-border" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Contact Type</label>
+                        <select id="lc-type" class="w3-select w3-border" required>
+                            <option value="">Select…</option>
+                            <option value="Call">📞 Phone Call</option>
+                            <option value="Email">✉️ Email</option>
+                            <option value="In-Person">🤝 In-Person</option>
+                            <option value="Text">💬 Text Message</option>
+                            <option value="Letter">📄 Letter</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Contacted</label>
+                        <select id="lc-with" class="w3-select w3-border" required>
+                            <option value="">Select…</option>
+                            <option value="Mother">Mother</option>
+                            <option value="Father">Father</option>
+                            <option value="Guardian">Guardian</option>
+                            <option value="Student">Student</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Outcome</label>
+                        <select id="lc-outcome" class="w3-select w3-border" required>
+                            <option value="">Select…</option>
+                            <option value="Reached">Reached</option>
+                            <option value="Left Voicemail">Left Voicemail</option>
+                            <option value="No Answer">No Answer</option>
+                            <option value="Email Sent">Email Sent</option>
+                            <option value="In-Person Meeting">In-Person Meeting</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea id="lc-notes" class="w3-input w3-border" rows="3" placeholder="What was discussed?"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="w3-button btn-primary"><i class="fas fa-save"></i> Save</button>
+                    <button type="button" class="w3-button btn-ghost" onclick="closeLogContactModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Edit Student Modal -->
@@ -447,7 +625,7 @@
     <script type="module">
         import { initAuth, getCurrentUser, signOut } from './js/auth.js';
         import { initNav } from './js/nav.js';
-        import { getById, getWhere, updateDoc } from './js/db.js';
+        import { getById, getWhere, getAll, addDoc, updateDoc } from './js/db.js';
         import { formatDate, showToast } from './js/utils.js';
 
         // Initialize auth and check if user is logged in
@@ -470,13 +648,20 @@
         let attendanceLogs = [];
         let classSchedules = [];
         let pblTeams = [];
+        let parentInfo = null;
+        let contactLogs = [];
+        let studentInterventions = [];
 
         // Load all data in parallel
-        const [student, attendanceData, scheduleData, pblData] = await Promise.all([
+        const [student, attendanceData, scheduleData, pblData,
+               allParents, allContacts, allInterventions] = await Promise.all([
             getById('students', studentId),
-            getWhere('dailyAttendanceLogs', 'chattStateANumber', null), // Will filter manually
-            getWhere('classSchedules', 'chattStateANumber', null), // Will filter manually
-            getWhere('pblTeams', 'chattStateANumber', null) // Will filter manually
+            getWhere('dailyAttendanceLogs', 'chattStateANumber', null),
+            getWhere('classSchedules', 'chattStateANumber', null),
+            getWhere('pblTeams', 'chattStateANumber', null),
+            getAll('parents'),
+            getAll('parentContactLogs'),
+            getAll('studentInterventions')
         ]);
 
         if (!student) {
@@ -494,6 +679,19 @@
 
         // Filter PBL teams by chattStateANumber
         pblTeams = pblData.filter(team => team.chattStateANumber === student.chattStateANumber);
+
+        // Parent info (one record per student via chattStateANumber)
+        parentInfo = allParents.find(p => p.chattStateANumber === student.chattStateANumber) || null;
+
+        // Contact logs (linked by studentId or chattStateANumber)
+        contactLogs = allContacts
+            .filter(c => c.studentId === studentId || c.chattStateANumber === student.chattStateANumber)
+            .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        // Student interventions
+        studentInterventions = allInterventions
+            .filter(i => i.studentId === studentId)
+            .sort((a, b) => (b.dateTime || '').localeCompare(a.dateTime || ''));
 
         // Helper function to get initials
         function getInitials(firstName, lastName) {
@@ -551,6 +749,7 @@
         document.getElementById('stat-attendance-rate').textContent = `${attendanceRate}%`;
         document.getElementById('stat-classes-enrolled').textContent = classesCount;
         document.getElementById('stat-pbl-teams').textContent = pblTeamsCount;
+        document.getElementById('stat-interventions').textContent = studentInterventions.length;
 
         // Update icon color based on attendance rate
         const attendanceIcon = document.querySelector('#stat-attendance-rate').closest('.stat-card').querySelector('.stat-icon');
@@ -661,6 +860,9 @@
         renderAttendanceTab();
         renderScheduleTab();
         renderPblTab();
+        renderParentInfoCard();
+        renderContactLogTab();
+        renderInterventionsTab();
 
         // Tab switching logic
         window.switchTab = function(event, tabName) {
@@ -721,11 +923,188 @@
                 });
         };
 
-        // Close modal when clicking outside
+        // Close modals when clicking outside
         window.onclick = function(event) {
-            const modal = document.getElementById('editModal');
-            if (event.target == modal) {
-                modal.style.display = 'none';
+            if (event.target === document.getElementById('editModal'))
+                document.getElementById('editModal').style.display = 'none';
+            if (event.target === document.getElementById('logContactModal'))
+                document.getElementById('logContactModal').style.display = 'none';
+        };
+
+        // ─────────────────────────────────────────────────
+        //  PARENT INFO CARD
+        // ─────────────────────────────────────────────────
+        function renderParentInfoCard() {
+            const body = document.getElementById('parent-info-body');
+            if (!parentInfo) {
+                body.innerHTML = `<div class="empty-state" style="padding:16px 0;">
+                    <div class="empty-icon"><i class="fas fa-user-slash"></i></div>
+                    <div class="empty-title">No Guardian Info</div>
+                    <div class="empty-subtitle">Add parent/guardian details via the Parents section</div>
+                </div>`;
+                return;
+            }
+
+            function guardianBlock(title, name, email, homePhone, dayPhone) {
+                if (!name) return '';
+                return `<div class="parent-section">
+                    <div class="parent-block-title">${title}</div>
+                    <div class="parent-grid">
+                        <div class="info-item">
+                            <div class="info-label">Name</div>
+                            <div class="info-value">${name || '—'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Email</div>
+                            <div class="info-value">${email ? `<a href="mailto:${email}">${email}</a>` : '—'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Home Phone</div>
+                            <div class="info-value">${homePhone || '—'}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Day Phone</div>
+                            <div class="info-value">${dayPhone || '—'}</div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            body.innerHTML =
+                guardianBlock('Mother', parentInfo.motherName, parentInfo.motherEmail, parentInfo.motherHomePhone, parentInfo.motherDayPhone) +
+                guardianBlock('Father', parentInfo.fatherName, parentInfo.fatherEmail, parentInfo.fatherHomePhone, parentInfo.fatherDayPhone) +
+                (parentInfo.guardianEmail ? `<div class="parent-section">
+                    <div class="parent-block-title">Guardian</div>
+                    <div class="info-item">
+                        <div class="info-label">Email</div>
+                        <div class="info-value"><a href="mailto:${parentInfo.guardianEmail}">${parentInfo.guardianEmail}</a></div>
+                    </div>
+                </div>` : '') +
+                (parentInfo.comment ? `<div class="info-item" style="margin-top:10px;">
+                    <div class="info-label">Notes</div>
+                    <div class="info-value">${parentInfo.comment}</div>
+                </div>` : '') ||
+                `<p style="color:var(--text-muted);font-size:13px;">No contact details on file.</p>`;
+        }
+
+        // ─────────────────────────────────────────────────
+        //  CONTACT LOG TAB
+        // ─────────────────────────────────────────────────
+        const CONTACT_ICONS = { Call:'call', Email:'email', 'In-Person':'person', Text:'text', Letter:'letter' };
+        const CONTACT_FA    = { Call:'fa-phone', Email:'fa-envelope', 'In-Person':'fa-handshake', Text:'fa-comment', Letter:'fa-file-alt' };
+        const OUTCOME_CLASS = {
+            'Reached':'outcome-reached', 'Left Voicemail':'outcome-voicemail',
+            'No Answer':'outcome-no-answer', 'Email Sent':'outcome-sent',
+            'In-Person Meeting':'outcome-reached'
+        };
+
+        function renderContactLogTab() {
+            const body = document.getElementById('contact-log-body');
+            if (contactLogs.length === 0) {
+                body.innerHTML = `<div class="empty-state" style="padding:20px 0;">
+                    <div class="empty-icon"><i class="fas fa-phone-slash"></i></div>
+                    <div class="empty-title">No Contact Logs Yet</div>
+                    <div class="empty-subtitle">Use the "Log Contact" button to record parent communication</div>
+                </div>`;
+                return;
+            }
+            body.innerHTML = contactLogs.map(c => {
+                const iconClass = CONTACT_ICONS[c.contactType] || 'call';
+                const faIcon    = CONTACT_FA[c.contactType]    || 'fa-phone';
+                const oCls      = OUTCOME_CLASS[c.outcome]     || 'outcome-sent';
+                const dateStr   = c.date ? new Date(c.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
+                return `<div class="contact-log-row">
+                    <div class="contact-icon ${iconClass}"><i class="fas ${faIcon}"></i></div>
+                    <div class="contact-meta">
+                        <div class="contact-header">
+                            <span class="contact-type-label">${c.contactType || '—'} with ${c.contactWith || '—'}</span>
+                            <span class="contact-outcome ${oCls}">${c.outcome || '—'}</span>
+                            <span class="contact-date">${dateStr}</span>
+                        </div>
+                        ${c.notes ? `<div class="contact-notes">${c.notes}</div>` : ''}
+                        ${c.staffName ? `<div class="contact-staff"><i class="fas fa-user" style="margin-right:4px;"></i>${c.staffName}</div>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // ─────────────────────────────────────────────────
+        //  INTERVENTIONS TAB
+        // ─────────────────────────────────────────────────
+        const INT_LEVEL_COLORS = ['','#10B981','#10B981','#F59E0B','#F97316','#EF4444','#7C3AED'];
+
+        function renderInterventionsTab() {
+            const body = document.getElementById('interventions-body');
+            if (studentInterventions.length === 0) {
+                body.innerHTML = `<div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-clipboard-check"></i></div>
+                    <div class="empty-title">No Interventions Recorded</div>
+                    <div class="empty-subtitle">Interventions assigned to this student will appear here</div>
+                </div>`;
+                return;
+            }
+            body.innerHTML = `<table class="w3-table w3-striped">
+                <thead><tr>
+                    <th>Date &amp; Time</th>
+                    <th>Category</th>
+                    <th>Level</th>
+                    <th>Comments</th>
+                </tr></thead>
+                <tbody>
+                ${studentInterventions.map(r => {
+                    const dt = r.dateTime ? new Date(r.dateTime) : null;
+                    const dtStr = dt ? dt.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : '—';
+                    const color = INT_LEVEL_COLORS[r.level] || '#6B7280';
+                    return `<tr>
+                        <td style="white-space:nowrap;">${dtStr}</td>
+                        <td>${r.category || '—'}</td>
+                        <td><span class="badge" style="background:${color}22;color:${color};font-weight:700;">Level ${r.level}</span></td>
+                        <td>${r.comments || '<em style="opacity:.5;">—</em>'}</td>
+                    </tr>`;
+                }).join('')}
+                </tbody>
+            </table>`;
+        }
+
+        // ─────────────────────────────────────────────────
+        //  LOG CONTACT MODAL
+        // ─────────────────────────────────────────────────
+        window.openLogContactModal = function() {
+            const today = new Date().toISOString().slice(0, 10);
+            document.getElementById('lc-date').value = today;
+            document.getElementById('logContactForm').reset();
+            document.getElementById('lc-date').value = today;
+            document.getElementById('logContactModal').style.display = 'block';
+        };
+
+        window.closeLogContactModal = function() {
+            document.getElementById('logContactModal').style.display = 'none';
+        };
+
+        window.saveContactLog = async function(e) {
+            e.preventDefault();
+            const user = getCurrentUser();
+            const record = {
+                studentId:        studentId,
+                chattStateANumber: currentStudent.chattStateANumber || '',
+                studentName:      `${currentStudent.firstName} ${currentStudent.lastName}`,
+                date:             document.getElementById('lc-date').value,
+                contactType:      document.getElementById('lc-type').value,
+                contactWith:      document.getElementById('lc-with').value,
+                outcome:          document.getElementById('lc-outcome').value,
+                notes:            document.getElementById('lc-notes').value.trim(),
+                staffName:        user?.displayName || user?.email || '',
+                createdAt:        new Date().toISOString()
+            };
+            try {
+                const saved = await addDoc('parentContactLogs', record);
+                contactLogs.unshift({ ...record, id: saved?.id || Date.now().toString() });
+                renderContactLogTab();
+                closeLogContactModal();
+                showToast('Contact logged successfully', 'success');
+            } catch(err) {
+                console.error('Error saving contact log:', err);
+                showToast('Error saving contact', 'error');
             }
         };
     </script>
