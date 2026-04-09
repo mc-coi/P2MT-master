@@ -713,7 +713,6 @@
         selectedNotifyTmplId = localStorage.getItem('p2mt_er_notify_tmpl_id') || '';
 
         populateTemplateSelectors();
-        renderWorkshopList();
         await loadAssignmentsForDate(currentDate);
         renderGrid();
         await loadErDataForPeriod();
