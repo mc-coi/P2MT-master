@@ -302,6 +302,7 @@
         [data-theme="dark"] .timeline-dot { background: var(--surface); border-color: var(--primary); color: var(--primary); }
         [data-theme="dark"] .timeline-title { color: var(--text-primary); }
         [data-theme="dark"] .profile-header-info h1 { color: var(--text-primary); }
+        [data-theme="dark"] #er-history-body > div > div { border-color: var(--border); }
 
         @media (max-width: 768px) {
             .profile-header-content {
@@ -410,6 +411,7 @@
             <button class="tab-btn" onclick="switchTab(event, 'pbl')"><i class="fas fa-lightbulb" style="margin-right:5px;"></i>PBL Teams</button>
             <button class="tab-btn" onclick="switchTab(event, 'parent-contacts')"><i class="fas fa-phone" style="margin-right:5px;"></i>Parent Contacts</button>
             <button class="tab-btn" onclick="switchTab(event, 'interventions')"><i class="fas fa-clipboard-list" style="margin-right:5px;"></i>Interventions</button>
+            <button class="tab-btn" onclick="switchTab(event, 'er-history')"><i class="fas fa-bolt" style="margin-right:5px;"></i>ER History</button>
         </div>
 
         <!-- Tab content panels -->
@@ -511,6 +513,18 @@
         <div id="interventions" class="tab-content">
             <div class="card">
                 <div class="card-body" id="interventions-body">
+                    <div class="loading-container" style="padding:20px;"><div class="spinner"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 7 - ER History -->
+        <div id="er-history" class="tab-content">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title"><i class="fas fa-bolt" style="margin-right:6px;color:#f59e0b;"></i>Extended Remediation History</div>
+                </div>
+                <div class="card-body" id="er-history-body">
                     <div class="loading-container" style="padding:20px;"><div class="spinner"></div></div>
                 </div>
             </div>
@@ -651,17 +665,24 @@
         let parentInfo = null;
         let contactLogs = [];
         let studentInterventions = [];
+        let erClearedHistory = [];   // erCleared records for this student
+        let erRoomHistory    = [];   // erRoomStudents records for this student
+        let erRoomsAll       = [];   // all erRooms (to look up room names)
 
         // Load all data in parallel
         const [student, attendanceData, scheduleData, pblData,
-               allParents, allContacts, allInterventions] = await Promise.all([
+               allParents, allContacts, allInterventions,
+               erClearedData, erRoomStudentsData, erRoomsData] = await Promise.all([
             getById('students', studentId),
             getWhere('dailyAttendanceLogs', 'chattStateANumber', null),
             getWhere('classSchedules', 'chattStateANumber', null),
             getWhere('pblTeams', 'chattStateANumber', null),
             getAll('parents'),
             getAll('parentContactLogs'),
-            getAll('studentInterventions')
+            getAll('studentInterventions'),
+            getWhere('erCleared',      'studentId', '==', studentId),
+            getWhere('erRoomStudents', 'studentId', '==', studentId),
+            getAll('erRooms'),
         ]);
 
         if (!student) {
@@ -692,6 +713,11 @@
         studentInterventions = allInterventions
             .filter(i => i.studentId === studentId)
             .sort((a, b) => (b.dateTime || '').localeCompare(a.dateTime || ''));
+
+        // ER history
+        erClearedHistory = (erClearedData || []).sort((a,b) => (b.clearedDate||'').localeCompare(a.clearedDate||''));
+        erRoomHistory    = erRoomStudentsData || [];
+        erRoomsAll       = erRoomsData || [];
 
         // Helper function to get initials
         function getInitials(firstName, lastName) {
@@ -863,6 +889,7 @@
         renderParentInfoCard();
         renderContactLogTab();
         renderInterventionsTab();
+        renderErHistoryTab();
 
         // Tab switching logic
         window.switchTab = function(event, tabName) {
@@ -1064,6 +1091,94 @@
                 }).join('')}
                 </tbody>
             </table>`;
+        }
+
+        // ─────────────────────────────────────────────────
+        //  ER HISTORY TAB
+        // ─────────────────────────────────────────────────
+        function renderErHistoryTab() {
+            const body = document.getElementById('er-history-body');
+            if (!body) return;
+
+            // Group erRoomHistory by periodKey
+            const periodMap = {};
+            erRoomHistory.forEach(rs => {
+                const pk = rs.periodKey || 'unknown';
+                if (!periodMap[pk]) periodMap[pk] = { periodKey: pk, rooms: [], clearedDate: null };
+                const room = erRoomsAll.find(r => r.id === rs.roomId);
+                periodMap[pk].rooms.push({ roomName: room?.name || '—', teacherName: room?.teacherName || '' });
+            });
+
+            // Merge in cleared dates
+            erClearedHistory.forEach(c => {
+                const pk = c.periodKey || 'unknown';
+                if (!periodMap[pk]) periodMap[pk] = { periodKey: pk, rooms: [], clearedDate: null };
+                periodMap[pk].clearedDate = c.clearedDate || null;
+            });
+
+            // Also add any cleared periods that have no room record (edge case)
+            erClearedHistory.forEach(c => {
+                const pk = c.periodKey || 'unknown';
+                if (!periodMap[pk]) periodMap[pk] = { periodKey: pk, rooms: [], clearedDate: c.clearedDate };
+            });
+
+            const periods = Object.values(periodMap).sort((a,b) => b.periodKey.localeCompare(a.periodKey));
+
+            if (!periods.length) {
+                body.innerHTML = `<div class="empty-state">
+                    <div class="empty-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="empty-title">No ER History</div>
+                    <div class="empty-subtitle">This student has no Extended Remediation records</div>
+                </div>`;
+                return;
+            }
+
+            // Format a period key like "2026-04-07_2026-04-11" → "Apr 7 – Apr 11, 2026"
+            function fmtPeriodKey(pk) {
+                const parts = pk.split('_');
+                if (parts.length !== 2) return pk;
+                const [s, e] = parts;
+                const fmt = (d) => {
+                    const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                    return m ? new Date(+m[1], +m[2]-1, +m[3]).toLocaleDateString('en-US', { month:'short', day:'numeric' }) : d;
+                };
+                const yr = e.slice(0,4);
+                return `${fmt(s)} \u2013 ${fmt(e)}, ${yr}`;
+            }
+
+            function fmtDate(d) {
+                if (!d) return '—';
+                const m = d.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                return m ? new Date(+m[1], +m[2]-1, +m[3]).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' }) : d;
+            }
+
+            body.innerHTML = `<div style="display:flex;flex-direction:column;gap:14px;">
+            ${periods.map(p => {
+                const cleared = p.clearedDate
+                    ? `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 10px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:10px;">
+                        <i class="fas fa-graduation-cap"></i> Cleared ${fmtDate(p.clearedDate)}
+                       </span>`
+                    : `<span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 10px;background:#fef9c3;color:#a16207;border:1px solid #fde68a;border-radius:10px;">
+                        <i class="fas fa-clock"></i> In Progress
+                       </span>`;
+
+                const roomChips = p.rooms.length
+                    ? p.rooms.map(r => `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;border-radius:8px;">
+                        <i class="fas fa-door-open"></i> ${r.roomName}${r.teacherName ? ' · ' + r.teacherName : ''}
+                      </span>`).join('')
+                    : '<span style="font-size:12px;color:#94a3b8;">No room assigned</span>';
+
+                return `<div style="border:1.5px solid #e2e8f0;border-radius:10px;padding:14px 16px;">
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                        <span style="font-size:14px;font-weight:700;color:var(--text-primary);">
+                            <i class="fas fa-calendar-week" style="color:#f59e0b;margin-right:5px;"></i>${fmtPeriodKey(p.periodKey)}
+                        </span>
+                        ${cleared}
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:5px;">${roomChips}</div>
+                </div>`;
+            }).join('')}
+            </div>`;
         }
 
         // ─────────────────────────────────────────────────

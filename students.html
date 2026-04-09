@@ -568,8 +568,7 @@
           await updateDoc('students', currentEditId, studentData);
           showToast('Student updated successfully', 'success');
         } else {
-          const docId = generateId();
-          await addDoc('students', docId, studentData);
+          await addDoc('students', studentData);
           showToast('Student added successfully', 'success');
         }
         closeAddEditModal();
@@ -650,8 +649,7 @@
       };
 
       try {
-        const docId = generateId();
-        await addDoc('attendance', docId, attendanceData);
+        await addDoc('attendance', attendanceData);
 
         // Auto-assign 60 min TMI for missed check in/out
         if (code === 'MissedCheckInOut') {

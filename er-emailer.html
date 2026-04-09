@@ -240,6 +240,80 @@
     [data-theme="dark"] .test-email-hdr .te-workshops { background: rgba(59,130,246,0.15); color: #93C5FD; }
     [data-theme="dark"] .test-badge-mode  { background: rgba(16,185,129,0.12); color: #34D399; border-color: rgba(16,185,129,0.3); }
 
+    /* ── Template selector card ── */
+    .tmpl-select-card { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 18px 20px; margin-bottom: 20px; }
+    .tmpl-select-card h3 { font-size: 14px; font-weight: 700; color: var(--text-primary); margin: 0 0 14px; display: flex; align-items: center; gap: 8px; }
+    .tmpl-select-card h3 i { color: var(--primary); }
+    .tmpl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+    .tmpl-row label { font-size: 12px; font-weight: 700; color: #475569; width: 110px; flex-shrink: 0; }
+    .tmpl-select { flex: 1; min-width: 160px; padding: 7px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 13px; outline: none; background: white; color: var(--text-primary); }
+    .tmpl-select:focus { border-color: var(--primary); }
+    .tmpl-manage-link { font-size: 12px; font-weight: 600; color: var(--primary); text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
+    .tmpl-manage-link:hover { text-decoration: underline; }
+
+    /* ── Room builder (ER Setup) ── */
+    .er-setup-two-col { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 900px) { .er-setup-two-col { grid-template-columns: 1fr; } }
+    .er-pool-panel { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; position: sticky; top: 80px; }
+    .er-pool-panel h4 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0 0 10px; display: flex; align-items: center; gap: 7px; }
+    .er-pool-panel h4 i { color: var(--primary); }
+    .er-pool-chips { display: flex; flex-direction: column; gap: 5px; min-height: 60px; }
+    .er-pool-chip { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: grab; user-select: none; transition: opacity .1s, transform .1s; white-space: nowrap; }
+    .er-pool-chip:hover { background: #dcfce7; }
+    .er-pool-chip.dragging { opacity: .3; transform: scale(.9); }
+    .er-pool-chip i { font-size: 10px; opacity: .6; }
+    .er-pool-empty { font-size: 12px; color: #94a3b8; padding: 8px 0; }
+
+    .er-rooms-panel { display: flex; flex-direction: column; gap: 12px; }
+    .er-room-card { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; }
+    .er-room-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+    .er-room-header .room-num { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; min-width: 48px; }
+    .er-room-header input { padding: 6px 10px; border: 1.5px solid #e2e8f0; border-radius: 7px; font-size: 13px; outline: none; background: white; color: var(--text-primary); }
+    .er-room-header input:focus { border-color: var(--primary); }
+    .er-room-header .room-name-inp { flex: 1; min-width: 100px; }
+    .er-room-header .room-teacher-inp { flex: 1; min-width: 100px; }
+    .er-room-header .room-del { width: 30px; height: 30px; border-radius: 6px; border: 1.5px solid #fca5a5; color: #dc2626; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+    .er-room-header .room-del:hover { background: #fef2f2; }
+    .er-drop-zone { min-height: 48px; border: 1.5px dashed #e2e8f0; border-radius: 8px; padding: 6px 8px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; transition: border-color .15s, background .15s; }
+    .er-drop-zone.drag-over { border-color: var(--primary); background: rgba(16,185,129,.07); }
+    .er-drop-zone .drop-hint { color: #cbd5e1; font-size: 12px; }
+    .er-student-chip { display: inline-flex; align-items: center; gap: 5px; padding: 4px 8px; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 14px; font-size: 12px; font-weight: 600; cursor: grab; user-select: none; }
+    .er-student-chip:hover { background: #bae6fd; }
+    .er-student-chip .chip-x { cursor: pointer; opacity: .6; font-size: 13px; font-weight: 900; line-height: 1; }
+    .er-student-chip .chip-x:hover { opacity: 1; }
+    .btn-add-room { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border: 1.5px dashed var(--primary); color: var(--primary); background: white; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .12s; width: 100%; justify-content: center; }
+    .btn-add-room:hover { background: rgba(16,185,129,.07); }
+    .btn-save-rooms { padding: 9px 22px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; margin-top: 4px; }
+    .btn-save-rooms:hover { opacity: .9; }
+
+    /* ── ER Attendance rooms ── */
+    .att-room-section { margin-bottom: 20px; border: 1.5px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+    .att-room-hdr { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: var(--primary); color: white; }
+    .att-room-hdr .ahr-name { font-size: 14px; font-weight: 700; }
+    .att-room-hdr .ahr-teacher { font-size: 12px; opacity: .8; }
+    .att-room-hdr .ahr-count { margin-left: auto; font-size: 12px; background: rgba(255,255,255,.2); border-radius: 10px; padding: 2px 8px; }
+    .att-student-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #f1f5f9; flex-wrap: wrap; }
+    .att-student-row:last-child { border-bottom: none; }
+    .att-student-row.cleared { background: #f0fdf4; }
+    .att-student-info { flex: 1; min-width: 120px; }
+    .att-student-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+    .att-student-sub  { font-size: 11px; color: #94a3b8; margin-top: 1px; }
+    .att-pa-wrap { display: flex; gap: 5px; align-items: center; }
+    .att-done-wrap { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #64748b; }
+    .att-done-wrap input { accent-color: #16a34a; width: 16px; height: 16px; cursor: pointer; }
+    .cleared-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 8px; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; border-radius: 10px; }
+
+    /* Clearance section within attendance row */
+    .clr-section { width: 100%; margin-top: 6px; padding-top: 6px; border-top: 1px dashed #f1f5f9; }
+    .clr-section-lbl { font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+    .clr-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .clr-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 12px; font-size: 11px; font-weight: 600; cursor: default; }
+    .clr-chip.cleared  { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .clr-chip.pending  { background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; }
+    .clr-chip.mine     { cursor: pointer; }
+    .clr-chip.mine:hover { opacity: .8; }
+    .clr-chip i { font-size: 10px; }
+
     /* ── Dark mode overrides ── */
     [data-theme="dark"] .modal-box { background: var(--surface); }
     [data-theme="dark"] .modal-close { color: var(--text-muted); }
@@ -291,6 +365,25 @@
     [data-theme="dark"] .guardian-input:focus { background: rgba(59,130,246,0.1); }
 
     [data-theme="dark"] .cell-chk { background: var(--surface-2); }
+
+    [data-theme="dark"] .tmpl-select-card { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .tmpl-select { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+    [data-theme="dark"] .er-pool-panel { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .er-pool-chip { background: rgba(16,185,129,.12); color: #34D399; border-color: rgba(16,185,129,.3); }
+    [data-theme="dark"] .er-room-card { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .er-room-header input { background: var(--surface-2); border-color: var(--border); color: var(--text-primary); }
+    [data-theme="dark"] .er-room-header .room-del { background: var(--surface); }
+    [data-theme="dark"] .er-drop-zone { border-color: var(--border); }
+    [data-theme="dark"] .er-drop-zone.drag-over { background: rgba(16,185,129,.1); }
+    [data-theme="dark"] .er-student-chip { background: rgba(3,105,161,.25); color: #7dd3fc; border-color: rgba(3,105,161,.3); }
+    [data-theme="dark"] .btn-add-room { background: var(--surface); }
+    [data-theme="dark"] .att-room-section { border-color: var(--border); }
+    [data-theme="dark"] .att-student-row { border-bottom-color: var(--border); }
+    [data-theme="dark"] .att-student-row.cleared { background: rgba(16,185,129,.08); }
+    [data-theme="dark"] .clr-section { border-top-color: var(--border); }
+    [data-theme="dark"] .clr-chip.cleared { background: rgba(16,185,129,.15); color: #34D399; border-color: rgba(16,185,129,.3); }
+    [data-theme="dark"] .clr-chip.pending { background: rgba(239,68,68,.12); color: #FCA5A5; border-color: rgba(239,68,68,.25); }
+    [data-theme="dark"] .cleared-badge { background: rgba(16,185,129,.15); color: #34D399; border-color: rgba(16,185,129,.3); }
   </style>
 </head>
 <body>
@@ -379,112 +472,84 @@
     <!-- ══ Tab: ER Attendance ═══════════════════════════════════════════════ -->
     <div id="tab-er-attendance" style="display:none;">
       <div class="att-topbar">
-        <span class="att-badge blue" id="att-badge-total"><i class="fas fa-users"></i> <span id="att-total-txt">0 students</span></span>
-        <span class="att-badge green" id="att-badge-present"><i class="fas fa-check-circle"></i> <span id="att-present-txt">0 present</span></span>
-        <span class="att-badge red" id="att-badge-absent"><i class="fas fa-times-circle"></i> <span id="att-absent-txt">0 absent</span></span>
+        <span class="att-badge blue"  id="att-badge-total"   ><i class="fas fa-users"></i> <span id="att-total-txt">0 students</span></span>
+        <span class="att-badge green" id="att-badge-present" ><i class="fas fa-check-circle"></i> <span id="att-present-txt">0 present</span></span>
+        <span class="att-badge red"   id="att-badge-absent"  ><i class="fas fa-times-circle"></i> <span id="att-absent-txt">0 absent</span></span>
         <span class="att-badge green" id="att-badge-complete"><i class="fas fa-flag-checkered"></i> <span id="att-complete-txt">0 complete</span></span>
+        <span class="att-badge" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;" id="att-badge-cleared"><i class="fas fa-graduation-cap"></i> <span id="att-cleared-txt">0 cleared</span></span>
         <div style="flex:1;"></div>
         <button class="btn-sm outline" onclick="attMarkAllPresent()"><i class="fas fa-check-double"></i> All Present</button>
         <button class="btn-sm outline" onclick="attSaveAll()" style="border-color:#a7f3d0;color:#065f46;"><i class="fas fa-save"></i> Save All</button>
       </div>
-
-      <div class="att-er-wrap">
-        <table class="att-er-table">
-          <thead>
-            <tr>
-              <th style="width:40px;">#</th>
-              <th>Student</th>
-              <th>Teacher / Room</th>
-              <th style="width:110px; text-align:center;">Status</th>
-              <th style="width:90px; text-align:center;"><i class="fas fa-flag-checkered"></i> Done</th>
-            </tr>
-          </thead>
-          <tbody id="att-er-tbody">
-            <tr><td colspan="5" class="att-empty"><i class="fas fa-calendar-day" style="font-size:28px;display:block;margin-bottom:10px;"></i>Select a date above to load assigned students.</td></tr>
-          </tbody>
-        </table>
+      <div id="att-rooms-wrap">
+        <div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
+          <i class="fas fa-door-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
+          Set up rooms in <strong>ER Setup</strong> and select an ER date above to see the attendance roster.
+        </div>
       </div>
     </div>
 
     <!-- ══ Tab: ER Setup ═══════════════════════════════════════════════════ -->
     <div id="tab-er" style="display:none;">
-      <div class="er-setup-grid">
 
-        <!-- Workshops + Rooms -->
-        <div class="setup-card">
-          <h3><i class="fas fa-chalkboard-teacher"></i> Workshops &amp; Rooms</h3>
-          <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Define available workshops and update room numbers before each ER day.</p>
-          <div class="workshop-list" id="workshop-list">
-            <!-- rows injected -->
-          </div>
-          <button class="add-workshop-btn" onclick="addWorkshopRow()">
-            <i class="fas fa-plus"></i> Add Workshop
-          </button>
-          <br>
-          <button class="save-workshops-btn" onclick="saveWorkshops()">
-            <i class="fas fa-save"></i> Save Workshops
-          </button>
+      <!-- Template selection -->
+      <div class="tmpl-select-card">
+        <h3><i class="fas fa-envelope-open-text"></i> Email Templates
+          <a href="./email-templates.html" class="tmpl-manage-link" style="margin-left:auto;" target="_blank"><i class="fas fa-external-link-alt"></i> Manage Templates</a>
+        </h3>
+        <div class="tmpl-row">
+          <label>Send Emails:</label>
+          <select class="tmpl-select" id="er-email-tmpl-sel" onchange="onErTmplChange('email')">
+            <option value="">— select template —</option>
+          </select>
         </div>
-
-        <!-- Email Template -->
-        <div class="setup-card">
-          <h3><i class="fas fa-envelope-open-text"></i> Email Template</h3>
-          <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Used by <strong>Send Emails</strong>. Click a variable to insert.</p>
-
-          <div class="var-pills" id="var-pills"></div>
-
-          <div class="mf-row">
-            <label>Subject *</label>
-            <input type="text" id="tmpl-subject" placeholder="Early Release Workshop Assignment — {{date}}">
-          </div>
-          <div class="mf-row">
-            <label>Body *</label>
-            <textarea id="tmpl-body" rows="10" placeholder="Dear {{firstName}},&#10;&#10;Your Early Release workshop assignment for {{date}} is:&#10;&#10;  Workshop: {{workshopName}}&#10;  Room: {{room}}&#10;&#10;ER Period: {{erDateRange}}&#10;&#10;Please report to Room {{room}} at the start of the Early Release period.&#10;&#10;Thank you,&#10;[Your name]"></textarea>
-          </div>
-          <button class="save-tmpl-btn" onclick="saveTemplate()">
-            <i class="fas fa-save"></i> Save Template
-          </button>
+        <div class="tmpl-row">
+          <label>Notify button:</label>
+          <select class="tmpl-select" id="er-notify-tmpl-sel" onchange="onErTmplChange('notify')">
+            <option value="">— select template —</option>
+          </select>
         </div>
-
+        <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">
+          Variables: <code style="font-size:11px;">{{firstName}}</code> <code style="font-size:11px;">{{studentName}}</code> <code style="font-size:11px;">{{workshopName}}</code> <code style="font-size:11px;">{{classes}}</code> <code style="font-size:11px;">{{room}}</code> <code style="font-size:11px;">{{date}}</code> <code style="font-size:11px;">{{erDateRange}}</code> <code style="font-size:11px;">{{erStart}}</code> <code style="font-size:11px;">{{erEnd}}</code>
+        </p>
       </div>
 
-      <!-- Notify Template (full-width below) -->
-      <div class="setup-card" style="margin-top:20px;">
-        <h3><i class="fas fa-bell" style="color:#d97706;"></i> Notify Template</h3>
-        <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Used by the <strong>Notify</strong> button in the Emailer tab. Click a variable to insert.</p>
+      <!-- Workshops config (for Emailer tab columns) -->
+      <div class="setup-card" style="margin-bottom:20px;">
+        <h3><i class="fas fa-chalkboard-teacher"></i> Workshops &amp; Rooms</h3>
+        <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Define available workshops for the Emailer tab checkbox columns.</p>
+        <div class="workshop-list" id="workshop-list"></div>
+        <button class="add-workshop-btn" onclick="addWorkshopRow()"><i class="fas fa-plus"></i> Add Workshop</button>
+        <br>
+        <button class="save-workshops-btn" onclick="saveWorkshops()"><i class="fas fa-save"></i> Save Workshops</button>
+      </div>
 
-        <div class="var-pills" id="notify-var-pills"></div>
+      <!-- Room assignment -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <span style="font-size:16px;font-weight:700;color:var(--text-primary);"><i class="fas fa-door-open" style="color:var(--primary);margin-right:6px;"></i>Room Assignments</span>
+          <span id="er-setup-period-label" style="font-size:12px;color:var(--text-muted);margin-left:8px;"></span>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn-add-room" style="width:auto;" onclick="addErRoom()"><i class="fas fa-plus"></i> Add Room</button>
+          <button class="btn-save-rooms" onclick="saveErRooms()"><i class="fas fa-save"></i> Save Rooms</button>
+        </div>
+      </div>
+      <div id="er-setup-no-period" style="display:none;padding:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;margin-bottom:14px;">
+        <i class="fas fa-exclamation-triangle"></i> Set the <strong>ER Period</strong> start and end dates in the top bar first.
+      </div>
 
-        <div class="er-setup-grid" style="margin-top:0;">
-          <div>
-            <div class="mf-row">
-              <label>Subject *</label>
-              <input type="text" id="notify-tmpl-subject" placeholder="ER Reminder — {{date}}">
-            </div>
-            <div class="mf-row">
-              <label>Body *</label>
-              <textarea id="notify-tmpl-body" rows="10" placeholder="Dear {{firstName}},&#10;&#10;This is a reminder about your Early Release assignment for {{date}}.&#10;&#10;  Workshop: {{classes}}&#10;  Room: {{room}}&#10;&#10;Please report on time.&#10;&#10;Thank you"></textarea>
-            </div>
-            <button class="save-tmpl-btn" style="background:#d97706;" onclick="saveNotifyTemplate()">
-              <i class="fas fa-save"></i> Save Notify Template
-            </button>
+      <div class="er-setup-two-col" id="er-setup-cols">
+        <div class="er-pool-panel">
+          <h4><i class="fas fa-users"></i> Assigned Students
+            <span id="pool-count" style="font-size:11px;font-weight:600;color:#94a3b8;margin-left:auto;"></span>
+          </h4>
+          <div class="er-pool-chips" id="er-pool-chips">
+            <div class="er-pool-empty">No students assigned for this date.</div>
           </div>
-          <div style="background:#fffbeb;border-radius:8px;padding:14px;font-size:13px;color:#92400e;border:1px solid #fde68a;align-self:start;">
-            <div style="font-weight:700;margin-bottom:8px;"><i class="fas fa-info-circle"></i> Available variables</div>
-            <div style="display:flex;flex-direction:column;gap:5px;font-family:monospace;font-size:12px;">
-              <span><code>{{firstName}}</code> — student first name</span>
-              <span><code>{{studentName}}</code> — full name</span>
-              <span><code>{{workshopName}}</code> — workshop name(s), comma-sep</span>
-              <span><code>{{classes}}</code> — workshops with rooms, comma-sep</span>
-              <span><code>{{room}}</code> — room(s), comma-sep</span>
-              <span><code>{{date}}</code> — ER date</span>
-              <span><code>{{dayOfWeek}}</code> — day name</span>
-              <span><code>{{erStart}}</code> — ER period start date</span>
-              <span><code>{{erEnd}}</code> — ER period end date</span>
-              <span><code>{{erDateRange}}</code> — e.g. "April 7 – April 11, 2026"</span>
-              <span><code>{{studentEmail}}</code> — student email</span>
-            </div>
-          </div>
+        </div>
+        <div class="er-rooms-panel" id="er-rooms-panel">
+          <div style="color:#94a3b8;font-size:13px;padding:20px 0;">Click <strong>Add Room</strong> to create a room.</div>
         </div>
       </div>
 
@@ -539,23 +604,35 @@
 
   <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <script type="module">
-    import { initAuth }   from './js/auth.js';
+    import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav }    from './js/nav.js';
-    import { getAll, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
     import { showToast, confirmTypedDelete }  from './js/utils.js';
 
     // ── Data ─────────────────────────────────────────────────────────────────────
-    let students   = [];
-    let workshops  = [];
-    let assignments = {};    // { studentId: [workshopId, ...] } for current date
-    let template        = { subject: '', body: '' };
-    let notifyTemplate  = { subject: '', body: '' };
-    let guardianEmails  = {};  // { studentId: email }
-    let currentDate     = '';
-    let erPeriodStart   = '';  // YYYY-MM-DD
-    let erPeriodEnd     = '';  // YYYY-MM-DD
+    let students         = [];
+    let workshops        = [];
+    let assignments      = {};   // { studentId: [workshopId, ...] } for current date
+    let guardianEmails   = {};   // { studentId: email }
+    let currentDate      = '';
+    let erPeriodStart    = '';   // YYYY-MM-DD
+    let erPeriodEnd      = '';   // YYYY-MM-DD
 
-    // ER Attendance state: { studentId: { teacherRoom, status:'P'|'A'|null, complete:bool, logId:null } }
+    // ── Rooms & clearance ─────────────────────────────────────────────────────────
+    let erRooms          = [];   // [{ id, name, teacherName, order }]
+    let erRoomStudents   = [];   // [{ id, roomId, studentId, studentName, ... }]
+    let erClearanceData  = [];   // [{ id, studentId, teacherLastName, className, clearedAt }]
+    let erClearedData    = [];   // [{ id, studentId, studentName, clearedDate }]
+    let allClassSchedules = [];  // from classSchedules collection
+    let currentStaffLastName = '';  // logged-in teacher's last name
+    let draggedStudentId = null;    // for drag-drop
+
+    // ── Templates ────────────────────────────────────────────────────────────────
+    let p2mtTemplatesList     = [];  // from p2mtTemplates collection
+    let selectedEmailTmplId   = '';  // localStorage: p2mt_er_email_tmpl_id
+    let selectedNotifyTmplId  = '';  // localStorage: p2mt_er_notify_tmpl_id
+
+    // ER Attendance state: { studentId: { status:'P'|'A'|null, complete:bool, logId:null } }
     let attState = {};
 
     // ── MSAL ─────────────────────────────────────────────────────────────────────
@@ -579,15 +656,23 @@
     ];
 
     // ── Boot ──────────────────────────────────────────────────────────────────────
-    initAuth().then(() => {
+    initAuth().then(async (user) => {
       initNav('er-emailer');
       setDefaultDate();
       loadErPeriod();
-      buildVarPills();
       document.getElementById('az-redirect').textContent =
         window.location.origin + window.location.pathname;
       initMsalFromCache();
-      loadAll();
+
+      // Look up logged-in teacher's last name from staff collection
+      if (user?.email) {
+        try {
+          const staffRows = await getWhere('staff', 'email', '==', user.email);
+          if (staffRows.length) currentStaffLastName = staffRows[0].lastName || '';
+        } catch (e) { console.warn('Could not load staff record:', e); }
+      }
+
+      await loadAll();
     });
 
     function setDefaultDate() {
@@ -604,11 +689,14 @@
       document.getElementById('er-period-end').value   = erPeriodEnd;
     }
 
-    window.onPeriodChange = function() {
+    window.onPeriodChange = async function() {
       erPeriodStart = document.getElementById('er-period-start').value;
       erPeriodEnd   = document.getElementById('er-period-end').value;
       localStorage.setItem('p2mt_er_period_start', erPeriodStart);
       localStorage.setItem('p2mt_er_period_end',   erPeriodEnd);
+      await loadErDataForPeriod();
+      renderErSetupTab();
+      renderAttendanceTab();
     };
 
     // Build the three ER-period template values from current state
@@ -635,29 +723,31 @@
 
     async function loadAll() {
       try {
-        const [s, w, t, nt, g] = await Promise.all([
+        const [s, w, g, tmplList, cs] = await Promise.all([
           getAll('students'),
           getAll('erWorkshops'),
-          getAll('erTemplate'),
-          getAll('erNotifyTemplate'),
           getAll('guardianEmails'),
+          getAll('p2mtTemplates'),
+          getAll('classSchedules'),
         ]);
 
         students  = s.sort((a, b) => a.lastName.localeCompare(b.lastName));
         workshops = (w || []).sort((a, b) => (a.order || 0) - (b.order || 0));
-        template        = t?.[0]  || { subject: 'Early Release Workshop Assignment — {{date}}', body: DEFAULT_BODY };
-        notifyTemplate  = nt?.[0] || { subject: 'ER Reminder — {{date}}', body: DEFAULT_NOTIFY_BODY };
         g.forEach(rec => { guardianEmails[rec.studentId] = rec.email; });
+        p2mtTemplatesList  = tmplList || [];
+        allClassSchedules  = cs       || [];
 
-        // Pre-populate workshop list from defaults if none saved yet
         if (!workshops.length) workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
 
-        loadTemplateIntoForm();
-        loadNotifyTemplateIntoForm();
-        buildNotifyVarPills();
+        // Restore saved template selections
+        selectedEmailTmplId  = localStorage.getItem('p2mt_er_email_tmpl_id')  || '';
+        selectedNotifyTmplId = localStorage.getItem('p2mt_er_notify_tmpl_id') || '';
+
+        populateTemplateSelectors();
         renderWorkshopList();
         await loadAssignmentsForDate(currentDate);
         renderGrid();
+        await loadErDataForPeriod();
         await loadAttendanceForDate(currentDate);
       } catch (err) {
         console.error(err);
@@ -665,10 +755,62 @@
       }
     }
 
+    // ── Template selector helpers ─────────────────────────────────────────────────
+    function populateTemplateSelectors() {
+      ['er-email-tmpl-sel', 'er-notify-tmpl-sel'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const current = id === 'er-email-tmpl-sel' ? selectedEmailTmplId : selectedNotifyTmplId;
+        sel.innerHTML = '<option value="">— select template —</option>' +
+          p2mtTemplatesList.map(t =>
+            `<option value="${t.id}" ${t.id === current ? 'selected' : ''}>${esc(t.name || t.subject || t.id)}</option>`
+          ).join('');
+      });
+    }
+
+    window.onErTmplChange = function(type) {
+      const sel = document.getElementById(type === 'email' ? 'er-email-tmpl-sel' : 'er-notify-tmpl-sel');
+      if (!sel) return;
+      if (type === 'email') {
+        selectedEmailTmplId = sel.value;
+        localStorage.setItem('p2mt_er_email_tmpl_id', selectedEmailTmplId);
+      } else {
+        selectedNotifyTmplId = sel.value;
+        localStorage.setItem('p2mt_er_notify_tmpl_id', selectedNotifyTmplId);
+      }
+    };
+
+    function getSelectedTemplate(type) {
+      const id = type === 'email' ? selectedEmailTmplId : selectedNotifyTmplId;
+      return p2mtTemplatesList.find(t => t.id === id) || null;
+    }
+
+    // ── Load ER period rooms + clearance data ─────────────────────────────────────
+    async function loadErDataForPeriod() {
+      if (!erPeriodStart || !erPeriodEnd) return;
+      const pk = periodKey();
+      try {
+        const [rooms, roomStudents, clearance, cleared] = await Promise.all([
+          getWhere('erRooms',        'periodKey', '==', pk),
+          getWhere('erRoomStudents', 'periodKey', '==', pk),
+          getWhere('erClearance',    'periodKey', '==', pk),
+          getWhere('erCleared',      'periodKey', '==', pk),
+        ]);
+        erRooms         = (rooms        || []).sort((a,b) => (a.order||0) - (b.order||0));
+        erRoomStudents  = roomStudents  || [];
+        erClearanceData = clearance     || [];
+        erClearedData   = cleared       || [];
+      } catch (err) { console.error('Error loading ER period data:', err); }
+    }
+
+    function periodKey() {
+      return erPeriodStart && erPeriodEnd ? `${erPeriodStart}_${erPeriodEnd}` : '';
+    }
+
     async function loadAssignmentsForDate(date) {
       assignments = {};
       try {
-        const rows = await getWhere('erAssignments', 'date', date);
+        const rows = await getWhere('erAssignments', 'date', '==', date);
         rows.forEach(r => {
           // Support both new (workshopIds array) and old (workshopId string) format
           if (r.workshopIds && Array.isArray(r.workshopIds)) {
@@ -698,6 +840,7 @@
         document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === tab);
       });
       if (tab === 'er-attendance') renderAttendanceTab();
+      if (tab === 'er') renderErSetupTab();
     };
 
     // ── Grid rendering ────────────────────────────────────────────────────────────
@@ -821,7 +964,7 @@
     async function saveAssignment(studentId) {
       const workshopIds = assignments[studentId] || [];
       try {
-        const existing = await getWhere('erAssignments', 'studentId', studentId);
+        const existing = await getWhere('erAssignments', 'studentId', '==', studentId);
         const forDate  = existing.find(r => r.date === currentDate);
         if (workshopIds.length === 0) {
           if (forDate) await deleteDoc('erAssignments', forDate.id);
@@ -871,7 +1014,7 @@
       const email     = input.value.trim();
       guardianEmails[studentId] = email;
       try {
-        const existing = await getWhere('guardianEmails', 'studentId', studentId);
+        const existing = await getWhere('guardianEmails', 'studentId', '==', studentId);
         if (existing.length) {
           await updateDoc('guardianEmails', existing[0].id, { studentId, email });
         } else if (email) {
@@ -943,88 +1086,313 @@
       }
     };
 
-    // ── Template management ────────────────────────────────────────────────────────
-    function loadTemplateIntoForm() {
-      document.getElementById('tmpl-subject').value = template.subject || '';
-      document.getElementById('tmpl-body').value    = template.body    || '';
+    // ── ER Room management (ER Setup tab) ────────────────────────────────────────
+    function renderErSetupTab() {
+      const pk = periodKey();
+      const noP = document.getElementById('er-setup-no-period');
+      const lbl = document.getElementById('er-setup-period-label');
+      if (!pk) {
+        if (noP) noP.style.display = 'block';
+        if (lbl) lbl.textContent = '';
+      } else {
+        if (noP) noP.style.display = 'none';
+        const pd = buildPeriodData();
+        if (lbl) lbl.textContent = pd.erDateRange ? `(${pd.erDateRange})` : '';
+      }
+      renderPoolChips();
+      renderRoomCards();
     }
 
-    window.saveTemplate = async function() {
-      const subject = document.getElementById('tmpl-subject').value.trim();
-      const body    = document.getElementById('tmpl-body').value.trim();
-      if (!subject || !body) { showToast('Subject and body are required', 'error'); return; }
+    function renderPoolChips() {
+      const pool = document.getElementById('er-pool-chips');
+      const count = document.getElementById('pool-count');
+      if (!pool) return;
+      // Students assigned for current date AND not yet placed in any room
+      const inRoomIds = new Set(erRoomStudents.map(rs => rs.studentId));
+      const poolStudents = students.filter(s => isAssigned(s.id) && !inRoomIds.has(s.id));
+      if (count) count.textContent = poolStudents.length ? `${poolStudents.length} unplaced` : '';
+      if (!poolStudents.length) {
+        pool.innerHTML = '<div class="er-pool-empty">All assigned students are placed in rooms.</div>';
+        return;
+      }
+      pool.innerHTML = poolStudents.map(s =>
+        `<div class="er-pool-chip" draggable="true" data-sid="${s.id}"
+          ondragstart="onChipDragStart(event,'${s.id}')"
+          ondragend="onChipDragEnd(event)">
+          <i class="fas fa-grip-vertical"></i>
+          ${esc(s.lastName)}, ${esc(s.firstName)}
+        </div>`
+      ).join('');
+    }
+
+    function renderRoomCards() {
+      const panel = document.getElementById('er-rooms-panel');
+      if (!panel) return;
+      if (!erRooms.length) {
+        panel.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:20px 0;">Click <strong>Add Room</strong> to create a room.</div>';
+        return;
+      }
+      panel.innerHTML = erRooms.map((room, idx) => {
+        const roomStudents = erRoomStudents.filter(rs => rs.roomId === room.id);
+        const chips = roomStudents.map(rs =>
+          `<span class="er-student-chip" draggable="true"
+            data-sid="${rs.studentId}" data-rsid="${rs.id}"
+            ondragstart="onChipDragStart(event,'${rs.studentId}','${room.id}')"
+            ondragend="onChipDragEnd(event)">
+            ${esc(rs.studentName || rs.studentId)}
+            <span class="chip-x" onclick="removeStudentFromRoom('${rs.studentId}','${room.id}')">&times;</span>
+          </span>`
+        ).join('') || '<span class="drop-hint">Drop students here</span>';
+
+        return `<div class="er-room-card" id="room-card-${room.id}">
+          <div class="er-room-header">
+            <span class="room-num">Room ${idx + 1}</span>
+            <input class="room-name-inp" type="text" placeholder="Room name (e.g. 101)" value="${esc(room.name||'')}" data-rid="${room.id}">
+            <input class="room-teacher-inp" type="text" placeholder="Teacher last name" value="${esc(room.teacherName||'')}" data-rid="${room.id}">
+            <button class="room-del" onclick="deleteErRoom('${room.id}')" title="Remove room"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="er-drop-zone" id="dropzone-${room.id}"
+            ondragover="onDropZoneOver(event)"
+            ondragleave="onDropZoneLeave(event)"
+            ondrop="onDropToRoom(event,'${room.id}')">
+            ${chips}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    window.addErRoom = function() {
+      const tempId = 'new_' + Date.now();
+      erRooms.push({ id: tempId, name: '', teacherName: '', order: erRooms.length, _isNew: true });
+      renderRoomCards();
+    };
+
+    window.deleteErRoom = async function(roomId) {
+      // Remove students from this room back to pool
+      erRoomStudents = erRoomStudents.filter(rs => rs.roomId !== roomId);
+      erRooms = erRooms.filter(r => r.id !== roomId);
+      // Delete from Firestore if it has a real ID
+      if (!roomId.startsWith('new_')) {
+        try {
+          await deleteDoc('erRooms', roomId);
+          const toDelete = erRoomStudents.filter(rs => rs.roomId === roomId);
+          for (const rs of toDelete) if (rs.id) await deleteDoc('erRoomStudents', rs.id);
+        } catch(e) { console.error(e); }
+      }
+      renderRoomCards();
+      renderPoolChips();
+    };
+
+    window.saveErRooms = async function() {
+      const pk = periodKey();
+      if (!pk) { showToast('Set ER Period dates first', 'warning'); return; }
+
+      // Read current name/teacher inputs from DOM
+      document.querySelectorAll('.room-name-inp').forEach(inp => {
+        const r = erRooms.find(x => x.id === inp.dataset.rid);
+        if (r) r.name = inp.value.trim();
+      });
+      document.querySelectorAll('.room-teacher-inp').forEach(inp => {
+        const r = erRooms.find(x => x.id === inp.dataset.rid);
+        if (r) r.teacherName = inp.value.trim();
+      });
+
       try {
-        const existing = await getAll('erTemplate');
-        const data = { subject, body };
-        if (existing.length) {
-          await updateDoc('erTemplate', existing[0].id, data);
-          template = { ...existing[0], ...data };
-        } else {
-          const id = await addDoc('erTemplate', data);
-          template = { ...data, id };
+        for (let i = 0; i < erRooms.length; i++) {
+          const r = erRooms[i];
+          const data = { periodKey: pk, name: r.name, teacherName: r.teacherName, order: i };
+          if (r._isNew || r.id.startsWith('new_')) {
+            const newId = await addDoc('erRooms', data);
+            // Update in-memory references
+            const oldId = r.id;
+            r.id = newId;
+            r._isNew = false;
+            erRoomStudents.forEach(rs => { if (rs.roomId === oldId) rs.roomId = newId; });
+          } else {
+            await updateDoc('erRooms', r.id, data);
+          }
         }
-        showToast('Template saved', 'success');
-      } catch (err) {
+        // Save room-student assignments
+        for (const rs of erRoomStudents) {
+          if (rs._isNew) {
+            const { _isNew, ...data } = rs;
+            const newId = await addDoc('erRoomStudents', data);
+            rs.id = newId;
+            rs._isNew = false;
+          }
+        }
+        showToast('Rooms saved', 'success');
+        renderRoomCards();
+        renderPoolChips();
+      } catch(err) {
         console.error(err);
-        showToast('Error saving template', 'error');
+        showToast('Error saving rooms', 'error');
       }
     };
 
-    // ── Variable pills ─────────────────────────────────────────────────────────────
-    function buildVarPills() {
-      document.getElementById('var-pills').innerHTML =
-        VARS.map(v => `<span class="var-pill" onclick="insertVar('main','{{${v.key}}}')">{{${v.key}}}</span>`).join('');
-    }
-
-    function buildNotifyVarPills() {
-      document.getElementById('notify-var-pills').innerHTML =
-        VARS.map(v => `<span class="var-pill" onclick="insertVar('notify','{{${v.key}}}')">{{${v.key}}}</span>`).join('');
-    }
-
-    window.insertVar = function(tmplTarget, text) {
-      const subj = document.getElementById(tmplTarget === 'notify' ? 'notify-tmpl-subject' : 'tmpl-subject');
-      const body = document.getElementById(tmplTarget === 'notify' ? 'notify-tmpl-body'    : 'tmpl-body');
-      const target = document.activeElement === subj ? subj : body;
-      const s = target.selectionStart, e = target.selectionEnd;
-      target.value = target.value.slice(0, s) + text + target.value.slice(e);
-      target.selectionStart = target.selectionEnd = s + text.length;
-      target.focus();
+    window.removeStudentFromRoom = function(studentId, roomId) {
+      const idx = erRoomStudents.findIndex(rs => rs.studentId === studentId && rs.roomId === roomId);
+      if (idx === -1) return;
+      const rs = erRoomStudents[idx];
+      erRoomStudents.splice(idx, 1);
+      // Delete from Firestore if saved
+      if (rs.id && !rs._isNew) deleteDoc('erRoomStudents', rs.id).catch(console.error);
+      renderRoomCards();
+      renderPoolChips();
     };
 
-    // ── Notify template management ─────────────────────────────────────────────────
-    function loadNotifyTemplateIntoForm() {
-      document.getElementById('notify-tmpl-subject').value = notifyTemplate.subject || '';
-      document.getElementById('notify-tmpl-body').value    = notifyTemplate.body    || '';
-    }
+    // ── Drag-and-drop ─────────────────────────────────────────────────────────────
+    window.onChipDragStart = function(e, studentId, fromRoomId) {
+      draggedStudentId = studentId;
+      e.dataTransfer.setData('studentId', studentId);
+      e.dataTransfer.setData('fromRoomId', fromRoomId || '');
+      e.currentTarget.classList.add('dragging');
+    };
+    window.onChipDragEnd = function(e) {
+      e.currentTarget.classList.remove('dragging');
+      draggedStudentId = null;
+      document.querySelectorAll('.er-drop-zone').forEach(z => z.classList.remove('drag-over'));
+    };
+    window.onDropZoneOver = function(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    };
+    window.onDropZoneLeave = function(e) {
+      e.currentTarget.classList.remove('drag-over');
+    };
+    window.onDropToRoom = function(e, targetRoomId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      const sid = e.dataTransfer.getData('studentId');
+      const fromRoomId = e.dataTransfer.getData('fromRoomId');
+      if (!sid) return;
 
-    window.saveNotifyTemplate = async function() {
-      const subject = document.getElementById('notify-tmpl-subject').value.trim();
-      const body    = document.getElementById('notify-tmpl-body').value.trim();
-      if (!subject || !body) { showToast('Subject and body are required', 'error'); return; }
-      try {
-        const existing = await getAll('erNotifyTemplate');
-        const data = { subject, body };
-        if (existing.length) {
-          await updateDoc('erNotifyTemplate', existing[0].id, data);
-          notifyTemplate = { ...existing[0], ...data };
-        } else {
-          const id = await addDoc('erNotifyTemplate', data);
-          notifyTemplate = { ...data, id };
+      // If dragging from another room, remove from that room first
+      if (fromRoomId && fromRoomId !== targetRoomId) {
+        const idx = erRoomStudents.findIndex(rs => rs.studentId === sid && rs.roomId === fromRoomId);
+        if (idx !== -1) {
+          const rs = erRoomStudents[idx];
+          erRoomStudents.splice(idx, 1);
+          if (rs.id && !rs._isNew) deleteDoc('erRoomStudents', rs.id).catch(console.error);
         }
-        showToast('Notify template saved', 'success');
-      } catch (err) {
-        console.error(err);
-        showToast('Error saving notify template', 'error');
       }
+
+      // Already in target room? Do nothing
+      if (erRoomStudents.find(rs => rs.studentId === sid && rs.roomId === targetRoomId)) {
+        renderRoomCards();
+        renderPoolChips();
+        return;
+      }
+
+      // Find student info
+      const student = students.find(s => s.id === sid);
+      if (!student) return;
+      const pk = periodKey();
+
+      erRoomStudents.push({
+        _isNew: true,
+        periodKey: pk,
+        roomId: targetRoomId,
+        studentId: sid,
+        studentName: `${student.firstName} ${student.lastName}`,
+        chattStateANumber: student.chattStateANumber || '',
+        house: student.house || '',
+        yearOfGraduation: student.yearOfGraduation || '',
+      });
+
+      renderRoomCards();
+      renderPoolChips();
     };
+
+    // ── Teacher clearance ─────────────────────────────────────────────────────────
+    window.toggleClearance = async function(studentId, teacherLastName, className) {
+      const pk = periodKey();
+      if (!pk) return;
+
+      const existing = erClearanceData.find(c =>
+        c.studentId === studentId &&
+        c.teacherLastName === teacherLastName &&
+        c.className === (className || '')
+      );
+
+      if (existing) {
+        // Remove clearance
+        erClearanceData = erClearanceData.filter(c => c !== existing);
+        if (existing.id) {
+          try { await deleteDoc('erClearance', existing.id); } catch(e) { console.error(e); }
+        }
+      } else {
+        // Add clearance
+        const user = getCurrentUser();
+        const newClr = {
+          periodKey: pk,
+          studentId,
+          teacherLastName,
+          className: className || '',
+          clearedAt: new Date().toISOString(),
+          clearedBy: user?.email || currentStaffLastName || '',
+        };
+        try {
+          const id = await addDoc('erClearance', newClr);
+          newClr.id = id;
+          erClearanceData.push(newClr);
+        } catch(e) { console.error('toggleClearance add error:', e); return; }
+      }
+
+      // Check if student is now fully cleared
+      await checkStudentFullyCleared(studentId);
+      renderAttendanceTab();
+    };
+
+    async function checkStudentFullyCleared(studentId) {
+      const pk = periodKey();
+      if (!pk) return;
+
+      // Get all class schedules for this student
+      const schedules = allClassSchedules.filter(cs => cs.studentId === studentId);
+      if (!schedules.length) return; // No schedules recorded — cannot fully clear
+
+      // Check if every schedule has a clearance entry
+      const allCleared = schedules.every(cs =>
+        erClearanceData.some(c =>
+          c.studentId === studentId &&
+          c.teacherLastName === cs.teacherLastName &&
+          c.className === (cs.className || '')
+        )
+      );
+
+      const existingCleared = erClearedData.find(c => c.studentId === studentId);
+
+      if (allCleared && !existingCleared) {
+        // Write to erCleared
+        const student = students.find(s => s.id === studentId);
+        const clearedRecord = {
+          periodKey: pk,
+          studentId,
+          studentName: student ? `${student.firstName} ${student.lastName}` : studentId,
+          chattStateANumber: student?.chattStateANumber || '',
+          clearedDate: new Date().toISOString().slice(0, 10),
+        };
+        try {
+          const id = await addDoc('erCleared', clearedRecord);
+          clearedRecord.id = id;
+          erClearedData.push(clearedRecord);
+          showToast(`🎓 ${student ? student.firstName : 'Student'} has been cleared from ER!`, 'success');
+        } catch(e) { console.error('checkStudentFullyCleared add error:', e); }
+      } else if (!allCleared && existingCleared) {
+        // A clearance was toggled off — remove from erCleared
+        erClearedData = erClearedData.filter(c => c.studentId !== studentId);
+        if (existingCleared.id) {
+          try { await deleteDoc('erCleared', existingCleared.id); } catch(e) { console.error(e); }
+        }
+      }
+    }
 
     // ── Notify send ────────────────────────────────────────────────────────────────
     window.sendNotifyEmails = async function() {
-      const tmplChoice = document.getElementById('notify-tmpl-select').value;
-      const tmpl = tmplChoice === 'notify' ? notifyTemplate : template;
-
-      if (!tmpl.subject || !tmpl.body) {
-        showToast('Please save the selected template in ER Setup first', 'warning');
+      const tmpl = getSelectedTemplate('notify');
+      if (!tmpl?.subject || !tmpl?.body) {
+        showToast('Select a Notify template in ER Setup first', 'warning');
         switchTab('er');
         return;
       }
@@ -1097,7 +1465,7 @@
     async function loadAttendanceForDate(date) {
       attState = {};
       try {
-        const rows = await getWhere('erAttendance', 'date', date);
+        const rows = await getWhere('erAttendance', 'date', '==', date);
         rows.forEach(r => {
           attState[r.studentId] = {
             teacherRoom: r.teacherRoom || '',
@@ -1110,69 +1478,140 @@
     }
 
     function renderAttendanceTab() {
-      const tbody = document.getElementById('att-er-tbody');
-      if (!tbody) return;
+      const wrap = document.getElementById('att-rooms-wrap');
+      if (!wrap) return;
 
-      // Only show students who are assigned for this date
-      const assignedStudents = students.filter(s => isAssigned(s.id));
-
-      if (!assignedStudents.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="att-empty"><i class="fas fa-user-slash" style="font-size:28px;display:block;margin-bottom:10px;"></i>No students are assigned to workshops for this date yet.</td></tr>`;
-        updateAttBadges(0, 0, 0, 0);
+      const pk = periodKey();
+      if (!pk) {
+        wrap.innerHTML = `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
+          <i class="fas fa-calendar-alt" style="font-size:28px;display:block;margin-bottom:10px;"></i>
+          Set the <strong>ER Period</strong> start and end dates in the top bar to see the attendance roster.
+        </div>`;
+        updateAttBadges(0,0,0,0,0);
         return;
       }
 
-      // Build room options from workshops
-      const roomOpts = workshops.map(w =>
-        `<option value="${esc(w.name)}">${esc(w.name)}${w.room ? ' — Rm ' + esc(w.room) : ''}</option>`
-      ).join('');
+      // Students in rooms
+      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      // Students assigned for this date but not placed in any room
+      const unplacedStudents = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
 
-      tbody.innerHTML = assignedStudents.map((student, idx) => {
-        const st          = attState[student.id] || { teacherRoom: '', status: null, complete: false };
-        const wids        = assignments[student.id] || [];
-        const studentWshops = wids.map(wid => workshops.find(x => x.id === wid)).filter(Boolean);
-        const workshopLabel = studentWshops.map(w => w.room ? `${w.name} (Rm ${w.room})` : w.name).join('<br>') || '—';
-        const pActive = st.status === 'P' ? 'active' : '';
-        const aActive = st.status === 'A' ? 'active' : '';
-        const doneClass = st.complete ? 'done' : '';
+      if (!erRooms.length && !unplacedStudents.length) {
+        wrap.innerHTML = `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
+          <i class="fas fa-door-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
+          Set up rooms in <strong>ER Setup</strong> and select an ER date above to see the attendance roster.
+        </div>`;
+        updateAttBadges(0,0,0,0,0);
+        return;
+      }
 
-        return `<tr class="att-er-row ${doneClass}" id="att-row-${student.id}">
-          <td class="att-num">${idx + 1}</td>
-          <td>
-            <div class="att-name">${esc(student.lastName)}, ${esc(student.firstName)}</div>
-            <div class="att-sub">${esc(student.chattStateANumber || student.email || '')}</div>
-          </td>
-          <td style="padding:8px 12px; font-size:13px; color:var(--text-muted); line-height:1.5;">
-            ${workshopLabel}
-          </td>
-          <td style="text-align:center;">
-            <div class="pa-group" style="justify-content:center;">
-              <button class="pa-btn P ${pActive}" onclick="attSetStatus('${student.id}','P')">P</button>
-              <button class="pa-btn A ${aActive}" onclick="attSetStatus('${student.id}','A')">A</button>
-            </div>
-          </td>
-          <td>
-            <div class="complete-wrap">
-              <input type="checkbox" class="complete-chk" ${st.complete ? 'checked' : ''}
-                onchange="attSetComplete('${student.id}', this.checked)">
-            </div>
-          </td>
-        </tr>`;
-      }).join('');
+      let totalStudents = 0, presentCount = 0, absentCount = 0, completeCount = 0, clearedCount = 0;
+      let html = '';
 
-      updateAttBadges(
-        assignedStudents.length,
-        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'P').length,
-        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'A').length,
-        assignedStudents.filter(s => attState[s.id]?.complete).length
-      );
+      erRooms.forEach(room => {
+        const roomStudents = erRoomStudents.filter(rs => rs.roomId === room.id);
+        if (!roomStudents.length) return;
+        html += `<div class="att-room-section">
+          <div class="att-room-hdr">
+            <span class="ahr-name"><i class="fas fa-door-open" style="margin-right:6px;"></i>${esc(room.name || 'Room')}</span>
+            ${room.teacherName ? `<span class="ahr-teacher">${esc(room.teacherName)}</span>` : ''}
+            <span class="ahr-count">${roomStudents.length} student${roomStudents.length !== 1 ? 's' : ''}</span>
+          </div>`;
+        roomStudents.forEach(rs => {
+          const student = students.find(s => s.id === rs.studentId);
+          if (!student) return;
+          totalStudents++;
+          const st = attState[student.id] || { status: null, complete: false, logId: null };
+          const isCleared = erClearedData.some(c => c.studentId === student.id);
+          if (st.status === 'P') presentCount++;
+          if (st.status === 'A') absentCount++;
+          if (st.complete) completeCount++;
+          if (isCleared) clearedCount++;
+          html += renderStudentAttRow(student, st, isCleared);
+        });
+        html += '</div>';
+      });
+
+      // Unplaced students section
+      if (unplacedStudents.length) {
+        html += `<div class="att-room-section">
+          <div class="att-room-hdr" style="background:#64748b;">
+            <span class="ahr-name"><i class="fas fa-question-circle" style="margin-right:6px;"></i>Not Assigned to a Room</span>
+            <span class="ahr-count">${unplacedStudents.length}</span>
+          </div>`;
+        unplacedStudents.forEach(student => {
+          totalStudents++;
+          const st = attState[student.id] || { status: null, complete: false, logId: null };
+          const isCleared = erClearedData.some(c => c.studentId === student.id);
+          if (st.status === 'P') presentCount++;
+          if (st.status === 'A') absentCount++;
+          if (st.complete) completeCount++;
+          if (isCleared) clearedCount++;
+          html += renderStudentAttRow(student, st, isCleared);
+        });
+        html += '</div>';
+      }
+
+      wrap.innerHTML = html || `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">No students placed in rooms yet.</div>`;
+      updateAttBadges(totalStudents, presentCount, absentCount, completeCount, clearedCount);
     }
 
-    function updateAttBadges(total, present, absent, complete) {
-      document.getElementById('att-total-txt').textContent   = `${total} student${total !== 1 ? 's' : ''}`;
-      document.getElementById('att-present-txt').textContent = `${present} present`;
-      document.getElementById('att-absent-txt').textContent  = `${absent} absent`;
-      document.getElementById('att-complete-txt').textContent= `${complete} complete`;
+    function renderStudentAttRow(student, st, isCleared) {
+      const pActive = st.status === 'P' ? 'active' : '';
+      const aActive = st.status === 'A' ? 'active' : '';
+
+      // Build clearance chips from this student's class schedules
+      const schedules = allClassSchedules.filter(cs => cs.studentId === student.id);
+      const clrChips = schedules.map(cs => {
+        const hasCleared = erClearanceData.some(c =>
+          c.studentId === student.id &&
+          c.teacherLastName === cs.teacherLastName &&
+          c.className === cs.className
+        );
+        const isMine = currentStaffLastName && cs.teacherLastName === currentStaffLastName;
+        const chipClass = ['clr-chip', hasCleared ? 'cleared' : 'pending', isMine ? 'mine' : ''].filter(Boolean).join(' ');
+        const icon = hasCleared ? 'fa-check-circle' : 'fa-clock';
+        const onclick = isMine
+          ? `onclick="toggleClearance('${student.id}','${esc(cs.teacherLastName)}','${esc(cs.className || '')}')"`
+          : '';
+        return `<span class="${chipClass}" title="${esc(cs.className || '')} — ${esc(cs.teacherLastName || '')}" ${onclick}>
+          <i class="fas ${icon}"></i> ${esc(cs.teacherLastName || '')}${cs.className ? ` (${esc(cs.className)})` : ''}
+        </span>`;
+      }).join('');
+
+      const clearedBadge = isCleared
+        ? `<span class="cleared-badge"><i class="fas fa-graduation-cap"></i> Cleared from ER</span>`
+        : '';
+
+      return `<div class="att-student-row ${isCleared ? 'cleared' : ''}" id="att-row-${student.id}">
+        <div class="att-student-info">
+          <div class="att-student-name">${esc(student.lastName)}, ${esc(student.firstName)}</div>
+          <div class="att-student-sub">${esc(student.chattStateANumber || student.email || '')}</div>
+        </div>
+        <div class="att-pa-wrap">
+          <button class="pa-btn P ${pActive}" onclick="attSetStatus('${student.id}','P')">P</button>
+          <button class="pa-btn A ${aActive}" onclick="attSetStatus('${student.id}','A')">A</button>
+        </div>
+        <div class="att-done-wrap">
+          <input type="checkbox" class="complete-chk" ${st.complete ? 'checked' : ''}
+            onchange="attSetComplete('${student.id}', this.checked)">
+          <span style="font-size:11px;">Done</span>
+        </div>
+        ${clearedBadge}
+        ${schedules.length ? `<div class="clr-section">
+          <div class="clr-section-lbl">Teacher Clearance</div>
+          <div class="clr-chips">${clrChips}</div>
+        </div>` : ''}
+      </div>`;
+    }
+
+    function updateAttBadges(total, present, absent, complete, cleared = 0) {
+      document.getElementById('att-total-txt').textContent    = `${total} student${total !== 1 ? 's' : ''}`;
+      document.getElementById('att-present-txt').textContent  = `${present} present`;
+      document.getElementById('att-absent-txt').textContent   = `${absent} absent`;
+      document.getElementById('att-complete-txt').textContent = `${complete} complete`;
+      const clTxt = document.getElementById('att-cleared-txt');
+      if (clTxt) clTxt.textContent = `${cleared} cleared`;
     }
 
     window.attSetStatus = function(studentId, status) {
@@ -1209,12 +1648,15 @@
     };
 
     function refreshAttBadges() {
-      const assignedStudents = students.filter(s => isAssigned(s.id));
+      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      const unplaced = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
+      const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
       updateAttBadges(
-        assignedStudents.length,
-        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'P').length,
-        assignedStudents.filter(s => (attState[s.id]?.status || null) === 'A').length,
-        assignedStudents.filter(s => attState[s.id]?.complete).length
+        allIds.length,
+        allIds.filter(id => (attState[id]?.status || null) === 'P').length,
+        allIds.filter(id => (attState[id]?.status || null) === 'A').length,
+        allIds.filter(id => attState[id]?.complete).length,
+        erClearedData.length
       );
     }
 
@@ -1233,21 +1675,26 @@
     }
 
     window.attMarkAllPresent = function() {
-      const assignedStudents = students.filter(s => isAssigned(s.id));
-      assignedStudents.forEach(s => window.attSetStatus(s.id, 'P'));
+      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      const unplaced = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
+      const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
+      allIds.forEach(id => window.attSetStatus(id, 'P'));
       showToast('All students marked Present', 'success');
     };
 
     window.attSaveAll = async function() {
-      const assignedStudents = students.filter(s => isAssigned(s.id));
-      for (const s of assignedStudents) await attSaveRow(s.id);
-      showToast(`Saved attendance for ${assignedStudents.length} students`, 'success');
+      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      const unplaced = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
+      const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
+      for (const id of allIds) await attSaveRow(id);
+      showToast(`Saved attendance for ${allIds.length} students`, 'success');
     };
 
     // ── Test: preview emails without sending ──────────────────────────────────────
     window.testEmails = function() {
-      const subject = template.subject;
-      const body    = template.body;
+      const tmpl    = getSelectedTemplate('email');
+      const subject = tmpl?.subject || '';
+      const body    = tmpl?.body    || '';
 
       const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
       const assigned = students.filter(s => isAssigned(s.id));
@@ -1258,7 +1705,7 @@
 
       if (!subject || !body) {
         document.getElementById('test-list').innerHTML =
-          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template saved yet.<br>Go to <strong>ER Setup → Email Template</strong> and save one first.</div>`;
+          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template selected.<br>Go to <strong>ER Setup</strong> and choose a template from the dropdown first.</div>`;
         document.getElementById('test-meta').innerHTML = '';
         return;
       }
@@ -1317,10 +1764,11 @@
 
     // ── Send emails ────────────────────────────────────────────────────────────────
     window.sendEmails = async function() {
-      const subject = template.subject;
-      const body    = template.body;
+      const tmpl    = getSelectedTemplate('email');
+      const subject = tmpl?.subject || '';
+      const body    = tmpl?.body    || '';
       if (!subject || !body) {
-        showToast('Please save an email template in the ER Setup tab first', 'warning');
+        showToast('Select an email template in ER Setup first', 'warning');
         switchTab('er');
         return;
       }
