@@ -41,7 +41,6 @@ const navItems = [
   {
     id: 'admin-group', label: 'Admin', icon: 'fa-tools', group: true,
     children: [
-      { id: 'school-calendar', label: 'Calendar',      href: './school-calendar.html', icon: 'fa-calendar' },
       { id: 'schedule-admin',  label: 'Schedule Admin', href: './schedule-admin.html',  icon: 'fa-cog' },
       { id: 'admin',           label: 'Admin',          href: './admin.html',           icon: 'fa-tools' },
     ]
