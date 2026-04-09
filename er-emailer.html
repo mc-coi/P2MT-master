@@ -21,6 +21,16 @@
     .er-date-wrap input[type="date"] { padding: 7px 11px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: var(--text-primary); outline: none; }
     .er-date-wrap input:focus { border-color: var(--primary); }
 
+    /* ── ER Period range ── */
+    .er-period-wrap { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 9px; }
+    .er-period-wrap .ep-label { font-size: 12px; font-weight: 700; color: #15803d; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+    .er-period-wrap input[type="date"] { padding: 5px 9px; border: 1.5px solid #bbf7d0; border-radius: 7px; font-size: 13px; color: var(--text-primary); outline: none; background: white; }
+    .er-period-wrap input[type="date"]:focus { border-color: #16a34a; }
+    .er-period-wrap .ep-sep { font-size: 12px; color: #64748b; font-weight: 600; }
+    [data-theme="dark"] .er-period-wrap { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); }
+    [data-theme="dark"] .er-period-wrap .ep-label { color: #34D399; }
+    [data-theme="dark"] .er-period-wrap input[type="date"] { background: var(--surface); border-color: rgba(16,185,129,0.3); }
+
     /* ── Outlook button ── */
     .btn-outlook { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; border: 1.5px solid; transition: all .15s; white-space: nowrap; }
     .btn-outlook.disconnected { border-color: #0078d4; color: #0078d4; background: white; }
@@ -294,6 +304,12 @@
         <label>ER Date:</label>
         <input type="date" id="er-date" onchange="onDateChange()">
       </div>
+      <div class="er-period-wrap">
+        <span class="ep-label"><i class="fas fa-calendar-week"></i> ER Period:</span>
+        <input type="date" id="er-period-start" onchange="onPeriodChange()" title="ER period start date">
+        <span class="ep-sep">→</span>
+        <input type="date" id="er-period-end" onchange="onPeriodChange()" title="ER period end date">
+      </div>
       <div class="spacer"></div>
       <button id="btn-outlook" class="btn-outlook disconnected" onclick="connectOutlook()">
         <i class="fab fa-microsoft"></i> Connect Outlook
@@ -423,7 +439,7 @@
           </div>
           <div class="mf-row">
             <label>Body *</label>
-            <textarea id="tmpl-body" rows="10" placeholder="Dear {{firstName}},&#10;&#10;Your Early Release workshop assignment for {{date}} is:&#10;&#10;  Workshop: {{workshopName}}&#10;  Room: {{room}}&#10;&#10;Please report to Room {{room}} at the start of the Early Release period.&#10;&#10;Thank you,&#10;[Your name]"></textarea>
+            <textarea id="tmpl-body" rows="10" placeholder="Dear {{firstName}},&#10;&#10;Your Early Release workshop assignment for {{date}} is:&#10;&#10;  Workshop: {{workshopName}}&#10;  Room: {{room}}&#10;&#10;ER Period: {{erDateRange}}&#10;&#10;Please report to Room {{room}} at the start of the Early Release period.&#10;&#10;Thank you,&#10;[Your name]"></textarea>
           </div>
           <button class="save-tmpl-btn" onclick="saveTemplate()">
             <i class="fas fa-save"></i> Save Template
@@ -463,6 +479,9 @@
               <span><code>{{room}}</code> — room(s), comma-sep</span>
               <span><code>{{date}}</code> — ER date</span>
               <span><code>{{dayOfWeek}}</code> — day name</span>
+              <span><code>{{erStart}}</code> — ER period start date</span>
+              <span><code>{{erEnd}}</code> — ER period end date</span>
+              <span><code>{{erDateRange}}</code> — e.g. "April 7 – April 11, 2026"</span>
               <span><code>{{studentEmail}}</code> — student email</span>
             </div>
           </div>
@@ -533,6 +552,8 @@
     let notifyTemplate  = { subject: '', body: '' };
     let guardianEmails  = {};  // { studentId: email }
     let currentDate     = '';
+    let erPeriodStart   = '';  // YYYY-MM-DD
+    let erPeriodEnd     = '';  // YYYY-MM-DD
 
     // ER Attendance state: { studentId: { teacherRoom, status:'P'|'A'|null, complete:bool, logId:null } }
     let attState = {};
@@ -551,6 +572,9 @@
       { key: 'room',         label: 'Room'          },
       { key: 'date',         label: 'ER Date'       },
       { key: 'dayOfWeek',    label: 'Day of Week'   },
+      { key: 'erStart',      label: 'Period Start'  },
+      { key: 'erEnd',        label: 'Period End'    },
+      { key: 'erDateRange',  label: 'Date Range'    },
       { key: 'studentEmail', label: 'Student Email' },
     ];
 
@@ -558,6 +582,7 @@
     initAuth().then(() => {
       initNav('er-emailer');
       setDefaultDate();
+      loadErPeriod();
       buildVarPills();
       document.getElementById('az-redirect').textContent =
         window.location.origin + window.location.pathname;
@@ -570,6 +595,42 @@
       const d = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
       document.getElementById('er-date').value = d;
       currentDate = d;
+    }
+
+    function loadErPeriod() {
+      erPeriodStart = localStorage.getItem('p2mt_er_period_start') || '';
+      erPeriodEnd   = localStorage.getItem('p2mt_er_period_end')   || '';
+      document.getElementById('er-period-start').value = erPeriodStart;
+      document.getElementById('er-period-end').value   = erPeriodEnd;
+    }
+
+    window.onPeriodChange = function() {
+      erPeriodStart = document.getElementById('er-period-start').value;
+      erPeriodEnd   = document.getElementById('er-period-end').value;
+      localStorage.setItem('p2mt_er_period_start', erPeriodStart);
+      localStorage.setItem('p2mt_er_period_end',   erPeriodEnd);
+    };
+
+    // Build the three ER-period template values from current state
+    function buildPeriodData() {
+      const start = erPeriodStart ? fmtDate(erPeriodStart) : '';
+      const end   = erPeriodEnd   ? fmtDate(erPeriodEnd)   : '';
+      let range = '';
+      if (start && end) {
+        // Compact form: "April 7 – April 11, 2026"
+        const sDate = erPeriodStart.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const eDate = erPeriodEnd.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (sDate && eDate) {
+          const s = new Date(+sDate[1], +sDate[2]-1, +sDate[3]);
+          const e = new Date(+eDate[1], +eDate[2]-1, +eDate[3]);
+          const mo = (d) => d.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+          const yr = e.getFullYear();
+          range = `${mo(s)} \u2013 ${mo(e)}, ${yr}`;
+        }
+      } else {
+        range = start || end;
+      }
+      return { erStart: start, erEnd: end, erDateRange: range };
     }
 
     async function loadAll() {
@@ -1001,6 +1062,7 @@
             date:         dateLabel,
             dayOfWeek:    dayLabel,
             studentEmail: student.email,
+            ...buildPeriodData(),
           };
 
           const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
@@ -1225,6 +1287,7 @@
           date:         dateLabel,
           dayOfWeek:    dayLabel,
           studentEmail: student.email || '',
+          ...buildPeriodData(),
         };
 
         const mergedSubject = merge(subject, data);
@@ -1296,6 +1359,7 @@
             date:         dateLabel,
             dayOfWeek:    dayLabel,
             studentEmail: student.email || '',
+            ...buildPeriodData(),
           };
 
           const mergedSubject = merge(subject, data);
@@ -1460,6 +1524,8 @@ Your Early Release workshop assignment for {{date}} is:
 
   Workshop: {{workshopName}}
   Room: {{room}}
+
+ER Period: {{erDateRange}}
 
 Please report to Room {{room}} at the start of the Early Release period.
 
