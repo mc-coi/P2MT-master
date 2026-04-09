@@ -212,6 +212,24 @@
 
     .att-empty { padding: 40px; text-align: center; color: #94a3b8; font-size: 14px; }
 
+    /* ── Test preview ── */
+    .test-email-card { border: 1.5px solid #e2e8f0; border-radius: 10px; overflow: hidden; }
+    .test-email-hdr  { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+    .test-email-hdr .te-name  { font-weight: 700; color: var(--text-primary); }
+    .test-email-hdr .te-email { color: #64748b; margin-left: auto; font-family: monospace; font-size: 11px; }
+    .test-email-hdr .te-workshops { color: #0369a1; font-size: 11px; background:#eff6ff; border-radius:6px; padding:2px 8px; }
+    .test-email-subj { padding: 8px 14px; font-size: 12px; font-weight: 700; color: #475569; border-bottom: 1px solid #f1f5f9; background: white; }
+    .test-email-body { padding: 12px 14px; font-size: 13px; color: var(--text-primary); white-space: pre-wrap; font-family: inherit; background: white; line-height: 1.6; }
+    .test-no-tmpl    { padding: 30px; text-align:center; color: #dc2626; font-size:14px; }
+    .test-badge-mode { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600; padding:4px 10px; border-radius:8px; background:#f0fdf4; color:#16a34a; border:1px solid #bbf7d0; }
+
+    [data-theme="dark"] .test-email-card  { border-color: var(--border); }
+    [data-theme="dark"] .test-email-hdr   { background: var(--surface-2); border-bottom-color: var(--border); }
+    [data-theme="dark"] .test-email-subj  { background: var(--surface); border-bottom-color: var(--border); }
+    [data-theme="dark"] .test-email-body  { background: var(--surface); }
+    [data-theme="dark"] .test-email-hdr .te-workshops { background: rgba(59,130,246,0.15); color: #93C5FD; }
+    [data-theme="dark"] .test-badge-mode  { background: rgba(16,185,129,0.12); color: #34D399; border-color: rgba(16,185,129,0.3); }
+
     /* ── Dark mode overrides ── */
     [data-theme="dark"] .modal-box { background: var(--surface); }
     [data-theme="dark"] .modal-close { color: var(--text-muted); }
@@ -320,6 +338,9 @@
           <label><input type="radio" name="rcpt-mode" value="student" checked> Student only</label>
           <label><input type="radio" name="rcpt-mode" value="both"> Student + Guardian</label>
         </div>
+        <button class="btn-send-er" id="btn-test-er" onclick="testEmails()" style="background:#475569;">
+          <i class="fas fa-flask"></i> Test
+        </button>
         <button class="btn-send-er" id="btn-send-er" onclick="sendEmails()">
           <i class="fas fa-paper-plane"></i> <span id="send-btn-txt">Send Emails</span>
         </button>
@@ -332,7 +353,7 @@
           <option value="main">Email Template</option>
           <option value="notify">Notify Template</option>
         </select>
-        <span class="nb-hint"><code style="background:#fef3c7;padding:1px 5px;border-radius:4px;font-size:11px;">{{classes}}</code> = student's assigned workshop &nbsp;·&nbsp; Sends only to assigned students</span>
+        <span class="nb-hint"><code style="background:#fef3c7;padding:1px 5px;border-radius:4px;font-size:11px;">{{classes}}</code> = all assigned workshops (comma-separated) &nbsp;·&nbsp; Sends only to assigned students</span>
         <button class="btn-notify" id="btn-notify" onclick="sendNotifyEmails()">
           <i class="fas fa-bell"></i> Notify
         </button>
@@ -437,8 +458,9 @@
             <div style="display:flex;flex-direction:column;gap:5px;font-family:monospace;font-size:12px;">
               <span><code>{{firstName}}</code> — student first name</span>
               <span><code>{{studentName}}</code> — full name</span>
-              <span><code>{{classes}}</code> — assigned workshop(s)</span>
-              <span><code>{{room}}</code> — workshop room</span>
+              <span><code>{{workshopName}}</code> — workshop name(s), comma-sep</span>
+              <span><code>{{classes}}</code> — workshops with rooms, comma-sep</span>
+              <span><code>{{room}}</code> — room(s), comma-sep</span>
               <span><code>{{date}}</code> — ER date</span>
               <span><code>{{dayOfWeek}}</code> — day name</span>
               <span><code>{{studentEmail}}</code> — student email</span>
@@ -450,6 +472,24 @@
     </div>
 
   </div><!-- /er-page -->
+
+  <!-- Test preview modal -->
+  <div id="modal-test" class="modal-bd">
+    <div class="modal-box" style="max-width:720px;">
+      <div class="modal-head">
+        <h2><i class="fas fa-flask" style="color:#475569; margin-right:7px;"></i>Email Preview — Test Mode</h2>
+        <button class="modal-close" onclick="document.getElementById('modal-test').classList.remove('open')">&times;</button>
+      </div>
+      <p style="font-size:13px; color:var(--text-muted); margin: 0 0 14px;">
+        No emails are sent. This shows exactly what each assigned student would receive based on the current template and assignments.
+      </p>
+      <div id="test-meta" style="font-size:12px;color:#64748b;margin-bottom:12px;"></div>
+      <div id="test-list" style="display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow-y:auto;padding-right:4px;"></div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="document.getElementById('modal-test').classList.remove('open')">Close</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Azure setup modal -->
   <div id="modal-azure" class="modal-bd">
@@ -488,7 +528,7 @@
     // ── Data ─────────────────────────────────────────────────────────────────────
     let students   = [];
     let workshops  = [];
-    let assignments = {};    // { studentId: workshopId } for current date
+    let assignments = {};    // { studentId: [workshopId, ...] } for current date
     let template        = { subject: '', body: '' };
     let notifyTemplate  = { subject: '', body: '' };
     let guardianEmails  = {};  // { studentId: email }
@@ -568,7 +608,14 @@
       assignments = {};
       try {
         const rows = await getWhere('erAssignments', 'date', date);
-        rows.forEach(r => { assignments[r.studentId] = r.workshopId; });
+        rows.forEach(r => {
+          // Support both new (workshopIds array) and old (workshopId string) format
+          if (r.workshopIds && Array.isArray(r.workshopIds)) {
+            assignments[r.studentId] = r.workshopIds;
+          } else if (r.workshopId) {
+            assignments[r.studentId] = [r.workshopId];
+          }
+        });
       } catch (err) {
         console.error('Error loading assignments:', err);
       }
@@ -601,7 +648,7 @@
       let thHtml = `<tr>
         <th class="th-name"><div class="th-name-inner">Name</div></th>`;
       workshops.forEach(w => {
-        const cnt = Object.values(assignments).filter(wid => wid === w.id).length;
+        const cnt = Object.values(assignments).filter(wids => Array.isArray(wids) && wids.includes(w.id)).length;
         thHtml += `<th class="th-workshop">
           <div class="workshop-header-cell" onclick="assignAll('${w.id}')" title="Click to assign all unassigned students to ${esc(w.name)}">
             <span class="wh-name">${esc(w.name)}</span>
@@ -619,8 +666,8 @@
       const tbody = document.getElementById('er-tbody');
       let tbHtml = '';
       students.forEach(student => {
-        const assignedWid = assignments[student.id] || null;
-        const hasDot = assignedWid ? 'ok' : 'none';
+        const assignedWids = assignments[student.id] || [];
+        const hasDot = assignedWids.length ? 'ok' : 'none';
         tbHtml += `<tr>
           <td class="td-name">
             <div class="name-cell">
@@ -629,7 +676,7 @@
             </div>
           </td>`;
         workshops.forEach(w => {
-          const checked = assignedWid === w.id ? 'checked' : '';
+          const checked = assignedWids.includes(w.id) ? 'checked' : '';
           tbHtml += `<td class="cell-chk">
             <input type="checkbox" ${checked}
               data-student="${student.id}"
@@ -654,10 +701,14 @@
       updateSummary();
     }
 
+    function isAssigned(studentId) {
+      return Array.isArray(assignments[studentId]) && assignments[studentId].length > 0;
+    }
+
     function updateSummary() {
       const total    = students.length;
-      const assigned = students.filter(s => assignments[s.id]).length;
-      const noEmail  = students.filter(s => assignments[s.id] && !s.email).length;
+      const assigned = students.filter(s => isAssigned(s.id)).length;
+      const noEmail  = students.filter(s => isAssigned(s.id) && !s.email).length;
 
       document.getElementById('grid-summary').innerHTML =
         `<strong>${assigned}</strong> of ${total} students assigned`;
@@ -674,78 +725,68 @@
       const studentId  = chk.dataset.student;
       const workshopId = chk.dataset.workshop;
 
+      if (!Array.isArray(assignments[studentId])) assignments[studentId] = [];
+
       if (chk.checked) {
-        // Uncheck all others in this row
-        document.querySelectorAll(`input[data-student="${studentId}"]`).forEach(c => {
-          if (c !== chk) c.checked = false;
-        });
-        assignments[studentId] = workshopId;
-        await saveAssignment(studentId, workshopId);
+        if (!assignments[studentId].includes(workshopId)) {
+          assignments[studentId].push(workshopId);
+        }
       } else {
-        // Unchecking → remove assignment
-        delete assignments[studentId];
-        await deleteAssignment(studentId);
+        assignments[studentId] = assignments[studentId].filter(w => w !== workshopId);
       }
 
       // Update the green dot on the name cell
       const dot = chk.closest('tr').querySelector('.assigned-dot');
       if (dot) {
-        dot.className = `assigned-dot ${assignments[studentId] ? 'ok' : 'none'}`;
+        dot.className = `assigned-dot ${assignments[studentId].length ? 'ok' : 'none'}`;
       }
+
+      await saveAssignment(studentId);
       updateSummary();
-      // Refresh workshop count badges
       renderWorkshopCounts();
     };
 
     function renderWorkshopCounts() {
-      workshops.forEach(w => {
-        const cnt = Object.values(assignments).filter(wid => wid === w.id).length;
-        document.querySelectorAll(`.wh-count`).forEach((el, i) => {
-          if (workshops[i]?.id === w.id) el.textContent = cnt;
-        });
-      });
-      // Re-render header to update counts efficiently
       const countEls = document.querySelectorAll('.wh-count');
       countEls.forEach((el, i) => {
         if (workshops[i]) {
-          el.textContent = Object.values(assignments).filter(wid => wid === workshops[i].id).length;
+          el.textContent = Object.values(assignments).filter(
+            wids => Array.isArray(wids) && wids.includes(workshops[i].id)
+          ).length;
         }
       });
     }
 
-    async function saveAssignment(studentId, workshopId) {
+    async function saveAssignment(studentId) {
+      const workshopIds = assignments[studentId] || [];
       try {
-        // Check if assignment exists
         const existing = await getWhere('erAssignments', 'studentId', studentId);
         const forDate  = existing.find(r => r.date === currentDate);
-        if (forDate) {
-          await updateDoc('erAssignments', forDate.id, { workshopId, date: currentDate, studentId });
+        if (workshopIds.length === 0) {
+          if (forDate) await deleteDoc('erAssignments', forDate.id);
+        } else if (forDate) {
+          await updateDoc('erAssignments', forDate.id, { workshopIds, date: currentDate, studentId });
         } else {
-          await addDoc('erAssignments', { studentId, workshopId, date: currentDate });
+          await addDoc('erAssignments', { studentId, workshopIds, date: currentDate });
         }
       } catch (err) { console.error('Save assignment error:', err); }
     }
 
     async function deleteAssignment(studentId) {
-      try {
-        const existing = await getWhere('erAssignments', 'studentId', studentId);
-        const forDate  = existing.find(r => r.date === currentDate);
-        if (forDate) await deleteDoc('erAssignments', forDate.id);
-      } catch (err) { console.error('Delete assignment error:', err); }
+      assignments[studentId] = [];
+      await saveAssignment(studentId);
     }
 
     // ── Assign all unassigned to a workshop ────────────────────────────────────────
     window.assignAll = async function(workshopId) {
       const w = workshops.find(x => x.id === workshopId);
       if (!w) return;
-      const unassigned = students.filter(s => !assignments[s.id]);
-      if (!unassigned.length) { showToast('All students are already assigned', 'info'); return; }
+      const unassigned = students.filter(s => !isAssigned(s.id));
+      if (!unassigned.length) { showToast('All students are already assigned to at least one workshop', 'info'); return; }
 
       for (const s of unassigned) {
-        assignments[s.id] = workshopId;
-        document.querySelectorAll(`input[data-student="${s.id}"][data-workshop="${workshopId}"]`)
-          .forEach(c => { c.checked = true; });
-        await saveAssignment(s.id, workshopId);
+        assignments[s.id] = [workshopId];
+        await saveAssignment(s.id);
       }
       renderGrid();
       showToast(`Assigned ${unassigned.length} students to ${w.name}`, 'success');
@@ -754,7 +795,7 @@
     // ── Clear all assignments ──────────────────────────────────────────────────────
     window.clearAll = async function() {
       if (!await confirmTypedDelete('Clear all assignments for this date? This cannot be undone.')) return;
-      const assigned = students.filter(s => assignments[s.id]);
+      const assigned = students.filter(s => isAssigned(s.id));
       for (const s of assigned) {
         await deleteAssignment(s.id);
       }
@@ -932,7 +973,7 @@
         return;
       }
 
-      const assigned = students.filter(s => assignments[s.id]);
+      const assigned = students.filter(s => isAssigned(s.id));
       if (!assigned.length) { showToast('No students assigned', 'warning'); return; }
 
       const btn = document.getElementById('btn-notify');
@@ -948,15 +989,15 @@
 
         for (const student of assigned) {
           if (!student.email) { failed++; continue; }
-          const wid      = assignments[student.id];
-          const workshop = workshops.find(w => w.id === wid);
+          const wids          = assignments[student.id] || [];
+          const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
 
           const data = {
             firstName:    student.firstName,
             studentName:  `${student.firstName} ${student.lastName}`,
-            workshopName: workshop?.name || '',
-            classes:      workshop ? (workshop.room ? `${workshop.name} (Room ${workshop.room})` : workshop.name) : '',
-            room:         workshop?.room || 'TBD',
+            workshopName: studentWshops.map(w => w.name).join(', '),
+            classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
+            room:         studentWshops.map(w => w.room || 'TBD').join(', '),
             date:         dateLabel,
             dayOfWeek:    dayLabel,
             studentEmail: student.email,
@@ -1011,7 +1052,7 @@
       if (!tbody) return;
 
       // Only show students who are assigned for this date
-      const assignedStudents = students.filter(s => assignments[s.id]);
+      const assignedStudents = students.filter(s => isAssigned(s.id));
 
       if (!assignedStudents.length) {
         tbody.innerHTML = `<tr><td colspan="5" class="att-empty"><i class="fas fa-user-slash" style="font-size:28px;display:block;margin-bottom:10px;"></i>No students are assigned to workshops for this date yet.</td></tr>`;
@@ -1026,11 +1067,9 @@
 
       tbody.innerHTML = assignedStudents.map((student, idx) => {
         const st          = attState[student.id] || { teacherRoom: '', status: null, complete: false };
-        const defaultRoom = (() => {
-          const wid = assignments[student.id];
-          const w   = workshops.find(x => x.id === wid);
-          return st.teacherRoom || (w ? w.name : '');
-        })();
+        const wids        = assignments[student.id] || [];
+        const studentWshops = wids.map(wid => workshops.find(x => x.id === wid)).filter(Boolean);
+        const workshopLabel = studentWshops.map(w => w.room ? `${w.name} (Rm ${w.room})` : w.name).join('<br>') || '—';
         const pActive = st.status === 'P' ? 'active' : '';
         const aActive = st.status === 'A' ? 'active' : '';
         const doneClass = st.complete ? 'done' : '';
@@ -1041,11 +1080,8 @@
             <div class="att-name">${esc(student.lastName)}, ${esc(student.firstName)}</div>
             <div class="att-sub">${esc(student.chattStateANumber || student.email || '')}</div>
           </td>
-          <td class="att-er-room">
-            <select class="room-sel" onchange="attSetRoom('${student.id}', this.value)">
-              <option value="">— Select Room —</option>
-              ${roomOpts}
-            </select>
+          <td style="padding:8px 12px; font-size:13px; color:var(--text-muted); line-height:1.5;">
+            ${workshopLabel}
           </td>
           <td style="text-align:center;">
             <div class="pa-group" style="justify-content:center;">
@@ -1061,17 +1097,6 @@
           </td>
         </tr>`;
       }).join('');
-
-      // Set the selected room option in each row's <select>
-      assignedStudents.forEach(student => {
-        const st          = attState[student.id] || {};
-        const wid         = assignments[student.id];
-        const w           = workshops.find(x => x.id === wid);
-        const room        = st.teacherRoom || (w ? w.name : '');
-        const row         = document.getElementById(`att-row-${student.id}`);
-        const sel         = row?.querySelector('.room-sel');
-        if (sel && room) sel.value = room;
-      });
 
       updateAttBadges(
         assignedStudents.length,
@@ -1122,7 +1147,7 @@
     };
 
     function refreshAttBadges() {
-      const assignedStudents = students.filter(s => assignments[s.id]);
+      const assignedStudents = students.filter(s => isAssigned(s.id));
       updateAttBadges(
         assignedStudents.length,
         assignedStudents.filter(s => (attState[s.id]?.status || null) === 'P').length,
@@ -1146,15 +1171,85 @@
     }
 
     window.attMarkAllPresent = function() {
-      const assignedStudents = students.filter(s => assignments[s.id]);
+      const assignedStudents = students.filter(s => isAssigned(s.id));
       assignedStudents.forEach(s => window.attSetStatus(s.id, 'P'));
       showToast('All students marked Present', 'success');
     };
 
     window.attSaveAll = async function() {
-      const assignedStudents = students.filter(s => assignments[s.id]);
+      const assignedStudents = students.filter(s => isAssigned(s.id));
       for (const s of assignedStudents) await attSaveRow(s.id);
       showToast(`Saved attendance for ${assignedStudents.length} students`, 'success');
+    };
+
+    // ── Test: preview emails without sending ──────────────────────────────────────
+    window.testEmails = function() {
+      const subject = template.subject;
+      const body    = template.body;
+
+      const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
+      const assigned = students.filter(s => isAssigned(s.id));
+      const dateLabel = fmtDate(currentDate);
+      const dayLabel  = fmtDOW(currentDate);
+
+      document.getElementById('modal-test').classList.add('open');
+
+      if (!subject || !body) {
+        document.getElementById('test-list').innerHTML =
+          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template saved yet.<br>Go to <strong>ER Setup → Email Template</strong> and save one first.</div>`;
+        document.getElementById('test-meta').innerHTML = '';
+        return;
+      }
+
+      if (!assigned.length) {
+        document.getElementById('test-list').innerHTML =
+          `<div class="test-no-tmpl" style="color:#64748b;"><i class="fas fa-user-slash" style="font-size:24px;display:block;margin-bottom:8px;"></i>No students assigned for this date.</div>`;
+        document.getElementById('test-meta').innerHTML = '';
+        return;
+      }
+
+      const modeLabel = mode === 'both' ? 'Student + Guardian (CC)' : 'Student only';
+      document.getElementById('test-meta').innerHTML =
+        `<span class="test-badge-mode"><i class="fas fa-check-circle"></i> ${assigned.length} email${assigned.length !== 1 ? 's' : ''} would be sent &nbsp;·&nbsp; ${modeLabel}</span>`;
+
+      const cards = assigned.map(student => {
+        const wids          = assignments[student.id] || [];
+        const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+
+        const data = {
+          firstName:    student.firstName,
+          studentName:  `${student.firstName} ${student.lastName}`,
+          workshopName: studentWshops.map(w => w.name).join(', '),
+          classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
+          room:         studentWshops.map(w => w.room || 'TBD').join(', '),
+          date:         dateLabel,
+          dayOfWeek:    dayLabel,
+          studentEmail: student.email || '',
+        };
+
+        const mergedSubject = merge(subject, data);
+        const mergedBody    = merge(body, data);
+        const workshopBadge = studentWshops.map(w => esc(w.name)).join(', ') || '—';
+        const guardianEmail = guardianEmails[student.id];
+        const ccLine = (mode === 'both' && guardianEmail)
+          ? `<span style="margin-left:8px;font-size:11px;color:#64748b;">CC: ${esc(guardianEmail)}</span>`
+          : '';
+        const noEmailWarn = !student.email
+          ? `<span style="color:#dc2626;font-size:11px;margin-left:8px;"><i class="fas fa-exclamation-triangle"></i> No student email — would be skipped</span>`
+          : '';
+
+        return `<div class="test-email-card">
+          <div class="test-email-hdr">
+            <span class="te-name">${esc(student.lastName)}, ${esc(student.firstName)}</span>
+            <span class="te-workshops">${workshopBadge}</span>
+            <span class="te-email">${esc(student.email || 'no email')}${ccLine}${noEmailWarn}</span>
+          </div>
+          <div class="test-email-subj">Subject: ${esc(mergedSubject)}</div>
+          <div class="test-email-body">${esc(mergedBody)}</div>
+        </div>`;
+      });
+
+      document.getElementById('test-list').innerHTML = cards.join('');
     };
 
     // ── Send emails ────────────────────────────────────────────────────────────────
@@ -1173,7 +1268,7 @@
       }
 
       const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
-      const assigned = students.filter(s => assignments[s.id]);
+      const assigned = students.filter(s => isAssigned(s.id));
       if (!assigned.length) { showToast('No students assigned', 'warning'); return; }
 
       const btn = document.getElementById('btn-send-er');
@@ -1188,16 +1283,16 @@
         const token = await getToken();
 
         for (const student of assigned) {
-          const wid       = assignments[student.id];
-          const workshop  = workshops.find(w => w.id === wid);
-          if (!workshop) { failed++; continue; }
+          const wids           = assignments[student.id] || [];
+          const studentWshops  = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+          if (!studentWshops.length) { failed++; continue; }
 
           const data = {
             firstName:    student.firstName,
             studentName:  `${student.firstName} ${student.lastName}`,
-            workshopName: workshop.name,
-            classes:      workshop.room ? `${workshop.name} (Room ${workshop.room})` : workshop.name,
-            room:         workshop.room || 'TBD',
+            workshopName: studentWshops.map(w => w.name).join(', '),
+            classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
+            room:         studentWshops.map(w => w.room || 'TBD').join(', '),
             date:         dateLabel,
             dayOfWeek:    dayLabel,
             studentEmail: student.email || '',
@@ -1247,7 +1342,7 @@
         updateOutlookBtn();
       } finally {
         btn.disabled = false;
-        const cnt = students.filter(s => assignments[s.id]).length;
+        const cnt = students.filter(s => isAssigned(s.id)).length;
         btn.innerHTML = `<i class="fas fa-paper-plane"></i> <span id="send-btn-txt">Send ${cnt} Email${cnt !== 1 ? 's' : ''}</span>`;
       }
     };
