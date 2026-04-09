@@ -530,9 +530,10 @@
           <span style="font-size:16px;font-weight:700;color:var(--text-primary);"><i class="fas fa-door-open" style="color:var(--primary);margin-right:6px;"></i>Room Assignments</span>
           <span id="er-setup-period-label" style="font-size:12px;color:var(--text-muted);margin-left:8px;"></span>
         </div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
           <button class="btn-add-room" style="width:auto;" onclick="addErRoom()"><i class="fas fa-plus"></i> Add Room</button>
           <button class="btn-save-rooms" onclick="saveErRooms()"><i class="fas fa-save"></i> Save Rooms</button>
+          <button class="btn-sm danger" style="padding:8px 14px;font-size:13px;" onclick="resetER()"><i class="fas fa-trash-alt"></i> Reset ER</button>
         </div>
       </div>
       <div id="er-setup-no-period" style="display:none;padding:14px;background:#fffbeb;border:1.5px solid #fde68a;border-radius:10px;font-size:13px;color:#92400e;margin-bottom:14px;">
@@ -1655,6 +1656,75 @@
       }
 
       refreshAttBadges();
+    };
+
+    // ── Reset ER ──────────────────────────────────────────────────────────────────
+    window.resetER = async function() {
+      const pk = periodKey();
+      if (!pk) { showToast('Set ER Period dates first', 'warning'); return; }
+
+      const confirmed = await confirmTypedDelete(
+        'This will remove ALL rooms, student placements, clearances, and emailer assignments. Type "reset" to confirm.'
+      );
+      if (!confirmed) return;
+
+      const btn = document.querySelector('.btn-sm.danger');
+      if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting…'; }
+
+      try {
+        // 1 — Delete erRooms for this period
+        for (const r of erRooms) {
+          if (r.id && !r.id.startsWith('new_')) {
+            try { await deleteDoc('erRooms', r.id); } catch(e) { console.error(e); }
+          }
+        }
+
+        // 2 — Delete erRoomStudents for this period
+        for (const rs of erRoomStudents) {
+          if (rs.id && !rs._isNew) {
+            try { await deleteDoc('erRoomStudents', rs.id); } catch(e) { console.error(e); }
+          }
+        }
+
+        // 3 — Delete erClearance for this period
+        for (const c of erClearanceData) {
+          if (c.id) { try { await deleteDoc('erClearance', c.id); } catch(e) { console.error(e); } }
+        }
+
+        // 4 — Delete erCleared for this period
+        for (const c of erClearedData) {
+          if (c.id) { try { await deleteDoc('erCleared', c.id); } catch(e) { console.error(e); } }
+        }
+
+        // 5 — Delete all erAssignments for the current date
+        const assignedIds = students.filter(s => isAssigned(s.id)).map(s => s.id);
+        for (const sid of assignedIds) {
+          try {
+            const existing = await getWhere('erAssignments', 'studentId', '==', sid);
+            const forDate  = existing.find(r => r.date === currentDate);
+            if (forDate) await deleteDoc('erAssignments', forDate.id);
+          } catch(e) { console.error(e); }
+        }
+
+        // Reset in-memory state
+        erRooms         = [];
+        erRoomStudents  = [];
+        erClearanceData = [];
+        erClearedData   = [];
+        assignments     = {};
+        attState        = {};
+
+        // Re-render everything
+        renderGrid();
+        renderErSetupTab();
+        renderAttendanceTab();
+        showToast('ER reset complete', 'success');
+      } catch(err) {
+        console.error('Reset ER error:', err);
+        showToast('Error during reset', 'error');
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-trash-alt"></i> Reset ER'; }
+      }
     };
 
     async function removeStudentFromRoster(studentId) {
