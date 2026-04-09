@@ -251,7 +251,7 @@
     .tmpl-manage-link { font-size: 12px; font-weight: 600; color: var(--primary); text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; }
     .tmpl-manage-link:hover { text-decoration: underline; }
 
-    /* ── Room builder (ER Setup) ── */
+    /* ── Room builder (ER Room Assignment) ── */
     .er-setup-two-col { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; }
     @media (max-width: 900px) { .er-setup-two-col { grid-template-columns: 1fr; } }
     .er-pool-panel { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; position: sticky; top: 80px; }
@@ -418,7 +418,7 @@
         <i class="fas fa-clipboard-check"></i> ER Attendance
       </button>
       <button class="er-tab" id="tab-btn-er" onclick="switchTab('er')">
-        <i class="fas fa-cog"></i> ER Setup
+        <i class="fas fa-door-open"></i> ER Room Assignment
       </button>
     </div>
 
@@ -484,45 +484,13 @@
       <div id="att-rooms-wrap">
         <div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
           <i class="fas fa-door-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
-          Set up rooms in <strong>ER Setup</strong> and select an ER date above to see the attendance roster.
+          Set up rooms in <strong>ER Room Assignment</strong> and select an ER date above to see the attendance roster.
         </div>
       </div>
     </div>
 
-    <!-- ══ Tab: ER Setup ═══════════════════════════════════════════════════ -->
+    <!-- ══ Tab: ER Room Assignment ══════════════════════════════════════════ -->
     <div id="tab-er" style="display:none;">
-
-      <!-- Template selection -->
-      <div class="tmpl-select-card">
-        <h3><i class="fas fa-envelope-open-text"></i> Email Templates
-          <a href="./email-templates.html" class="tmpl-manage-link" style="margin-left:auto;" target="_blank"><i class="fas fa-external-link-alt"></i> Manage Templates</a>
-        </h3>
-        <div class="tmpl-row">
-          <label>Send Emails:</label>
-          <select class="tmpl-select" id="er-email-tmpl-sel" onchange="onErTmplChange('email')">
-            <option value="">— select template —</option>
-          </select>
-        </div>
-        <div class="tmpl-row">
-          <label>Notify button:</label>
-          <select class="tmpl-select" id="er-notify-tmpl-sel" onchange="onErTmplChange('notify')">
-            <option value="">— select template —</option>
-          </select>
-        </div>
-        <p style="font-size:12px;color:var(--text-muted);margin:6px 0 0;">
-          Variables: <code style="font-size:11px;">{{firstName}}</code> <code style="font-size:11px;">{{studentName}}</code> <code style="font-size:11px;">{{workshopName}}</code> <code style="font-size:11px;">{{classes}}</code> <code style="font-size:11px;">{{room}}</code> <code style="font-size:11px;">{{date}}</code> <code style="font-size:11px;">{{erDateRange}}</code> <code style="font-size:11px;">{{erStart}}</code> <code style="font-size:11px;">{{erEnd}}</code>
-        </p>
-      </div>
-
-      <!-- Workshops config (for Emailer tab columns) -->
-      <div class="setup-card" style="margin-bottom:20px;">
-        <h3><i class="fas fa-chalkboard-teacher"></i> Workshops &amp; Rooms</h3>
-        <p style="font-size:13px; color:var(--text-muted); margin: -8px 0 14px;">Define available workshops for the Emailer tab checkbox columns.</p>
-        <div class="workshop-list" id="workshop-list"></div>
-        <button class="add-workshop-btn" onclick="addWorkshopRow()"><i class="fas fa-plus"></i> Add Workshop</button>
-        <br>
-        <button class="save-workshops-btn" onclick="saveWorkshops()"><i class="fas fa-save"></i> Save Workshops</button>
-      </div>
 
       <!-- Room assignment -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
@@ -1087,7 +1055,7 @@
       }
     };
 
-    // ── ER Room management (ER Setup tab) ────────────────────────────────────────
+    // ── ER Room management (ER Room Assignment tab) ────────────────────────────────────────
     function renderErSetupTab() {
       const pk = periodKey();
       const noP = document.getElementById('er-setup-no-period');
@@ -1393,7 +1361,7 @@
     window.sendNotifyEmails = async function() {
       const tmpl = getSelectedTemplate('notify');
       if (!tmpl?.subject || !tmpl?.body) {
-        showToast('Select a Notify template in ER Setup first', 'warning');
+        showToast('Select a Notify template in ER Room Assignment first', 'warning');
         switchTab('er');
         return;
       }
@@ -1500,7 +1468,7 @@
       if (!erRooms.length && !unplacedStudents.length) {
         wrap.innerHTML = `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
           <i class="fas fa-door-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
-          Set up rooms in <strong>ER Setup</strong> and select an ER date above to see the attendance roster.
+          Set up rooms in <strong>ER Room Assignment</strong> and select an ER date above to see the attendance roster.
         </div>`;
         updateAttBadges(0,0,0,0,0);
         return;
@@ -1804,7 +1772,7 @@
 
       if (!subject || !body) {
         document.getElementById('test-list').innerHTML =
-          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template selected.<br>Go to <strong>ER Setup</strong> and choose a template from the dropdown first.</div>`;
+          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template selected.<br>Go to <strong>ER Room Assignment</strong> and choose a template from the dropdown first.</div>`;
         document.getElementById('test-meta').innerHTML = '';
         return;
       }
@@ -1867,7 +1835,7 @@
       const subject = tmpl?.subject || '';
       const body    = tmpl?.body    || '';
       if (!subject || !body) {
-        showToast('Select an email template in ER Setup first', 'warning');
+        showToast('Select an email template in ER Room Assignment first', 'warning');
         switchTab('er');
         return;
       }
