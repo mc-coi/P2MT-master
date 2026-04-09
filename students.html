@@ -265,15 +265,19 @@
         
         <div class="form-group">
           <label class="form-label">Attendance Code</label>
-          <select id="attendance-code" class="w3-select w3-border w3-margin-bottom" required>
+          <select id="attendance-code" class="w3-select w3-border w3-margin-bottom" required onchange="onAttCodeChange()">
             <option value="">Select Code</option>
             <option value="Present">Present</option>
             <option value="Absent">Absent</option>
             <option value="Tardy">Tardy</option>
             <option value="Excused">Excused</option>
+            <option value="MissedCheckInOut">Missed Check In/Out</option>
           </select>
+          <div id="tmi-auto-notice" style="display:none;background:#FEF3C7;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400E;margin-top:-8px;margin-bottom:8px;">
+            <i class="fas fa-clock" style="margin-right:6px;"></i>This will automatically assign <strong>60 minutes of TMI</strong> to this student.
+          </div>
         </div>
-        
+
         <div class="form-group">
           <label class="form-label">Comment (Optional)</label>
           <textarea id="attendance-comment" class="w3-input w3-border w3-margin-bottom" rows="3"></textarea>
@@ -429,6 +433,7 @@
     window.openAssignTMIModal = openAssignTMIModal;
     window.closeAssignTMIModal = closeAssignTMIModal;
     window.saveAssignTMI = saveAssignTMI;
+    window.onAttCodeChange = onAttCodeChange;
 
     initAuth().then(user => {
       if (!user) {
@@ -624,20 +629,53 @@
       currentAttendanceId = null;
     }
 
+    function onAttCodeChange() {
+      const code = document.getElementById('attendance-code').value;
+      document.getElementById('tmi-auto-notice').style.display =
+        code === 'MissedCheckInOut' ? 'block' : 'none';
+    }
+
     async function handleAttendanceFormSubmit(e) {
       e.preventDefault();
 
+      const code    = document.getElementById('attendance-code').value;
+      const date    = document.getElementById('attendance-date').value;
+      const comment = document.getElementById('attendance-comment').value || '';
+
       const attendanceData = {
         studentId: currentAttendanceId,
-        date: document.getElementById('attendance-date').value,
-        code: document.getElementById('attendance-code').value,
-        comment: document.getElementById('attendance-comment').value || ''
+        date,
+        code,
+        comment
       };
 
       try {
         const docId = generateId();
         await addDoc('attendance', docId, attendanceData);
-        showToast('Attendance recorded successfully', 'success');
+
+        // Auto-assign 60 min TMI for missed check in/out
+        if (code === 'MissedCheckInOut') {
+          const s = studentsData.find(x => x.id === currentAttendanceId);
+          if (s) {
+            await addDoc('interventionLogs', {
+              interventionType:    'TMI',
+              interventionStatus:  'Pending',
+              studentId:           currentAttendanceId,
+              studentName:         `${s.firstName} ${s.lastName}`,
+              chattStateANumber:   s.chattStateANumber || '',
+              house:               s.house || '',
+              yearOfGraduation:    s.yearOfGraduation || '',
+              tmiMinutes:          60,
+              tmiMinutesRemaining: 60,
+              comment:             comment || 'Missed Check In/Out',
+              createdAt:           new Date().toISOString()
+            });
+          }
+          showToast('Attendance recorded & 60 min TMI assigned', 'success');
+        } else {
+          showToast('Attendance recorded successfully', 'success');
+        }
+
         closeAttendanceModal();
         document.getElementById('attendanceForm').reset();
       } catch (error) {

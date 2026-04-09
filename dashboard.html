@@ -460,7 +460,7 @@
               label: `${uCount} unexcused in 30 days`,
               date: studentLogs[0]?.absenceDate || ''
             });
-          } else if (tCount >= 3) {
+          } else if (tCount >= 5) {
             alerts.push({
               severity: 'warning',
               studentId: s.id,
