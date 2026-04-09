@@ -1695,11 +1695,10 @@
     };
 
     async function removeStudentFromRoster(studentId) {
-      const pk = periodKey();
       const student = students.find(s => s.id === studentId);
       const name = student ? `${student.firstName} ${student.lastName}` : 'Student';
 
-      // Remove all erRoomStudents entries for this student in this period
+      // 1 — Remove from erRoomStudents (in memory + Firestore)
       const toRemove = erRoomStudents.filter(rs => rs.studentId === studentId);
       erRoomStudents = erRoomStudents.filter(rs => rs.studentId !== studentId);
       for (const rs of toRemove) {
@@ -1708,7 +1707,20 @@
         }
       }
 
+      // 2 — Delete ALL erAssignments for this student (all dates) so they
+      //     don't reappear on future days
+      try {
+        const allAssigned = await getWhere('erAssignments', 'studentId', '==', studentId);
+        for (const rec of allAssigned) {
+          await deleteDoc('erAssignments', rec.id);
+        }
+      } catch(e) { console.error('Error removing erAssignments:', e); }
+
+      // 3 — Clear from in-memory assignments map so the grid updates immediately
+      delete assignments[studentId];
+
       showToast(`✓ ${name} removed from ER roster`, 'success');
+      renderGrid();          // refresh Emailer checkboxes
       renderAttendanceTab();
       refreshAttBadges();
     }
