@@ -1635,7 +1635,7 @@
       attSaveRow(studentId);
     };
 
-    window.attSetComplete = function(studentId, checked) {
+    window.attSetComplete = async function(studentId, checked) {
       if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null };
       attState[studentId].complete = checked;
 
@@ -1643,9 +1643,38 @@
       const row = document.getElementById(`att-row-${studentId}`);
       if (row) row.classList.toggle('done', checked);
 
-      attSaveRow(studentId);
+      await attSaveRow(studentId);
+
+      // If Done is checked AND all teachers have cleared this student → remove from roster
+      if (checked) {
+        const isFullyCleared = erClearedData.some(c => c.studentId === studentId);
+        if (isFullyCleared) {
+          await removeStudentFromRoster(studentId);
+          return; // renderAttendanceTab already called inside
+        }
+      }
+
       refreshAttBadges();
     };
+
+    async function removeStudentFromRoster(studentId) {
+      const pk = periodKey();
+      const student = students.find(s => s.id === studentId);
+      const name = student ? `${student.firstName} ${student.lastName}` : 'Student';
+
+      // Remove all erRoomStudents entries for this student in this period
+      const toRemove = erRoomStudents.filter(rs => rs.studentId === studentId);
+      erRoomStudents = erRoomStudents.filter(rs => rs.studentId !== studentId);
+      for (const rs of toRemove) {
+        if (rs.id && !rs._isNew) {
+          try { await deleteDoc('erRoomStudents', rs.id); } catch(e) { console.error(e); }
+        }
+      }
+
+      showToast(`✓ ${name} removed from ER roster`, 'success');
+      renderAttendanceTab();
+      refreshAttBadges();
+    }
 
     function refreshAttBadges() {
       const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
