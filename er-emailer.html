@@ -1560,21 +1560,21 @@
       const pActive = st.status === 'P' ? 'active' : '';
       const aActive = st.status === 'A' ? 'active' : '';
 
-      // Build clearance chips from this student's class schedules
-      const schedules = allClassSchedules.filter(cs => cs.studentId === student.id);
+      // Build clearance chips — STEM campus classes only, clickable by anyone
+      const schedules = allClassSchedules.filter(cs =>
+        cs.studentId === student.id &&
+        (cs.campus || '').toLowerCase().includes('stem')
+      );
       const clrChips = schedules.map(cs => {
         const hasCleared = erClearanceData.some(c =>
           c.studentId === student.id &&
           c.teacherLastName === cs.teacherLastName &&
           c.className === cs.className
         );
-        const isMine = currentStaffLastName && cs.teacherLastName === currentStaffLastName;
-        const chipClass = ['clr-chip', hasCleared ? 'cleared' : 'pending', isMine ? 'mine' : ''].filter(Boolean).join(' ');
+        const chipClass = ['clr-chip', hasCleared ? 'cleared' : 'pending', 'mine'].join(' ');
         const icon = hasCleared ? 'fa-check-circle' : 'fa-clock';
-        const onclick = isMine
-          ? `onclick="toggleClearance('${student.id}','${esc(cs.teacherLastName)}','${esc(cs.className || '')}')"`
-          : '';
-        return `<span class="${chipClass}" title="${esc(cs.className || '')} — ${esc(cs.teacherLastName || '')}" ${onclick}>
+        return `<span class="${chipClass}" title="${esc(cs.className || '')} — ${esc(cs.teacherLastName || '')}"
+          onclick="toggleClearance('${student.id}','${esc(cs.teacherLastName)}','${esc(cs.className || '')}')">
           <i class="fas ${icon}"></i> ${esc(cs.teacherLastName || '')}${cs.className ? ` (${esc(cs.className)})` : ''}
         </span>`;
       }).join('');

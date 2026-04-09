@@ -657,7 +657,7 @@
           if (s) {
             await addDoc('interventionLogs', {
               interventionType:    'TMI',
-              interventionStatus:  'Pending',
+              interventionStatus:  'Pending Review',
               studentId:           currentAttendanceId,
               studentName:         `${s.firstName} ${s.lastName}`,
               chattStateANumber:   s.chattStateANumber || '',
