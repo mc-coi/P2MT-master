@@ -1316,8 +1316,11 @@
       const pk = periodKey();
       if (!pk) return;
 
-      // Get all class schedules for this student
-      const schedules = allClassSchedules.filter(cs => cs.studentId === studentId);
+      // Get STEM campus class schedules for this student (matches UI chip filter)
+      const schedules = allClassSchedules.filter(cs =>
+        cs.studentId === studentId &&
+        (cs.campus || '').toLowerCase().includes('stem')
+      );
       if (!schedules.length) return; // No schedules recorded — cannot fully clear
 
       // Check if every schedule has a clearance entry
