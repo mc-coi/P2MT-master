@@ -477,14 +477,14 @@
           return true;
         });
 
-        // Group by className + isLab type
-        // key = className + '::' + (isLab ? 'lab' : 'regular')
+        // Group by className + startTime + isLab — startTime differentiates sections
+        // of the same class that meet at different times on the same days.
         const groupMap = new Map();
         teacherSchedules.forEach(cs => {
           const isLab = cs.learningLab === true;
-          const key   = cs.className + (isLab ? '::lab' : '::regular');
+          const key   = cs.className + '::' + (cs.startTime || '') + '::' + (isLab ? 'lab' : 'regular');
           if (!groupMap.has(key)) {
-            groupMap.set(key, { className: cs.className, isLab, schedule: cs, records: [] });
+            groupMap.set(key, { className: cs.className, isLab, startTime: cs.startTime || '', schedule: cs, records: [] });
           }
           groupMap.get(key).records.push(cs);
         });
@@ -522,13 +522,19 @@
                 (a.firstName || '').localeCompare(b.firstName || '')
               );
 
-            // Find existing logs for this class+date (respecting lab/regular type)
-            const existingLogs = allClassAttendanceLogs.filter(log =>
-              log.teacherLastName === teacher &&
-              log.className       === grp.className &&
-              (log.date === classDate || log.classDate === classDate) &&
-              (grp.isLab ? log.learningLab === true : !log.learningLab)
-            );
+            // Find existing logs for this class+date+section.
+            // When a startTime is stored on the section, also require the log to
+            // match it — this prevents two sections at different times from sharing
+            // the same attendance records.
+            const existingLogs = allClassAttendanceLogs.filter(log => {
+              if (log.teacherLastName !== teacher)   return false;
+              if (log.className       !== grp.className) return false;
+              if (log.date !== classDate && log.classDate !== classDate) return false;
+              if (grp.isLab ? log.learningLab !== true : log.learningLab === true) return false;
+              // If BOTH the section and the log have a startTime, they must match.
+              if (grp.startTime && log.startTime && log.startTime !== grp.startTime) return false;
+              return true;
+            });
 
             // Seed attendance state from existing logs
             const state = {};
