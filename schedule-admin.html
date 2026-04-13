@@ -403,18 +403,19 @@
       }
       // Standard template format
       return results.data.filter(r => r['Student Name']).map(r => ({
-        year:      '',
-        semester:  (r['Semester'] || '').trim(),
-        aNumber:   (r['ChattState A#'] || '').trim(),
-        firstName: '',
-        lastName:  (r['Student Name'] || '').trim(),
-        campus:    (r['Campus'] || '').trim(),
-        className: (r['Class Name'] || '').trim(),
-        teacher:   (r['Teacher Last Name'] || '').trim(),
-        days:      (r['Days (comma separated: M,T,W,Th,F)'] || '').trim(),
-        startTime: (r['Start Time (HH:MM)'] || '').trim(),
-        endTime:   (r['End Time (HH:MM)'] || '').trim(),
-        comment:   (r['Comment'] || '').trim(),
+        year:       '',
+        schoolYear: (r['School Year'] || '').trim(),
+        semester:   (r['Semester'] || '').trim(),
+        aNumber:    (r['ChattState A#'] || '').trim(),
+        firstName:  '',
+        lastName:   (r['Student Name'] || '').trim(),
+        campus:     (r['Campus'] || '').trim(),
+        className:  (r['Class Name'] || '').trim(),
+        teacher:    (r['Teacher Last Name'] || '').trim(),
+        days:       (r['Days (comma separated: M,T,W,Th,F)'] || '').trim(),
+        startTime:  (r['Start Time (HH:MM)'] || '').trim(),
+        endTime:    (r['End Time (HH:MM)'] || '').trim(),
+        comment:    (r['Comment'] || '').trim(),
       }));
     }
 
@@ -456,7 +457,15 @@
         }
 
         const progress = document.getElementById('uploadProgress');
-        progress.innerHTML = '<p>Importing...</p>';
+        progress.innerHTML = '<p>Loading students…</p>';
+
+        // Always refresh students list before importing — catches students uploaded
+        // in another tab after this page first loaded.
+        try {
+          allStudents = await getAll('students');
+        } catch(e) { console.warn('Could not refresh students:', e); }
+
+        progress.innerHTML = '<p>Importing…</p>';
 
         let successful = 0;
         const errorRows = [];
@@ -515,19 +524,38 @@
           }
 
           const pct = Math.round((i + 1) / csvData.length * 100);
-          progress.innerHTML = `<div class="btn-ghost" style="margin:10px 0;"><div class="btn-primary" style="width:${pct}%; text-align:center; color:white; height:25px; line-height:25px;">${pct}%</div></div><p>${i + 1}/${csvData.length} processed…</p>`;
+          progress.innerHTML = `
+            <div style="background:#e2e8f0;border-radius:6px;overflow:hidden;height:28px;margin:10px 0;">
+              <div style="width:${pct}%;background:#2196F3;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;transition:width .1s;">${pct}%</div>
+            </div>
+            <p style="font-size:13px;color:#475569;">${i + 1} of ${csvData.length} processed…</p>`;
         }
 
-        let html = `<div class="w3-panel w3-border" style="border-color:${errorRows.length===0?'#4caf50':'#ff9800'}; background:${errorRows.length===0?'#f1f8e9':'#fff8e1'}">
-          <strong>Import Complete</strong><br>
-          ✅ Successful: <strong>${successful}</strong> &nbsp; ❌ Skipped: <strong>${errorRows.length}</strong>`;
+        const allOk = errorRows.length === 0;
+        const borderCol  = allOk ? '#16a34a' : (successful === 0 ? '#dc2626' : '#d97706');
+        const bgCol      = allOk ? '#f0fdf4' : (successful === 0 ? '#fef2f2' : '#fffbeb');
+        const headingCol = allOk ? '#166534' : (successful === 0 ? '#991b1b' : '#92400e');
+        const statusIcon = allOk ? '✅' : (successful === 0 ? '❌' : '⚠️');
+
+        let html = `<div style="border:2px solid ${borderCol}; background:${bgCol}; border-radius:8px; padding:16px 20px; color:#1a1a1a; margin-top:8px;">
+          <div style="font-size:16px; font-weight:700; color:${headingCol}; margin-bottom:8px;">${statusIcon} Import Complete</div>
+          <div style="font-size:14px; color:#1a1a1a;">
+            <span style="color:#166534; font-weight:700;">✅ Saved: ${successful}</span>
+            &nbsp;&nbsp;
+            <span style="color:${errorRows.length>0?'#991b1b':'#166534'}; font-weight:700;">❌ Skipped: ${errorRows.length}</span>
+          </div>`;
 
         if (errorRows.length > 0) {
-          html += `<details style="margin-top:10px;"><summary style="cursor:pointer;color:#e65100;">Show skipped rows (${errorRows.length})</summary>
-            <ul style="margin:8px 0; padding-left:20px; font-size:13px; color:#bf360c;">
+          html += `<details style="margin-top:12px;">
+            <summary style="cursor:pointer; color:#92400e; font-weight:600; font-size:13px;">
+              Show skipped rows (${errorRows.length}) — click to expand
+            </summary>
+            <ul style="margin:8px 0; padding-left:20px; font-size:13px; color:#991b1b; max-height:200px; overflow-y:auto;">
               ${errorRows.map(e => `<li>${e}</li>`).join('')}
             </ul>
-            <p style="font-size:13px; color:#555;">💡 Make sure student names in the CSV exactly match the names in the Students list, or that the ChattState A# matches.</p>
+            <p style="font-size:13px; color:#555; margin-top:6px;">
+              💡 Make sure the ChattState A# in the CSV matches the students already in the Students page. Upload your student list first if needed.
+            </p>
           </details>`;
         }
         html += '</div>';
