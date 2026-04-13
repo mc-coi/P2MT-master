@@ -40,7 +40,27 @@
     .int-view-table tr:last-child td { border-bottom: none; }
     .int-level-chip { display: inline-block; background: #fff3e0; color: #e65100; border-radius: 10px; padding: 1px 8px; font-size: 0.78rem; font-weight: 600; }
 
+    /* Bulk delete dropdown */
+    .bulk-delete-wrap { position: relative; display: inline-block; }
+    .bulk-delete-menu {
+      position: absolute; top: calc(100% + 4px); right: 0;
+      background: #fff; border: 1.5px solid #fca5a5; border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.13); z-index: 999; min-width: 220px; overflow: hidden;
+    }
+    .bulk-delete-menu button {
+      display: flex; align-items: center; gap: 9px;
+      width: 100%; padding: 11px 16px; background: none; border: none;
+      font-size: 13px; font-weight: 600; color: #dc2626; cursor: pointer; text-align: left;
+      transition: background .12s;
+    }
+    .bulk-delete-menu button:hover { background: #fef2f2; }
+    .bulk-delete-menu button + button { border-top: 1px solid #fee2e2; }
+
     /* ── Dark mode overrides ── */
+    [data-theme="dark"] .bulk-delete-menu { background: var(--surface); border-color: rgba(239,68,68,.4); }
+    [data-theme="dark"] .bulk-delete-menu button { color: #f87171; }
+    [data-theme="dark"] .bulk-delete-menu button:hover { background: rgba(239,68,68,.1); }
+    [data-theme="dark"] .bulk-delete-menu button + button { border-top-color: var(--border); }
     [data-theme="dark"] .tab-nav { border-bottom-color: var(--border); }
     [data-theme="dark"] .tab-btn { color: var(--text-secondary); }
     [data-theme="dark"] .tab-btn:hover { color: var(--text-primary); }
@@ -76,6 +96,16 @@
           <i class="fas fa-upload"></i> Upload CSV
         </button>
         <input type="file" id="file-upload" style="display:none;" accept=".csv">
+        <div class="bulk-delete-wrap" id="bulk-delete-wrap">
+          <button class="w3-button btn-danger action-button" id="btn-bulk-delete-toggle"
+            onclick="toggleBulkDeleteMenu(event)">
+            <i class="fas fa-trash-alt"></i> Delete Students <i class="fas fa-caret-down" style="margin-left:4px;"></i>
+          </button>
+          <div class="bulk-delete-menu" id="bulk-delete-menu" style="display:none;">
+            <button onclick="openDeleteAllModal()"><i class="fas fa-users-slash"></i> Delete All Students</button>
+            <button onclick="openDeleteByYearModal()"><i class="fas fa-calendar-times"></i> Delete by Graduation Year</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -241,6 +271,64 @@
       <div class="modal-footer">
         <button class="w3-button btn-danger" onclick="confirmDelete()">Delete</button>
         <button class="w3-button btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Delete All Modal -->
+  <div id="deleteAllModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width: 420px;">
+      <header class="modal-header">
+        <h3><i class="fas fa-users-slash" style="color:#dc2626;margin-right:8px;"></i>Delete All Students</h3>
+        <button class="modal-close-btn" onclick="closeDeleteAllModal()">×</button>
+      </header>
+      <div class="modal-body">
+        <p style="color:#dc2626;font-weight:600;">⚠ This will permanently delete ALL students from the database. This cannot be undone.</p>
+        <p id="delete-all-count" style="margin-bottom:12px;"></p>
+        <label class="form-label">Type <b>DELETE ALL</b> to confirm</label>
+        <input type="text" id="delete-all-input" class="w3-input w3-border" placeholder="Type DELETE ALL…">
+      </div>
+      <div class="modal-footer">
+        <button class="w3-button btn-danger" id="btn-confirm-delete-all" onclick="confirmDeleteAll()">
+          <i class="fas fa-trash-alt"></i> Delete All Students
+        </button>
+        <button class="w3-button btn-ghost" onclick="closeDeleteAllModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bulk Delete by Graduation Year Modal -->
+  <div id="deleteByYearModal" class="w3-modal">
+    <div class="w3-modal-content w3-card" style="max-width: 420px;">
+      <header class="modal-header">
+        <h3><i class="fas fa-calendar-times" style="color:#dc2626;margin-right:8px;"></i>Delete by Graduation Year</h3>
+        <button class="modal-close-btn" onclick="closeDeleteByYearModal()">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:14px;">
+          <label class="form-label">Graduation Year</label>
+          <select id="delete-year-select" class="w3-select w3-border" onchange="onDeleteYearChange()">
+            <option value="">— Select a year —</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+            <option value="2028">2028</option>
+            <option value="2029">2029</option>
+            <option value="2030">2030</option>
+          </select>
+        </div>
+        <p id="delete-year-count" style="margin-bottom:12px;color:#64748b;font-size:13px;"></p>
+        <div id="delete-year-confirm-wrap" style="display:none;">
+          <p style="color:#dc2626;font-weight:600;">⚠ This cannot be undone.</p>
+          <label class="form-label">Type <b>DELETE</b> to confirm</label>
+          <input type="text" id="delete-year-input" class="w3-input w3-border" placeholder="Type DELETE…">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="w3-button btn-danger" id="btn-confirm-delete-year" onclick="confirmDeleteByYear()" disabled>
+          <i class="fas fa-trash-alt"></i> Delete Class of <span id="btn-year-label">—</span>
+        </button>
+        <button class="w3-button btn-ghost" onclick="closeDeleteByYearModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -420,6 +508,14 @@
     window.deleteStudent = deleteStudent;
     window.addAttendance = addAttendance;
     window.confirmDelete = confirmDelete;
+    window.toggleBulkDeleteMenu = toggleBulkDeleteMenu;
+    window.openDeleteAllModal = openDeleteAllModal;
+    window.closeDeleteAllModal = closeDeleteAllModal;
+    window.confirmDeleteAll = confirmDeleteAll;
+    window.openDeleteByYearModal = openDeleteByYearModal;
+    window.closeDeleteByYearModal = closeDeleteByYearModal;
+    window.onDeleteYearChange = onDeleteYearChange;
+    window.confirmDeleteByYear = confirmDeleteByYear;
 
     // Intervention globals
     window.switchTab = switchTab;
@@ -609,6 +705,129 @@
       } catch (error) {
         console.error('Error deleting student:', error);
         showToast('Error deleting student', 'error');
+      }
+    }
+
+    // ── Bulk delete dropdown ───────────────────────────────────────────────────
+    function toggleBulkDeleteMenu(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('bulk-delete-menu');
+      const isOpen = menu.style.display !== 'none';
+      menu.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) {
+        // Close when clicking anywhere else
+        const handler = () => { menu.style.display = 'none'; document.removeEventListener('click', handler); };
+        document.addEventListener('click', handler);
+      }
+    }
+
+    // ── Delete All ────────────────────────────────────────────────────────────
+    function openDeleteAllModal() {
+      document.getElementById('bulk-delete-menu').style.display = 'none';
+      document.getElementById('delete-all-input').value = '';
+      document.getElementById('delete-all-count').textContent =
+        `This will delete ${studentsData.length} student${studentsData.length !== 1 ? 's' : ''}.`;
+      document.getElementById('deleteAllModal').style.display = 'block';
+    }
+
+    function closeDeleteAllModal() {
+      document.getElementById('deleteAllModal').style.display = 'none';
+    }
+
+    async function confirmDeleteAll() {
+      if (document.getElementById('delete-all-input').value !== 'DELETE ALL') {
+        showToast('Type DELETE ALL to confirm', 'warning'); return;
+      }
+      const btn = document.getElementById('btn-confirm-delete-all');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+      try {
+        let count = 0;
+        for (const s of studentsData) {
+          await deleteDoc('students', s.id);
+          count++;
+        }
+        showToast(`Deleted ${count} student${count !== 1 ? 's' : ''}`, 'success');
+        closeDeleteAllModal();
+        await loadStudents();
+        renderTable();
+      } catch (err) {
+        console.error(err);
+        showToast('Error during bulk delete', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash-alt"></i> Delete All Students';
+      }
+    }
+
+    // ── Delete by Graduation Year ──────────────────────────────────────────────
+    function openDeleteByYearModal() {
+      document.getElementById('bulk-delete-menu').style.display = 'none';
+      document.getElementById('delete-year-select').value = '';
+      document.getElementById('delete-year-count').textContent = '';
+      document.getElementById('delete-year-input').value = '';
+      document.getElementById('delete-year-confirm-wrap').style.display = 'none';
+      document.getElementById('btn-confirm-delete-year').disabled = true;
+      document.getElementById('btn-year-label').textContent = '—';
+      document.getElementById('deleteByYearModal').style.display = 'block';
+    }
+
+    function closeDeleteByYearModal() {
+      document.getElementById('deleteByYearModal').style.display = 'none';
+    }
+
+    function onDeleteYearChange() {
+      const year = document.getElementById('delete-year-select').value;
+      const countEl = document.getElementById('delete-year-count');
+      const confirmWrap = document.getElementById('delete-year-confirm-wrap');
+      const btn = document.getElementById('btn-confirm-delete-year');
+      document.getElementById('delete-year-input').value = '';
+
+      if (!year) {
+        countEl.textContent = '';
+        confirmWrap.style.display = 'none';
+        btn.disabled = true;
+        document.getElementById('btn-year-label').textContent = '—';
+        return;
+      }
+      const matching = studentsData.filter(s => s.yearOfGraduation === year);
+      countEl.textContent = `${matching.length} student${matching.length !== 1 ? 's' : ''} in the class of ${year}.`;
+      document.getElementById('btn-year-label').textContent = year;
+      if (matching.length === 0) {
+        confirmWrap.style.display = 'none';
+        btn.disabled = true;
+      } else {
+        confirmWrap.style.display = 'block';
+        btn.disabled = false;
+      }
+    }
+
+    async function confirmDeleteByYear() {
+      const year = document.getElementById('delete-year-select').value;
+      if (!year) return;
+      if (document.getElementById('delete-year-input').value !== 'DELETE') {
+        showToast('Type DELETE to confirm', 'warning'); return;
+      }
+      const toDelete = studentsData.filter(s => s.yearOfGraduation === year);
+      const btn = document.getElementById('btn-confirm-delete-year');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+      try {
+        let count = 0;
+        for (const s of toDelete) {
+          await deleteDoc('students', s.id);
+          count++;
+        }
+        showToast(`Deleted ${count} student${count !== 1 ? 's' : ''} from class of ${year}`, 'success');
+        closeDeleteByYearModal();
+        await loadStudents();
+        renderTable();
+      } catch (err) {
+        console.error(err);
+        showToast('Error during bulk delete', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fas fa-trash-alt"></i> Delete Class of <span id="btn-year-label">${year}</span>`;
       }
     }
 

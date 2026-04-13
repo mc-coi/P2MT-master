@@ -63,7 +63,17 @@
     .er-table td { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; padding: 0; }
     .er-table td:last-child { border-right: none; }
     .er-table tr:last-child td { border-bottom: none; }
-    .er-table tbody tr:hover td { background: #f8fafc !important; }
+    .er-table tbody tr:hover td { background: #fef3c7 !important; color: #0F172A !important; }
+
+    /* Text selection — amber highlighter so selected student names never vanish */
+    .er-table ::selection,
+    .att-student-row ::selection,
+    .er-pool-chip ::selection,
+    .er-student-chip ::selection { background: #fbbf24; color: #0F172A; }
+    .er-table ::-moz-selection,
+    .att-student-row ::-moz-selection,
+    .er-pool-chip ::-moz-selection,
+    .er-student-chip ::-moz-selection { background: #fbbf24; color: #0F172A; }
 
     /* Sticky name column */
     .th-name, .td-name {
@@ -72,7 +82,7 @@
       min-width: 160px; max-width: 180px;
     }
     .td-name { background: white; z-index: 1; }
-    .er-table tbody tr:hover .td-name { background: #f8fafc !important; }
+    .er-table tbody tr:hover .td-name { background: #fef3c7 !important; color: #0F172A !important; }
     .name-cell { padding: 9px 12px; font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
     .th-name-inner { padding: 10px 12px; }
 
@@ -359,6 +369,8 @@
 
     [data-theme="dark"] .td-name { background: var(--surface); }
     [data-theme="dark"] .att-er-row:hover .td-name { background: var(--surface-2) !important; }
+    [data-theme="dark"] .er-table tbody tr:hover td { background: rgba(251,191,36,0.18) !important; color: var(--text-primary) !important; }
+    [data-theme="dark"] .er-table tbody tr:hover .td-name { background: rgba(251,191,36,0.18) !important; color: var(--text-primary) !important; }
 
     [data-theme="dark"] .room-sel { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
     [data-theme="dark"] .guardian-input { background: var(--surface); }
@@ -768,6 +780,47 @@
         erRoomStudents  = roomStudents  || [];
         erClearanceData = clearance     || [];
         erClearedData   = cleared       || [];
+
+        // Self-heal: remove any duplicate (studentId, roomId) pairs left by prior bugs.
+        // Keeps the first occurrence; async-deletes the extras from Firestore.
+        {
+          const seen = new Set();
+          const kept = [];
+          const dups = [];
+          for (const rs of erRoomStudents) {
+            const key = `${rs.studentId}|${rs.roomId}`;
+            if (seen.has(key)) { dups.push(rs); continue; }
+            seen.add(key);
+            kept.push(rs);
+          }
+          if (dups.length) {
+            erRoomStudents = kept;
+            for (const d of dups) {
+              if (d.id) deleteDoc('erRoomStudents', d.id).catch(console.error);
+            }
+            console.warn(`Self-healed ${dups.length} duplicate erRoomStudents records`);
+          }
+        }
+
+        // Self-heal: a student should only be in ONE room at a time. If the same
+        // student has records in multiple rooms, keep the first, drop the rest.
+        {
+          const seenStudents = new Set();
+          const kept = [];
+          const dups = [];
+          for (const rs of erRoomStudents) {
+            if (seenStudents.has(rs.studentId)) { dups.push(rs); continue; }
+            seenStudents.add(rs.studentId);
+            kept.push(rs);
+          }
+          if (dups.length) {
+            erRoomStudents = kept;
+            for (const d of dups) {
+              if (d.id) deleteDoc('erRoomStudents', d.id).catch(console.error);
+            }
+            console.warn(`Self-healed ${dups.length} cross-room duplicate erRoomStudents records`);
+          }
+        }
       } catch (err) { console.error('Error loading ER period data:', err); }
     }
 
@@ -1151,9 +1204,12 @@
       renderPoolChips();
     };
 
+    let _savingErRooms = false;
     window.saveErRooms = async function() {
+      if (_savingErRooms) return; // prevent double-submit race from creating duplicate records
+      _savingErRooms = true;
       const pk = periodKey();
-      if (!pk) { showToast('Set ER Period dates first', 'warning'); return; }
+      if (!pk) { showToast('Set ER Period dates first', 'warning'); _savingErRooms = false; return; }
 
       // Read current name/teacher inputs from DOM
       document.querySelectorAll('.room-name-inp').forEach(inp => {
@@ -1180,13 +1236,19 @@
             await updateDoc('erRooms', r.id, data);
           }
         }
-        // Save room-student assignments
+        // Save room-student assignments — flip _isNew BEFORE the await so any re-entry
+        // won't re-process the same record.
         for (const rs of erRoomStudents) {
           if (rs._isNew) {
-            const { _isNew, ...data } = rs;
-            const newId = await addDoc('erRoomStudents', data);
-            rs.id = newId;
             rs._isNew = false;
+            const { _isNew, ...data } = rs;
+            try {
+              const newId = await addDoc('erRoomStudents', data);
+              rs.id = newId;
+            } catch(e) {
+              rs._isNew = true; // restore on failure so the next save retries
+              throw e;
+            }
           }
         }
         showToast('Rooms saved', 'success');
@@ -1195,6 +1257,8 @@
       } catch(err) {
         console.error(err);
         showToast('Error saving rooms', 'error');
+      } finally {
+        _savingErRooms = false;
       }
     };
 
@@ -1235,21 +1299,28 @@
       const fromRoomId = e.dataTransfer.getData('fromRoomId');
       if (!sid) return;
 
-      // If dragging from another room, remove from that room first
-      if (fromRoomId && fromRoomId !== targetRoomId) {
-        const idx = erRoomStudents.findIndex(rs => rs.studentId === sid && rs.roomId === fromRoomId);
-        if (idx !== -1) {
-          const rs = erRoomStudents[idx];
-          erRoomStudents.splice(idx, 1);
-          if (rs.id && !rs._isNew) deleteDoc('erRoomStudents', rs.id).catch(console.error);
+      // Already in target room? Do nothing (also purge any stray duplicates)
+      const existingInTarget = erRoomStudents.filter(rs => rs.studentId === sid && rs.roomId === targetRoomId);
+      if (existingInTarget.length) {
+        // Remove any duplicate entries in the target room beyond the first
+        for (let i = 1; i < existingInTarget.length; i++) {
+          const dup = existingInTarget[i];
+          erRoomStudents = erRoomStudents.filter(rs => rs !== dup);
+          if (dup.id && !dup._isNew) deleteDoc('erRoomStudents', dup.id).catch(console.error);
         }
-      }
-
-      // Already in target room? Do nothing
-      if (erRoomStudents.find(rs => rs.studentId === sid && rs.roomId === targetRoomId)) {
         renderRoomCards();
         renderPoolChips();
         return;
+      }
+
+      // Remove the student from ANY other room they may be in — prevents duplicates
+      // across rooms (stale state, double-drops, race conditions, etc.)
+      const stale = erRoomStudents.filter(rs => rs.studentId === sid);
+      if (stale.length) {
+        erRoomStudents = erRoomStudents.filter(rs => rs.studentId !== sid);
+        for (const rs of stale) {
+          if (rs.id && !rs._isNew) deleteDoc('erRoomStudents', rs.id).catch(console.error);
+        }
       }
 
       // Find student info
@@ -1312,15 +1383,27 @@
       renderAttendanceTab();
     };
 
+    // Returns STEM class schedules for a student, deduplicated by teacher+class
+    function getStudentStemSchedules(studentId) {
+      const seen = new Set();
+      const out  = [];
+      for (const cs of allClassSchedules) {
+        if (cs.studentId !== studentId) continue;
+        if (!(cs.campus || '').toLowerCase().includes('stem')) continue;
+        const key = `${(cs.teacherLastName || '').trim().toLowerCase()}|${(cs.className || '').trim().toLowerCase()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(cs);
+      }
+      return out;
+    }
+
     async function checkStudentFullyCleared(studentId) {
       const pk = periodKey();
       if (!pk) return;
 
-      // Get STEM campus class schedules for this student (matches UI chip filter)
-      const schedules = allClassSchedules.filter(cs =>
-        cs.studentId === studentId &&
-        (cs.campus || '').toLowerCase().includes('stem')
-      );
+      // Get STEM campus class schedules for this student (matches UI chip filter, deduped)
+      const schedules = getStudentStemSchedules(studentId);
       if (!schedules.length) return; // No schedules recorded — cannot fully clear
 
       // Check if every schedule has a clearance entry
@@ -1531,11 +1614,8 @@
       const pActive = st.status === 'P' ? 'active' : '';
       const aActive = st.status === 'A' ? 'active' : '';
 
-      // Build clearance chips — STEM campus classes only, clickable by anyone
-      const schedules = allClassSchedules.filter(cs =>
-        cs.studentId === student.id &&
-        (cs.campus || '').toLowerCase().includes('stem')
-      );
+      // Build clearance chips — STEM campus classes only, deduped by teacher+class
+      const schedules = getStudentStemSchedules(student.id);
       const clrChips = schedules.map(cs => {
         const hasCleared = erClearanceData.some(c =>
           c.studentId === student.id &&
