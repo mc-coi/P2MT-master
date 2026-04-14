@@ -464,16 +464,20 @@
         }
         // (If date is not in the calendar at all, allow attendance normally)
 
-        // Filter schedules: teacher + date range only.
-        // We intentionally do NOT filter by classDays here — regular class
-        // schedules often don't have startDate/endDate set, and teachers need
-        // to be able to take attendance on any day regardless of the stored
-        // classDays array (which may be incomplete or not set at all).
+        // Map the selected date to a day abbreviation (M, T, W, Th, F)
+        const DAY_ABBR = ['Su', 'M', 'T', 'W', 'Th', 'F', 'Sa'];
+        const selectedDayAbbr = DAY_ABBR[dt.getDay()];
+
+        // Filter schedules: teacher + day-of-week + optional date range.
         const teacherSchedules = allClassSchedules.filter(cs => {
           if (cs.teacherLastName !== teacher) return false;
           // Only apply date-range check when both bounds are explicitly stored
           if (cs.startDate && classDate < cs.startDate) return false;
           if (cs.endDate   && classDate > cs.endDate)   return false;
+          // If classDays is populated, only show the class on days it meets.
+          // If classDays is missing or empty, allow it through (legacy records).
+          const cd = cs.classDays;
+          if (cd && cd.length > 0 && !cd.includes(selectedDayAbbr)) return false;
           return true;
         });
 

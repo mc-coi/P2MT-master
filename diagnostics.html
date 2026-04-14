@@ -126,6 +126,20 @@
         <button class="btn-diag btn-diag-primary" onclick="scanOrphans()">
           <i class="fas fa-search"></i> Scan
         </button>
+        <button class="btn-diag btn-diag-warn" id="cleanOrphanSchedBtn" onclick="cleanOrphans('orSched', 'classSchedules')" disabled>
+          <i class="fas fa-broom"></i> Delete Orphan Schedules
+        </button>
+        <button class="btn-diag btn-diag-warn" id="cleanOrphanErBtn" onclick="cleanOrphans('orEr', 'erRoomStudents')" disabled>
+          <i class="fas fa-broom"></i> Delete Orphan ER Placements
+        </button>
+        <button class="btn-diag btn-diag-warn" id="cleanOrphanLogBtn" onclick="cleanOrphans('orLog', 'classAttendanceLogs')" disabled>
+          <i class="fas fa-broom"></i> Delete Orphan Logs
+        </button>
+      </div>
+      <div style="font-size: 12px; color: #92400e; background: #fef3c7; padding: 8px 10px; border-radius: 4px; margin-bottom: 10px;">
+        <i class="fas fa-info-circle"></i> Safe in normal conditions, but if <code>studentId</code> was ever stored
+        inconsistently (e.g., A-number in one place, Firestore doc id in another), a real record could be flagged. Review
+        the IDs shown before cleaning.
       </div>
       <div class="diag-status info" id="orphanStatus">Not run yet.</div>
       <div class="diag-results" id="orphanResults" style="display:none;"></div>
@@ -375,6 +389,9 @@
     // ── Scan 4: orphans ──
     async function scanOrphans() {
       setStatus('orphanStatus', 'info', '<span class="spinner-inline"></span> Scanning for orphan references…');
+      ['cleanOrphanSchedBtn', 'cleanOrphanErBtn', 'cleanOrphanLogBtn'].forEach(id => {
+        document.getElementById(id).disabled = true;
+      });
       try {
         const [students, schedules, errooms, logs] = await Promise.all([
           getAll('students'),
@@ -389,6 +406,10 @@
         const orLog = findOrphans(logs);
         const total = orSched.length + orEr.length + orLog.length;
         state.orphans = { orSched, orEr, orLog };
+        const setBtn = (id, n) => { document.getElementById(id).disabled = n === 0; };
+        setBtn('cleanOrphanSchedBtn', orSched.length);
+        setBtn('cleanOrphanErBtn', orEr.length);
+        setBtn('cleanOrphanLogBtn', orLog.length);
         if (!total) {
           setStatus('orphanStatus', 'ok', `<i class="fas fa-check"></i> No orphan references found.`);
           document.getElementById('orphanResults').style.display = 'none';
@@ -418,6 +439,18 @@
         console.error(err);
         setStatus('orphanStatus', 'err', `<i class="fas fa-times"></i> Scan failed: ${esc(err.message || err)}`);
       }
+    }
+
+    async function cleanOrphans(bucket, collection) {
+      const s = state.orphans;
+      if (!s || !s[bucket] || !s[bucket].length) return;
+      const ids = s[bucket].map(d => d.id);
+      const ok = await confirmTypedDelete(
+        `Delete ${ids.length} orphan record(s) from ${collection}? These reference students that no longer exist.`
+      );
+      if (!ok) return;
+      await batchDelete(collection, ids, 'orphanStatus');
+      await scanOrphans();
     }
 
     // ── Batch delete helper ──
@@ -463,6 +496,7 @@
     window.scanAttendanceDuplicates = scanAttendanceDuplicates;
     window.cleanAttendanceDuplicates = cleanAttendanceDuplicates;
     window.scanOrphans = scanOrphans;
+    window.cleanOrphans = cleanOrphans;
     window.runAllScans = runAllScans;
 
     // Init
