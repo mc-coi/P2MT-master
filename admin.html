@@ -1096,7 +1096,8 @@
               
               if (type === 'students') {
                 batch.push({
-                  docId,
+                  type: 'set',
+                  id: docId,
                   collection: 'students',
                   data: {
                     firstName: row['First Name'] || '',
@@ -1110,7 +1111,8 @@
                 });
               } else if (type === 'staff') {
                 batch.push({
-                  docId,
+                  type: 'set',
+                  id: docId,
                   collection: 'staff',
                   data: {
                     firstName: row['First Name'] || '',
@@ -1127,7 +1129,8 @@
                 });
               } else if (type === 'parents') {
                 batch.push({
-                  docId,
+                  type: 'set',
+                  id: docId,
                   collection: 'parents',
                   data: {
                     chattStateANumber: row['ChattState A#'] || '',
