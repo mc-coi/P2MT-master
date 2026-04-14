@@ -622,77 +622,85 @@
         import { getById, getWhere, getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
         import { formatDate, showToast } from './js/utils.js';
 
-        // Initialize auth and check if user is logged in
+        // ── Tab switching — defined first so it works even if data load is slow ──
+        window.switchTab = function(event, tabName) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            const btn = event.target.closest('.tab-btn') || event.target;
+            btn.classList.add('active');
+        };
+
+        // ── Auth ─────────────────────────────────────────────────────────────────
         await initAuth();
         const user = getCurrentUser();
-        if (!user) {
-            window.location.href = 'index.html';
-        }
+        if (!user) { window.location.href = 'index.html'; }
 
-        // Initialize navigation
         initNav('students');
 
-        // Get studentId from URL
         const studentId = new URLSearchParams(window.location.search).get('id');
-        if (!studentId) {
-            window.location.href = 'students.html';
-        }
+        if (!studentId) { window.location.href = 'students.html'; }
 
+        // ── Mutable state (shared by render fns and window.* handlers) ──────────
         let currentStudent = null;
         let attendanceLogs = [];
         let classSchedules = [];
         let parentInfo = null;
         let contactLogs = [];
         let studentInterventions = [];
-        let erClearedHistory = [];   // erCleared records for this student
-        let erRoomHistory    = [];   // erRoomStudents records for this student
-        let erRoomsAll       = [];   // all erRooms (to look up room names)
+        let erClearedHistory = [];
+        let erRoomHistory    = [];
+        let erRoomsAll       = [];
 
-        // Load all data in parallel
-        const [student, attendanceData, scheduleData,
-               allParents, allContacts, allInterventions,
-               erClearedData, erRoomStudentsData, erRoomsData] = await Promise.all([
-            getById('students', studentId),
-            getAll('dailyAttendanceLogs'),
-            getAll('classSchedules'),
-            getAll('parents'),
-            getAll('parentContactLogs'),
-            getAll('studentInterventions'),
-            getWhere('erCleared',      'studentId', '==', studentId),
-            getWhere('erRoomStudents', 'studentId', '==', studentId),
-            getAll('erRooms'),
-        ]);
+        // ── Load student first, then load related data using their A# ────────────
+        try {
+            const student = await getById('students', studentId);
+            if (!student) {
+                showToast('Student not found', 'error');
+                window.location.href = 'students.html';
+            }
+            currentStudent = student;
+            const aNum = (student.chattStateANumber || '').trim();
 
-        if (!student) {
-            showToast('Student not found', 'error');
-            window.location.href = 'students.html';
+            // Load remaining data in parallel using targeted queries where possible
+            const [
+                attendanceData, scheduleData,
+                allParents, allContacts, allInterventions,
+                erClearedData, erRoomStudentsData, erRoomsData
+            ] = await Promise.all([
+                getWhere('dailyAttendanceLogs', 'chattStateANumber', '==', aNum),
+                getWhere('classSchedules',      'chattStateANumber', '==', aNum),
+                getAll('parents'),
+                getWhere('parentContactLogs',   'studentId', '==', studentId),
+                getWhere('studentInterventions','studentId', '==', studentId),
+                getWhere('erCleared',           'studentId', '==', studentId),
+                getWhere('erRoomStudents',       'studentId', '==', studentId),
+                getAll('erRooms'),
+            ]);
+
+            attendanceLogs = attendanceData || [];
+            classSchedules = scheduleData   || [];
+
+            // Parent info — case/space insensitive A# match
+            const _aLower = aNum.toLowerCase();
+            parentInfo = (allParents || []).find(p =>
+                (p.chattStateANumber || '').trim().toLowerCase() === _aLower
+            ) || null;
+
+            contactLogs = (allContacts || [])
+                .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+            studentInterventions = (allInterventions || [])
+                .sort((a, b) => (b.dateTime || '').localeCompare(a.dateTime || ''));
+
+            erClearedHistory = (erClearedData || []).sort((a,b) => (b.clearedDate||'').localeCompare(a.clearedDate||''));
+            erRoomHistory    = erRoomStudentsData || [];
+            erRoomsAll       = erRoomsData || [];
+
+        } catch (loadErr) {
+            console.error('Error loading student data:', loadErr);
+            showToast('Some data could not be loaded', 'warning');
         }
-
-        currentStudent = student;
-
-        // Filter attendance logs by chattStateANumber
-        attendanceLogs = attendanceData.filter(log => log.chattStateANumber === student.chattStateANumber);
-
-        // Filter class schedules by chattStateANumber
-        classSchedules = scheduleData.filter(schedule => schedule.chattStateANumber === student.chattStateANumber);
-
-        // Parent info (one record per student via chattStateANumber)
-        parentInfo = allParents.find(p => p.chattStateANumber === student.chattStateANumber) || null;
-
-        // Contact logs (linked by studentId or chattStateANumber)
-        contactLogs = allContacts
-            .filter(c => c.studentId === studentId || c.chattStateANumber === student.chattStateANumber)
-            .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-        // Student interventions
-        studentInterventions = allInterventions
-            .filter(i => i.studentId === studentId)
-            .sort((a, b) => (b.dateTime || '').localeCompare(a.dateTime || ''));
-
-        // ER history
-        erClearedHistory = (erClearedData || []).sort((a,b) => (b.clearedDate||'').localeCompare(a.clearedDate||''));
-        erRoomHistory    = erRoomStudentsData || [];
-        erRoomsAll       = erRoomsData || [];
 
         // Helper function to get initials
         function getInitials(firstName, lastName) {
@@ -702,7 +710,7 @@
         // Helper function to get avatar color
         function getAvatarColor() {
             const colors = ['blue', 'red', 'green', 'purple', 'orange'];
-            const index = (student.firstName.charCodeAt(0) + student.lastName.charCodeAt(0)) % colors.length;
+            const index = ((currentStudent.firstName || ' ').charCodeAt(0) + (currentStudent.lastName || ' ').charCodeAt(0)) % colors.length;
             return colors[index];
         }
 
@@ -721,19 +729,20 @@
             }
         }
 
-        // Render profile header
-        const initials = getInitials(student.firstName, student.lastName);
+        // Render profile header (guard against load failure leaving currentStudent null)
+        if (currentStudent) {
+        const initials = getInitials(currentStudent.firstName, currentStudent.lastName);
         const avatarColor = getAvatarColor();
         document.getElementById('avatar-circle').textContent = initials;
         document.getElementById('avatar-circle').className = `avatar-circle ${avatarColor}`;
-        document.getElementById('student-name').textContent = `${student.firstName} ${student.lastName}`;
-        document.getElementById('graduation-year').textContent = `Class of ${student.yearOfGraduation}`;
+        document.getElementById('student-name').textContent = `${currentStudent.firstName} ${currentStudent.lastName}`;
+        document.getElementById('graduation-year').textContent = `Class of ${currentStudent.yearOfGraduation}`;
 
         // Render student information
-        document.getElementById('student-email').textContent = student.email || '--';
-        document.getElementById('student-a-number').textContent = student.chattStateANumber || '--';
-        document.getElementById('student-house').textContent = student.house || '--';
-        document.getElementById('student-grad-year').textContent = student.yearOfGraduation || '--';
+        document.getElementById('student-email').textContent = currentStudent.email || '--';
+        document.getElementById('student-a-number').textContent = currentStudent.chattStateANumber || '--';
+        document.getElementById('student-house').textContent = currentStudent.house || '--';
+        document.getElementById('student-grad-year').textContent = currentStudent.yearOfGraduation || '--';
 
         // Calculate stats
         const classesCount = classSchedules.length;
@@ -835,23 +844,7 @@
         renderContactLogTab();
         renderInterventionsTab();
         renderErHistoryTab();
-
-        // Tab switching logic
-        window.switchTab = function(event, tabName) {
-            // Hide all tab contents
-            const contents = document.querySelectorAll('.tab-content');
-            contents.forEach(content => content.classList.remove('active'));
-
-            // Remove active class from all tab buttons
-            const buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-
-            // Show selected tab
-            document.getElementById(tabName).classList.add('active');
-
-            // Add active class to clicked button
-            event.target.classList.add('active');
-        };
+        } // end if (currentStudent)
 
         // Edit modal functions
         window.openEditModal = function() {

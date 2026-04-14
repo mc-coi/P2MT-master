@@ -611,26 +611,37 @@
     function renderParentsTable() {
       const tbody = document.getElementById('parents-tbody');
       tbody.innerHTML = '';
-      
-      studentsData.forEach(student => {
-        const parentInfo = parentsData.find(p => p.chattStateANumber === student.chattStateANumber) || {};
+
+      // Build a lookup of students by chattStateANumber for name enrichment
+      const studentByANumber = {};
+      studentsData.forEach(s => {
+        if (s.chattStateANumber) studentByANumber[s.chattStateANumber.trim()] = s;
+      });
+
+      // Render one row per parent record (not per student), enriched with student name
+      parentsData.forEach(p => {
+        const student = studentByANumber[( p.chattStateANumber || '').trim()];
+        const displayName = student
+          ? `${student.lastName}, ${student.firstName}`
+          : (p.studentName || p.chattStateANumber || '—');
         const row = tbody.insertRow();
         row.innerHTML = `
-          <td>${student.lastName}, ${student.firstName}</td>
-          <td>${parentInfo.guardianship || ''}</td>
-          <td>${parentInfo.motherEmail || ''}</td>
-          <td>${parentInfo.fatherEmail || ''}</td>
-          <td>${parentInfo.guardianEmail || ''}</td>
+          <td>${displayName}</td>
+          <td>${p.guardianship || ''}</td>
+          <td>${p.motherEmail || ''}</td>
+          <td>${p.fatherEmail || ''}</td>
+          <td>${p.guardianEmail || ''}</td>
           <td>
-            <button class="w3-button w3-small w3-blue action-button" onclick="editParent('${student.chattStateANumber}', '${student.lastName}, ${student.firstName}')">Edit</button>
+            <button class="w3-button w3-small w3-blue action-button"
+              onclick="editParent('${p.chattStateANumber}', '${displayName.replace(/'/g,"\\'")}')">Edit</button>
           </td>
         `;
       });
-      
+
       if ($.fn.DataTable.isDataTable('#parentsTable')) {
         $('#parentsTable').DataTable().destroy();
       }
-      $('#parentsTable').DataTable({ paging: true, pageLength: 10, ordering: true, searching: false });
+      $('#parentsTable').DataTable({ paging: true, pageLength: 10, ordering: true, searching: true });
     }
 
     function renderInterventionTypesTable() {
@@ -785,7 +796,8 @@
 
     async function editParent(chattStateANumber, studentName) {
       currentEditParentChattStateA = chattStateANumber;
-      const parentData = parentsData.find(p => p.chattStateANumber === chattStateANumber) || {};
+      const _a = (chattStateANumber || '').trim().toLowerCase();
+      const parentData = parentsData.find(p => (p.chattStateANumber || '').trim().toLowerCase() === _a) || {};
       
       document.getElementById('parent-modal-student-name').textContent = studentName;
       document.getElementById('parent-guardianship').value = parentData.guardianship || '';
