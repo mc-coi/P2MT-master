@@ -362,13 +362,6 @@
                 <div class="stat-label">Classes Enrolled</div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon indigo">
-                    <i class="fas fa-lightbulb"></i>
-                </div>
-                <div class="stat-value" id="stat-pbl-teams">0</div>
-                <div class="stat-label">PBL Teams</div>
-            </div>
-            <div class="stat-card">
                 <div class="stat-icon yellow">
                     <i class="fas fa-clipboard-list"></i>
                 </div>
@@ -408,7 +401,6 @@
         <div class="tab-bar">
             <button class="tab-btn active" onclick="switchTab(event, 'attendance')"><i class="fas fa-calendar-check" style="margin-right:5px;"></i>Attendance</button>
             <button class="tab-btn" onclick="switchTab(event, 'schedule')"><i class="fas fa-book" style="margin-right:5px;"></i>Schedule</button>
-            <button class="tab-btn" onclick="switchTab(event, 'pbl')"><i class="fas fa-lightbulb" style="margin-right:5px;"></i>PBL Teams</button>
             <button class="tab-btn" onclick="switchTab(event, 'parent-contacts')"><i class="fas fa-phone" style="margin-right:5px;"></i>Parent Contacts</button>
             <button class="tab-btn" onclick="switchTab(event, 'interventions')"><i class="fas fa-clipboard-list" style="margin-right:5px;"></i>Interventions</button>
             <button class="tab-btn" onclick="switchTab(event, 'er-history')"><i class="fas fa-bolt" style="margin-right:5px;"></i>ER History</button>
@@ -469,18 +461,6 @@
                 <div class="empty-icon"><i class="fas fa-inbox"></i></div>
                 <div class="empty-title">No Classes Enrolled</div>
                 <div class="empty-subtitle">This student is not enrolled in any classes</div>
-            </div>
-        </div>
-
-        <!-- Tab 4 - PBL Teams -->
-        <div id="pbl" class="tab-content">
-            <div class="grid-2" id="pbl-grid">
-                <!-- PBL cards will be inserted here -->
-            </div>
-            <div id="pbl-empty" class="empty-state" style="display: none;">
-                <div class="empty-icon"><i class="fas fa-inbox"></i></div>
-                <div class="empty-title">No PBL Teams</div>
-                <div class="empty-subtitle">This student is not in any PBL teams</div>
             </div>
         </div>
 
@@ -639,7 +619,7 @@
     <script type="module">
         import { initAuth, getCurrentUser, signOut } from './js/auth.js';
         import { initNav } from './js/nav.js';
-        import { getById, getWhere, getAll, addDoc, updateDoc } from './js/db.js';
+        import { getById, getWhere, getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
         import { formatDate, showToast } from './js/utils.js';
 
         // Initialize auth and check if user is logged in
@@ -661,7 +641,6 @@
         let currentStudent = null;
         let attendanceLogs = [];
         let classSchedules = [];
-        let pblTeams = [];
         let parentInfo = null;
         let contactLogs = [];
         let studentInterventions = [];
@@ -670,13 +649,12 @@
         let erRoomsAll       = [];   // all erRooms (to look up room names)
 
         // Load all data in parallel
-        const [student, attendanceData, scheduleData, pblData,
+        const [student, attendanceData, scheduleData,
                allParents, allContacts, allInterventions,
                erClearedData, erRoomStudentsData, erRoomsData] = await Promise.all([
             getById('students', studentId),
-            getWhere('dailyAttendanceLogs', 'chattStateANumber', null),
-            getWhere('classSchedules', 'chattStateANumber', null),
-            getWhere('pblTeams', 'chattStateANumber', null),
+            getAll('dailyAttendanceLogs'),
+            getAll('classSchedules'),
             getAll('parents'),
             getAll('parentContactLogs'),
             getAll('studentInterventions'),
@@ -697,9 +675,6 @@
 
         // Filter class schedules by chattStateANumber
         classSchedules = scheduleData.filter(schedule => schedule.chattStateANumber === student.chattStateANumber);
-
-        // Filter PBL teams by chattStateANumber
-        pblTeams = pblData.filter(team => team.chattStateANumber === student.chattStateANumber);
 
         // Parent info (one record per student via chattStateANumber)
         parentInfo = allParents.find(p => p.chattStateANumber === student.chattStateANumber) || null;
@@ -762,7 +737,6 @@
 
         // Calculate stats
         const classesCount = classSchedules.length;
-        const pblTeamsCount = pblTeams.length;
 
         // Calculate attendance rate
         let attendanceRate = 0;
@@ -774,7 +748,6 @@
         // Render stat cards
         document.getElementById('stat-attendance-rate').textContent = `${attendanceRate}%`;
         document.getElementById('stat-classes-enrolled').textContent = classesCount;
-        document.getElementById('stat-pbl-teams').textContent = pblTeamsCount;
         document.getElementById('stat-interventions').textContent = studentInterventions.length;
 
         // Update icon color based on attendance rate
@@ -855,37 +828,9 @@
             }
         }
 
-        // Render PBL Tab
-        function renderPblTab() {
-            const grid = document.getElementById('pbl-grid');
-            grid.innerHTML = '';
-
-            if (pblTeams.length > 0) {
-                document.getElementById('pbl-empty').style.display = 'none';
-                grid.style.display = 'grid';
-
-                pblTeams.forEach(team => {
-                    const card = document.createElement('div');
-                    card.className = 'pbl-card';
-
-                    card.innerHTML = `
-                        <div class="pbl-name">${team.pblName}</div>
-                        <div class="pbl-detail"><i class="fas fa-users"></i>Team #${team.pblTeamNumber}</div>
-                        <div class="pbl-detail"><i class="fas fa-calendar"></i>Quarter: ${team.quarter || 'N/A'}</div>
-                        <div class="pbl-detail"><i class="fas fa-user-tie"></i>${team.pblSponsorPersonName || 'N/A'}</div>
-                    `;
-                    grid.appendChild(card);
-                });
-            } else {
-                grid.style.display = 'none';
-                document.getElementById('pbl-empty').style.display = 'block';
-            }
-        }
-
         // Render all tabs
         renderAttendanceTab();
         renderScheduleTab();
-        renderPblTab();
         renderParentInfoCard();
         renderContactLogTab();
         renderInterventionsTab();
@@ -1076,6 +1021,7 @@
                     <th>Category</th>
                     <th>Level</th>
                     <th>Comments</th>
+                    <th></th>
                 </tr></thead>
                 <tbody>
                 ${studentInterventions.map(r => {
@@ -1087,11 +1033,32 @@
                         <td>${r.category || '—'}</td>
                         <td><span class="badge" style="background:${color}22;color:${color};font-weight:700;">Level ${r.level}</span></td>
                         <td>${r.comments || '<em style="opacity:.5;">—</em>'}</td>
+                        <td style="white-space:nowrap;">
+                          <button onclick="deleteIntervention('${r.id}')"
+                            style="background:none;border:none;cursor:pointer;color:#dc2626;padding:4px 8px;border-radius:4px;font-size:13px;"
+                            title="Delete intervention">
+                            <i class="fas fa-trash"></i>
+                          </button>
+                        </td>
                     </tr>`;
                 }).join('')}
                 </tbody>
             </table>`;
         }
+
+        window.deleteIntervention = async function(id) {
+            if (!confirm('Delete this intervention record? This cannot be undone.')) return;
+            try {
+                await deleteDoc('studentInterventions', id);
+                studentInterventions = studentInterventions.filter(r => r.id !== id);
+                document.getElementById('stat-interventions').textContent = studentInterventions.length;
+                renderInterventionsTab();
+                showToast('Intervention deleted', 'success');
+            } catch (err) {
+                console.error('Error deleting intervention:', err);
+                showToast('Error deleting intervention', 'error');
+            }
+        };
 
         // ─────────────────────────────────────────────────
         //  ER HISTORY TAB
