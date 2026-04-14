@@ -878,7 +878,7 @@
           <div class="workshop-header-cell" onclick="assignAll('${w.id}')" title="Click to assign all unassigned students to ${esc(w.name)}">
             <span class="wh-name">${esc(w.name)}</span>
             ${w.room ? `<span class="wh-room">Rm ${esc(w.room)}</span>` : ''}
-            <span class="wh-count">${cnt}</span>
+            <span class="wh-count" data-wid="${w.id}">${cnt}</span>
           </div>
         </th>`;
       });
@@ -972,13 +972,12 @@
     };
 
     function renderWorkshopCounts() {
-      const countEls = document.querySelectorAll('.wh-count');
-      countEls.forEach((el, i) => {
-        if (workshops[i]) {
-          el.textContent = Object.values(assignments).filter(
-            wids => Array.isArray(wids) && wids.includes(workshops[i].id)
-          ).length;
-        }
+      workshops.forEach(w => {
+        const el = document.querySelector(`.wh-count[data-wid="${w.id}"]`);
+        if (!el) return;
+        el.textContent = Object.values(assignments).filter(
+          wids => Array.isArray(wids) && wids.includes(w.id)
+        ).length;
       });
     }
 
