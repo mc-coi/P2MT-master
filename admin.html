@@ -1013,6 +1013,7 @@
 
     function downloadParentsTemplate() {
       const template = [{
+        'ChattState A#': 'A12345',
         'Student Name': 'Doe, John',
         'Guardianship': 'Both Parents',
         'Mother Name': 'Jane Doe',
@@ -1129,6 +1130,8 @@
                   docId,
                   collection: 'parents',
                   data: {
+                    chattStateANumber: row['ChattState A#'] || '',
+                    studentName: row['Student Name'] || '',
                     guardianship: row['Guardianship'] || '',
                     motherName: row['Mother Name'] || '',
                     motherEmail: row['Mother Email'] || '',
