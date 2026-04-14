@@ -146,7 +146,9 @@ export async function batchWrite(operations) {
     operations.forEach((operation) => {
       const docRef = doc(db, operation.collection, operation.id || operation.docId);
       
-      switch (operation.type) {
+      // Default to 'set' when caller omits type (legacy upload code path)
+      const opType = operation.type || 'set';
+      switch (opType) {
         case 'set':
           batch.set(docRef, operation.data);
           break;
