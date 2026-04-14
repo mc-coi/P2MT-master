@@ -910,45 +910,43 @@
                 return;
             }
 
-            function guardianBlock(title, name, email, homePhone, dayPhone) {
-                if (!name) return '';
+            function guardianBlock(title, name, email, phone) {
+                if (!name && !email && !phone) return '';
                 return `<div class="parent-section">
                     <div class="parent-block-title">${title}</div>
                     <div class="parent-grid">
-                        <div class="info-item">
+                        ${name ? `<div class="info-item">
                             <div class="info-label">Name</div>
-                            <div class="info-value">${name || '—'}</div>
-                        </div>
-                        <div class="info-item">
+                            <div class="info-value">${name}</div>
+                        </div>` : ''}
+                        ${email ? `<div class="info-item">
                             <div class="info-label">Email</div>
-                            <div class="info-value">${email ? `<a href="mailto:${email}">${email}</a>` : '—'}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Home Phone</div>
-                            <div class="info-value">${homePhone || '—'}</div>
-                        </div>
-                        <div class="info-item">
-                            <div class="info-label">Day Phone</div>
-                            <div class="info-value">${dayPhone || '—'}</div>
-                        </div>
+                            <div class="info-value"><a href="mailto:${email}">${email}</a></div>
+                        </div>` : ''}
+                        ${phone ? `<div class="info-item">
+                            <div class="info-label">Phone</div>
+                            <div class="info-value"><a href="tel:${phone}">${phone}</a></div>
+                        </div>` : ''}
                     </div>
                 </div>`;
             }
 
-            body.innerHTML =
-                guardianBlock('Mother', parentInfo.motherName, parentInfo.motherEmail, parentInfo.motherHomePhone, parentInfo.motherDayPhone) +
-                guardianBlock('Father', parentInfo.fatherName, parentInfo.fatherEmail, parentInfo.fatherHomePhone, parentInfo.fatherDayPhone) +
-                (parentInfo.guardianEmail ? `<div class="parent-section">
-                    <div class="parent-block-title">Guardian</div>
+            const motherBlock = guardianBlock('Mother / Primary', parentInfo.motherName, parentInfo.motherEmail, parentInfo.motherPhone);
+            const fatherBlock = guardianBlock('Father / Secondary', parentInfo.fatherName, parentInfo.fatherEmail, parentInfo.fatherPhone);
+            const guardianBlock2 = parentInfo.guardianEmail ? `<div class="parent-section">
+                    <div class="parent-block-title">Guardian Email</div>
                     <div class="info-item">
-                        <div class="info-label">Email</div>
                         <div class="info-value"><a href="mailto:${parentInfo.guardianEmail}">${parentInfo.guardianEmail}</a></div>
                     </div>
-                </div>` : '') +
-                (parentInfo.comment ? `<div class="info-item" style="margin-top:10px;">
-                    <div class="info-label">Notes</div>
-                    <div class="info-value">${parentInfo.comment}</div>
-                </div>` : '') ||
+                </div>` : '';
+            const studentCellBlock = parentInfo.studentCell ? `<div class="parent-section">
+                    <div class="parent-block-title">Student Cell</div>
+                    <div class="info-item">
+                        <div class="info-value"><a href="tel:${parentInfo.studentCell}">${parentInfo.studentCell}</a></div>
+                    </div>
+                </div>` : '';
+            const combined = motherBlock + fatherBlock + guardianBlock2 + studentCellBlock;
+            body.innerHTML = combined ||
                 `<p style="color:var(--text-muted);font-size:13px;">No contact details on file.</p>`;
         }
 

@@ -176,9 +176,10 @@
             <tr>
               <th>Student Name</th>
               <th>Guardianship</th>
-              <th>Mother Email</th>
-              <th>Father Email</th>
-              <th>Guardian Email</th>
+              <th>Primary (Mother)</th>
+              <th>Primary Phone</th>
+              <th>Secondary (Father)</th>
+              <th>Secondary Phone</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -380,16 +381,27 @@
           <option value="Guardian">Guardian</option>
         </select>
         <div class="form-row">
-          <div><label class="w3-text-teal"><b>Mother Name</b></label>
+          <div><label class="w3-text-teal"><b>Mother / Primary Name</b></label>
             <input type="text" id="parent-motherName" class="w3-input w3-border"></div>
           <div><label class="w3-text-teal"><b>Mother Email</b></label>
             <input type="email" id="parent-motherEmail" class="w3-input w3-border"></div>
         </div>
         <div class="form-row">
-          <div><label class="w3-text-teal"><b>Father Name</b></label>
+          <div><label class="w3-text-teal"><b>Mother Phone</b></label>
+            <input type="text" id="parent-motherPhone" class="w3-input w3-border"></div>
+          <div></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Father / Secondary Name</b></label>
             <input type="text" id="parent-fatherName" class="w3-input w3-border"></div>
           <div><label class="w3-text-teal"><b>Father Email</b></label>
             <input type="email" id="parent-fatherEmail" class="w3-input w3-border"></div>
+        </div>
+        <div class="form-row">
+          <div><label class="w3-text-teal"><b>Father Phone</b></label>
+            <input type="text" id="parent-fatherPhone" class="w3-input w3-border"></div>
+          <div><label class="w3-text-teal"><b>Student Cell</b></label>
+            <input type="text" id="parent-studentCell" class="w3-input w3-border"></div>
         </div>
         <label class="w3-text-teal"><b>Guardian Email</b></label>
         <input type="email" id="parent-guardianEmail" class="w3-input w3-border w3-margin-bottom">
@@ -628,9 +640,10 @@
         row.innerHTML = `
           <td>${displayName}</td>
           <td>${p.guardianship || ''}</td>
-          <td>${p.motherEmail || ''}</td>
-          <td>${p.fatherEmail || ''}</td>
-          <td>${p.guardianEmail || ''}</td>
+          <td>${p.motherName ? `<strong>${p.motherName}</strong><br><small>${p.motherEmail || ''}</small>` : (p.motherEmail || '')}</td>
+          <td>${p.motherPhone || ''}</td>
+          <td>${p.fatherName ? `<strong>${p.fatherName}</strong><br><small>${p.fatherEmail || ''}</small>` : (p.fatherEmail || '')}</td>
+          <td>${p.fatherPhone || ''}</td>
           <td>
             <button class="w3-button w3-small w3-blue action-button"
               onclick="editParent('${p.chattStateANumber}', '${displayName.replace(/'/g,"\\'")}')">Edit</button>
@@ -803,8 +816,11 @@
       document.getElementById('parent-guardianship').value = parentData.guardianship || '';
       document.getElementById('parent-motherName').value = parentData.motherName || '';
       document.getElementById('parent-motherEmail').value = parentData.motherEmail || '';
+      document.getElementById('parent-motherPhone').value = parentData.motherPhone || '';
       document.getElementById('parent-fatherName').value = parentData.fatherName || '';
       document.getElementById('parent-fatherEmail').value = parentData.fatherEmail || '';
+      document.getElementById('parent-fatherPhone').value = parentData.fatherPhone || '';
+      document.getElementById('parent-studentCell').value = parentData.studentCell || '';
       document.getElementById('parent-guardianEmail').value = parentData.guardianEmail || '';
       
       document.getElementById('parentModal').style.display = 'block';
@@ -822,8 +838,11 @@
         guardianship: document.getElementById('parent-guardianship').value,
         motherName: document.getElementById('parent-motherName').value,
         motherEmail: document.getElementById('parent-motherEmail').value,
+        motherPhone: document.getElementById('parent-motherPhone').value,
         fatherName: document.getElementById('parent-fatherName').value,
         fatherEmail: document.getElementById('parent-fatherEmail').value,
+        fatherPhone: document.getElementById('parent-fatherPhone').value,
+        studentCell: document.getElementById('parent-studentCell').value,
         guardianEmail: document.getElementById('parent-guardianEmail').value
       };
 
@@ -1150,8 +1169,11 @@
                     guardianship: row['Guardianship'] || '',
                     motherName: row['Mother Name'] || '',
                     motherEmail: row['Mother Email'] || '',
+                    motherPhone: row['Mother Phone'] || '',
                     fatherName: row['Father Name'] || '',
                     fatherEmail: row['Father Email'] || '',
+                    fatherPhone: row['Father Phone'] || '',
+                    studentCell: row['Student Cell'] || '',
                     guardianEmail: row['Guardian Email'] || ''
                   }
                 });
