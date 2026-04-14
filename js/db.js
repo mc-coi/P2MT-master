@@ -144,7 +144,7 @@ export async function batchWrite(operations) {
     const batch = writeBatch(db);
     
     operations.forEach((operation) => {
-      const docRef = doc(db, operation.collection, operation.id);
+      const docRef = doc(db, operation.collection, operation.id || operation.docId);
       
       switch (operation.type) {
         case 'set':
