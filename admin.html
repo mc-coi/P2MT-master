@@ -160,6 +160,9 @@
           <h3>Parent Information</h3>
         </div>
         <div class="w3-col m4 w3-right-align">
+          <button id="btn-dedup-parents" class="w3-button w3-amber action-button" onclick="dedupParents()" style="display:none;">
+            <i class="fas fa-broom"></i> Remove Duplicates
+          </button>
           <button id="btn-download-parents" class="w3-button btn-primary action-button">
             <i class="fas fa-download"></i> Download
           </button>
@@ -647,9 +650,20 @@
           <td>
             <button class="w3-button w3-small w3-blue action-button"
               onclick="editParent('${p.chattStateANumber}', '${displayName.replace(/'/g,"\\'")}')">Edit</button>
+            <button class="w3-button w3-small w3-red action-button"
+              onclick="deleteParentRecord('${p.id}')">Delete</button>
           </td>
         `;
       });
+
+      // Show "Remove Duplicates" button if any A# appears more than once
+      const aNumCounts = {};
+      parentsData.forEach(p => {
+        const a = (p.chattStateANumber || '').trim().toLowerCase();
+        if (a) aNumCounts[a] = (aNumCounts[a] || 0) + 1;
+      });
+      const hasDupes = Object.values(aNumCounts).some(c => c > 1);
+      document.getElementById('btn-dedup-parents').style.display = hasDupes ? '' : 'none';
 
       if ($.fn.DataTable.isDataTable('#parentsTable')) {
         $('#parentsTable').DataTable().destroy();
@@ -830,6 +844,60 @@
       document.getElementById('parentModal').style.display = 'none';
       currentEditParentChattStateA = null;
     }
+
+    async function deleteParentRecord(id) {
+      if (!confirm('Delete this parent record? This cannot be undone.')) return;
+      try {
+        await deleteDoc('parents', id);
+        parentsData = parentsData.filter(p => p.id !== id);
+        renderParentsTable();
+        showToast('Parent record deleted', 'success');
+      } catch (err) {
+        console.error('Error deleting parent record:', err);
+        showToast('Error deleting record', 'error');
+      }
+    }
+
+    async function dedupParents() {
+      // Group by normalized A#, keep the record with the most fields filled in
+      const groups = {};
+      parentsData.forEach(p => {
+        const key = (p.chattStateANumber || '').trim().toLowerCase();
+        if (!key) return;
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+      });
+
+      const toDelete = [];
+      Object.values(groups).forEach(recs => {
+        if (recs.length <= 1) return;
+        // Score each record by how many non-empty fields it has
+        const scored = recs.map(r => ({
+          r,
+          score: [r.motherName, r.motherEmail, r.motherPhone,
+                  r.fatherName, r.fatherEmail, r.fatherPhone,
+                  r.studentCell, r.guardianEmail]
+                 .filter(Boolean).length
+        }));
+        scored.sort((a, b) => b.score - a.score); // best first
+        // Delete all but the best
+        scored.slice(1).forEach(({ r }) => toDelete.push(r.id));
+      });
+
+      if (!toDelete.length) { showToast('No duplicates found', 'info'); return; }
+
+      if (!confirm(`Remove ${toDelete.length} duplicate parent record(s), keeping the most complete entry for each student?`)) return;
+
+      let done = 0;
+      for (const id of toDelete) {
+        try { await deleteDoc('parents', id); done++; } catch(e) { console.error(e); }
+      }
+      await loadAllData();
+      renderParentsTable();
+      showToast(`Removed ${done} duplicate record(s)`, 'success');
+    }
+    window.dedupParents = dedupParents;
+    window.deleteParentRecord = deleteParentRecord;
 
     async function handleParentFormSubmit(e) {
       e.preventDefault();
