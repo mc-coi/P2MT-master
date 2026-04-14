@@ -128,7 +128,10 @@
       <div id="mgmtRosterWrap" style="display:none;margin-top:16px;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
           <strong id="mgmtRosterTitle" style="font-size:15px;"></strong>
-          <div style="display:flex;gap:8px;align-items:center;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button id="mgmtCleanBtn" onclick="mgmtCleanDuplicates()" style="display:none;padding:6px 12px;background:#fef3c7;border:1.5px solid #f59e0b;border-radius:8px;font-size:12px;font-weight:700;color:#92400e;cursor:pointer;white-space:nowrap;">
+              <i class="fas fa-broom"></i> Clean Duplicates (<span id="mgmtDupCount">0</span>)
+            </button>
             <input type="text" id="mgmtAddSearch" placeholder="Search student to add…" oninput="mgmtSearchAdd()"
               style="padding:6px 10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;outline:none;width:220px;">
             <div id="mgmtAddDropdown" style="display:none;position:absolute;z-index:200;background:white;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:200px;overflow-y:auto;min-width:260px;"></div>
@@ -670,7 +673,8 @@
     // ══════════════════════════════════════════════════
     //  MANAGE STUDENTS IN EXISTING CLASS
     // ══════════════════════════════════════════════════
-    let mgmtCurrentSchedules = []; // schedules for the selected class
+    let mgmtCurrentSchedules = []; // ALL raw docs for the selected class (may have duplicates)
+    let mgmtDisplaySchedules = []; // deduplicated by studentId for display
 
     window.mgmtPopulateClasses = function() {
       const teacher = document.getElementById('mgmtTeacher').value.trim().toLowerCase();
@@ -689,13 +693,32 @@
       const className = document.getElementById('mgmtClassName').value;
       if (!className) { document.getElementById('mgmtRosterWrap').style.display = 'none'; return; }
 
+      // All raw docs for this class (may include duplicates from re-imports)
       mgmtCurrentSchedules = allSchedules.filter(s =>
         s.className === className &&
         (!teacher || s.teacherLastName === teacher)
       );
 
+      // Deduplicate by studentId for display — keep first occurrence per student.
+      // Duplicates arise from running the CSV import more than once.
+      const seenIds = new Set();
+      mgmtDisplaySchedules = mgmtCurrentSchedules.filter(s => {
+        const key = s.studentId || s.chattStateANumber;
+        if (!key || seenIds.has(key)) return false;
+        seenIds.add(key);
+        return true;
+      });
+
+      const dupCount = mgmtCurrentSchedules.length - mgmtDisplaySchedules.length;
+
       document.getElementById('mgmtRosterTitle').textContent =
-        `${className}${teacher ? ' — ' + teacher : ''} (${mgmtCurrentSchedules.length} student${mgmtCurrentSchedules.length !== 1 ? 's' : ''})`;
+        `${className}${teacher ? ' — ' + teacher : ''} (${mgmtDisplaySchedules.length} student${mgmtDisplaySchedules.length !== 1 ? 's' : ''})`;
+
+      // Show/hide the clean-duplicates button
+      const cleanBtn = document.getElementById('mgmtCleanBtn');
+      document.getElementById('mgmtDupCount').textContent = dupCount;
+      cleanBtn.style.display = dupCount > 0 ? 'inline-flex' : 'none';
+
       document.getElementById('mgmtRosterWrap').style.display = 'block';
       mgmtRenderRoster();
     };
@@ -705,13 +728,13 @@
       const empty = document.getElementById('mgmtRosterEmpty');
       tbody.innerHTML = '';
 
-      if (!mgmtCurrentSchedules.length) {
+      if (!mgmtDisplaySchedules.length) {
         empty.style.display = 'block';
         return;
       }
       empty.style.display = 'none';
 
-      mgmtCurrentSchedules.forEach((sched, i) => {
+      mgmtDisplaySchedules.forEach((sched, i) => {
         const student = allStudents.find(s => s.id === sched.studentId || s.chattStateANumber === sched.chattStateANumber);
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -720,7 +743,7 @@
           <td>${sched.chattStateANumber || ''}</td>
           <td>${student?.yearOfGraduation || ''}</td>
           <td>
-            <button class="w3-button w3-small w3-red" onclick="mgmtRemoveStudent('${sched.id}')">
+            <button class="w3-button w3-small w3-red" onclick="mgmtRemoveStudent('${sched.studentId || ''}','${sched.chattStateANumber || ''}')">
               <i class="fas fa-user-minus"></i> Remove
             </button>
           </td>`;
@@ -733,9 +756,9 @@
       const dd  = document.getElementById('mgmtAddDropdown');
       if (!q) { dd.style.display = 'none'; return; }
 
-      // Exclude students already in class
-      const inClassIds = new Set(mgmtCurrentSchedules.map(s => s.studentId).filter(Boolean));
-      const inClassNums = new Set(mgmtCurrentSchedules.map(s => s.chattStateANumber).filter(Boolean));
+      // Exclude students already in class (use deduplicated list)
+      const inClassIds = new Set(mgmtDisplaySchedules.map(s => s.studentId).filter(Boolean));
+      const inClassNums = new Set(mgmtDisplaySchedules.map(s => s.chattStateANumber).filter(Boolean));
 
       const matches = allStudents.filter(s =>
         !inClassIds.has(s.id) && !inClassNums.has(s.chattStateANumber) &&
@@ -785,6 +808,7 @@
         const docId = await addDoc('classSchedules', data);
         const newRec = { ...data, id: docId };
         mgmtCurrentSchedules.push(newRec);
+        mgmtDisplaySchedules.push(newRec);
         allSchedules.push(newRec);
         mgmtRenderRoster();
         document.getElementById('mgmtRosterTitle').textContent =
@@ -796,21 +820,86 @@
       }
     };
 
-    window.mgmtRemoveStudent = async function(schedId) {
-      const sched   = mgmtCurrentSchedules.find(s => s.id === schedId);
-      const name    = sched?.studentName || 'this student';
+    window.mgmtRemoveStudent = async function(studentId, aNumber) {
+      // Find the display entry to get the student's name for the confirmation prompt
+      const sched = mgmtDisplaySchedules.find(s =>
+        (studentId && s.studentId === studentId) ||
+        (aNumber  && s.chattStateANumber === aNumber)
+      );
+      const name = sched?.studentName || 'this student';
       const { confirmTypedDelete } = await import('./js/utils.js');
       if (!await confirmTypedDelete(`Remove ${name} from this class? This cannot be undone.`)) return;
 
+      // Collect ALL docs for this student in this class (handles duplicates from re-imports)
+      const toDelete = mgmtCurrentSchedules.filter(s =>
+        (studentId && s.studentId === studentId) ||
+        (aNumber  && s.chattStateANumber === aNumber)
+      );
+
       try {
-        await deleteDoc('classSchedules', schedId);
-        mgmtCurrentSchedules = mgmtCurrentSchedules.filter(s => s.id !== schedId);
-        allSchedules = allSchedules.filter(s => s.id !== schedId);
+        for (const s of toDelete) {
+          await deleteDoc('classSchedules', s.id);
+        }
+        // Prune from in-memory arrays
+        const deletedIds = new Set(toDelete.map(s => s.id));
+        mgmtCurrentSchedules  = mgmtCurrentSchedules.filter(s => !deletedIds.has(s.id));
+        mgmtDisplaySchedules  = mgmtDisplaySchedules.filter(s => !deletedIds.has(s.id));
+        allSchedules          = allSchedules.filter(s => !deletedIds.has(s.id));
         mgmtRenderRoster();
-        showToast(`${name} removed from class`, 'success');
+        document.getElementById('mgmtRosterTitle').textContent =
+          document.getElementById('mgmtRosterTitle').textContent.replace(
+            /\(\d+ student/,
+            `(${mgmtDisplaySchedules.length} student`
+          );
+        const msg = toDelete.length > 1
+          ? `${name} removed (${toDelete.length} duplicate entries cleaned up)`
+          : `${name} removed from class`;
+        showToast(msg, 'success');
       } catch(e) {
         console.error(e);
         showToast('Error removing student', 'error');
+      }
+    };
+
+    window.mgmtCleanDuplicates = async function() {
+      const dupCount = mgmtCurrentSchedules.length - mgmtDisplaySchedules.length;
+      if (dupCount === 0) { showToast('No duplicates found', 'success'); return; }
+
+      const confirmed = confirm(
+        `Remove ${dupCount} duplicate schedule record${dupCount !== 1 ? 's' : ''}?\n\nThis keeps one entry per student and deletes the extras. No students will be removed from the class.`
+      );
+      if (!confirmed) return;
+
+      const cleanBtn = document.getElementById('mgmtCleanBtn');
+      cleanBtn.disabled = true;
+      cleanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cleaning…';
+
+      // Build the set of doc IDs that are in the DISPLAY (keepers)
+      const keepIds = new Set(mgmtDisplaySchedules.map(s => s.id));
+
+      // Everything in current but NOT in display is a duplicate
+      const dupsToDelete = mgmtCurrentSchedules.filter(s => !keepIds.has(s.id));
+
+      try {
+        for (const s of dupsToDelete) {
+          await deleteDoc('classSchedules', s.id);
+        }
+        // Prune from in-memory arrays
+        const deletedIds = new Set(dupsToDelete.map(s => s.id));
+        mgmtCurrentSchedules = mgmtCurrentSchedules.filter(s => !deletedIds.has(s.id));
+        allSchedules         = allSchedules.filter(s => !deletedIds.has(s.id));
+
+        // Hide button now that there are no duplicates
+        cleanBtn.style.display = 'none';
+        document.getElementById('mgmtDupCount').textContent = '0';
+
+        showToast(`Cleaned up ${dupsToDelete.length} duplicate record${dupsToDelete.length !== 1 ? 's' : ''}`, 'success');
+      } catch(e) {
+        console.error(e);
+        showToast('Error cleaning duplicates', 'error');
+      } finally {
+        cleanBtn.disabled = false;
+        cleanBtn.innerHTML = '<i class="fas fa-broom"></i> Clean Duplicates (<span id="mgmtDupCount">0</span>)';
       }
     };
 

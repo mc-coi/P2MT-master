@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="./js/theme-init.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagnostics - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <style>
+    .diag-card { background: var(--surface, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: 8px; padding: 18px; margin-bottom: 18px; color: var(--text-primary, #0F172A); }
+    .diag-card h3 { margin: 0 0 6px 0; display: flex; align-items: center; gap: 8px; }
+    .diag-card .desc { color: var(--text-secondary, #475569); font-size: 14px; margin-bottom: 10px; }
+    .diag-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .diag-status { font-size: 14px; font-weight: 600; padding: 8px 12px; border-radius: 4px; margin-bottom: 10px; }
+    .diag-status.ok { background: #dcfce7; color: #166534; }
+    .diag-status.warn { background: #fef3c7; color: #92400e; }
+    .diag-status.err { background: #fee2e2; color: #991b1b; }
+    .diag-status.info { background: #e0f2fe; color: #075985; }
+    .diag-results { max-height: 400px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 4px; padding: 8px; background: #f8fafc; color: #0f172a; font-size: 13px; }
+    .diag-group { border-bottom: 1px solid #e5e7eb; padding: 8px 4px; }
+    .diag-group:last-child { border-bottom: none; }
+    .diag-group-header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .diag-group-title { font-weight: 600; color: #0f172a; }
+    .diag-group-count { background: #fecaca; color: #991b1b; padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 700; }
+    .diag-group-detail { margin-top: 4px; font-size: 12px; color: #475569; font-family: monospace; }
+    .spinner-inline { display: inline-block; width: 14px; height: 14px; border: 2px solid #cbd5e1; border-top-color: #2196F3; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn-diag { padding: 8px 14px; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 14px; }
+    .btn-diag-primary { background: #2196F3; color: white; }
+    .btn-diag-primary:hover { background: #1976D2; }
+    .btn-diag-warn { background: #f59e0b; color: white; }
+    .btn-diag-warn:hover { background: #d97706; }
+    .btn-diag-danger { background: #dc2626; color: white; }
+    .btn-diag-danger:hover { background: #b91c1c; }
+    .btn-diag:disabled { opacity: 0.5; cursor: not-allowed; }
+    html[data-theme="dark"] .diag-card { background: var(--surface, #1e293b); border-color: #334155; }
+    html[data-theme="dark"] .diag-results { background: #0f172a; color: #e2e8f0; border-color: #334155; }
+    html[data-theme="dark"] .diag-group { border-color: #334155; }
+    html[data-theme="dark"] .diag-group-title { color: #e2e8f0; }
+    html[data-theme="dark"] .diag-group-detail { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div id="nav-container"></div>
+
+  <div class="page-container" style="margin-top: 10px;">
+    <h2><i class="fas fa-stethoscope"></i> Diagnostics</h2>
+    <p style="color: var(--text-secondary, #475569); margin-bottom: 18px;">
+      Scans Firestore data for known anomalies — duplicate class schedules, duplicate ER room placements,
+      and duplicate attendance logs. Running a scan is read-only; cleanup is a separate, confirmed action.
+    </p>
+
+    <div style="margin-bottom: 20px;">
+      <button class="btn-diag btn-diag-primary" id="runAllBtn" onclick="runAllScans()">
+        <i class="fas fa-play"></i> Run All Scans
+      </button>
+    </div>
+
+    <!-- SCAN 1: classSchedules duplicates -->
+    <div class="diag-card" id="scan-schedules">
+      <h3><i class="fas fa-calendar-alt"></i> Duplicate Class Schedules</h3>
+      <div class="desc">
+        Groups <code>classSchedules</code> by (studentId, className, teacherLastName, startTime).
+        Any group with more than one document is a leftover from a re-import.
+      </div>
+      <div class="diag-actions">
+        <button class="btn-diag btn-diag-primary" onclick="scanScheduleDuplicates()">
+          <i class="fas fa-search"></i> Scan
+        </button>
+        <button class="btn-diag btn-diag-warn" id="cleanSchedBtn" onclick="cleanScheduleDuplicates()" disabled>
+          <i class="fas fa-broom"></i> Clean Up Duplicates
+        </button>
+      </div>
+      <div class="diag-status info" id="schedStatus">Not run yet.</div>
+      <div class="diag-results" id="schedResults" style="display:none;"></div>
+    </div>
+
+    <!-- SCAN 2: erRoomStudents duplicates -->
+    <div class="diag-card" id="scan-errooms">
+      <h3><i class="fas fa-door-open"></i> Duplicate ER Room Placements</h3>
+      <div class="desc">
+        Groups <code>erRoomStudents</code> by (studentId, periodKey). A student should appear in at most
+        one ER room per period. Duplicates cause stale/conflicting placements.
+      </div>
+      <div class="diag-actions">
+        <button class="btn-diag btn-diag-primary" onclick="scanErRoomDuplicates()">
+          <i class="fas fa-search"></i> Scan
+        </button>
+        <button class="btn-diag btn-diag-warn" id="cleanErBtn" onclick="cleanErRoomDuplicates()" disabled>
+          <i class="fas fa-broom"></i> Clean Up Duplicates
+        </button>
+      </div>
+      <div class="diag-status info" id="erStatus">Not run yet.</div>
+      <div class="diag-results" id="erResults" style="display:none;"></div>
+    </div>
+
+    <!-- SCAN 3: classAttendanceLogs duplicates -->
+    <div class="diag-card" id="scan-attendance">
+      <h3><i class="fas fa-clipboard-check"></i> Duplicate Attendance Logs</h3>
+      <div class="desc">
+        Groups <code>classAttendanceLogs</code> by (studentId, date, className, startTime). Duplicates
+        typically come from re-propagating a schedule on top of existing logs.
+      </div>
+      <div class="diag-actions">
+        <button class="btn-diag btn-diag-primary" onclick="scanAttendanceDuplicates()">
+          <i class="fas fa-search"></i> Scan
+        </button>
+        <button class="btn-diag btn-diag-warn" id="cleanAttBtn" onclick="cleanAttendanceDuplicates()" disabled>
+          <i class="fas fa-broom"></i> Clean Up Duplicates
+        </button>
+      </div>
+      <div class="diag-status info" id="attStatus">Not run yet.</div>
+      <div class="diag-results" id="attResults" style="display:none;"></div>
+    </div>
+
+    <!-- SCAN 4: orphan references -->
+    <div class="diag-card" id="scan-orphans">
+      <h3><i class="fas fa-unlink"></i> Orphan References</h3>
+      <div class="desc">
+        Finds <code>classSchedules</code>, <code>erRoomStudents</code>, and <code>classAttendanceLogs</code>
+        records pointing at student IDs that no longer exist in <code>students</code>.
+      </div>
+      <div class="diag-actions">
+        <button class="btn-diag btn-diag-primary" onclick="scanOrphans()">
+          <i class="fas fa-search"></i> Scan
+        </button>
+      </div>
+      <div class="diag-status info" id="orphanStatus">Not run yet.</div>
+      <div class="diag-results" id="orphanResults" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initAuth } from './js/auth.js';
+    import { initNav } from './js/nav.js';
+    import { getAll, deleteDoc } from './js/db.js';
+    import { showToast, confirmTypedDelete } from './js/utils.js';
+
+    // State: last scan results keyed by scan name → { groups: [...], toDelete: [...] }
+    const state = {
+      schedules: null,
+      errooms: null,
+      attendance: null,
+      orphans: null
+    };
+
+    function setStatus(id, cls, html) {
+      const el = document.getElementById(id);
+      el.className = `diag-status ${cls}`;
+      el.innerHTML = html;
+    }
+
+    function renderGroups(containerId, groups, formatFn) {
+      const el = document.getElementById(containerId);
+      if (!groups.length) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = 'block';
+      el.innerHTML = groups.map(formatFn).join('');
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[c]);
+    }
+
+    // ── Scan 1: duplicate classSchedules ──
+    async function scanScheduleDuplicates() {
+      setStatus('schedStatus', 'info', '<span class="spinner-inline"></span> Scanning classSchedules…');
+      document.getElementById('cleanSchedBtn').disabled = true;
+      try {
+        const [all, students] = await Promise.all([getAll('classSchedules'), getAll('students')]);
+        const studentMap = new Map(students.map(s => [s.id, s]));
+        const groups = new Map();
+        for (const d of all) {
+          const key = [
+            d.studentId || '',
+            (d.className || '').trim().toLowerCase(),
+            (d.teacherLastName || '').trim().toLowerCase(),
+            d.startTime || '',
+            d.schoolYear || '',
+            d.semester || ''
+          ].join('|');
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(d);
+        }
+        const dupes = [];
+        const toDelete = [];
+        for (const [key, docs] of groups) {
+          if (docs.length > 1) {
+            // Keep the first, mark the rest for deletion
+            const [keeper, ...extras] = docs;
+            dupes.push({ key, docs, keeper, extras });
+            for (const e of extras) toDelete.push(e.id);
+          }
+        }
+        state.schedules = { dupes, toDelete };
+        if (!dupes.length) {
+          setStatus('schedStatus', 'ok', `<i class="fas fa-check"></i> No duplicate class schedules found (${all.length} records scanned).`);
+          document.getElementById('schedResults').style.display = 'none';
+        } else {
+          const extraCount = toDelete.length;
+          setStatus('schedStatus', 'warn',
+            `<i class="fas fa-exclamation-triangle"></i> ${dupes.length} duplicate group(s) — ${extraCount} extra record(s) can be removed.`);
+          renderGroups('schedResults', dupes, g => {
+            const s = studentMap.get(g.keeper.studentId);
+            const name = s ? `${s.firstName || ''} ${s.lastName || ''}`.trim() : `(unknown student ${g.keeper.studentId})`;
+            return `<div class="diag-group">
+              <div class="diag-group-header">
+                <span class="diag-group-title">${esc(name)} — ${esc(g.keeper.className || '(no class)')}${g.keeper.teacherLastName ? ' · ' + esc(g.keeper.teacherLastName) : ''}</span>
+                <span class="diag-group-count">${g.docs.length}×</span>
+              </div>
+              <div class="diag-group-detail">
+                ${esc(g.keeper.startTime || 'no time')} · ${esc(g.keeper.schoolYear || '?')} ${esc(g.keeper.semester || '')} ·
+                ids: ${g.docs.map(d => esc(d.id).slice(0, 8)).join(', ')}
+              </div>
+            </div>`;
+          });
+          document.getElementById('cleanSchedBtn').disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus('schedStatus', 'err', `<i class="fas fa-times"></i> Scan failed: ${esc(err.message || err)}`);
+      }
+    }
+
+    async function cleanScheduleDuplicates() {
+      const s = state.schedules;
+      if (!s || !s.toDelete.length) return;
+      const ok = await confirmTypedDelete(
+        `Delete ${s.toDelete.length} duplicate class schedule record(s)?`,
+        'DELETE'
+      );
+      if (!ok) return;
+      await batchDelete('classSchedules', s.toDelete, 'schedStatus');
+      await scanScheduleDuplicates();
+    }
+
+    // ── Scan 2: duplicate erRoomStudents ──
+    async function scanErRoomDuplicates() {
+      setStatus('erStatus', 'info', '<span class="spinner-inline"></span> Scanning erRoomStudents…');
+      document.getElementById('cleanErBtn').disabled = true;
+      try {
+        const [all, students] = await Promise.all([getAll('erRoomStudents'), getAll('students')]);
+        const studentMap = new Map(students.map(s => [s.id, s]));
+        const groups = new Map();
+        for (const d of all) {
+          const period = d.periodKey || `${d.erPeriodStart || ''}_${d.erPeriodEnd || ''}`;
+          const key = `${d.studentId || ''}|${period}`;
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(d);
+        }
+        const dupes = [];
+        const toDelete = [];
+        for (const [key, docs] of groups) {
+          if (docs.length > 1) {
+            const [keeper, ...extras] = docs;
+            dupes.push({ key, docs, keeper, extras });
+            for (const e of extras) toDelete.push(e.id);
+          }
+        }
+        state.errooms = { dupes, toDelete };
+        if (!dupes.length) {
+          setStatus('erStatus', 'ok', `<i class="fas fa-check"></i> No duplicate ER placements (${all.length} records scanned).`);
+          document.getElementById('erResults').style.display = 'none';
+        } else {
+          setStatus('erStatus', 'warn',
+            `<i class="fas fa-exclamation-triangle"></i> ${dupes.length} student(s) placed in multiple rooms — ${toDelete.length} extra record(s) can be removed.`);
+          renderGroups('erResults', dupes, g => {
+            const s = studentMap.get(g.keeper.studentId);
+            const name = s ? `${s.firstName || ''} ${s.lastName || ''}`.trim() : `(unknown ${g.keeper.studentId})`;
+            const rooms = g.docs.map(d => d.roomId || d.roomName || '?').join(', ');
+            return `<div class="diag-group">
+              <div class="diag-group-header">
+                <span class="diag-group-title">${esc(name)}</span>
+                <span class="diag-group-count">${g.docs.length}×</span>
+              </div>
+              <div class="diag-group-detail">rooms: ${esc(rooms)} · period: ${esc(g.keeper.periodKey || '?')}</div>
+            </div>`;
+          });
+          document.getElementById('cleanErBtn').disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus('erStatus', 'err', `<i class="fas fa-times"></i> Scan failed: ${esc(err.message || err)}`);
+      }
+    }
+
+    async function cleanErRoomDuplicates() {
+      const s = state.errooms;
+      if (!s || !s.toDelete.length) return;
+      const ok = await confirmTypedDelete(
+        `Delete ${s.toDelete.length} duplicate ER room placement(s)?`,
+        'DELETE'
+      );
+      if (!ok) return;
+      await batchDelete('erRoomStudents', s.toDelete, 'erStatus');
+      await scanErRoomDuplicates();
+    }
+
+    // ── Scan 3: duplicate classAttendanceLogs ──
+    async function scanAttendanceDuplicates() {
+      setStatus('attStatus', 'info', '<span class="spinner-inline"></span> Scanning classAttendanceLogs…');
+      document.getElementById('cleanAttBtn').disabled = true;
+      try {
+        const [all, students] = await Promise.all([getAll('classAttendanceLogs'), getAll('students')]);
+        const studentMap = new Map(students.map(s => [s.id, s]));
+        const groups = new Map();
+        for (const d of all) {
+          const key = [
+            d.studentId || '',
+            d.date || '',
+            (d.className || '').trim().toLowerCase(),
+            d.startTime || ''
+          ].join('|');
+          if (!groups.has(key)) groups.set(key, []);
+          groups.get(key).push(d);
+        }
+        const dupes = [];
+        const toDelete = [];
+        for (const [key, docs] of groups) {
+          if (docs.length > 1) {
+            // Keep the most recently modified (by lastUpdated or id), delete rest
+            docs.sort((a, b) => (b.lastUpdated || '').localeCompare(a.lastUpdated || ''));
+            const [keeper, ...extras] = docs;
+            dupes.push({ key, docs, keeper, extras });
+            for (const e of extras) toDelete.push(e.id);
+          }
+        }
+        state.attendance = { dupes, toDelete };
+        if (!dupes.length) {
+          setStatus('attStatus', 'ok', `<i class="fas fa-check"></i> No duplicate attendance logs (${all.length} records scanned).`);
+          document.getElementById('attResults').style.display = 'none';
+        } else {
+          setStatus('attStatus', 'warn',
+            `<i class="fas fa-exclamation-triangle"></i> ${dupes.length} duplicate log group(s) — ${toDelete.length} extra record(s) can be removed.`);
+          renderGroups('attResults', dupes, g => {
+            const s = studentMap.get(g.keeper.studentId);
+            const name = s ? `${s.firstName || ''} ${s.lastName || ''}`.trim() : `(unknown ${g.keeper.studentId})`;
+            return `<div class="diag-group">
+              <div class="diag-group-header">
+                <span class="diag-group-title">${esc(name)} — ${esc(g.keeper.className || '?')}</span>
+                <span class="diag-group-count">${g.docs.length}×</span>
+              </div>
+              <div class="diag-group-detail">
+                date: ${esc(g.keeper.date)} · time: ${esc(g.keeper.startTime || '?')} ·
+                statuses: ${g.docs.map(d => esc(d.status || '?')).join(', ')}
+              </div>
+            </div>`;
+          });
+          document.getElementById('cleanAttBtn').disabled = false;
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus('attStatus', 'err', `<i class="fas fa-times"></i> Scan failed: ${esc(err.message || err)}`);
+      }
+    }
+
+    async function cleanAttendanceDuplicates() {
+      const s = state.attendance;
+      if (!s || !s.toDelete.length) return;
+      const ok = await confirmTypedDelete(
+        `Delete ${s.toDelete.length} duplicate attendance log(s)? (Keeping the most recently updated.)`,
+        'DELETE'
+      );
+      if (!ok) return;
+      await batchDelete('classAttendanceLogs', s.toDelete, 'attStatus');
+      await scanAttendanceDuplicates();
+    }
+
+    // ── Scan 4: orphans ──
+    async function scanOrphans() {
+      setStatus('orphanStatus', 'info', '<span class="spinner-inline"></span> Scanning for orphan references…');
+      try {
+        const [students, schedules, errooms, logs] = await Promise.all([
+          getAll('students'),
+          getAll('classSchedules'),
+          getAll('erRoomStudents'),
+          getAll('classAttendanceLogs')
+        ]);
+        const ids = new Set(students.map(s => s.id));
+        const findOrphans = (arr) => arr.filter(d => d.studentId && !ids.has(d.studentId));
+        const orSched = findOrphans(schedules);
+        const orEr = findOrphans(errooms);
+        const orLog = findOrphans(logs);
+        const total = orSched.length + orEr.length + orLog.length;
+        state.orphans = { orSched, orEr, orLog };
+        if (!total) {
+          setStatus('orphanStatus', 'ok', `<i class="fas fa-check"></i> No orphan references found.`);
+          document.getElementById('orphanResults').style.display = 'none';
+          return;
+        }
+        setStatus('orphanStatus', 'warn',
+          `<i class="fas fa-exclamation-triangle"></i> Found ${total} orphan record(s): ` +
+          `${orSched.length} schedule(s), ${orEr.length} ER placement(s), ${orLog.length} attendance log(s).`);
+        const el = document.getElementById('orphanResults');
+        el.style.display = 'block';
+        const listGroup = (title, arr, col) => {
+          if (!arr.length) return '';
+          const ids = [...new Set(arr.map(d => d.studentId))];
+          return `<div class="diag-group">
+            <div class="diag-group-header">
+              <span class="diag-group-title">${esc(title)}</span>
+              <span class="diag-group-count">${arr.length}</span>
+            </div>
+            <div class="diag-group-detail">unknown studentIds: ${ids.slice(0, 10).map(esc).join(', ')}${ids.length > 10 ? ` … (+${ids.length - 10} more)` : ''}</div>
+          </div>`;
+        };
+        el.innerHTML =
+          listGroup('classSchedules with missing student', orSched, 'classSchedules') +
+          listGroup('erRoomStudents with missing student', orEr, 'erRoomStudents') +
+          listGroup('classAttendanceLogs with missing student', orLog, 'classAttendanceLogs');
+      } catch (err) {
+        console.error(err);
+        setStatus('orphanStatus', 'err', `<i class="fas fa-times"></i> Scan failed: ${esc(err.message || err)}`);
+      }
+    }
+
+    // ── Batch delete helper ──
+    async function batchDelete(collection, ids, statusId) {
+      let done = 0, failed = 0;
+      setStatus(statusId, 'info', `<span class="spinner-inline"></span> Deleting 0 / ${ids.length}…`);
+      for (const id of ids) {
+        try {
+          await deleteDoc(collection, id);
+          done++;
+        } catch (e) {
+          console.error('delete failed', collection, id, e);
+          failed++;
+        }
+        if (done % 5 === 0 || done + failed === ids.length) {
+          setStatus(statusId, 'info', `<span class="spinner-inline"></span> Deleting ${done + failed} / ${ids.length}…`);
+        }
+      }
+      showToast(`Deleted ${done} record(s)${failed ? `, ${failed} failed` : ''}`, failed ? 'warning' : 'success');
+    }
+
+    // ── Run all ──
+    async function runAllScans() {
+      const btn = document.getElementById('runAllBtn');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-inline"></span> Running…';
+      try {
+        await scanScheduleDuplicates();
+        await scanErRoomDuplicates();
+        await scanAttendanceDuplicates();
+        await scanOrphans();
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play"></i> Run All Scans';
+      }
+    }
+
+    // Expose to window for inline onclicks
+    window.scanScheduleDuplicates = scanScheduleDuplicates;
+    window.cleanScheduleDuplicates = cleanScheduleDuplicates;
+    window.scanErRoomDuplicates = scanErRoomDuplicates;
+    window.cleanErRoomDuplicates = cleanErRoomDuplicates;
+    window.scanAttendanceDuplicates = scanAttendanceDuplicates;
+    window.cleanAttendanceDuplicates = cleanAttendanceDuplicates;
+    window.scanOrphans = scanOrphans;
+    window.runAllScans = runAllScans;
+
+    // Init
+    document.addEventListener('DOMContentLoaded', async () => {
+      await initAuth();
+      initNav('diagnostics');
+    });
+  </script>
+</body>
+</html>

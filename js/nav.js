@@ -43,6 +43,7 @@ const navItems = [
     children: [
       { id: 'schedule-admin',  label: 'Schedule Admin', href: './schedule-admin.html',  icon: 'fa-cog' },
       { id: 'admin',           label: 'Admin',          href: './admin.html',           icon: 'fa-tools' },
+      { id: 'diagnostics',     label: 'Diagnostics',    href: './diagnostics.html',     icon: 'fa-stethoscope' },
     ]
   },
 ];
