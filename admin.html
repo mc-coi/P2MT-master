@@ -163,6 +163,9 @@
           <button id="btn-dedup-parents" class="w3-button w3-amber action-button" onclick="dedupParents()" style="display:none;">
             <i class="fas fa-broom"></i> Remove Duplicates
           </button>
+          <button id="btn-fix-anumbers" class="w3-button w3-teal action-button" onclick="fixParentANumbers()">
+            <i class="fas fa-link"></i> Fix A#s
+          </button>
           <button id="btn-download-parents" class="w3-button btn-primary action-button">
             <i class="fas fa-download"></i> Download
           </button>
@@ -899,6 +902,74 @@
     window.dedupParents = dedupParents;
     window.deleteParentRecord = deleteParentRecord;
 
+    // ── Fix Parent A#s ────────────────────────────────────────────────────────
+    // Matches each parent record to a student by name and overwrites the
+    // parent's chattStateANumber with the authoritative value from the
+    // students collection. Run once after initial upload; safe to re-run.
+    async function fixParentANumbers() {
+      const btn = document.getElementById('btn-fix-anumbers');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Fixing…';
+
+      try {
+        // Build student name → A# lookup (handles "Last, First" and "First Last")
+        const students = studentsData; // already loaded
+        function studentForParent(parentName) {
+          const n = (parentName || '').toLowerCase();
+          return students.find(s => {
+            const fn = (s.firstName || '').toLowerCase();
+            const ln = (s.lastName || '').toLowerCase();
+            return fn && ln && n.includes(fn) && n.includes(ln);
+          });
+        }
+
+        const updates = [];
+        const noMatch = [];
+
+        parentsData.forEach(p => {
+          const student = studentForParent(p.studentName);
+          if (!student) {
+            noMatch.push(p.studentName || p.chattStateANumber || p.id);
+            return;
+          }
+          if ((student.chattStateANumber || '') !== (p.chattStateANumber || '')) {
+            updates.push({
+              type: 'update',
+              id: p.id,
+              collection: 'parents',
+              data: { chattStateANumber: student.chattStateANumber }
+            });
+          }
+        });
+
+        if (updates.length === 0) {
+          showToast('All parent A#s already match — nothing to fix!', 'info');
+          return;
+        }
+
+        const msg = `Update A# for ${updates.length} parent record(s)?` +
+          (noMatch.length ? `\n\n${noMatch.length} parent(s) could not be matched to a student:\n${noMatch.slice(0,10).join('\n')}` : '');
+        if (!confirm(msg)) return;
+
+        // Firestore batch limit is 500; chunk if needed
+        const CHUNK = 400;
+        for (let i = 0; i < updates.length; i += CHUNK) {
+          await batchWrite(updates.slice(i, i + CHUNK));
+        }
+
+        showToast(`Fixed A# for ${updates.length} parent(s). ${noMatch.length} unmatched.`, 'success');
+        await loadAllData();
+        renderParentsTable();
+      } catch (err) {
+        console.error('fixParentANumbers error:', err);
+        showToast('Error fixing A#s — see console', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-link"></i> Fix A#s';
+      }
+    }
+    window.fixParentANumbers = fixParentANumbers;
+
     async function handleParentFormSubmit(e) {
       e.preventDefault();
       const parentData = {
@@ -1227,13 +1298,26 @@
                   }
                 });
               } else if (type === 'parents') {
+                // Auto-match A# from students collection by name so the parent
+                // record always uses the authoritative A# regardless of CSV format.
+                const csvName = row['Student Name'] || '';
+                const csvNameLower = csvName.toLowerCase();
+                const matchedStudent = studentsData.find(s => {
+                  const fn = (s.firstName || '').toLowerCase();
+                  const ln = (s.lastName || '').toLowerCase();
+                  return fn && ln && csvNameLower.includes(fn) && csvNameLower.includes(ln);
+                });
+                const resolvedANumber = matchedStudent
+                  ? matchedStudent.chattStateANumber
+                  : (row['ChattState A#'] || '');
+
                 batch.push({
                   type: 'set',
                   id: docId,
                   collection: 'parents',
                   data: {
-                    chattStateANumber: row['ChattState A#'] || '',
-                    studentName: row['Student Name'] || '',
+                    chattStateANumber: resolvedANumber,
+                    studentName: csvName,
                     guardianship: row['Guardianship'] || '',
                     motherName: row['Mother Name'] || '',
                     motherEmail: row['Mother Email'] || '',

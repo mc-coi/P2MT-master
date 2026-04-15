@@ -707,18 +707,8 @@
             const studentFullName = `${currentStudent.firstName} ${currentStudent.lastName}`.trim().toLowerCase();
             const allParents = val(parentsResult);
             // Expose count for debug display in renderParentInfoCard
-            window.allParentsDebug = allParents.length;
-            // Show first 5 parent A#s and any name-based near-match for diagnosis
-            window.allParentsSample = allParents.slice(0, 5).map(p => p.chattStateANumber || '(empty)').join(', ');
             const _fn = (currentStudent.firstName || '').toLowerCase();
             const _ln = (currentStudent.lastName || '').toLowerCase();
-            const _nameMatch = allParents.find(p => {
-                const n = (p.studentName || '').toLowerCase();
-                return n.includes(_fn) && n.includes(_ln);
-            });
-            window.allParentsNameMatch = _nameMatch
-                ? `Found by name: "${_nameMatch.studentName}" (A#: ${_nameMatch.chattStateANumber})`
-                : 'No name match found either';
             parentInfo = allParents.find(p => {
                 const pA = (p.chattStateANumber || '').trim();
                 // Strategy 1: exact case-insensitive A# match
@@ -978,19 +968,10 @@
         function renderParentInfoCard() {
             const body = document.getElementById('parent-info-body');
             if (!parentInfo) {
-                // Debug info — shows what A# was searched and how many parent records exist
-                const _debugANum = (currentStudent && currentStudent.chattStateANumber) || '(empty)';
-                const _debugCount = window.allParentsDebug ?? '?';
                 body.innerHTML = `<div class="empty-state" style="padding:16px 0;">
                     <div class="empty-icon"><i class="fas fa-user-slash"></i></div>
                     <div class="empty-title">No Guardian Info</div>
-                    <div class="empty-subtitle">No parent record matched this student</div>
-                    <div style="margin-top:10px;font-size:11px;color:#94a3b8;font-family:monospace;">
-                        Student A#: <strong>${_debugANum}</strong> &nbsp;·&nbsp;
-                        Parents loaded: <strong>${_debugCount}</strong><br>
-                        Sample parent A#s: <strong>${window.allParentsSample || '?'}</strong><br>
-                        Name search: <strong>${window.allParentsNameMatch || '?'}</strong>
-                    </div>
+                    <div class="empty-subtitle">Add parent/guardian details via Admin → Parents</div>
                 </div>`;
                 return;
             }
