@@ -1154,6 +1154,7 @@
               <th>Category</th>
               <th>Level</th>
               <th>Comments</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -1165,6 +1166,13 @@
                 <td>${r.category}</td>
                 <td><span class="int-level-chip">Level ${r.level}</span></td>
                 <td>${r.comments || '<em style="color:#bbb;">—</em>'}</td>
+                <td style="white-space:nowrap;">
+                  <button onclick="deleteInterventionFromView('${r.id}', '${viewStudentId}')"
+                    style="background:none;border:none;cursor:pointer;color:#dc2626;padding:4px 8px;border-radius:4px;font-size:13px;"
+                    title="Delete intervention">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -1175,6 +1183,22 @@
       document.getElementById('viewInterventionModal').style.display = 'none';
       viewStudentId = null;
     }
+
+    window.deleteInterventionFromView = async function(id, studentId) {
+      if (!confirm('Delete this intervention record? This cannot be undone.')) return;
+      try {
+        await deleteDoc('studentInterventions', id);
+        interventionsData = interventionsData.filter(r => r.id !== id);
+        // Re-render the modal content without closing it
+        await openViewModal(studentId);
+        // Update the count chip in the student list
+        renderInterventionList();
+        showToast('Intervention deleted', 'success');
+      } catch (err) {
+        console.error('Error deleting intervention:', err);
+        showToast('Error deleting intervention', 'error');
+      }
+    };
 
     function generateId() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);

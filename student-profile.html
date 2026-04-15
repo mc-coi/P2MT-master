@@ -662,12 +662,9 @@
             currentStudent = student;
             const aNum = (student.chattStateANumber || '').trim();
 
-            // Load remaining data in parallel using targeted queries where possible
-            const [
-                attendanceData, scheduleData,
-                allParents, allContacts, allInterventions,
-                erClearedData, erRoomStudentsData, erRoomsData
-            ] = await Promise.all([
+            // Load all related data in parallel — use allSettled so one bad query
+            // doesn't block the rest from loading
+            const results = await Promise.allSettled([
                 getWhere('dailyAttendanceLogs', 'chattStateANumber', '==', aNum),
                 getWhere('classSchedules',      'chattStateANumber', '==', aNum),
                 getAll('parents'),
@@ -678,24 +675,42 @@
                 getAll('erRooms'),
             ]);
 
-            attendanceLogs = attendanceData || [];
-            classSchedules = scheduleData   || [];
+            const [
+                attendanceResult, scheduleResult,
+                parentsResult, contactsResult, interventionsResult,
+                erClearedResult, erRoomStudentsResult, erRoomsResult
+            ] = results;
+
+            // Log any individual query failures without stopping other tabs
+            results.forEach((r, i) => {
+                if (r.status === 'rejected') {
+                    const names = ['dailyAttendanceLogs','classSchedules','parents','parentContactLogs',
+                                   'studentInterventions','erCleared','erRoomStudents','erRooms'];
+                    console.warn(`[profile] Failed to load ${names[i]}:`, r.reason);
+                }
+            });
+
+            const val = r => r.status === 'fulfilled' ? (r.value || []) : [];
+
+            attendanceLogs = val(attendanceResult);
+            classSchedules = val(scheduleResult);
 
             // Parent info — case/space insensitive A# match
             const _aLower = aNum.toLowerCase();
-            parentInfo = (allParents || []).find(p =>
+            const allParents = val(parentsResult);
+            parentInfo = allParents.find(p =>
                 (p.chattStateANumber || '').trim().toLowerCase() === _aLower
             ) || null;
 
-            contactLogs = (allContacts || [])
+            contactLogs = val(contactsResult)
                 .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-            studentInterventions = (allInterventions || [])
+            studentInterventions = val(interventionsResult)
                 .sort((a, b) => (b.dateTime || '').localeCompare(a.dateTime || ''));
 
-            erClearedHistory = (erClearedData || []).sort((a,b) => (b.clearedDate||'').localeCompare(a.clearedDate||''));
-            erRoomHistory    = erRoomStudentsData || [];
-            erRoomsAll       = erRoomsData || [];
+            erClearedHistory = val(erClearedResult).sort((a,b) => (b.clearedDate||'').localeCompare(a.clearedDate||''));
+            erRoomHistory    = val(erRoomStudentsResult);
+            erRoomsAll       = val(erRoomsResult);
 
         } catch (loadErr) {
             console.error('Error loading student data:', loadErr);
@@ -729,6 +744,16 @@
             }
         }
 
+        // ── Constants used by render functions (must be before if block to avoid TDZ) ──
+        const CONTACT_ICONS = { Call:'call', Email:'email', 'In-Person':'person', Text:'text', Letter:'letter' };
+        const CONTACT_FA    = { Call:'fa-phone', Email:'fa-envelope', 'In-Person':'fa-handshake', Text:'fa-comment', Letter:'fa-file-alt' };
+        const OUTCOME_CLASS = {
+            'Reached':'outcome-reached', 'Left Voicemail':'outcome-voicemail',
+            'No Answer':'outcome-no-answer', 'Email Sent':'outcome-sent',
+            'In-Person Meeting':'outcome-reached'
+        };
+        const INT_LEVEL_COLORS = ['','#10B981','#10B981','#F59E0B','#F97316','#EF4444','#7C3AED'];
+
         // Render profile header (guard against load failure leaving currentStudent null)
         if (currentStudent) {
         const initials = getInitials(currentStudent.firstName, currentStudent.lastName);
@@ -744,8 +769,14 @@
         document.getElementById('student-house').textContent = currentStudent.house || '--';
         document.getElementById('student-grad-year').textContent = currentStudent.yearOfGraduation || '--';
 
-        // Calculate stats
-        const classesCount = classSchedules.length;
+        // Calculate stats (deduplicate schedules for count)
+        const _seenSched = new Set();
+        const classesCount = classSchedules.filter(s => {
+            const k = `${s.className}|${s.teacherLastName}|${s.startTime}|${s.schoolYear}`;
+            if (_seenSched.has(k)) return false;
+            _seenSched.add(k);
+            return true;
+        }).length;
 
         // Calculate attendance rate
         let attendanceRate = 0;
@@ -814,11 +845,20 @@
             const grid = document.getElementById('schedule-grid');
             grid.innerHTML = '';
 
-            if (classSchedules.length > 0) {
+            // Deduplicate by composite key (same class/teacher/time from re-imports)
+            const seenKeys = new Set();
+            const uniqueSchedules = classSchedules.filter(s => {
+                const key = `${s.className}|${s.teacherLastName}|${s.startTime}|${s.schoolYear}`;
+                if (seenKeys.has(key)) return false;
+                seenKeys.add(key);
+                return true;
+            });
+
+            if (uniqueSchedules.length > 0) {
                 document.getElementById('schedule-empty').style.display = 'none';
                 grid.style.display = 'grid';
 
-                classSchedules.forEach(schedule => {
+                uniqueSchedules.forEach(schedule => {
                     const card = document.createElement('div');
                     card.className = 'class-card';
 
@@ -953,14 +993,6 @@
         // ─────────────────────────────────────────────────
         //  CONTACT LOG TAB
         // ─────────────────────────────────────────────────
-        const CONTACT_ICONS = { Call:'call', Email:'email', 'In-Person':'person', Text:'text', Letter:'letter' };
-        const CONTACT_FA    = { Call:'fa-phone', Email:'fa-envelope', 'In-Person':'fa-handshake', Text:'fa-comment', Letter:'fa-file-alt' };
-        const OUTCOME_CLASS = {
-            'Reached':'outcome-reached', 'Left Voicemail':'outcome-voicemail',
-            'No Answer':'outcome-no-answer', 'Email Sent':'outcome-sent',
-            'In-Person Meeting':'outcome-reached'
-        };
-
         function renderContactLogTab() {
             const body = document.getElementById('contact-log-body');
             if (contactLogs.length === 0) {
@@ -994,8 +1026,6 @@
         // ─────────────────────────────────────────────────
         //  INTERVENTIONS TAB
         // ─────────────────────────────────────────────────
-        const INT_LEVEL_COLORS = ['','#10B981','#10B981','#F59E0B','#F97316','#EF4444','#7C3AED'];
-
         function renderInterventionsTab() {
             const body = document.getElementById('interventions-body');
             if (studentInterventions.length === 0) {
@@ -1170,8 +1200,8 @@
                 createdAt:        new Date().toISOString()
             };
             try {
-                const saved = await addDoc('parentContactLogs', record);
-                contactLogs.unshift({ ...record, id: saved?.id || Date.now().toString() });
+                const savedId = await addDoc('parentContactLogs', record);
+                contactLogs.unshift({ ...record, id: savedId || Date.now().toString() });
                 renderContactLogTab();
                 closeLogContactModal();
                 showToast('Contact logged successfully', 'success');
