@@ -702,6 +702,8 @@
             const _aLower = aNum.toLowerCase();
             const digitsOnly = s => (s || '').replace(/\D/g, '');
             const aNumDigits = digitsOnly(aNum);
+            // Parse as integer to strip leading zeros (A00392110 == A392110)
+            const aNumInt = aNumDigits ? parseInt(aNumDigits, 10) : 0;
             const studentFullName = `${currentStudent.firstName} ${currentStudent.lastName}`.trim().toLowerCase();
             const allParents = val(parentsResult);
             // Expose count for debug display in renderParentInfoCard
@@ -710,9 +712,12 @@
                 const pA = (p.chattStateANumber || '').trim();
                 // Strategy 1: exact case-insensitive A# match
                 if (pA.toLowerCase() === _aLower) return true;
-                // Strategy 2: digits-only match (e.g., A70446 == 70446 == ta70446)
+                // Strategy 2: digits-only string match (e.g., A70446 == 70446 == ta70446)
                 if (aNumDigits && digitsOnly(pA) === aNumDigits) return true;
-                // Strategy 3: student name match
+                // Strategy 3: numeric match — strips leading zeros (A00392110 == A392110)
+                const pInt = parseInt(digitsOnly(pA), 10);
+                if (aNumInt && pInt && pInt === aNumInt) return true;
+                // Strategy 4: student name match (last resort)
                 if (studentFullName && (p.studentName || '').trim().toLowerCase() === studentFullName) return true;
                 return false;
             }) || null;
