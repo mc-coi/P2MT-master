@@ -728,8 +728,12 @@
                 // Strategy 3: numeric match — strips leading zeros (A00392110 == A392110)
                 const pInt = parseInt(digitsOnly(pA), 10);
                 if (aNumInt && pInt && pInt === aNumInt) return true;
-                // Strategy 4: student name match (last resort)
-                if (studentFullName && (p.studentName || '').trim().toLowerCase() === studentFullName) return true;
+                // Strategy 4: flexible name match — handles "Last, First" vs "First Last"
+                // and any other ordering, as long as both first and last name appear
+                if (_fn && _ln) {
+                    const pName = (p.studentName || '').toLowerCase();
+                    if (pName.includes(_fn) && pName.includes(_ln)) return true;
+                }
                 return false;
             }) || null;
 
