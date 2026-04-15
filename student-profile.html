@@ -708,6 +708,8 @@
             const allParents = val(parentsResult);
             // Expose count for debug display in renderParentInfoCard
             window.allParentsDebug = allParents.length;
+            // Show first 5 parent A#s for format diagnosis
+            window.allParentsSample = allParents.slice(0, 5).map(p => p.chattStateANumber || '(empty)').join(', ');
             parentInfo = allParents.find(p => {
                 const pA = (p.chattStateANumber || '').trim();
                 // Strategy 1: exact case-insensitive A# match
@@ -972,7 +974,8 @@
                     <div class="empty-subtitle">No parent record matched this student</div>
                     <div style="margin-top:10px;font-size:11px;color:#94a3b8;font-family:monospace;">
                         Student A#: <strong>${_debugANum}</strong> &nbsp;·&nbsp;
-                        Parents loaded: <strong>${_debugCount}</strong>
+                        Parents loaded: <strong>${_debugCount}</strong><br>
+                        Sample parent A#s: <strong>${window.allParentsSample || '?'}</strong>
                     </div>
                 </div>`;
                 return;
