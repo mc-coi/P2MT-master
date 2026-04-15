@@ -704,6 +704,8 @@
             const aNumDigits = digitsOnly(aNum);
             const studentFullName = `${currentStudent.firstName} ${currentStudent.lastName}`.trim().toLowerCase();
             const allParents = val(parentsResult);
+            // Expose count for debug display in renderParentInfoCard
+            window.allParentsDebug = allParents.length;
             parentInfo = allParents.find(p => {
                 const pA = (p.chattStateANumber || '').trim();
                 // Strategy 1: exact case-insensitive A# match
@@ -956,10 +958,17 @@
         function renderParentInfoCard() {
             const body = document.getElementById('parent-info-body');
             if (!parentInfo) {
+                // Debug info — shows what A# was searched and how many parent records exist
+                const _debugANum = (currentStudent && currentStudent.chattStateANumber) || '(empty)';
+                const _debugCount = window.allParentsDebug ?? '?';
                 body.innerHTML = `<div class="empty-state" style="padding:16px 0;">
                     <div class="empty-icon"><i class="fas fa-user-slash"></i></div>
                     <div class="empty-title">No Guardian Info</div>
-                    <div class="empty-subtitle">Add parent/guardian details via the Parents section</div>
+                    <div class="empty-subtitle">No parent record matched this student</div>
+                    <div style="margin-top:10px;font-size:11px;color:#94a3b8;font-family:monospace;">
+                        Student A#: <strong>${_debugANum}</strong> &nbsp;·&nbsp;
+                        Parents loaded: <strong>${_debugCount}</strong>
+                    </div>
                 </div>`;
                 return;
             }
