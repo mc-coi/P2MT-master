@@ -695,12 +695,25 @@
             attendanceLogs = val(attendanceResult);
             classSchedules = val(scheduleResult);
 
-            // Parent info — case/space insensitive A# match
+            // Parent info — try multiple match strategies in order:
+            // 1. Full A# case-insensitive match
+            // 2. Digits-only match (handles A70446 vs 70446 vs ta70446)
+            // 3. studentName field match (last resort)
             const _aLower = aNum.toLowerCase();
+            const digitsOnly = s => (s || '').replace(/\D/g, '');
+            const aNumDigits = digitsOnly(aNum);
+            const studentFullName = `${currentStudent.firstName} ${currentStudent.lastName}`.trim().toLowerCase();
             const allParents = val(parentsResult);
-            parentInfo = allParents.find(p =>
-                (p.chattStateANumber || '').trim().toLowerCase() === _aLower
-            ) || null;
+            parentInfo = allParents.find(p => {
+                const pA = (p.chattStateANumber || '').trim();
+                // Strategy 1: exact case-insensitive A# match
+                if (pA.toLowerCase() === _aLower) return true;
+                // Strategy 2: digits-only match (e.g., A70446 == 70446 == ta70446)
+                if (aNumDigits && digitsOnly(pA) === aNumDigits) return true;
+                // Strategy 3: student name match
+                if (studentFullName && (p.studentName || '').trim().toLowerCase() === studentFullName) return true;
+                return false;
+            }) || null;
 
             contactLogs = val(contactsResult)
                 .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -769,10 +782,10 @@
         document.getElementById('student-house').textContent = currentStudent.house || '--';
         document.getElementById('student-grad-year').textContent = currentStudent.yearOfGraduation || '--';
 
-        // Calculate stats (deduplicate schedules for count)
+        // Calculate stats (deduplicate schedules for count — same key as renderScheduleTab)
         const _seenSched = new Set();
         const classesCount = classSchedules.filter(s => {
-            const k = `${s.className}|${s.teacherLastName}|${s.startTime}|${s.schoolYear}`;
+            const k = `${(s.className||'').toLowerCase()}|${(s.teacherLastName||'').toLowerCase()}|${s.startTime||''}`;
             if (_seenSched.has(k)) return false;
             _seenSched.add(k);
             return true;
@@ -845,10 +858,11 @@
             const grid = document.getElementById('schedule-grid');
             grid.innerHTML = '';
 
-            // Deduplicate by composite key (same class/teacher/time from re-imports)
+            // Deduplicate by composite key — schoolYear intentionally excluded so that
+            // re-imports with/without schoolYear don't generate duplicate cards
             const seenKeys = new Set();
             const uniqueSchedules = classSchedules.filter(s => {
-                const key = `${s.className}|${s.teacherLastName}|${s.startTime}|${s.schoolYear}`;
+                const key = `${(s.className||'').toLowerCase()}|${(s.teacherLastName||'').toLowerCase()}|${s.startTime||''}`;
                 if (seenKeys.has(key)) return false;
                 seenKeys.add(key);
                 return true;
