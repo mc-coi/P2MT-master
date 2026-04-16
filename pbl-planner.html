@@ -355,6 +355,7 @@
     let events = [];
     let teams = [];
     let students = [];
+    let stem3StudentANums = new Set(); // A#s of students enrolled in STEM III / STEM 3
     let currentEditingPblId = null;
     let currentEditingEventId = null;
 
@@ -370,12 +371,31 @@
       renderPbls();
     }
 
+    // Returns true for STEM III / STEM 3 but NOT STEM IV / STEM 4
+    function isStem3Class(className) {
+      const n = (className || '').toLowerCase().trim();
+      if (!n.includes('stem')) return false;
+      // Exclude STEM IV / STEM 4
+      if (/stem\s*(iv|4)\b/.test(n)) return false;
+      // Include STEM III / STEM 3
+      return /stem\s*(iii|3)\b/.test(n);
+    }
+
     async function loadAllData() {
       try {
         pbls = await getAll('pbls') || [];
         events = await getAll('pblEvents') || [];
         teams = await getAll('pblTeams') || [];
         students = await getAll('students') || [];
+
+        // Build set of A#s for students enrolled in STEM III/3 (not IV/4)
+        const allSchedules = await getAll('classSchedules') || [];
+        stem3StudentANums = new Set(
+          allSchedules
+            .filter(s => isStem3Class(s.className))
+            .map(s => (s.chattStateANumber || '').trim().toLowerCase())
+            .filter(Boolean)
+        );
       } catch (error) {
         console.error('Error loading data:', error);
         showToast('Error loading data', 'error');
@@ -923,10 +943,15 @@
 
     function builderGetFilteredStudents() {
       const q = (document.getElementById('pool-search')?.value || '').toLowerCase().trim();
-      return students.filter(s =>
-        !q || `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-        (s.chattStateANumber || '').toLowerCase().includes(q)
-      );
+      return students.filter(s => {
+        // Only include students enrolled in STEM III / STEM 3 (not IV/4)
+        const aNum = (s.chattStateANumber || '').trim().toLowerCase();
+        if (!stem3StudentANums.has(aNum)) return false;
+        // Apply search filter
+        return !q ||
+          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
+          aNum.includes(q);
+      });
     }
 
     function builderGetVisiblePbls() {
