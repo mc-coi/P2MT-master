@@ -247,6 +247,9 @@
         <button onclick="saveAllSections()" class="w3-button btn-primary">
           <i class="fas fa-save"></i> Save All Classes
         </button>
+        <button onclick="resetCurrentDateAttendance()" class="w3-button w3-red" style="margin-left:8px;" title="Delete all attendance logs for this teacher and date">
+          <i class="fas fa-trash"></i> Clear This Date's Logs
+        </button>
         <span class="save-all-summary" id="save-all-summary"></span>
       </div>
 
@@ -877,6 +880,52 @@
         showToast('Error saving attendance', 'error');
       }
     }
+
+    // ── Reset all logs for current teacher + date ─────────────────────────────
+    window.resetCurrentDateAttendance = async function() {
+      if (!currentTeacher || !currentDate) {
+        showToast('Select a teacher and date first', 'warning');
+        return;
+      }
+      const matching = allClassAttendanceLogs.filter(l => {
+        if (l.teacherLastName !== currentTeacher) return false;
+        return (l.date === currentDate) || (l.classDate === currentDate);
+      });
+      if (matching.length === 0) {
+        showToast('No existing logs found for this teacher and date', 'info');
+        return;
+      }
+      // Summarize by class for the confirm prompt
+      const byClass = {};
+      matching.forEach(l => {
+        const key = `${l.className || '(no class)'}${l.learningLab ? ' [Lab]' : ''}${l.startTime ? ' @ ' + l.startTime : ''}`;
+        byClass[key] = (byClass[key] || 0) + 1;
+      });
+      const summary = Object.entries(byClass)
+        .map(([k, v]) => `  • ${k}: ${v} record${v !== 1 ? 's' : ''}`)
+        .join('\n');
+      const msg = `Delete ${matching.length} attendance log${matching.length !== 1 ? 's' : ''} for ${currentTeacher} on ${currentDate}?\n\n${summary}\n\nThis cannot be undone.`;
+      if (!confirm(msg)) return;
+
+      try {
+        // Delete in parallel chunks to stay responsive
+        const chunkSize = 25;
+        for (let i = 0; i < matching.length; i += chunkSize) {
+          const chunk = matching.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
+        }
+        showToast(`Deleted ${matching.length} log${matching.length !== 1 ? 's' : ''}`, 'success');
+        // Reset saved state and reload
+        savedSections.clear();
+        await loadAllData();
+        // Re-render sections so banners and per-section states reflect fresh data
+        if (typeof renderAllSections === 'function') renderAllSections();
+        updateAttBanner();
+      } catch (err) {
+        console.error('Error clearing attendance logs:', err);
+        showToast('Error clearing logs — see console', 'error');
+      }
+    };
 
     // ── Save all sections ─────────────────────────────────────────────────────
     window.saveAllSections = async function() {
