@@ -46,7 +46,7 @@
           <i class="fas fa-download"></i> Download Report
         </button>
         <button class="w3-bar-item w3-button btn-primary w3-round" id="sendAllNotifBtn">
-          <i class="fas fa-envelope"></i> Send All Notifications
+          <i class="fas fa-file-csv"></i> Download Mail Merge CSV
         </button>
       </div>
     </div>
@@ -141,8 +141,8 @@
           Select a template above to preview the email.
         </div>
         <div class="w3-bar w3-margin-top">
-          <button class="w3-bar-item w3-button btn-primary w3-round" onclick="copyEmailToClipboard()">
-            <i class="fas fa-copy"></i> Copy to Clipboard
+          <button class="w3-bar-item w3-button btn-primary w3-round" onclick="openEmailInOutlook()">
+            <i class="fas fa-envelope"></i> Open in Outlook
           </button>
           <button class="w3-bar-item w3-button btn-ghost w3-round" onclick="closeModal('emailStudentModal')">Cancel</button>
         </div>
@@ -161,7 +161,7 @@
         <div id="notificationsList" style="max-height:400px;overflow-y:auto;"></div>
         <div class="w3-bar w3-margin-top">
           <button class="w3-bar-item w3-button btn-primary w3-round" id="copyAllNotifBtn">
-            <i class="fas fa-copy"></i> Copy All
+            <i class="fas fa-file-csv"></i> Download Mail Merge CSV
           </button>
           <button class="w3-bar-item w3-button btn-ghost w3-round" onclick="closeModal('bulkNotificationModal')">Close</button>
         </div>
@@ -186,7 +186,7 @@
         </div>
         <div class="w3-bar">
           <button class="w3-bar-item w3-button btn-primary w3-round" id="copySingleNotifBtn">
-            <i class="fas fa-copy"></i> Copy
+            <i class="fas fa-envelope"></i> Open in Outlook
           </button>
           <button class="w3-bar-item w3-button btn-ghost w3-round" onclick="closeModal('singleNotificationModal')">Close</button>
         </div>
@@ -212,6 +212,16 @@
     let tmiTable = null;
     let tmiData = [];
     let allNotifications = [];
+    let singleNotifEmail = '';  // email address for the currently-shown single notification
+
+    // ── Shared CSV helpers ────────────────────────────────────────────────────────
+    function tmiCsvCell(v) { return `"${String(v ?? '').replace(/"/g, '""')}"`; }
+    function tmiTriggerDownload(filename, content) {
+      const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    }
 
     initAuth().then(user => {
       initNav('tmi-approval');
@@ -256,8 +266,8 @@
       $('#processAllBtn').click(processAllTMI);
       $('#downloadReportBtn').click(downloadReport);
       $('#sendAllNotifBtn').click(showBulkNotifications);
-      $('#copyAllNotifBtn').click(copyAllNotifications);
-      $('#copySingleNotifBtn').click(copySingleNotification);
+      $('#copyAllNotifBtn').click(downloadBulkMailMerge);
+      $('#copySingleNotifBtn').click(openSingleNotifInOutlook);
     }
 
     async function loadTMIData() {
@@ -524,8 +534,8 @@
     }
 
     async function showStudentNotification(studentId, studentName) {
-      let student = tmiData.find(s => s.id === studentId);
-      if (!student) return;
+      let tmiEntry = tmiData.find(s => s.id === studentId);
+      if (!tmiEntry) return;
 
       let template = templates.find(t => t.sendToStudent === true) || templates[0];
       if (!template) {
@@ -533,19 +543,17 @@
         return;
       }
 
+      const studentRec = students.find(s => s.id === tmiEntry.studentId);
+      singleNotifEmail = studentRec?.email || studentRec?.studentEmail || '';
+
       $('#notifTo').text(studentName);
       $('#notifSubject').text(template.subject || template.emailSubject || 'TMI Notification');
       $('#notifContent').text(template.body || template.templateContent || '');
-      $('#copySingleNotifBtn').off('click').on('click', () => {
-        copySingleNotification();
-      });
+      $('#copySingleNotifBtn').off('click').on('click', openSingleNotifInOutlook);
       $('#singleNotificationModal').show();
     }
 
     async function showParentNotification(studentId, studentName) {
-      let student = students.find(s => s.id === studentId);
-      if (!student) return;
-
       let parent = parents.find(p => p.studentId === studentId);
       let template = templates.find(t => t.sendToParent === true) || templates[0];
       if (!template) {
@@ -553,13 +561,12 @@
         return;
       }
 
+      singleNotifEmail = parent?.email || parent?.parentEmail || parent?.guardianEmail || '';
       let parentName = parent ? parent.firstName : 'Parent';
       $('#notifTo').text(parentName);
       $('#notifSubject').text(template.subject || template.emailSubject || 'TMI Notification');
       $('#notifContent').text(template.body || template.templateContent || '');
-      $('#copySingleNotifBtn').off('click').on('click', () => {
-        copySingleNotification();
-      });
+      $('#copySingleNotifBtn').off('click').on('click', openSingleNotifInOutlook);
       $('#singleNotificationModal').show();
     }
 
@@ -581,8 +588,10 @@
                 </div>
               `;
               $('#notificationsList').append(notifHtml);
+              const studentRec = students.find(s => s.id === student.studentId);
               allNotifications.push({
-                to: student.studentName,
+                email:   studentRec?.email || studentRec?.studentEmail || '',
+                to:      student.studentName,
                 subject: template.subject || template.emailSubject,
                 content: template.body || template.templateContent
               });
@@ -601,7 +610,8 @@
               `;
               $('#notificationsList').append(notifHtml);
               allNotifications.push({
-                to: parent.firstName,
+                email:   parent?.email || parent?.parentEmail || parent?.guardianEmail || '',
+                to:      parent.firstName,
                 subject: template.subject || template.emailSubject,
                 content: template.body || template.templateContent
               });
@@ -621,20 +631,27 @@
       }
     }
 
-    function copySingleNotification() {
-      let text = `To: ${$('#notifTo').text()}\nSubject: ${$('#notifSubject').text()}\n\n${$('#notifContent').text()}`;
-      navigator.clipboard.writeText(text).then(() => {
-        showToast('Copied to clipboard', 'success');
-      });
+    function openSingleNotifInOutlook() {
+      if (!singleNotifEmail) { showToast('No email address found for this recipient', 'warning'); return; }
+      const to      = encodeURIComponent(singleNotifEmail);
+      const subject = encodeURIComponent($('#notifSubject').text());
+      const body    = encodeURIComponent($('#notifContent').text());
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
     }
 
-    function copyAllNotifications() {
-      let allText = allNotifications.map((notif, idx) => 
-        `${idx + 1}. To: ${notif.to}\nSubject: ${notif.subject}\n\n${notif.content}\n${'='.repeat(60)}\n`
-      ).join('\n');
-      navigator.clipboard.writeText(allText).then(() => {
-        showToast('All notifications copied to clipboard', 'success');
-      });
+    function downloadBulkMailMerge() {
+      if (!allNotifications.length) { showToast('No notifications to export', 'warning'); return; }
+      const rows = ['Email,Subject,Body',
+        ...allNotifications
+          .filter(n => n.email)
+          .map(n => [tmiCsvCell(n.email), tmiCsvCell(n.subject), tmiCsvCell(n.content)].join(','))
+      ];
+      const missing = allNotifications.filter(n => !n.email).length;
+      tmiTriggerDownload('tmi-notifications.csv', rows.join('\r\n'));
+      const msg = missing > 0
+        ? `✓ Downloaded ${rows.length - 1} rows (${missing} skipped — no email on file)`
+        : `✓ Downloaded ${rows.length - 1} rows — open in Word for mail merge`;
+      showToast(msg, missing > 0 ? 'warning' : 'success');
     }
 
     function downloadReport() {
@@ -705,9 +722,16 @@
       document.getElementById('email-preview').textContent = body;
     };
 
-    window.copyEmailToClipboard = function() {
-      const text = document.getElementById('email-preview').textContent;
-      navigator.clipboard.writeText(text).then(() => showToast('Email copied to clipboard', 'success'));
+    window.openEmailInOutlook = function() {
+      const sel  = document.getElementById('email-template-select');
+      const tmpl = templates.find(t => t.id === sel.value);
+      if (!tmpl) { showToast('Select a template first', 'warning'); return; }
+      const studentRec = students.find(s => s.id === emailModalStudent?.studentId);
+      const email = studentRec?.email || studentRec?.studentEmail || '';
+      if (!email) { showToast('No email address found for this student', 'warning'); return; }
+      const subject = encodeURIComponent(tmpl.subject || tmpl.emailSubject || '');
+      const body    = encodeURIComponent(document.getElementById('email-preview').textContent);
+      window.location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
     };
 
     // ── Mark time served (close record) ──────────────────────────

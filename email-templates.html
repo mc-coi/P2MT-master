@@ -195,9 +195,6 @@
     <!-- Header -->
     <div class="et-header">
       <h1><i class="fas fa-envelope"></i> Email Templates</h1>
-      <button id="btn-outlook" class="btn-outlook disconnected" onclick="connectOutlook()">
-        <i class="fab fa-microsoft"></i> Connect Outlook
-      </button>
     </div>
 
     <!-- Tabs -->
@@ -296,9 +293,12 @@
 
             <div class="send-footer">
               <span class="rcpt-label" id="rcpt-label"></span>
-              <button class="btn-send" id="btn-send" onclick="sendAll()">
-                <i class="fas fa-paper-plane"></i>
-                <span id="btn-send-txt">Send</span>
+              <button class="btn-send" id="btn-csv-all" onclick="downloadAllMailMerge()" style="background:#475569;" title="Download all as Mail Merge CSV for Outlook">
+                <i class="fas fa-file-csv"></i> Download All CSV
+              </button>
+              <button class="btn-send" id="btn-send" onclick="openCurrentInOutlook()">
+                <i class="fas fa-envelope"></i>
+                <span id="btn-send-txt">Open in Outlook</span>
               </button>
             </div>
           </div>
@@ -397,8 +397,6 @@
 
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
-  <!-- MSAL v2 -->
-  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <script type="module">
     import { initAuth }            from './js/auth.js';
     import { initNav }             from './js/nav.js';
@@ -416,11 +414,6 @@
     // ── Send / preview state ────────────────────────────────────────────────────
     let previewMsgs = [];
     let previewIdx  = 0;
-
-    // ── MSAL ────────────────────────────────────────────────────────────────────
-    let msalClient  = null;
-    let msalAccount = null;
-    const SCOPES    = ['Mail.Send', 'User.Read'];
 
     // ── Variable definitions ────────────────────────────────────────────────────
     const VARS = [
@@ -728,7 +721,7 @@
       document.getElementById('prev-subject').textContent = msg.subject;
       document.getElementById('prev-body').textContent    = msg.body;
       document.getElementById('prev-count').textContent   = `${previewIdx + 1} of ${previewMsgs.length}`;
-      document.getElementById('btn-send-txt').textContent = `Send ${previewMsgs.length} Email${previewMsgs.length !== 1 ? 's' : ''}`;
+      document.getElementById('btn-send-txt').textContent = `Open in Outlook (${previewIdx + 1} of ${previewMsgs.length})`;
       document.getElementById('rcpt-label').textContent   = `${previewMsgs.length} recipient${previewMsgs.length !== 1 ? 's' : ''}`;
       document.getElementById('btn-prev').disabled = previewIdx === 0;
       document.getElementById('btn-next').disabled = previewIdx === previewMsgs.length - 1;
@@ -769,127 +762,33 @@
       };
     }
 
-    // ── MSAL / Outlook ────────────────────────────────────────────────────────────
-    function makeMsal(clientId) {
-      return new msal.PublicClientApplication({
-        auth: {
-          clientId,
-          authority:   'https://login.microsoftonline.com/common',
-          redirectUri: window.location.origin + window.location.pathname,
-        },
-        cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
-      });
-    }
-
-    function initMsalFromCache() {
-      const cid = localStorage.getItem('p2mt_azure_client_id');
-      if (!cid) return;
-      msalClient = makeMsal(cid);
-      const accounts = msalClient.getAllAccounts();
-      if (accounts.length) { msalAccount = accounts[0]; updateOutlookBtn(); }
-    }
-
-    window.connectOutlook = function() {
-      const cid = localStorage.getItem('p2mt_azure_client_id');
-      if (!cid) {
-        document.getElementById('azure-client-id').value = '';
-        document.getElementById('modal-azure').classList.add('open');
-        return;
-      }
-      doLogin(cid);
+    // ── mailto / mail-merge helpers ───────────────────────────────────────────────
+    // Open the currently-previewed message in Outlook via mailto:
+    window.openCurrentInOutlook = function() {
+      if (!previewMsgs.length) { showToast('No emails to send — build a preview first', 'warning'); return; }
+      const msg = previewMsgs[previewIdx];
+      if (!msg) return;
+      const to      = encodeURIComponent(msg.to      || '');
+      const subject = encodeURIComponent(msg.subject || '');
+      const body    = encodeURIComponent(msg.body    || '');
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
     };
 
-    window.saveAzureId = async function() {
-      const cid = document.getElementById('azure-client-id').value.trim();
-      if (!cid) { showToast('Please enter a client ID', 'error'); return; }
-      localStorage.setItem('p2mt_azure_client_id', cid);
-      document.getElementById('modal-azure').classList.remove('open');
-      doLogin(cid);
-    };
-
-    async function doLogin(cid) {
-      try {
-        msalClient  = makeMsal(cid);
-        const resp  = await msalClient.loginPopup({ scopes: SCOPES });
-        msalAccount = resp.account;
-        updateOutlookBtn();
-        showToast(`Connected as ${msalAccount.username}`, 'success');
-      } catch (err) {
-        console.error('MSAL login error:', err);
-        showToast('Could not connect to Outlook', 'error');
-      }
-    }
-
-    async function getToken() {
-      if (!msalClient || !msalAccount) throw new Error('Not connected to Outlook');
-      try {
-        const r = await msalClient.acquireTokenSilent({ scopes: SCOPES, account: msalAccount });
-        return r.accessToken;
-      } catch {
-        const r = await msalClient.acquireTokenPopup({ scopes: SCOPES });
-        msalAccount = r.account;
-        return r.accessToken;
-      }
-    }
-
-    function updateOutlookBtn() {
-      const btn = document.getElementById('btn-outlook');
-      if (msalAccount) {
-        btn.className = 'btn-outlook connected';
-        btn.innerHTML = `<span class="dot"></span> ${msalAccount.username}`;
-        btn.onclick   = () => {};
-      } else {
-        btn.className = 'btn-outlook disconnected';
-        btn.innerHTML = '<i class="fab fa-microsoft"></i> Connect Outlook';
-        btn.onclick   = connectOutlook;
-      }
-    }
-
-    window.sendAll = async function() {
-      if (!previewMsgs.length) return;
-      if (!msalAccount) {
-        showToast('Connect your Outlook account first', 'warning');
-        connectOutlook();
-        return;
-      }
-
-      const btn = document.getElementById('btn-send');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
-
-      let sent = 0, failed = 0;
-      try {
-        const token = await getToken();
-        for (const msg of previewMsgs) {
-          if (!msg.to) { failed++; continue; }
-          const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: {
-                subject: msg.subject,
-                body: { contentType: 'Text', content: msg.body },
-                toRecipients: [{ emailAddress: { address: msg.to } }],
-              },
-              saveToSentItems: true,
-            }),
-          });
-          res.ok ? sent++ : failed++;
-        }
-        if (failed === 0) {
-          showToast(`✓ Sent ${sent} email${sent !== 1 ? 's' : ''} successfully!`, 'success');
-        } else {
-          showToast(`Sent ${sent}, failed ${failed} (check console)`, 'warning');
-        }
-      } catch (err) {
-        console.error('Send error:', err);
-        showToast('Could not get Outlook token — please reconnect', 'error');
-        msalAccount = null;
-        updateOutlookBtn();
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fas fa-paper-plane"></i> <span id="btn-send-txt">Send ${previewMsgs.length} Email${previewMsgs.length !== 1 ? 's' : ''}</span>`;
-      }
+    // Download all previewed messages as a Mail Merge CSV
+    window.downloadAllMailMerge = function() {
+      if (!previewMsgs.length) { showToast('No emails to export — build a preview first', 'warning'); return; }
+      const csvCell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const rows = ['Email,Subject,Body',
+        ...previewMsgs.filter(m => m.to).map(m =>
+          [csvCell(m.to), csvCell(m.subject), csvCell(m.body)].join(',')
+        )
+      ];
+      const bom  = '\uFEFF';
+      const blob = new Blob([bom + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+      const url  = URL.createObjectURL(blob);
+      const a    = Object.assign(document.createElement('a'), { href: url, download: 'email-merge.csv' });
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showToast(`✓ Downloaded ${rows.length - 1} rows — open in Word for mail merge`, 'success');
     };
 
     // ── Helpers ───────────────────────────────────────────────────────────────────

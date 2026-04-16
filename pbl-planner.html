@@ -262,9 +262,6 @@
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <button id="pbl-btn-outlook" onclick="pblConnectOutlook()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid #0078d4;color:#0078d4;background:white;">
-            <i class="fab fa-microsoft"></i> Connect Outlook
-          </button>
           <button onclick="closeEmailModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#94a3b8;line-height:1;padding:0 4px;">&times;</button>
         </div>
       </div>
@@ -330,8 +327,8 @@
         <span style="font-size:13px;color:#64748b;" id="pbl-send-label"></span>
         <div style="display:flex;gap:10px;">
           <button onclick="closeEmailModal()" style="padding:9px 18px;border:1.5px solid #e2e8f0;background:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;color:#475569;">Cancel</button>
-          <button id="pbl-btn-send" onclick="pblSendAll()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 22px;background:#0078d4;color:white;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
-            <i class="fas fa-paper-plane"></i> <span id="pbl-btn-send-txt">Send</span>
+          <button id="pbl-btn-send" onclick="pblOpenInOutlook()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 22px;background:#0078d4;color:white;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
+            <i class="fas fa-envelope"></i> <span id="pbl-btn-send-txt">Open in Outlook</span>
           </button>
         </div>
       </div>
@@ -344,7 +341,6 @@
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <!-- MSAL for Outlook sending -->
-  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <script type="module">
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
@@ -1166,9 +1162,6 @@
     let pblEmailTemplates  = [];
     let pblPreviewMsgs     = [];
     let pblPreviewIdx      = 0;
-    let pblMsalClient      = null;
-    let pblMsalAccount     = null;
-    const PBL_EMAIL_SCOPES = ['Mail.Send', 'User.Read'];
 
     // Open the email modal, pre-select PBL from current filter
     window.emailTeamFromPlanner = async function() {
@@ -1202,9 +1195,6 @@
         }
       }
 
-      // Init MSAL from cache
-      pblInitMsalFromCache();
-      pblUpdateOutlookBtn();
       pblRebuildPreview();
     };
 
@@ -1240,7 +1230,7 @@
         document.getElementById('pbl-preview-content').style.display = 'none';
         document.getElementById('pbl-preview-msg').textContent = !tmpl ? 'Select a template to continue' : 'Select a project to continue';
         document.getElementById('pbl-send-label').textContent  = '';
-        document.getElementById('pbl-btn-send-txt').textContent = 'Send';
+        document.getElementById('pbl-btn-send-txt').textContent = 'Open in Outlook';
         document.getElementById('pbl-rcpt-info').textContent   = '';
         return;
       }
@@ -1280,7 +1270,7 @@
       document.getElementById('pbl-preview-empty').style.display  = 'none';
       document.getElementById('pbl-preview-content').style.display = 'flex';
       document.getElementById('pbl-send-label').textContent  = `${msgs.length} recipient${msgs.length !== 1 ? 's' : ''}`;
-      document.getElementById('pbl-btn-send-txt').textContent = `Send ${msgs.length} Email${msgs.length !== 1 ? 's' : ''}`;
+      document.getElementById('pbl-btn-send-txt').textContent = `Open in Outlook (${msgs.length} Email${msgs.length !== 1 ? 's' : ''})`;
       pblRenderSlide();
     };
 
@@ -1337,101 +1327,14 @@
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── MSAL for PBL email ────────────────────────────────────────────────────────
-    function pblMakeMsal(clientId) {
-      return new msal.PublicClientApplication({
-        auth: { clientId, authority: 'https://login.microsoftonline.com/common', redirectUri: window.location.origin + window.location.pathname },
-        cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
-      });
-    }
-    function pblInitMsalFromCache() {
-      const cid = localStorage.getItem('p2mt_azure_client_id');
-      if (!cid) return;
-      pblMsalClient = pblMakeMsal(cid);
-      const accts   = pblMsalClient.getAllAccounts();
-      if (accts.length) { pblMsalAccount = accts[0]; }
-    }
-    window.pblConnectOutlook = async function() {
-      let cid = localStorage.getItem('p2mt_azure_client_id');
-      if (!cid) {
-        cid = prompt('Enter your Azure Application (Client) ID:');
-        if (!cid) return;
-        localStorage.setItem('p2mt_azure_client_id', cid.trim());
-      }
-      try {
-        pblMsalClient  = pblMakeMsal(cid.trim());
-        const resp     = await pblMsalClient.loginPopup({ scopes: PBL_EMAIL_SCOPES });
-        pblMsalAccount = resp.account;
-        pblUpdateOutlookBtn();
-        showToast(`Connected as ${pblMsalAccount.username}`, 'success');
-      } catch(e) { showToast('Could not connect to Outlook', 'error'); }
-    };
-    async function pblGetToken() {
-      if (!pblMsalClient || !pblMsalAccount) throw new Error('Not connected');
-      try {
-        const r = await pblMsalClient.acquireTokenSilent({ scopes: PBL_EMAIL_SCOPES, account: pblMsalAccount });
-        return r.accessToken;
-      } catch {
-        const r = await pblMsalClient.acquireTokenPopup({ scopes: PBL_EMAIL_SCOPES });
-        pblMsalAccount = r.account;
-        return r.accessToken;
-      }
-    }
-    function pblUpdateOutlookBtn() {
-      const btn = document.getElementById('pbl-btn-outlook');
-      if (!btn) return;
-      if (pblMsalAccount) {
-        btn.style.borderColor = '#16a34a';
-        btn.style.color       = '#16a34a';
-        btn.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;margin-right:4px;"></span>${pblMsalAccount.username}`;
-        btn.onclick   = () => {};
-      } else {
-        btn.style.borderColor = '#0078d4';
-        btn.style.color       = '#0078d4';
-        btn.innerHTML = '<i class="fab fa-microsoft"></i> Connect Outlook';
-        btn.onclick   = pblConnectOutlook;
-      }
-    }
-
-    window.pblSendAll = async function() {
-      if (!pblPreviewMsgs.length) return;
-      if (!pblMsalAccount) {
-        showToast('Connect your Outlook account first', 'warning');
-        pblConnectOutlook();
-        return;
-      }
-      const btn = document.getElementById('pbl-btn-send');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
-      let sent = 0, failed = 0;
-      try {
-        const token = await pblGetToken();
-        for (const msg of pblPreviewMsgs) {
-          if (!msg.to) { failed++; continue; }
-          const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: {
-                subject: msg.subject,
-                body: { contentType: 'Text', content: msg.body },
-                toRecipients: [{ emailAddress: { address: msg.to } }],
-              },
-              saveToSentItems: true,
-            }),
-          });
-          res.ok ? sent++ : failed++;
-        }
-        showToast(failed === 0 ? `✓ Sent ${sent} email${sent!==1?'s':''}!` : `Sent ${sent}, failed ${failed}`, failed === 0 ? 'success' : 'warning');
-        if (failed === 0) closeEmailModal();
-      } catch(e) {
-        showToast('Could not get Outlook token — please reconnect', 'error');
-        pblMsalAccount = null;
-        pblUpdateOutlookBtn();
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `<i class="fas fa-paper-plane"></i> <span id="pbl-btn-send-txt">Send ${pblPreviewMsgs.length} Email${pblPreviewMsgs.length!==1?'s':''}</span>`;
-      }
+    // ── PBL email via mailto ──────────────────────────────────────────────────────
+    window.pblOpenInOutlook = function() {
+      const msg = pblPreviewMsgs[pblPreviewIdx];
+      if (!msg?.to) { showToast('No recipient for this email', 'warning'); return; }
+      const to      = encodeURIComponent(msg.to);
+      const subject = encodeURIComponent(msg.subject || '');
+      const body    = encodeURIComponent(msg.body    || '');
+      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
     };
 
     window.addEventListener('click', (event) => {

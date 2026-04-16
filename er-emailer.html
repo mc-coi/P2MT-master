@@ -417,9 +417,6 @@
         <input type="date" id="er-period-end" onchange="onPeriodChange()" title="ER period end date">
       </div>
       <div class="spacer"></div>
-      <button id="btn-outlook" class="btn-outlook disconnected" onclick="connectOutlook()">
-        <i class="fab fa-microsoft"></i> Connect Outlook
-      </button>
     </div>
 
     <!-- Tabs -->
@@ -456,15 +453,15 @@
         <div class="sb-stat" id="sb-missing-email"></div>
         <div class="spacer"></div>
         <div class="rcpt-toggle">
-          <span style="font-size:13px; font-weight:600; color:#475569;">Send to:</span>
+          <span style="font-size:13px; font-weight:600; color:#475569;">Include:</span>
           <label><input type="radio" name="rcpt-mode" value="student" checked> Student only</label>
           <label><input type="radio" name="rcpt-mode" value="both"> Student + Guardian</label>
         </div>
         <button class="btn-send-er" id="btn-test-er" onclick="testEmails()" style="background:#475569;">
           <i class="fas fa-flask"></i> Test
         </button>
-        <button class="btn-send-er" id="btn-send-er" onclick="sendEmails()">
-          <i class="fas fa-paper-plane"></i> <span id="send-btn-txt">Send Emails</span>
+        <button class="btn-send-er" id="btn-send-er" onclick="downloadMailMerge()">
+          <i class="fas fa-file-csv"></i> <span id="send-btn-txt">Download Mail Merge</span>
         </button>
       </div>
 
@@ -475,9 +472,9 @@
           <option value="main">Email Template</option>
           <option value="notify">Notify Template</option>
         </select>
-        <span class="nb-hint"><code style="background:#fef3c7;padding:1px 5px;border-radius:4px;font-size:11px;">{{classes}}</code> = all assigned workshops (comma-separated) &nbsp;·&nbsp; Sends only to assigned students</span>
-        <button class="btn-notify" id="btn-notify" onclick="sendNotifyEmails()">
-          <i class="fas fa-bell"></i> Notify
+        <span class="nb-hint"><code style="background:#fef3c7;padding:1px 5px;border-radius:4px;font-size:11px;">{{classes}}</code> = all assigned workshops &nbsp;·&nbsp; Sends only to assigned students</span>
+        <button class="btn-notify" id="btn-notify" onclick="downloadNotifyMailMerge()">
+          <i class="fas fa-file-csv"></i> Notify CSV
         </button>
       </div>
     </div>
@@ -557,34 +554,31 @@
     </div>
   </div>
 
-  <!-- Azure setup modal -->
-  <div id="modal-azure" class="modal-bd">
-    <div class="modal-box">
+  <!-- Mail Merge instructions modal -->
+  <div id="modal-mailmerge" class="modal-bd">
+    <div class="modal-box" style="max-width:620px;">
       <div class="modal-head">
-        <h2><i class="fab fa-microsoft" style="color:#0078d4; margin-right:7px;"></i>Set Up Outlook Sending</h2>
-        <button class="modal-close" onclick="document.getElementById('modal-azure').classList.remove('open')">&times;</button>
+        <h2><i class="fas fa-file-csv" style="color:var(--primary); margin-right:7px;"></i>Mail Merge — Next Steps</h2>
+        <button class="modal-close" onclick="document.getElementById('modal-mailmerge').classList.remove('open')">&times;</button>
       </div>
-      <p style="font-size:13px; color:var(--text-muted); margin: 0 0 18px;">One-time Azure setup needed to send through your Outlook account.</p>
+      <p style="font-size:13px; color:var(--text-muted); margin:0 0 16px;">Your CSV was downloaded. Each row is a fully personalised email — just follow these steps in Word:</p>
       <ol class="azure-steps">
-        <li class="azure-step"><div>Go to <a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade" target="_blank">portal.azure.com → App registrations</a> and click <strong>New registration</strong>.</div></li>
-        <li class="azure-step"><div>Name the app (e.g. <code>P2MT Email</code>). Set account type to <em>"Any org + personal"</em>. Under Redirect URI, pick <strong>Single-page application (SPA)</strong> and enter: <code id="az-redirect"></code></div></li>
-        <li class="azure-step"><div>Go to <strong>API permissions → Add → Microsoft Graph → Delegated → <code>Mail.Send</code></strong> then <strong>Grant admin consent</strong>.</div></li>
-        <li class="azure-step"><div>Copy the <strong>Application (client) ID</strong> from the Overview page and paste it below.</div></li>
+        <li class="azure-step"><div>Open <strong>Microsoft Word</strong> → new blank document → click the <strong>Mailings</strong> tab → <strong>Start Mail Merge → E-mail Messages</strong>.</div></li>
+        <li class="azure-step"><div>Click <strong>Select Recipients → Use an Existing List…</strong> and choose the CSV you just downloaded.</div></li>
+        <li class="azure-step"><div>Click in the document body, then go to <strong>Insert Merge Field</strong> and insert <code>«Body»</code>. That single field contains the complete personalised message for each student.</div></li>
+        <li class="azure-step"><div>Click <strong>Finish &amp; Merge → Send E-mail Messages…</strong> Set <em>To</em> = <code>Email</code>, <em>Subject line</em> = <code>Subject</code>, then click <strong>OK</strong>. Word sends everything through your open Outlook in one shot.</div></li>
       </ol>
-      <div style="margin-top:16px;">
-        <label style="font-size:12px; font-weight:700; color:#475569; display:block; margin-bottom:6px;">CLIENT ID</label>
-        <input type="text" id="azure-client-id" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="width:100%; padding:9px 12px; border:1.5px solid #e2e8f0; border-radius:8px; font-size:14px; font-family:monospace; outline:none; box-sizing:border-box;">
+      <div style="background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:8px; padding:12px 16px; font-size:12px; color:#15803d; margin-top:4px;">
+        <strong><i class="fas fa-lightbulb"></i> Tip:</strong> Outlook must be open and logged into your school account before clicking OK in step 4. Word uses whatever account Outlook is signed in to.
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="document.getElementById('modal-azure').classList.remove('open')">Cancel</button>
-        <button class="btn-ms" onclick="saveAzureId()"><i class="fab fa-microsoft"></i> Save &amp; Connect</button>
+        <button class="btn-cancel" onclick="document.getElementById('modal-mailmerge').classList.remove('open')">Got it</button>
       </div>
     </div>
   </div>
 
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
-  <script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav }    from './js/nav.js';
@@ -617,10 +611,6 @@
     // ER Attendance state: { studentId: { status:'P'|'A'|null, complete:bool, logId:null } }
     let attState = {};
 
-    // ── MSAL ─────────────────────────────────────────────────────────────────────
-    let msalClient  = null;
-    let msalAccount = null;
-    const SCOPES    = ['Mail.Send', 'User.Read'];
 
     // ── Template variables ────────────────────────────────────────────────────────
     const VARS = [
@@ -642,9 +632,6 @@
       initNav('er-emailer');
       setDefaultDate();
       loadErPeriod();
-      document.getElementById('az-redirect').textContent =
-        window.location.origin + window.location.pathname;
-      initMsalFromCache();
 
       // Look up logged-in teacher's last name from staff collection
       if (user?.email) {
@@ -943,7 +930,7 @@
       document.getElementById('sb-missing-email').innerHTML =
         noEmail > 0 ? `<span style="color:#dc2626;"><i class="fas fa-exclamation-circle"></i> ${noEmail} missing student email</span>` : '';
       document.getElementById('send-btn-txt').textContent =
-        `Send ${assigned} Email${assigned !== 1 ? 's' : ''}`;
+        `Download Mail Merge (${assigned} Email${assigned !== 1 ? 's' : ''})`;
     }
 
     // ── Checkbox change → save assignment ─────────────────────────────────────────
@@ -1442,77 +1429,125 @@
       }
     }
 
-    // ── Notify send ────────────────────────────────────────────────────────────────
-    window.sendNotifyEmails = async function() {
+    // ── Shared CSV helpers ─────────────────────────────────────────────────────────
+
+    // Wrap a cell value for CSV: quote it and escape internal quotes
+    function csvCell(v) {
+      const s = String(v ?? '').replace(/"/g, '""');
+      return `"${s}"`;
+    }
+
+    // Trigger a browser download of text content as a named file
+    function triggerDownload(filename, content, mime = 'text/csv;charset=utf-8;') {
+      const bom  = '\uFEFF'; // UTF-8 BOM so Excel opens accented chars correctly
+      const blob = new Blob([bom + content], { type: mime });
+      const url  = URL.createObjectURL(blob);
+      const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // Build one merged-data object for a student+workshop combo
+    function buildMergeData(student, studentWshops, dateLabel, dayLabel) {
+      return {
+        firstName:    student.firstName  || '',
+        studentName:  `${student.firstName} ${student.lastName}`.trim(),
+        workshopName: studentWshops.map(w => w.name).join(', '),
+        classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
+        room:         studentWshops.map(w => w.room || 'TBD').join(', '),
+        date:         dateLabel,
+        dayOfWeek:    dayLabel,
+        studentEmail: student.email || '',
+        ...buildPeriodData(),
+      };
+    }
+
+    // ── Download Mail Merge CSV (main Emailer) ─────────────────────────────────────
+    window.downloadMailMerge = function() {
+      const tmpl    = getSelectedTemplate('email');
+      const subject = tmpl?.subject || '';
+      const body    = tmpl?.body    || '';
+      if (!subject || !body) {
+        showToast('Select an email template in ER Room Assignment first', 'warning');
+        switchTab('er');
+        return;
+      }
+
+      const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
+      const assigned = students.filter(s => isAssigned(s.id));
+      if (!assigned.length) { showToast('No students assigned to export', 'warning'); return; }
+
+      const dateLabel = fmtDate(currentDate);
+      const dayLabel  = fmtDOW(currentDate);
+      const rows      = ['Email,Subject,Body'];
+      let skipped     = 0;
+
+      assigned.forEach(student => {
+        const wids          = assignments[student.id] || [];
+        const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+        if (!studentWshops.length) { skipped++; return; }
+
+        const data           = buildMergeData(student, studentWshops, dateLabel, dayLabel);
+        const mergedSubject  = merge(subject, data);
+        const mergedBody     = merge(body, data);
+
+        // Student row
+        if (student.email) {
+          rows.push([csvCell(student.email), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
+        } else { skipped++; }
+
+        // Guardian row when mode === 'both'
+        if (mode === 'both') {
+          const gEmail = guardianEmails[student.id];
+          if (gEmail) rows.push([csvCell(gEmail), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
+        }
+      });
+
+      if (rows.length === 1) { showToast('No emails to export — check student emails are set', 'warning'); return; }
+
+      const filename = `ER-MailMerge-${currentDate || 'export'}.csv`;
+      triggerDownload(filename, rows.join('\r\n'));
+
+      const exported = rows.length - 1;
+      showToast(`✓ Downloaded ${exported} row${exported !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped — no email)` : ''}`, 'success');
+      document.getElementById('modal-mailmerge').classList.add('open');
+    };
+
+    // ── Download Notify Mail Merge CSV ─────────────────────────────────────────────
+    window.downloadNotifyMailMerge = function() {
       const tmpl = getSelectedTemplate('notify');
       if (!tmpl?.subject || !tmpl?.body) {
         showToast('Select a Notify template in ER Room Assignment first', 'warning');
         switchTab('er');
         return;
       }
-      if (!msalAccount) {
-        showToast('Connect your Outlook account first', 'warning');
-        connectOutlook();
-        return;
-      }
 
       const assigned = students.filter(s => isAssigned(s.id));
-      if (!assigned.length) { showToast('No students assigned', 'warning'); return; }
-
-      const btn = document.getElementById('btn-notify');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
+      if (!assigned.length) { showToast('No students assigned to export', 'warning'); return; }
 
       const dateLabel = fmtDate(currentDate);
       const dayLabel  = fmtDOW(currentDate);
-      let sent = 0, failed = 0;
+      const rows      = ['Email,Subject,Body'];
+      let skipped     = 0;
 
-      try {
-        const token = await getToken();
+      assigned.forEach(student => {
+        if (!student.email) { skipped++; return; }
+        const wids          = assignments[student.id] || [];
+        const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+        const data          = buildMergeData(student, studentWshops, dateLabel, dayLabel);
+        rows.push([csvCell(student.email), csvCell(merge(tmpl.subject, data)), csvCell(merge(tmpl.body, data))].join(','));
+      });
 
-        for (const student of assigned) {
-          if (!student.email) { failed++; continue; }
-          const wids          = assignments[student.id] || [];
-          const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+      if (rows.length === 1) { showToast('No emails to export — check student emails are set', 'warning'); return; }
 
-          const data = {
-            firstName:    student.firstName,
-            studentName:  `${student.firstName} ${student.lastName}`,
-            workshopName: studentWshops.map(w => w.name).join(', '),
-            classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
-            room:         studentWshops.map(w => w.room || 'TBD').join(', '),
-            date:         dateLabel,
-            dayOfWeek:    dayLabel,
-            studentEmail: student.email,
-            ...buildPeriodData(),
-          };
+      const filename = `ER-Notify-${currentDate || 'export'}.csv`;
+      triggerDownload(filename, rows.join('\r\n'));
 
-          const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              message: {
-                subject: merge(tmpl.subject, data),
-                body: { contentType: 'Text', content: merge(tmpl.body, data) },
-                toRecipients: [{ emailAddress: { address: student.email } }],
-              },
-              saveToSentItems: true,
-            }),
-          });
-          res.ok ? sent++ : failed++;
-        }
-
-        showToast(
-          failed === 0 ? `✓ Notified ${sent} student${sent !== 1 ? 's' : ''}` : `Sent ${sent}, failed ${failed}`,
-          failed === 0 ? 'success' : 'warning'
-        );
-      } catch (err) {
-        console.error('Notify error:', err);
-        showToast('Token error — please reconnect Outlook', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-bell"></i> Notify';
-      }
+      const exported = rows.length - 1;
+      showToast(`✓ Downloaded ${exported} row${exported !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped)` : ''}`, 'success');
+      document.getElementById('modal-mailmerge').classList.add('open');
     };
 
     // ── ER Attendance ─────────────────────────────────────────────────────────────
@@ -1922,179 +1957,6 @@
 
       document.getElementById('test-list').innerHTML = cards.join('');
     };
-
-    // ── Send emails ────────────────────────────────────────────────────────────────
-    window.sendEmails = async function() {
-      const tmpl    = getSelectedTemplate('email');
-      const subject = tmpl?.subject || '';
-      const body    = tmpl?.body    || '';
-      if (!subject || !body) {
-        showToast('Select an email template in ER Room Assignment first', 'warning');
-        switchTab('er');
-        return;
-      }
-      if (!msalAccount) {
-        showToast('Connect your Outlook account first', 'warning');
-        connectOutlook();
-        return;
-      }
-
-      const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
-      const assigned = students.filter(s => isAssigned(s.id));
-      if (!assigned.length) { showToast('No students assigned', 'warning'); return; }
-
-      const btn = document.getElementById('btn-send-er');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending…';
-
-      const dateLabel = fmtDate(currentDate);
-      const dayLabel  = fmtDOW(currentDate);
-      let sent = 0, failed = 0;
-
-      try {
-        const token = await getToken();
-
-        for (const student of assigned) {
-          const wids           = assignments[student.id] || [];
-          const studentWshops  = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
-          if (!studentWshops.length) { failed++; continue; }
-
-          const data = {
-            firstName:    student.firstName,
-            studentName:  `${student.firstName} ${student.lastName}`,
-            workshopName: studentWshops.map(w => w.name).join(', '),
-            classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
-            room:         studentWshops.map(w => w.room || 'TBD').join(', '),
-            date:         dateLabel,
-            dayOfWeek:    dayLabel,
-            studentEmail: student.email || '',
-            ...buildPeriodData(),
-          };
-
-          const mergedSubject = merge(subject, data);
-          const mergedBody    = merge(body, data);
-
-          const toList = [{ emailAddress: { address: student.email } }];
-          const ccList = [];
-          if (mode === 'both') {
-            const gEmail = guardianEmails[student.id];
-            if (gEmail) ccList.push({ emailAddress: { address: gEmail } });
-          }
-
-          if (!student.email) { failed++; continue; }
-
-          const res = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: {
-                subject: mergedSubject,
-                body: { contentType: 'Text', content: mergedBody },
-                toRecipients: toList,
-                ...(ccList.length ? { ccRecipients: ccList } : {}),
-              },
-              saveToSentItems: true,
-            }),
-          });
-
-          res.ok ? sent++ : failed++;
-        }
-
-        if (failed === 0) {
-          showToast(`✓ Sent ${sent} email${sent !== 1 ? 's' : ''} successfully!`, 'success');
-        } else {
-          showToast(`Sent ${sent}, failed ${failed}`, 'warning');
-        }
-      } catch (err) {
-        console.error('Send error:', err);
-        showToast('Token error — please reconnect Outlook', 'error');
-        msalAccount = null;
-        updateOutlookBtn();
-      } finally {
-        btn.disabled = false;
-        const cnt = students.filter(s => isAssigned(s.id)).length;
-        btn.innerHTML = `<i class="fas fa-paper-plane"></i> <span id="send-btn-txt">Send ${cnt} Email${cnt !== 1 ? 's' : ''}</span>`;
-      }
-    };
-
-    // ── MSAL / Outlook ─────────────────────────────────────────────────────────────
-    function makeMsal(cid) {
-      return new msal.PublicClientApplication({
-        auth: {
-          clientId:    cid,
-          authority:   'https://login.microsoftonline.com/common',
-          redirectUri: window.location.origin + window.location.pathname,
-        },
-        cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false },
-      });
-    }
-
-    function initMsalFromCache() {
-      const cid = localStorage.getItem('p2mt_azure_client_id');
-      if (!cid) return;
-      msalClient = makeMsal(cid);
-      const accounts = msalClient.getAllAccounts();
-      if (accounts.length) { msalAccount = accounts[0]; updateOutlookBtn(); }
-    }
-
-    window.connectOutlook = function() {
-      const cid = localStorage.getItem('p2mt_azure_client_id');
-      if (!cid) {
-        document.getElementById('azure-client-id').value = '';
-        document.getElementById('modal-azure').classList.add('open');
-        return;
-      }
-      doLogin(cid);
-    };
-
-    window.saveAzureId = async function() {
-      const cid = document.getElementById('azure-client-id').value.trim();
-      if (!cid) { showToast('Please enter a client ID', 'error'); return; }
-      localStorage.setItem('p2mt_azure_client_id', cid);
-      document.getElementById('modal-azure').classList.remove('open');
-      doLogin(cid);
-    };
-
-    async function doLogin(cid) {
-      try {
-        msalClient  = makeMsal(cid);
-        const resp  = await msalClient.loginPopup({ scopes: SCOPES });
-        msalAccount = resp.account;
-        updateOutlookBtn();
-        showToast(`Connected as ${msalAccount.username}`, 'success');
-      } catch (err) {
-        console.error('MSAL error:', err);
-        showToast('Could not connect to Outlook', 'error');
-      }
-    }
-
-    async function getToken() {
-      if (!msalClient || !msalAccount) throw new Error('Not connected');
-      try {
-        const r = await msalClient.acquireTokenSilent({ scopes: SCOPES, account: msalAccount });
-        return r.accessToken;
-      } catch {
-        const r = await msalClient.acquireTokenPopup({ scopes: SCOPES });
-        msalAccount = r.account;
-        return r.accessToken;
-      }
-    }
-
-    function updateOutlookBtn() {
-      const btn = document.getElementById('btn-outlook');
-      if (msalAccount) {
-        btn.className = 'btn-outlook connected';
-        btn.innerHTML = `<span class="odot"></span> ${msalAccount.username}`;
-        btn.onclick   = () => {};
-      } else {
-        btn.className = 'btn-outlook disconnected';
-        btn.innerHTML = '<i class="fab fa-microsoft"></i> Connect Outlook';
-        btn.onclick   = connectOutlook;
-      }
-    }
 
     // ── Helpers ────────────────────────────────────────────────────────────────────
     function merge(text, data) {
