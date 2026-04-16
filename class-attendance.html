@@ -813,13 +813,17 @@
       // OR by having existing logs in Firebase for this teacher+date
       const alreadySaved = sections.filter((sec, idx) => {
         if (savedSections.has(idx)) return true;
-        // Check Firebase cache
-        return allClassAttendanceLogs.some(l =>
-          l.teacherLastName === currentTeacher &&
-          (l.date || l.classDate) === currentDate &&
-          l.className === sec.className &&
-          (sec.isLab ? l.learningLab === true : !l.learningLab)
-        );
+        // Check Firebase cache — must match teacher, date, class, lab flag, AND startTime
+        const secStartTime = sec.schedule?.startTime || sec.startTime || '';
+        return allClassAttendanceLogs.some(l => {
+          if (l.teacherLastName !== currentTeacher) return false;
+          if ((l.date || l.classDate) !== currentDate) return false;
+          if (l.className !== sec.className) return false;
+          if (sec.isLab ? l.learningLab !== true : l.learningLab === true) return false;
+          // If the section has a startTime and the log has one, they must match
+          if (secStartTime && l.startTime && l.startTime !== secStartTime) return false;
+          return true;
+        });
       });
 
       const savedCount   = alreadySaved.length;
@@ -914,13 +918,24 @@
           const state = sec.state[student.id] || { code: 'P', comment: '', tmi: false };
 
           // Find existing log — respect lab/regular type so they never overwrite each other
-          const existingLog = allClassAttendanceLogs.find(l =>
-            (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
-            l.teacherLastName === currentTeacher &&
-            l.className       === sec.className  &&
-            (l.date === currentDate || l.classDate === currentDate) &&
-            (sec.isLab ? l.learningLab === true : !l.learningLab)
-          );
+          const secStartTime = sec.schedule?.startTime || sec.startTime || '';
+
+          const existingLog = allClassAttendanceLogs.find(l => {
+            // Must match student
+            if (l.studentId !== student.id) {
+              // Fall back to A# match only when both are non-empty
+              const lA = (l.chattStateANumber || '').trim();
+              const sA = (student.chattStateANumber || '').trim();
+              if (!lA || !sA || lA !== sA) return false;
+            }
+            if (l.teacherLastName !== currentTeacher) return false;
+            if (l.className !== sec.className) return false;
+            if (l.date !== currentDate && l.classDate !== currentDate) return false;
+            if (sec.isLab ? l.learningLab !== true : l.learningLab === true) return false;
+            // startTime must match when the section has one — prevents cross-period collisions
+            if (secStartTime && l.startTime && l.startTime !== secStartTime) return false;
+            return true;
+          });
 
           if (existingLog) {
             promises.push(updateDoc('classAttendanceLogs', existingLog.id, {
@@ -937,6 +952,7 @@
               teacherLastName:   currentTeacher,
               className:         sec.className,
               classScheduleId:   sec.schedule.id,
+              startTime:         secStartTime,   // ← now stored so future lookups can filter by period
               date:              currentDate,
               attendanceCode:    state.code,
               comment:           state.comment,
