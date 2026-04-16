@@ -334,6 +334,13 @@
     import { initNav } from './js/nav.js';
     import { formatDate, exportCSV, showToast, ATTENDANCE_CODES } from './js/utils.js';
 
+    // Valid attendance codes — any value not in this set defaults to 'P' at render time
+    const VALID_ATT_CODES = new Set(['P', 'T', 'E', 'U', '?']);
+    function resolveAttCode(raw) {
+      const c = (raw || '').toString().trim();
+      return VALID_ATT_CODES.has(c) ? c : 'P';
+    }
+
     // ── Module-level state ───────────────────────────────────────────────────
     let currentUser   = null;
     let allClassSchedules      = [];
@@ -547,10 +554,14 @@
             const state = {};
             students.forEach(s => {
               const log = existingLogs.find(l =>
-                l.studentId === s.id || l.chattStateANumber === s.chattStateANumber
+                l.studentId === s.id ||
+                (s.chattStateANumber && l.chattStateANumber === s.chattStateANumber)
               );
+              // resolveAttCode validates the stored value is a known code; anything
+              // unexpected (legacy value, blank, whitespace) safely falls back to 'P'.
+              const rawCode = log?.attendanceCode || log?.status;
               state[s.id] = {
-                code:    log?.attendanceCode || log?.status || 'P',
+                code:    resolveAttCode(rawCode),
                 comment: log?.comment  || '',
                 tmi:     log?.assignTmi || false,
                 logId:   log?.id || null
@@ -636,7 +647,12 @@
       // Build student rows HTML
       let rowsHtml = '';
       sec.students.forEach((student, rowIdx) => {
-        const state = sec.state[student.id] || { code: 'P', comment: '', tmi: false };
+        const rawState = sec.state[student.id] || {};
+        const state = {
+          code:    resolveAttCode(rawState.code),
+          comment: rawState.comment || '',
+          tmi:     rawState.tmi    || false
+        };
         const codes = ['P', 'T', 'E', 'U', '?'];
         const codeBtns = codes.map(c => {
           const cls    = c === '?' ? 'Q' : c;
@@ -964,7 +980,8 @@
 
       secsToSave.forEach(sec => {
         sec.students.forEach(student => {
-          const state = sec.state[student.id] || { code: 'P', comment: '', tmi: false };
+          const rawState = sec.state[student.id] || {};
+          const state = { code: resolveAttCode(rawState.code), comment: rawState.comment || '', tmi: rawState.tmi || false };
 
           // Find existing log — respect lab/regular type so they never overwrite each other
           const secStartTime = sec.schedule?.startTime || sec.startTime || '';
