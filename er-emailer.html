@@ -90,14 +90,14 @@
     .wh-count { font-size: 10px; background: rgba(255,255,255,.25); border-radius: 10px; padding: 1px 6px; margin-top: 2px; }
 
     /* Checkbox cells */
-    .th-email { min-width: 190px; }
-    .th-guardian { min-width: 190px; }
+    .th-email { min-width: 220px; }
+    .th-guardian { min-width: 220px; }
     .cell-chk { text-align: center; padding: 8px 4px; }
     .cell-chk input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
     .cell-chk.locked { background: #1e1e1e !important; }
     .cell-chk.locked input { display: none; }
-    .cell-email { padding: 8px 10px; font-size: 12px; color: var(--text-muted); }
-    .guardian-input { border: none; outline: none; font-size: 12px; color: var(--text-muted); width: 100%; background: transparent; padding: 8px 10px; }
+    .cell-email { padding: 9px 14px; font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+    .guardian-input { border: none; outline: none; font-size: 12px; color: var(--text-muted); width: 100%; background: transparent; padding: 9px 14px; box-sizing: border-box; }
     .guardian-input:focus { color: var(--text-primary); background: #eff6ff; }
     .guardian-input::placeholder { color: #cbd5e1; }
 
@@ -171,15 +171,6 @@
     .azure-step a { color: var(--primary); }
     .btn-ms { padding: 9px 18px; background: #0078d4; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
 
-    /* ── Notify bar ── */
-    .notify-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 12px; padding: 12px 18px; background: #fffbeb; border: 1.5px solid #fde68a; border-radius: 10px; }
-    .notify-bar .nb-label { font-size: 13px; font-weight: 700; color: #92400e; display: flex; align-items: center; gap: 7px; }
-    .notify-bar select { padding: 7px 11px; border: 1.5px solid #fbbf24; border-radius: 7px; font-size: 13px; outline: none; background: white; color: #1e293b; }
-    .notify-bar select:focus { border-color: #d97706; }
-    .notify-bar .nb-hint { font-size: 12px; color: #a16207; flex: 1; }
-    .btn-notify { display: inline-flex; align-items: center; gap: 8px; padding: 9px 22px; background: #d97706; color: white; border: none; border-radius: 8px; font-weight: 700; font-size: 14px; cursor: pointer; transition: background .15s; white-space: nowrap; }
-    .btn-notify:hover:not(:disabled) { background: #b45309; }
-    .btn-notify:disabled { background: #94a3b8; cursor: not-allowed; }
 
     /* ── ER Attendance tab ── */
     .att-topbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
@@ -343,10 +334,6 @@
     [data-theme="dark"] .var-pill { background: rgba(59,130,246,0.15); color: #93C5FD; border-color: rgba(59,130,246,0.3); }
     [data-theme="dark"] .var-pill:hover { background: #3b82f6; color: white; border-color: #3b82f6; }
 
-    [data-theme="dark"] .notify-bar { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.3); }
-    [data-theme="dark"] .notify-bar .nb-label { color: #FDE68A; }
-    [data-theme="dark"] .notify-bar .nb-hint { color: #FCD34D; }
-    [data-theme="dark"] .notify-bar select { background: var(--surface); color: var(--text-primary); border-color: rgba(245,158,11,0.4); }
 
     [data-theme="dark"] .att-er-wrap { border-color: var(--border); }
     [data-theme="dark"] .att-er-row:hover td { background: var(--surface-2) !important; }
@@ -440,32 +427,22 @@
 
       <!-- Send bar -->
       <div class="send-bar">
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+          <span style="font-size:12px;font-weight:700;color:#475569;white-space:nowrap;"><i class="fas fa-envelope" style="color:var(--primary);margin-right:4px;"></i>Template:</span>
+          <select id="er-email-tmpl-sel" class="tmpl-select" style="min-width:200px;" onchange="onErTmplChange('email')">
+            <option value="">— select template —</option>
+          </select>
+          <a href="email-templates.html" class="tmpl-manage-link" title="Manage templates"><i class="fas fa-external-link-alt"></i></a>
+        </div>
+        <div style="width:1px;height:24px;background:#e2e8f0;flex-shrink:0;margin:0 2px;"></div>
         <div class="sb-stat" id="sb-assigned"></div>
         <div class="sb-stat" id="sb-missing-email"></div>
         <div class="spacer"></div>
-        <div class="rcpt-toggle">
-          <span style="font-size:13px; font-weight:600; color:#475569;">Include:</span>
-          <label><input type="radio" name="rcpt-mode" value="student" checked> Student only</label>
-          <label><input type="radio" name="rcpt-mode" value="both"> Student + Guardian</label>
-        </div>
         <button class="btn-send-er" id="btn-test-er" onclick="testEmails()" style="background:#475569;">
           <i class="fas fa-flask"></i> Test
         </button>
         <button class="btn-send-er" id="btn-send-er" onclick="downloadMailMerge()">
           <i class="fas fa-file-csv"></i> <span id="send-btn-txt">Download Mail Merge</span>
-        </button>
-      </div>
-
-      <!-- Notify bar -->
-      <div class="notify-bar">
-        <span class="nb-label"><i class="fas fa-bell"></i> Notify</span>
-        <select id="notify-tmpl-select">
-          <option value="main">Email Template</option>
-          <option value="notify">Notify Template</option>
-        </select>
-        <span class="nb-hint"><code style="background:#fef3c7;padding:1px 5px;border-radius:4px;font-size:11px;">{{classes}}</code> = all assigned workshops &nbsp;·&nbsp; Sends only to assigned students</span>
-        <button class="btn-notify" id="btn-notify" onclick="downloadNotifyMailMerge()">
-          <i class="fas fa-file-csv"></i> Notify CSV
         </button>
       </div>
     </div>
@@ -597,7 +574,6 @@
     // ── Templates ────────────────────────────────────────────────────────────────
     let p2mtTemplatesList     = [];  // from p2mtTemplates collection
     let selectedEmailTmplId   = '';  // localStorage: p2mt_er_email_tmpl_id
-    let selectedNotifyTmplId  = '';  // localStorage: p2mt_er_notify_tmpl_id
 
     // ER Attendance state: { studentId: { status:'P'|'A'|null, complete:bool, logId:null } }
     let attState = {};
@@ -683,25 +659,33 @@
 
     async function loadAll() {
       try {
-        const [s, w, g, tmplList, cs] = await Promise.all([
+        const [s, w, g, tmplList, cs, parentsList] = await Promise.all([
           getAll('students'),
           getAll('erWorkshops'),
           getAll('guardianEmails'),
           getAll('p2mtTemplates'),
           getAll('classSchedules'),
+          getAll('parents'),
         ]);
 
         students  = s.sort((a, b) => a.lastName.localeCompare(b.lastName));
         workshops = (w || []).sort((a, b) => (a.order || 0) - (b.order || 0));
-        g.forEach(rec => { guardianEmails[rec.studentId] = rec.email; });
         p2mtTemplatesList  = tmplList || [];
         allClassSchedules  = cs       || [];
 
+        // Auto-populate guardian emails: first from parents collection as baseline …
+        (parentsList || []).forEach(p => {
+          if (!p.studentId) return;
+          const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
+          if (email) guardianEmails[p.studentId] = email;
+        });
+        // … then manually-saved entries override (teacher's explicit choice wins)
+        g.forEach(rec => { if (rec.email) guardianEmails[rec.studentId] = rec.email; });
+
         if (!workshops.length) workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
 
-        // Restore saved template selections
-        selectedEmailTmplId  = localStorage.getItem('p2mt_er_email_tmpl_id')  || '';
-        selectedNotifyTmplId = localStorage.getItem('p2mt_er_notify_tmpl_id') || '';
+        // Restore saved template selection
+        selectedEmailTmplId = localStorage.getItem('p2mt_er_email_tmpl_id') || '';
 
         populateTemplateSelectors();
         await loadAssignmentsForDate(currentDate);
@@ -716,32 +700,23 @@
 
     // ── Template selector helpers ─────────────────────────────────────────────────
     function populateTemplateSelectors() {
-      ['er-email-tmpl-sel', 'er-notify-tmpl-sel'].forEach(id => {
-        const sel = document.getElementById(id);
-        if (!sel) return;
-        const current = id === 'er-email-tmpl-sel' ? selectedEmailTmplId : selectedNotifyTmplId;
-        sel.innerHTML = '<option value="">— select template —</option>' +
-          p2mtTemplatesList.map(t =>
-            `<option value="${t.id}" ${t.id === current ? 'selected' : ''}>${esc(t.name || t.subject || t.id)}</option>`
-          ).join('');
-      });
+      const sel = document.getElementById('er-email-tmpl-sel');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">— select template —</option>' +
+        p2mtTemplatesList.map(t =>
+          `<option value="${t.id}" ${t.id === selectedEmailTmplId ? 'selected' : ''}>${esc(t.name || t.subject || t.id)}</option>`
+        ).join('');
     }
 
-    window.onErTmplChange = function(type) {
-      const sel = document.getElementById(type === 'email' ? 'er-email-tmpl-sel' : 'er-notify-tmpl-sel');
+    window.onErTmplChange = function() {
+      const sel = document.getElementById('er-email-tmpl-sel');
       if (!sel) return;
-      if (type === 'email') {
-        selectedEmailTmplId = sel.value;
-        localStorage.setItem('p2mt_er_email_tmpl_id', selectedEmailTmplId);
-      } else {
-        selectedNotifyTmplId = sel.value;
-        localStorage.setItem('p2mt_er_notify_tmpl_id', selectedNotifyTmplId);
-      }
+      selectedEmailTmplId = sel.value;
+      localStorage.setItem('p2mt_er_email_tmpl_id', selectedEmailTmplId);
     };
 
-    function getSelectedTemplate(type) {
-      const id = type === 'email' ? selectedEmailTmplId : selectedNotifyTmplId;
-      return p2mtTemplatesList.find(t => t.id === id) || null;
+    function getSelectedTemplate() {
+      return p2mtTemplatesList.find(t => t.id === selectedEmailTmplId) || null;
     }
 
     // ── Load ER period rooms + clearance data ─────────────────────────────────────
@@ -1457,43 +1432,40 @@
 
     // ── Download Mail Merge CSV (main Emailer) ─────────────────────────────────────
     window.downloadMailMerge = function() {
-      const tmpl    = getSelectedTemplate('email');
+      const tmpl    = getSelectedTemplate();
       const subject = tmpl?.subject || '';
       const body    = tmpl?.body    || '';
       if (!subject || !body) {
-        showToast('Select an email template in ER Room Assignment first', 'warning');
-        switchTab('er');
+        showToast('Select an email template from the dropdown first', 'warning');
+        document.getElementById('er-email-tmpl-sel')?.focus();
         return;
       }
 
-      const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
       const assigned = students.filter(s => isAssigned(s.id));
       if (!assigned.length) { showToast('No students assigned to export', 'warning'); return; }
 
       const dateLabel = fmtDate(currentDate);
       const dayLabel  = fmtDOW(currentDate);
       const rows      = ['Email,Subject,Body'];
-      let skipped     = 0;
+      let skippedStudent = 0;
 
       assigned.forEach(student => {
         const wids          = assignments[student.id] || [];
         const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
-        if (!studentWshops.length) { skipped++; return; }
+        if (!studentWshops.length) { skippedStudent++; return; }
 
-        const data           = buildMergeData(student, studentWshops, dateLabel, dayLabel);
-        const mergedSubject  = merge(subject, data);
-        const mergedBody     = merge(body, data);
+        const data          = buildMergeData(student, studentWshops, dateLabel, dayLabel);
+        const mergedSubject = merge(subject, data);
+        const mergedBody    = merge(body, data);
 
         // Student row
         if (student.email) {
           rows.push([csvCell(student.email), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
-        } else { skipped++; }
+        } else { skippedStudent++; }
 
-        // Guardian row when mode === 'both'
-        if (mode === 'both') {
-          const gEmail = guardianEmails[student.id];
-          if (gEmail) rows.push([csvCell(gEmail), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
-        }
+        // Guardian row — always include when an email is available
+        const gEmail = guardianEmails[student.id];
+        if (gEmail) rows.push([csvCell(gEmail), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
       });
 
       if (rows.length === 1) { showToast('No emails to export — check student emails are set', 'warning'); return; }
@@ -1502,44 +1474,10 @@
       triggerDownload(filename, rows.join('\r\n'));
 
       const exported = rows.length - 1;
-      showToast(`✓ Downloaded ${exported} row${exported !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped — no email)` : ''}`, 'success');
+      showToast(`✓ Downloaded ${exported} row${exported !== 1 ? 's' : ''}${skippedStudent ? ` (${skippedStudent} skipped — no email)` : ''}`, 'success');
       document.getElementById('modal-mailmerge').classList.add('open');
     };
 
-    // ── Download Notify Mail Merge CSV ─────────────────────────────────────────────
-    window.downloadNotifyMailMerge = function() {
-      const tmpl = getSelectedTemplate('notify');
-      if (!tmpl?.subject || !tmpl?.body) {
-        showToast('Select a Notify template in ER Room Assignment first', 'warning');
-        switchTab('er');
-        return;
-      }
-
-      const assigned = students.filter(s => isAssigned(s.id));
-      if (!assigned.length) { showToast('No students assigned to export', 'warning'); return; }
-
-      const dateLabel = fmtDate(currentDate);
-      const dayLabel  = fmtDOW(currentDate);
-      const rows      = ['Email,Subject,Body'];
-      let skipped     = 0;
-
-      assigned.forEach(student => {
-        if (!student.email) { skipped++; return; }
-        const wids          = assignments[student.id] || [];
-        const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
-        const data          = buildMergeData(student, studentWshops, dateLabel, dayLabel);
-        rows.push([csvCell(student.email), csvCell(merge(tmpl.subject, data)), csvCell(merge(tmpl.body, data))].join(','));
-      });
-
-      if (rows.length === 1) { showToast('No emails to export — check student emails are set', 'warning'); return; }
-
-      const filename = `ER-Notify-${currentDate || 'export'}.csv`;
-      triggerDownload(filename, rows.join('\r\n'));
-
-      const exported = rows.length - 1;
-      showToast(`✓ Downloaded ${exported} row${exported !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped)` : ''}`, 'success');
-      document.getElementById('modal-mailmerge').classList.add('open');
-    };
 
     // ── ER Attendance ─────────────────────────────────────────────────────────────
     async function loadAttendanceForDate(date) {
@@ -1879,11 +1817,10 @@
 
     // ── Test: preview emails without sending ──────────────────────────────────────
     window.testEmails = function() {
-      const tmpl    = getSelectedTemplate('email');
+      const tmpl    = getSelectedTemplate();
       const subject = tmpl?.subject || '';
       const body    = tmpl?.body    || '';
 
-      const mode     = document.querySelector('input[name="rcpt-mode"]:checked')?.value || 'student';
       const assigned = students.filter(s => isAssigned(s.id));
       const dateLabel = fmtDate(currentDate);
       const dayLabel  = fmtDOW(currentDate);
@@ -1892,7 +1829,7 @@
 
       if (!subject || !body) {
         document.getElementById('test-list').innerHTML =
-          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template selected.<br>Go to <strong>ER Room Assignment</strong> and choose a template from the dropdown first.</div>`;
+          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template selected.<br>Choose a template from the <strong>Template</strong> dropdown in the send bar first.</div>`;
         document.getElementById('test-meta').innerHTML = '';
         return;
       }
@@ -1904,9 +1841,10 @@
         return;
       }
 
-      const modeLabel = mode === 'both' ? 'Student + Guardian (CC)' : 'Student only';
+      const withGuardian = assigned.filter(s => guardianEmails[s.id]).length;
+      const metaNote = withGuardian > 0 ? ` &nbsp;·&nbsp; ${withGuardian} with guardian CC` : '';
       document.getElementById('test-meta').innerHTML =
-        `<span class="test-badge-mode"><i class="fas fa-check-circle"></i> ${assigned.length} email${assigned.length !== 1 ? 's' : ''} would be sent &nbsp;·&nbsp; ${modeLabel}</span>`;
+        `<span class="test-badge-mode"><i class="fas fa-check-circle"></i> ${assigned.length} student${assigned.length !== 1 ? 's' : ''}${metaNote}</span>`;
 
       const cards = assigned.map(student => {
         const wids          = assignments[student.id] || [];
@@ -1928,8 +1866,8 @@
         const mergedBody    = merge(body, data);
         const workshopBadge = studentWshops.map(w => esc(w.name)).join(', ') || '—';
         const guardianEmail = guardianEmails[student.id];
-        const ccLine = (mode === 'both' && guardianEmail)
-          ? `<span style="margin-left:8px;font-size:11px;color:#64748b;">CC: ${esc(guardianEmail)}</span>`
+        const ccLine = guardianEmail
+          ? `<span style="margin-left:8px;font-size:11px;color:#64748b;"><i class="fas fa-user-friends" style="font-size:10px;"></i> Guardian: ${esc(guardianEmail)}</span>`
           : '';
         const noEmailWarn = !student.email
           ? `<span style="color:#dc2626;font-size:11px;margin-left:8px;"><i class="fas fa-exclamation-triangle"></i> No student email — would be skipped</span>`
