@@ -198,44 +198,6 @@
     <div id="tab-settings" class="w3-tab">
       <div class="w3-margin-top">
         <div class="w3-card settings-card">
-          <h3 class="w3-text-teal">Email Configuration</h3>
-          <div class="w3-row w3-margin-bottom">
-            <div class="w3-col m6">
-              <label class="w3-text-teal"><b>Email Mode</b></label>
-              <div class="w3-margin-bottom">
-                <label class="w3-radio">
-                  <input type="radio" name="emailMode" value="Live" id="email-mode-live">
-                  <span class="w3-validate">Live</span>
-                </label>
-                <label class="w3-radio">
-                  <input type="radio" name="emailMode" value="Test" id="email-mode-test" checked>
-                  <span class="w3-validate">Test</span>
-                </label>
-              </div>
-            </div>
-            <div class="w3-col m6">
-              <label class="w3-checkbox">
-                <input type="checkbox" id="enable-live-email">
-                <span class="w3-validate">Enable Live Email</span>
-              </label>
-            </div>
-          </div>
-          <button id="btn-save-email-settings" class="w3-button btn-primary w3-round">Save Email Settings</button>
-        </div>
-
-        <div class="w3-card settings-card">
-          <h3 class="w3-text-teal">API Key Management</h3>
-          <div class="w3-margin-bottom">
-            <label class="w3-text-teal"><b>Current API Key</b></label>
-            <div class="w3-padding w3-light-grey w3-border w3-margin-bottom" style="word-break: break-all;">
-              <span id="api-key-display">sk_live_xxxxxxxxxxxxx</span>
-              <button id="btn-copy-api-key" class="w3-button w3-small w3-blue w3-right">Copy</button>
-            </div>
-          </div>
-          <button id="btn-regenerate-api-key" class="w3-button w3-orange w3-round">Regenerate API Key</button>
-        </div>
-
-        <div class="w3-card settings-card">
           <h3 class="w3-text-teal">CSV Templates</h3>
           <p class="w3-text-grey">Download template files for bulk importing data:</p>
           <button id="btn-download-students-template" class="w3-button btn-primary template-button">
@@ -548,10 +510,6 @@
       document.getElementById('file-upload-parents').addEventListener('change', (e) => handleFileUpload(e, 'parents'));
       document.getElementById('parentForm').addEventListener('submit', handleParentFormSubmit);
       document.getElementById('parents-search').addEventListener('keyup', filterParentsTable);
-
-      document.getElementById('btn-save-email-settings').addEventListener('click', saveEmailSettings);
-      document.getElementById('btn-copy-api-key').addEventListener('click', copyApiKey);
-      document.getElementById('btn-regenerate-api-key').addEventListener('click', regenerateApiKey);
 
       document.getElementById('btn-download-students-template').addEventListener('click', downloadStudentsTemplate);
       document.getElementById('btn-download-staff-template').addEventListener('click', downloadStaffTemplate);
@@ -1208,45 +1166,6 @@
       }];
       exportCSV(template, 'schedule_template.csv');
       showToast('Template downloaded', 'success');
-    }
-
-    async function saveEmailSettings() {
-      try {
-        const mode = document.querySelector('input[name="emailMode"]:checked').value;
-        const enableLive = document.getElementById('enable-live-email').checked;
-        
-        const settings = {
-          emailMode: mode,
-          enableLiveEmail: enableLive,
-          lastUpdated: new Date().toISOString()
-        };
-
-        await updateDoc('adminSettings', 'settings', settings);
-        showToast('Email settings saved', 'success');
-      } catch (error) {
-        console.error('Error:', error);
-        showToast('Error saving settings', 'error');
-      }
-    }
-
-    function copyApiKey() {
-      const apiKey = document.getElementById('api-key-display').textContent;
-      navigator.clipboard.writeText(apiKey).then(() => {
-        showToast('API key copied', 'success');
-      });
-    }
-
-    async function regenerateApiKey() {
-      try {
-        const newKey = 'sk_live_' + generateId();
-        document.getElementById('api-key-display').textContent = newKey;
-        
-        await updateDoc('adminSettings', 'settings', { apiKey: newKey });
-        showToast('API key regenerated', 'success');
-      } catch (error) {
-        console.error('Error:', error);
-        showToast('Error regenerating key', 'error');
-      }
     }
 
     async function handleFileUpload(e, type) {
