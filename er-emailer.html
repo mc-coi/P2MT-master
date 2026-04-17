@@ -90,16 +90,16 @@
     .wh-count { font-size: 10px; background: rgba(255,255,255,.25); border-radius: 10px; padding: 1px 6px; margin-top: 2px; }
 
     /* Checkbox cells */
-    .th-email { min-width: 220px; }
-    .th-guardian { min-width: 220px; }
+    .th-email { min-width: 240px; }
+    .th-guardian { min-width: 240px; }
     .cell-chk { text-align: center; padding: 8px 4px; }
     .cell-chk input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer; }
     .cell-chk.locked { background: #1e1e1e !important; }
     .cell-chk.locked input { display: none; }
-    .cell-email { padding: 9px 14px; font-size: 12px; color: var(--text-muted); line-height: 1.4; }
-    .guardian-input { border: none; outline: none; font-size: 12px; color: var(--text-muted); width: 100%; background: transparent; padding: 9px 14px; box-sizing: border-box; }
+    .cell-email { padding: 10px 16px; font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+    .guardian-input { border: none; outline: none; font-size: 12.5px; color: var(--text-muted); width: 100%; background: transparent; padding: 10px 16px; box-sizing: border-box; white-space: nowrap; }
     .guardian-input:focus { color: var(--text-primary); background: #eff6ff; }
-    .guardian-input::placeholder { color: #cbd5e1; }
+    .guardian-input::placeholder { color: #94a3b8; }
 
     /* Status indicator in name column */
     .assigned-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
@@ -353,6 +353,7 @@
 
     [data-theme="dark"] .room-sel { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
     [data-theme="dark"] .guardian-input { background: var(--surface); }
+    [data-theme="dark"] .guardian-input::placeholder { color: #475569; }
     [data-theme="dark"] .guardian-input:focus { background: rgba(59,130,246,0.1); }
 
     [data-theme="dark"] .cell-chk { background: var(--surface-2); }
@@ -673,13 +674,24 @@
         p2mtTemplatesList  = tmplList || [];
         allClassSchedules  = cs       || [];
 
-        // Auto-populate guardian emails: first from parents collection as baseline …
+        // Build a quick lookup: chattStateANumber → best parent email
+        const parentEmailByANum = {};
         (parentsList || []).forEach(p => {
-          if (!p.studentId) return;
+          const aNum = (p.chattStateANumber || '').trim();
+          if (!aNum) return;
           const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
-          if (email) guardianEmails[p.studentId] = email;
+          if (email) parentEmailByANum[aNum] = email;
         });
-        // … then manually-saved entries override (teacher's explicit choice wins)
+
+        // Pre-fill guardianEmails from parents data (keyed by student Firestore ID)
+        students.forEach(s => {
+          const aNum = (s.chattStateANumber || '').trim();
+          if (aNum && parentEmailByANum[aNum]) {
+            guardianEmails[s.id] = parentEmailByANum[aNum];
+          }
+        });
+
+        // Manually-saved guardian email entries override parents data
         g.forEach(rec => { if (rec.email) guardianEmails[rec.studentId] = rec.email; });
 
         if (!workshops.length) workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));

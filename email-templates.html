@@ -731,11 +731,16 @@
 
     // Build template merge data from a student (and optional PBL/event context)
     function buildData(student, teamEntry = null, pbl = null, event = null) {
+      const today = new Date();
+      const todayLabel = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      const todayDOW   = today.toLocaleDateString('en-US', { weekday: 'long' });
       return {
+        // ── Student basics ──
         studentName:    `${student.firstName} ${student.lastName}`,
         firstName:      student.firstName || '',
         lastName:       student.lastName || '',
         studentEmail:   student.email || '',
+        // ── PBL / event ──
         teamNumber:     String(teamEntry?.teamNumber ?? teamEntry?.pblTeamNumber ?? ''),
         pblName:        pbl?.pblName || '',
         pblClass:       pbl?.className || '',
@@ -749,6 +754,15 @@
         eventAddress:   event ? [event.eventStreetAddress1, event.eventStreetAddress2].filter(Boolean).join(', ') : '',
         eventCityState: event ? [event.eventCity, event.eventState].filter(Boolean).join(', ') : '',
         eventZip:       event?.eventZip || '',
+        // ── ER Emailer variables (sample values for preview) ──
+        workshopName:   '[Workshop Name]',
+        classes:        '[Assigned Workshop(s)]',
+        room:           '[Room #]',
+        date:           todayLabel,
+        dayOfWeek:      todayDOW,
+        erStart:        '[Period Start Date]',
+        erEnd:          '[Period End Date]',
+        erDateRange:    '[Period Date Range]',
       };
     }
 
