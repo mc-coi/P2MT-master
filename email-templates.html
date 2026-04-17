@@ -15,12 +15,6 @@
     .et-header h1 { font-size: 22px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 10px; }
     .et-header h1 i { color: var(--primary); }
 
-    /* ── Outlook button ── */
-    .btn-outlook { display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; border: 1.5px solid; transition: all .15s; white-space: nowrap; }
-    .btn-outlook.disconnected { border-color: #0078d4; color: #0078d4; background: white; }
-    .btn-outlook.disconnected:hover { background: #f0f8ff; }
-    .btn-outlook.connected { border-color: #16a34a; color: #16a34a; background: #f0fdf4; cursor: default; }
-    .btn-outlook .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 
     /* ── Tabs ── */
     .et-tabs { display: flex; border-bottom: 2px solid #e2e8f0; margin-bottom: 22px; gap: 0; }
@@ -183,9 +177,6 @@
     [data-theme="dark"] .btn-cancel { background: var(--surface); border-color: var(--border); color: var(--text-secondary); }
     [data-theme="dark"] .btn-cancel:hover { border-color: var(--border-strong); }
 
-    [data-theme="dark"] .btn-outlook.disconnected { background: var(--surface); }
-    [data-theme="dark"] .btn-outlook.disconnected:hover { background: var(--surface-2); }
-    [data-theme="dark"] .btn-outlook.connected { background: rgba(22,163,74,0.12); }
   </style>
 </head>
 <body>
@@ -440,7 +431,6 @@
       initNav('email-templates');
       buildVarChips();
       setSuggestedRedirect();
-      initMsalFromCache();
       loadData();
     });
 
