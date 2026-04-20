@@ -38,6 +38,8 @@ const navItems = [
     ]
   },
 
+  { id: 'reports', label: 'Reports', href: './reports.html', icon: 'fa-chart-bar' },
+
   {
     id: 'admin-group', label: 'Admin', icon: 'fa-tools', group: true,
     children: [

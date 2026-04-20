@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script src="./js/theme-init.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reports - P2MT</title>
+  <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="./css/main.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Stat grid ──────────────────────────────────────── */
+    .rpt-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:20px; }
+    .rpt-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+                 padding:16px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow-sm); }
+    .rpt-stat-icon { width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0; }
+    .rpt-stat-val  { font-size:26px;font-weight:800;line-height:1; }
+    .rpt-stat-lbl  { font-size:11px;color:var(--text-muted);margin-top:3px;line-height:1.3; }
+
+    /* ── Section card ───────────────────────────────────── */
+    .rpt-section { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+                   padding:24px;margin-bottom:28px;box-shadow:var(--shadow-sm); }
+    .rpt-section-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;
+                           padding-bottom:12px;border-bottom:2px solid var(--border); }
+    .rpt-section-title  { font-size:16px;font-weight:700;display:flex;align-items:center;gap:10px; }
+    .rpt-section-title i{ width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px; }
+    .rpt-section-actions{ display:flex;gap:8px; }
+
+    /* ── Chart grid ─────────────────────────────────────── */
+    .chart-grid   { display:grid;gap:20px; }
+    .chart-grid-2 { grid-template-columns:1fr 1fr; }
+    .chart-grid-3 { grid-template-columns:1fr 1fr 1fr; }
+    .chart-box    { background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:16px; }
+    .chart-box h4 { font-size:13px;font-weight:600;color:var(--text-secondary);margin:0 0 12px; }
+    .chart-wrap   { position:relative; }
+
+    /* ── Filter bar ─────────────────────────────────────── */
+    .rpt-filter { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);
+                  padding:16px 20px;margin-bottom:24px;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap; }
+    .rpt-filter label { font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px; }
+    .rpt-filter select,.rpt-filter input { padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);
+                                           font-size:13px;background:var(--surface);color:var(--text-primary); }
+
+    /* ── Loading overlay ────────────────────────────────── */
+    .rpt-loading { display:none;align-items:center;justify-content:center;gap:10px;padding:40px;
+                   color:var(--text-muted);font-size:14px; }
+    .rpt-loading.active { display:flex; }
+    .spin { animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Tables inside charts ───────────────────────────── */
+    .rpt-table { width:100%;border-collapse:collapse;font-size:12.5px; }
+    .rpt-table th { text-align:left;padding:7px 10px;background:var(--surface);border-bottom:2px solid var(--border);
+                    font-weight:600;color:var(--text-secondary);font-size:11px;text-transform:uppercase;letter-spacing:.4px; }
+    .rpt-table td { padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text-primary); }
+    .rpt-table tr:last-child td { border-bottom:none; }
+    .rpt-table tr:hover td { background:var(--surface-2); }
+    .rank-badge { display:inline-block;width:20px;height:20px;border-radius:50%;background:var(--primary-light);
+                  color:var(--primary);font-size:10px;font-weight:700;text-align:center;line-height:20px;margin-right:4px; }
+
+    /* ── Colour helpers ──────────────────────────────────── */
+    .ic-blue   { background:var(--info-light);   color:var(--info); }
+    .ic-red    { background:var(--danger-light);  color:var(--danger); }
+    .ic-yellow { background:var(--warning-light); color:var(--warning); }
+    .ic-green  { background:var(--success-light); color:var(--success); }
+    .ic-purple { background:#EDE9FE;              color:#7C3AED; }
+    .ic-teal   { background:#CCFBF1;              color:#0D9488; }
+
+    .txt-blue   { color:var(--info); }
+    .txt-red    { color:var(--danger); }
+    .txt-yellow { color:var(--warning); }
+    .txt-green  { color:var(--success); }
+    .txt-purple { color:#7C3AED; }
+
+    /* ── Dark mode ───────────────────────────────────────── */
+    [data-theme="dark"] .rpt-stat   { background:var(--surface); border-color:var(--border); }
+    [data-theme="dark"] .rpt-section{ background:var(--surface); border-color:var(--border); }
+    [data-theme="dark"] .rpt-filter { background:var(--surface); border-color:var(--border); }
+    [data-theme="dark"] .rpt-filter select,
+    [data-theme="dark"] .rpt-filter input  { background:var(--surface-2);border-color:var(--border);color:var(--text-primary); }
+    [data-theme="dark"] .chart-box  { background:var(--surface-2); border-color:var(--border); }
+    [data-theme="dark"] .rpt-table th { background:var(--surface-2); border-color:var(--border); }
+    [data-theme="dark"] .rpt-table td { border-color:var(--border); }
+    [data-theme="dark"] .rpt-table tr:hover td { background:var(--surface); }
+
+    /* ── Print styles ────────────────────────────────────── */
+    @media print {
+      #nav-container,.rpt-filter,.rpt-section-actions,.no-print { display:none!important; }
+      .page-container { padding:0; }
+      .rpt-section { box-shadow:none;border:1px solid #ccc;break-inside:avoid; }
+      .chart-grid-2,.chart-grid-3 { grid-template-columns:1fr 1fr; }
+    }
+
+    @media (max-width:900px) {
+      .chart-grid-2,.chart-grid-3 { grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="nav-container"></div>
+
+  <div class="page-container">
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1><i class="fas fa-chart-bar"></i> Reports</h1>
+      <div class="actions no-print">
+        <button class="w3-button btn-secondary action-button" onclick="window.print()">
+          <i class="fas fa-print"></i> Print / PDF
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Filter bar ── -->
+    <div class="rpt-filter no-print">
+      <div>
+        <label>School Year</label>
+        <input type="text" id="fil-year" placeholder="e.g. 2025-2026" style="width:140px;">
+      </div>
+      <div>
+        <label>Semester</label>
+        <select id="fil-sem">
+          <option value="both">Both</option>
+          <option value="fall">Fall</option>
+          <option value="spring">Spring</option>
+        </select>
+      </div>
+      <div>
+        <button class="w3-button btn-primary" onclick="runReports()" style="margin-top:0;">
+          <i class="fas fa-sync-alt"></i> Generate Reports
+        </button>
+      </div>
+      <div id="rpt-range-label" style="font-size:12px;color:var(--text-muted);align-self:center;"></div>
+    </div>
+
+    <!-- Loading indicator -->
+    <div class="rpt-loading" id="rpt-loading">
+      <i class="fas fa-circle-notch fa-2x spin" style="color:var(--primary);"></i>
+      <span>Loading report data…</span>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         SECTION 1: ATTENDANCE
+    ═════════════════════════════════════════════════════ -->
+    <div class="rpt-section" id="sec-attendance">
+      <div class="rpt-section-header">
+        <div class="rpt-section-title">
+          <i class="fas fa-calendar-check ic-blue"></i> Attendance Overview
+        </div>
+        <div class="rpt-section-actions">
+          <button class="w3-button btn-secondary action-button" onclick="exportSection('attendance')">
+            <i class="fas fa-download"></i> CSV
+          </button>
+        </div>
+      </div>
+
+      <!-- Stat cards -->
+      <div class="rpt-stats" id="att-stats">
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-blue"><i class="fas fa-list"></i></div>
+          <div><div class="rpt-stat-val txt-blue" id="att-total">—</div><div class="rpt-stat-lbl">Total Records</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-red"><i class="fas fa-times-circle"></i></div>
+          <div><div class="rpt-stat-val txt-red" id="att-u">—</div><div class="rpt-stat-lbl">Unexcused (U)</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-yellow"><i class="fas fa-clock"></i></div>
+          <div><div class="rpt-stat-val txt-yellow" id="att-t">—</div><div class="rpt-stat-lbl">Tardies (T)</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-green"><i class="fas fa-check-circle"></i></div>
+          <div><div class="rpt-stat-val txt-green" id="att-e">—</div><div class="rpt-stat-lbl">Excused (E)</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-purple"><i class="fas fa-user-times"></i></div>
+          <div><div class="rpt-stat-val txt-purple" id="att-students">—</div><div class="rpt-stat-lbl">Unique Students</div></div></div>
+      </div>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h4><i class="fas fa-calendar-week"></i> Absences by Day of Week</h4>
+          <div class="chart-wrap" style="height:220px;"><canvas id="chart-att-dow"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-chart-line"></i> Absences by Month</h4>
+          <div class="chart-wrap" style="height:220px;"><canvas id="chart-att-month"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-chalkboard-teacher"></i> Top 10 Most Missed Classes</h4>
+          <div class="chart-wrap" style="height:260px;"><canvas id="chart-att-classes"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-user"></i> Top 10 Students by Absences</h4>
+          <div style="overflow-y:auto;max-height:260px;">
+            <table class="rpt-table" id="tbl-att-students">
+              <thead><tr><th>#</th><th>Student</th><th>U</th><th>T</th><th>E</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         SECTION 2: TMI
+    ═════════════════════════════════════════════════════ -->
+    <div class="rpt-section" id="sec-tmi">
+      <div class="rpt-section-header">
+        <div class="rpt-section-title">
+          <i class="fas fa-stopwatch ic-yellow"></i> TMI Summary
+        </div>
+        <div class="rpt-section-actions">
+          <button class="w3-button btn-secondary action-button" onclick="exportSection('tmi')">
+            <i class="fas fa-download"></i> CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="rpt-stats">
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-yellow"><i class="fas fa-users"></i></div>
+          <div><div class="rpt-stat-val txt-yellow" id="tmi-students">—</div><div class="rpt-stat-lbl">Students with TMI</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-blue"><i class="fas fa-hourglass-half"></i></div>
+          <div><div class="rpt-stat-val txt-blue" id="tmi-assigned">—</div><div class="rpt-stat-lbl">Minutes Assigned</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-green"><i class="fas fa-check"></i></div>
+          <div><div class="rpt-stat-val txt-green" id="tmi-served">—</div><div class="rpt-stat-lbl">Minutes Served</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-red"><i class="fas fa-hourglass-end"></i></div>
+          <div><div class="rpt-stat-val txt-red" id="tmi-remaining">—</div><div class="rpt-stat-lbl">Minutes Remaining</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-purple"><i class="fas fa-percentage"></i></div>
+          <div><div class="rpt-stat-val txt-purple" id="tmi-pct">—</div><div class="rpt-stat-lbl">Completion Rate</div></div></div>
+      </div>
+
+      <div class="chart-grid chart-grid-3">
+        <div class="chart-box">
+          <h4><i class="fas fa-chart-pie"></i> TMI Status Breakdown</h4>
+          <div class="chart-wrap" style="height:220px;"><canvas id="chart-tmi-status"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-home"></i> TMI by House</h4>
+          <div class="chart-wrap" style="height:220px;"><canvas id="chart-tmi-house"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-graduation-cap"></i> TMI by Grade</h4>
+          <div class="chart-wrap" style="height:220px;"><canvas id="chart-tmi-grade"></canvas></div>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid-2" style="margin-top:20px;">
+        <div class="chart-box">
+          <h4><i class="fas fa-sort-amount-down"></i> Top 10 Students by TMI Minutes Assigned</h4>
+          <div style="overflow-y:auto;max-height:280px;">
+            <table class="rpt-table" id="tbl-tmi-students">
+              <thead><tr><th>#</th><th>Student</th><th>Assigned</th><th>Served</th><th>Status</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-chalkboard-teacher"></i> TMI by Class / Teacher</h4>
+          <div class="chart-wrap" style="height:280px;"><canvas id="chart-tmi-class"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         SECTION 3: INTERVENTIONS
+    ═════════════════════════════════════════════════════ -->
+    <div class="rpt-section" id="sec-int">
+      <div class="rpt-section-header">
+        <div class="rpt-section-title">
+          <i class="fas fa-hand-paper ic-red"></i> Interventions Summary
+        </div>
+        <div class="rpt-section-actions">
+          <button class="w3-button btn-secondary action-button" onclick="exportSection('interventions')">
+            <i class="fas fa-download"></i> CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="rpt-stats">
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-red"><i class="fas fa-exclamation-triangle"></i></div>
+          <div><div class="rpt-stat-val txt-red" id="int-total">—</div><div class="rpt-stat-lbl">Total Interventions</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-purple"><i class="fas fa-user-shield"></i></div>
+          <div><div class="rpt-stat-val txt-purple" id="int-students">—</div><div class="rpt-stat-lbl">Unique Students</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-yellow"><i class="fas fa-layer-group"></i></div>
+          <div><div class="rpt-stat-val txt-yellow" id="int-avg">—</div><div class="rpt-stat-lbl">Avg per Student</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-blue"><i class="fas fa-tags"></i></div>
+          <div><div class="rpt-stat-val txt-blue" id="int-top-cat">—</div><div class="rpt-stat-lbl">Most Common Category</div></div></div>
+      </div>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h4><i class="fas fa-tags"></i> By Category</h4>
+          <div class="chart-wrap" style="height:240px;"><canvas id="chart-int-cat"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-home"></i> By House</h4>
+          <div class="chart-wrap" style="height:240px;"><canvas id="chart-int-house"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-user"></i> Top 10 Students by Intervention Count</h4>
+          <div style="overflow-y:auto;max-height:240px;">
+            <table class="rpt-table" id="tbl-int-students">
+              <thead><tr><th>#</th><th>Student</th><th>Count</th><th>Top Category</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-chart-bar"></i> Interventions by Level</h4>
+          <div class="chart-wrap" style="height:240px;"><canvas id="chart-int-level"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════════════
+         SECTION 4: ER
+    ═════════════════════════════════════════════════════ -->
+    <div class="rpt-section" id="sec-er">
+      <div class="rpt-section-header">
+        <div class="rpt-section-title">
+          <i class="fas fa-envelope-open-text ic-teal"></i> Educational Recovery (ER) Summary
+        </div>
+        <div class="rpt-section-actions">
+          <button class="w3-button btn-secondary action-button" onclick="exportSection('er')">
+            <i class="fas fa-download"></i> CSV
+          </button>
+        </div>
+      </div>
+
+      <div class="rpt-stats">
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-teal"><i class="fas fa-clipboard-list"></i></div>
+          <div><div class="rpt-stat-val" style="color:#0D9488;" id="er-total">—</div><div class="rpt-stat-lbl">Total ER Assignments</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-blue"><i class="fas fa-users"></i></div>
+          <div><div class="rpt-stat-val txt-blue" id="er-students">—</div><div class="rpt-stat-lbl">Unique Students</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-purple"><i class="fas fa-chalkboard"></i></div>
+          <div><div class="rpt-stat-val txt-purple" id="er-workshops">—</div><div class="rpt-stat-lbl">Workshops Used</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-yellow"><i class="fas fa-redo"></i></div>
+          <div><div class="rpt-stat-val txt-yellow" id="er-avg">—</div><div class="rpt-stat-lbl">Avg Assignments / Student</div></div></div>
+        <div class="rpt-stat"><div class="rpt-stat-icon ic-red"><i class="fas fa-star"></i></div>
+          <div><div class="rpt-stat-val txt-red" id="er-top-workshop">—</div><div class="rpt-stat-lbl">Most Assigned Workshop</div></div></div>
+      </div>
+
+      <div class="chart-grid chart-grid-2">
+        <div class="chart-box">
+          <h4><i class="fas fa-chalkboard"></i> Most Assigned Workshops</h4>
+          <div class="chart-wrap" style="height:260px;"><canvas id="chart-er-workshops"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-chalkboard-teacher"></i> ER by Class / Teacher</h4>
+          <div class="chart-wrap" style="height:260px;"><canvas id="chart-er-class"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-user"></i> Top 10 Students by ER Frequency</h4>
+          <div style="overflow-y:auto;max-height:260px;">
+            <table class="rpt-table" id="tbl-er-students">
+              <thead><tr><th>#</th><th>Student</th><th>Assignments</th><th>Classes</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="chart-box">
+          <h4><i class="fas fa-book"></i> Unique Classes per Student Distribution</h4>
+          <div class="chart-wrap" style="height:260px;"><canvas id="chart-er-class-dist"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-container -->
+
+  <script type="module">
+    import { initAuth }                     from './js/auth.js';
+    import { getAll, getWhere }             from './js/db.js';
+    import { initNav }                      from './js/nav.js';
+
+    // ── Shared helpers ──────────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+
+    function showToast(msg, type='info') {
+      const t = Object.assign(document.createElement('div'), { textContent: msg });
+      Object.assign(t.style, {
+        position:'fixed', bottom:'24px', right:'24px', zIndex:9999,
+        padding:'12px 20px', borderRadius:'8px', fontSize:'13px', fontWeight:'600',
+        background: type==='error'?'#EF4444':type==='success'?'#10B981':type==='warning'?'#F59E0B':'#3B82F6',
+        color:'#fff', boxShadow:'0 4px 12px rgba(0,0,0,0.15)', opacity:'0',
+        transition:'opacity 0.25s',
+      });
+      document.body.appendChild(t);
+      requestAnimationFrame(() => t.style.opacity = '1');
+      setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 3500);
+    }
+
+    function exportCSV(rows, filename) {
+      const BOM = '\uFEFF';
+      const headers = Object.keys(rows[0]);
+      const csvCell = v => { const s = String(v??'').replace(/"/g,'""'); return /[",\n\r]/.test(s) ? `"${s}"` : s; };
+      const lines = [headers.map(csvCell).join(','), ...rows.map(r=>headers.map(h=>csvCell(r[h]??'')).join(','))];
+      const blob = new Blob([BOM + lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+      const a = Object.assign(document.createElement('a'), {href:URL.createObjectURL(blob), download:filename});
+      a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    // ── Date range from filter ──────────────────────────────────────────────────
+    function getDateRange() {
+      const year = ($('fil-year').value || '').trim();
+      const sem  = $('fil-sem').value;
+      if (!year.match(/^\d{4}-\d{4}$/)) return null;
+      const [y1, y2] = year.split('-');
+      let start, end;
+      if (sem === 'fall')   { start = `${y1}-08-01`; end = `${y1}-12-31`; }
+      else if (sem === 'spring') { start = `${y2}-01-01`; end = `${y2}-06-30`; }
+      else                  { start = `${y1}-08-01`; end = `${y2}-06-30`; }
+      $('rpt-range-label').textContent = `Showing: ${start} → ${end}`;
+      return { start, end };
+    }
+
+    function inRange(dateStr, range) {
+      if (!range) return true;
+      const d = (dateStr||'').substring(0,10);
+      return d >= range.start && d <= range.end;
+    }
+
+    // ── Chart.js colour palette ─────────────────────────────────────────────────
+    const PALETTE = [
+      '#4F46E5','#06B6D4','#10B981','#F59E0B','#EF4444',
+      '#8B5CF6','#EC4899','#14B8A6','#F97316','#6366F1',
+    ];
+    const chartDefaults = () => ({
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { font: { size:11 }, boxWidth:14 } } },
+    });
+
+    const charts = {};
+    function mkChart(id, type, data, extraOpts={}) {
+      if (charts[id]) charts[id].destroy();
+      const ctx = $(id);
+      if (!ctx) return;
+      charts[id] = new Chart(ctx, {
+        type, data,
+        options: { ...chartDefaults(), ...extraOpts },
+      });
+    }
+
+    function hBarOpts(max) {
+      return {
+        indexAxis:'y', responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ beginAtZero:true, ticks:{font:{size:10}}, ...(max?{suggestedMax:max}:{}) },
+                 y:{ ticks:{font:{size:11}} } },
+      };
+    }
+
+    function vBarOpts() {
+      return {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false} },
+        scales:{ x:{ ticks:{font:{size:11}} }, y:{ beginAtZero:true, ticks:{font:{size:10}} } },
+      };
+    }
+
+    // ── Table builder ───────────────────────────────────────────────────────────
+    function fillTable(tableId, rows) {
+      const tbody = document.querySelector(`#${tableId} tbody`);
+      tbody.innerHTML = rows.map((r,i) => `<tr>${r.map((c,ci) => `<td>${ci===0?`<span class="rank-badge">${c}</span>`:`${c}`}</td>`).join('')}</tr>`).join('');
+    }
+
+    // ── Raw data holders (for CSV export) ──────────────────────────────────────
+    let rawData = { attendance:[], tmi:[], interventions:[], er:[] };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  MAIN: run reports
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.runReports = async function() {
+      const range = getDateRange();
+      if (!range) { showToast('Enter a valid school year (e.g. 2025-2026)', 'warning'); return; }
+
+      $('rpt-loading').classList.add('active');
+      try {
+        const [attLogs, tmiLogs, intLogs, erAssign, erWorkshops, erClearance, students] = await Promise.all([
+          getAll('classAttendanceLogs'),
+          getAll('interventionLogs'),
+          getAll('studentInterventions'),
+          getAll('erAssignments'),
+          getAll('erWorkshops'),
+          getAll('erClearance'),
+          getAll('students'),
+        ]);
+
+        const studentMap = {};
+        students.forEach(s => { studentMap[s.id] = s; });
+
+        buildAttendance(attLogs, range, studentMap);
+        buildTMI(tmiLogs, range, studentMap);
+        buildInterventions(intLogs, range, studentMap);
+        buildER(erAssign, erWorkshops, erClearance, range, studentMap);
+      } catch(e) {
+        console.error(e);
+        showToast('Error loading report data', 'error');
+      } finally {
+        $('rpt-loading').classList.remove('active');
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  ATTENDANCE REPORT
+    // ═══════════════════════════════════════════════════════════════════════════
+    function buildAttendance(logs, range, studentMap) {
+      const filtered = logs.filter(l => {
+        const d = (l.classDate || l.date || '').substring(0,10);
+        return d && d >= range.start && d <= range.end && !l.learningLab;
+      });
+      rawData.attendance = filtered;
+
+      const uLogs = filtered.filter(l => l.attendanceCode === 'U');
+      const tLogs = filtered.filter(l => l.attendanceCode === 'T');
+      const eLogs = filtered.filter(l => l.attendanceCode === 'E');
+      const uniqueStudents = new Set(filtered.map(l => l.studentId)).size;
+
+      $('att-total').textContent    = filtered.length;
+      $('att-u').textContent        = uLogs.length;
+      $('att-t').textContent        = tLogs.length;
+      $('att-e').textContent        = eLogs.length;
+      $('att-students').textContent = uniqueStudents;
+
+      // Day of week (U + T only — meaningful absences)
+      const DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+      const dowCount = { U: [0,0,0,0,0,0,0], T: [0,0,0,0,0,0,0] };
+      [...uLogs, ...tLogs].forEach(l => {
+        const d = (l.classDate || l.date || '').substring(0,10);
+        if (!d) return;
+        const dow = new Date(d + 'T12:00:00').getDay();
+        if (l.attendanceCode === 'U') dowCount.U[dow]++;
+        else dowCount.T[dow]++;
+      });
+      const weekDays = [1,2,3,4,5];
+      mkChart('chart-att-dow', 'bar', {
+        labels: weekDays.map(d => DAYS[d]),
+        datasets: [
+          { label:'Unexcused', data: weekDays.map(d=>dowCount.U[d]), backgroundColor:'#EF4444CC' },
+          { label:'Tardy',     data: weekDays.map(d=>dowCount.T[d]), backgroundColor:'#F59E0BCC' },
+        ],
+      }, { responsive:true, maintainAspectRatio:false,
+           plugins:{legend:{labels:{font:{size:11},boxWidth:12}}},
+           scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,beginAtZero:true,ticks:{font:{size:10}}}} });
+
+      // Absences by month
+      const monthCount = {};
+      uLogs.concat(tLogs).forEach(l => {
+        const m = (l.classDate||l.date||'').substring(0,7);
+        if (m) monthCount[m] = (monthCount[m]||0) + 1;
+      });
+      const months = Object.keys(monthCount).sort();
+      mkChart('chart-att-month', 'line', {
+        labels: months.map(m => { const [y,mo]=m.split('-'); return new Date(+y,+mo-1).toLocaleString('default',{month:'short',year:'2-digit'}); }),
+        datasets: [{ label:'Absences/Tardies', data: months.map(m=>monthCount[m]),
+                     borderColor:'#4F46E5', backgroundColor:'#4F46E520', fill:true, tension:0.35,
+                     pointBackgroundColor:'#4F46E5', pointRadius:4 }],
+      }, { responsive:true, maintainAspectRatio:false,
+           plugins:{legend:{display:false}},
+           scales:{x:{ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{font:{size:10}}}} });
+
+      // Top 10 missed classes
+      const classCount = {};
+      uLogs.concat(tLogs).forEach(l => {
+        const key = (l.className||'Unknown') + (l.teacherLastName ? ` (${l.teacherLastName})` : '');
+        classCount[key] = (classCount[key]||0)+1;
+      });
+      const topClasses = Object.entries(classCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      mkChart('chart-att-classes', 'bar', {
+        labels: topClasses.map(([k])=>k.length>28?k.substring(0,26)+'…':k),
+        datasets:[{ label:'Absences/Tardies', data:topClasses.map(([,v])=>v),
+                    backgroundColor: PALETTE.map(c=>c+'CC') }],
+      }, hBarOpts());
+
+      // Top 10 students
+      const studentAbsMap = {};
+      filtered.forEach(l => {
+        if (!l.studentId) return;
+        if (!studentAbsMap[l.studentId]) studentAbsMap[l.studentId] = {name:l.studentName||'Unknown',U:0,T:0,E:0};
+        const code = l.attendanceCode;
+        if (code==='U') studentAbsMap[l.studentId].U++;
+        else if (code==='T') studentAbsMap[l.studentId].T++;
+        else if (code==='E') studentAbsMap[l.studentId].E++;
+      });
+      const topStudents = Object.values(studentAbsMap)
+        .sort((a,b)=>(b.U+b.T)-(a.U+a.T)).slice(0,10);
+      fillTable('tbl-att-students', topStudents.map((s,i) => [
+        i+1, s.name,
+        `<span style="color:#EF4444;font-weight:700;">${s.U}</span>`,
+        `<span style="color:#F59E0B;font-weight:700;">${s.T}</span>`,
+        `<span style="color:#10B981;font-weight:700;">${s.E}</span>`,
+      ]));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  TMI REPORT
+    // ═══════════════════════════════════════════════════════════════════════════
+    function buildTMI(logs, range, studentMap) {
+      const tmi = logs.filter(l =>
+        l.interventionType === 'TMI' && inRange(l.startDate, range)
+      );
+      rawData.tmi = tmi;
+
+      const totalAssigned  = tmi.reduce((s,l)=>s+(+l.tmiMinutes||0),0);
+      const totalServed    = tmi.reduce((s,l)=>s+(+l.tmiMinutesServed||0),0);
+      const totalRemaining = tmi.reduce((s,l)=>s+(+l.tmiMinutesRemaining||0),0);
+      const uniqueStudents = new Set(tmi.map(l=>l.studentId)).size;
+      const pct = totalAssigned ? Math.round(totalServed/totalAssigned*100) : 0;
+
+      $('tmi-students').textContent  = uniqueStudents;
+      $('tmi-assigned').textContent  = totalAssigned;
+      $('tmi-served').textContent    = totalServed;
+      $('tmi-remaining').textContent = totalRemaining;
+      $('tmi-pct').textContent       = pct + '%';
+
+      // Status doughnut
+      const statusMap = { 'Pending Review':0, 'Reviewed':0, 'Closed':0 };
+      tmi.forEach(l => { const s = l.interventionStatus||'Pending Review'; statusMap[s]=(statusMap[s]||0)+1; });
+      mkChart('chart-tmi-status', 'doughnut', {
+        labels: ['Pending Review','Reviewed','Closed'],
+        datasets:[{ data:[statusMap['Pending Review'],statusMap['Reviewed'],statusMap['Closed']],
+                    backgroundColor:['#F59E0BCC','#3B82F6CC','#10B981CC'], borderWidth:2 }],
+      }, { responsive:true, maintainAspectRatio:false,
+           plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:14}}} });
+
+      // By house
+      const houseMap = {};
+      tmi.forEach(l => {
+        const s = studentMap[l.studentId];
+        const h = (s?.house)||'Unknown';
+        houseMap[h] = (houseMap[h]||0)+1;
+      });
+      const houses = Object.entries(houseMap).sort((a,b)=>b[1]-a[1]);
+      mkChart('chart-tmi-house', 'bar', {
+        labels: houses.map(([h])=>h),
+        datasets:[{ label:'Students', data:houses.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'CC') }],
+      }, vBarOpts());
+
+      // By grade
+      const gradeMap = {};
+      tmi.forEach(l => {
+        const s = studentMap[l.studentId];
+        const g = s?.yearOfGraduation || s?.graduationYear || 'Unknown';
+        gradeMap[g] = (gradeMap[g]||0)+1;
+      });
+      const grades = Object.entries(gradeMap).sort((a,b)=>a[0]>b[0]?1:-1);
+      mkChart('chart-tmi-grade', 'bar', {
+        labels: grades.map(([g])=>g),
+        datasets:[{ label:'Students', data:grades.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'BB') }],
+      }, vBarOpts());
+
+      // Top 10 students by minutes
+      const sMap = {};
+      tmi.forEach(l => {
+        if (!l.studentId) return;
+        if (!sMap[l.studentId]) sMap[l.studentId] = {name:l.studentName||'Unknown',assigned:0,served:0,status:l.interventionStatus||'—'};
+        sMap[l.studentId].assigned += (+l.tmiMinutes||0);
+        sMap[l.studentId].served   += (+l.tmiMinutesServed||0);
+        sMap[l.studentId].status    = l.interventionStatus;
+      });
+      const topTMI = Object.values(sMap).sort((a,b)=>b.assigned-a.assigned).slice(0,10);
+      const statusColor = s => s==='Closed'?'#10B981':s==='Reviewed'?'#3B82F6':'#F59E0B';
+      fillTable('tbl-tmi-students', topTMI.map((s,i) => [
+        i+1, s.name,
+        `<strong>${s.assigned}</strong>`,
+        s.served,
+        `<span style="color:${statusColor(s.status)};font-weight:600;font-size:11px;">${s.status||'—'}</span>`,
+      ]));
+
+      // By class/teacher
+      const classMap = {};
+      tmi.forEach(l => {
+        const key = l.className ? `${l.className}${l.teacherLastName?' ('+l.teacherLastName+')':''}` : (l.teacherLastName||'Unknown');
+        classMap[key] = (classMap[key]||0)+1;
+      });
+      const topClass = Object.entries(classMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      mkChart('chart-tmi-class', 'bar', {
+        labels: topClass.map(([k])=>k.length>26?k.substring(0,24)+'…':k),
+        datasets:[{ label:'TMI Records', data:topClass.map(([,v])=>v),
+                    backgroundColor:PALETTE.map(c=>c+'CC') }],
+      }, hBarOpts());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  INTERVENTIONS REPORT
+    // ═══════════════════════════════════════════════════════════════════════════
+    function buildInterventions(logs, range, studentMap) {
+      const filtered = logs.filter(l => inRange(l.dateTime, range));
+      rawData.interventions = filtered;
+
+      const uniqueStudents = new Set(filtered.map(l=>l.studentId)).size;
+      const avg = uniqueStudents ? (filtered.length/uniqueStudents).toFixed(1) : '0';
+
+      const catCount = {};
+      filtered.forEach(l => { const c=l.category||'Unknown'; catCount[c]=(catCount[c]||0)+1; });
+      const topCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0];
+
+      $('int-total').textContent    = filtered.length;
+      $('int-students').textContent = uniqueStudents;
+      $('int-avg').textContent      = avg;
+      $('int-top-cat').textContent  = topCat ? topCat[0] : '—';
+
+      // By category
+      const cats = Object.entries(catCount).sort((a,b)=>b[1]-a[1]);
+      mkChart('chart-int-cat', 'bar', {
+        labels: cats.map(([c])=>c),
+        datasets:[{ label:'Count', data:cats.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'CC') }],
+      }, vBarOpts());
+
+      // By house
+      const houseMap = {};
+      filtered.forEach(l => {
+        const s = studentMap[l.studentId];
+        const h = s?.house||'Unknown';
+        houseMap[h]=(houseMap[h]||0)+1;
+      });
+      const houses = Object.entries(houseMap).sort((a,b)=>b[1]-a[1]);
+      mkChart('chart-int-house', 'bar', {
+        labels: houses.map(([h])=>h),
+        datasets:[{ label:'Interventions', data:houses.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'CC') }],
+      }, vBarOpts());
+
+      // Top 10 students
+      const sMap = {};
+      filtered.forEach(l => {
+        if (!l.studentId) return;
+        if (!sMap[l.studentId]) sMap[l.studentId]={name:l.studentName||'Unknown',count:0,cats:{}};
+        sMap[l.studentId].count++;
+        const c=l.category||'Unknown';
+        sMap[l.studentId].cats[c]=(sMap[l.studentId].cats[c]||0)+1;
+      });
+      const topStudents = Object.values(sMap).sort((a,b)=>b.count-a.count).slice(0,10);
+      fillTable('tbl-int-students', topStudents.map((s,i) => {
+        const topCatEntry = Object.entries(s.cats).sort((a,b)=>b[1]-a[1])[0];
+        return [i+1, s.name, `<strong>${s.count}</strong>`, topCatEntry?topCatEntry[0]:'—'];
+      }));
+
+      // By level
+      const levelMap = {};
+      filtered.forEach(l => {
+        const key = `${l.category||'Unknown'} L${l.level||'?'}`;
+        levelMap[key]=(levelMap[key]||0)+1;
+      });
+      const levels = Object.entries(levelMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
+      mkChart('chart-int-level', 'bar', {
+        labels: levels.map(([k])=>k),
+        datasets:[{ label:'Count', data:levels.map(([,v])=>v),
+                    backgroundColor:PALETTE.map(c=>c+'BB') }],
+      }, hBarOpts());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  ER REPORT
+    // ═══════════════════════════════════════════════════════════════════════════
+    function buildER(assignments, workshops, clearance, range, studentMap) {
+      const filtered = assignments.filter(a => inRange(a.date, range));
+      rawData.er = filtered;
+
+      // Build workshop name lookup
+      const wsMap = {};
+      workshops.forEach(w => { wsMap[w.id] = w.name||w.id; });
+
+      // Flatten assignments — each assignment has workshopId (array of workshop IDs)
+      const rows = [];
+      filtered.forEach(a => {
+        const wsIds = Array.isArray(a.workshopId) ? a.workshopId : (a.workshopId ? [a.workshopId] : []);
+        wsIds.forEach(wid => {
+          rows.push({ studentId:a.studentId, date:a.date, workshopId:wid, workshopName:wsMap[wid]||wid });
+        });
+      });
+
+      // Clearance-based class info
+      const clearByStudent = {};
+      clearance.forEach(c => {
+        if (!clearByStudent[c.studentId]) clearByStudent[c.studentId]=new Set();
+        if (c.className) clearByStudent[c.studentId].add(c.className+(c.teacherLastName?` (${c.teacherLastName})`:''));
+      });
+
+      const uniqueStudents   = new Set(filtered.map(a=>a.studentId)).size;
+      const workshopsUsed    = new Set(rows.map(r=>r.workshopId)).size;
+      const avg = uniqueStudents ? (rows.length/uniqueStudents).toFixed(1) : '0';
+
+      // Workshop counts
+      const wsCount = {};
+      rows.forEach(r => { wsCount[r.workshopName]=(wsCount[r.workshopName]||0)+1; });
+      const topWs = Object.entries(wsCount).sort((a,b)=>b[1]-a[1]);
+
+      $('er-total').textContent       = rows.length;
+      $('er-students').textContent    = uniqueStudents;
+      $('er-workshops').textContent   = workshopsUsed;
+      $('er-avg').textContent         = avg;
+      $('er-top-workshop').textContent= topWs[0]?topWs[0][0]:'—';
+
+      // Most assigned workshops chart
+      const topWs10 = topWs.slice(0,10);
+      mkChart('chart-er-workshops', 'bar', {
+        labels: topWs10.map(([k])=>k.length>24?k.substring(0,22)+'…':k),
+        datasets:[{ label:'Assignments', data:topWs10.map(([,v])=>v),
+                    backgroundColor:PALETTE.map(c=>c+'CC') }],
+      }, hBarOpts());
+
+      // ER by class/teacher (from erClearance)
+      const classCount = {};
+      clearance.forEach(c => {
+        const key = c.className?(c.className+(c.teacherLastName?` (${c.teacherLastName})`:'')):c.teacherLastName||'Unknown';
+        classCount[key]=(classCount[key]||0)+1;
+      });
+      const topClasses = Object.entries(classCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      mkChart('chart-er-class', 'bar', {
+        labels: topClasses.map(([k])=>k.length>26?k.substring(0,24)+'…':k),
+        datasets:[{ label:'ER Records', data:topClasses.map(([,v])=>v),
+                    backgroundColor:PALETTE.map(c=>c+'BB') }],
+      }, hBarOpts());
+
+      // Top 10 students by ER frequency
+      const sMap = {};
+      rows.forEach(r => {
+        if (!r.studentId) return;
+        if (!sMap[r.studentId]) {
+          const s=studentMap[r.studentId];
+          sMap[r.studentId]={name:(s?`${s.firstName} ${s.lastName}`:r.studentId),count:0,classCount:0};
+        }
+        sMap[r.studentId].count++;
+      });
+      Object.keys(sMap).forEach(sid => {
+        sMap[sid].classCount = clearByStudent[sid]?.size||0;
+      });
+      const topStudents = Object.values(sMap).sort((a,b)=>b.count-a.count).slice(0,10);
+      fillTable('tbl-er-students', topStudents.map((s,i)=>[
+        i+1, s.name,
+        `<strong>${s.count}</strong>`,
+        s.classCount||'—',
+      ]));
+
+      // Classes per student distribution (histogram)
+      const classDist = {};
+      Object.values(sMap).forEach(s => {
+        const n = s.classCount;
+        const bucket = n===0?'0':n<=2?'1-2':n<=4?'3-4':n<=6?'5-6':'7+';
+        classDist[bucket]=(classDist[bucket]||0)+1;
+      });
+      const distOrder = ['0','1-2','3-4','5-6','7+'];
+      mkChart('chart-er-class-dist', 'bar', {
+        labels: distOrder.filter(k=>classDist[k]),
+        datasets:[{ label:'Students', data:distOrder.filter(k=>classDist[k]).map(k=>classDist[k]),
+                    backgroundColor:'#06B6D4CC' }],
+      }, vBarOpts());
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  CSV EXPORT per section
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.exportSection = function(section) {
+      const map = {
+        attendance: () => rawData.attendance.map(l=>({
+          Date: (l.classDate||l.date||'').substring(0,10), Student: l.studentName||'',
+          'A#': l.chattStateANumber||'', Code: l.attendanceCode||'',
+          Class: l.className||'', Teacher: l.teacherLastName||'',
+          Excuse: l.excuseType||'', Comment: l.comment||'',
+        })),
+        tmi: () => rawData.tmi.map(l=>({
+          Student: l.studentName||'', 'A#': l.chattStateANumber||'',
+          'Start Date': l.startDate||'', Status: l.interventionStatus||'',
+          'Minutes Assigned': l.tmiMinutes||0, 'Minutes Served': l.tmiMinutesServed||0,
+          'Minutes Remaining': l.tmiMinutesRemaining||0, Class: l.className||'', Teacher: l.teacherLastName||'',
+        })),
+        interventions: () => rawData.interventions.map(l=>({
+          Student: l.studentName||'', Date: (l.dateTime||'').substring(0,10),
+          Category: l.category||'', Level: l.level||'', Comments: l.comments||'',
+        })),
+        er: () => rawData.er.map(a=>({
+          Date: (a.date||'').substring(0,10), 'Student ID': a.studentId||'',
+          Workshops: Array.isArray(a.workshopId)?a.workshopId.join(', '):(a.workshopId||''),
+        })),
+      };
+      const rows = map[section]?.();
+      if (!rows?.length) { showToast('No data to export — run reports first', 'warning'); return; }
+      exportCSV(rows, `p2mt-report-${section}-${new Date().toISOString().substring(0,10)}.csv`);
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    //  BOOT
+    // ═══════════════════════════════════════════════════════════════════════════
+    initAuth().then(user => {
+      initNav(user);
+
+      // Pre-fill school year based on today's date
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = now.getMonth()+1;
+      const sy = m >= 8 ? `${y}-${y+1}` : `${y-1}-${y}`;
+      $('fil-year').value = sy;
+      $('fil-sem').value  = m >= 8 ? 'fall' : 'spring';
+
+      runReports();
+    });
+  </script>
+</body>
+</html>
