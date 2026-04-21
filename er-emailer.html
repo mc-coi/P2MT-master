@@ -697,6 +697,8 @@
         });
 
         console.log(`[ER Emailer] Loaded ${parentsList?.length ?? 0} parent records, ${Object.keys(parentEmailByANum).length} A# keys`);
+        console.log('[ER Emailer] Sample parent A#s (raw):', (parentsList||[]).slice(0,5).map(p => JSON.stringify({ chattStateANumber: p.chattStateANumber, email: p.guardianEmail||p.motherEmail||p.fatherEmail||'(no email)' })));
+        console.log('[ER Emailer] Sample student A#s (raw):', students.slice(0,5).map(s => JSON.stringify({ chattStateANumber: s.chattStateANumber, name: s.firstName + ' ' + s.lastName })));
 
         // Pre-fill guardianEmails from parents data (keyed by student Firestore ID)
         let parentMatchCount = 0;
@@ -1455,11 +1457,23 @@
 
     // Build one merged-data object for a student+workshop combo
     function buildMergeData(student, studentWshops, dateLabel, dayLabel) {
+      // Pull the actual failing class names from erClearance records for this student.
+      // This is more reliable than workshop names because teachers enter these directly.
+      const clearanceClasses = erClearanceData
+        .filter(c => c.studentId === student.id)
+        .map(c => c.className || '')
+        .filter(Boolean);
+
+      // Fall back to workshop names if no clearance data exists yet
+      const classesValue = clearanceClasses.length
+        ? clearanceClasses.join(', ')
+        : studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', ');
+
       return {
         firstName:    student.firstName  || '',
         studentName:  `${student.firstName} ${student.lastName}`.trim(),
         workshopName: studentWshops.map(w => w.name).join(', '),
-        classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
+        classes:      classesValue,
         room:         studentWshops.map(w => w.room || 'TBD').join(', '),
         date:         dateLabel,
         dayOfWeek:    dayLabel,
@@ -1917,11 +1931,19 @@
         const wids          = assignments[student.id] || [];
         const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
 
+        const clearanceClasses = erClearanceData
+          .filter(c => c.studentId === student.id)
+          .map(c => c.className || '')
+          .filter(Boolean);
+        const classesValue = clearanceClasses.length
+          ? clearanceClasses.join(', ')
+          : studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', ');
+
         const data = {
           firstName:    student.firstName,
           studentName:  `${student.firstName} ${student.lastName}`,
           workshopName: studentWshops.map(w => w.name).join(', '),
-          classes:      studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', '),
+          classes:      classesValue,
           room:         studentWshops.map(w => w.room || 'TBD').join(', '),
           date:         dateLabel,
           dayOfWeek:    dayLabel,
