@@ -713,15 +713,18 @@
 
         console.log(`[ER Emailer] Matched ${parentMatchCount} of ${students.length} students to parent emails via A#`);
 
-        // Fallback: match remaining unmatched students by name against parent's studentName field
-        // Handles cases where Fix A#s didn't catch every record (spelling differences, etc.)
+        // Fallback: match remaining unmatched students by name against parent's studentName field.
+        // Uses two passes:
+        //   Pass 1 — exact normalised match ("First Last" / "Last, First")
+        //   Pass 2 — generous includes() match: parent's studentName contains BOTH first and last name
+        //            (mirrors the "Fix A#s" logic; catches middle initials, suffixes, minor typos)
+
         const parentByName = {};
         (parentsList || []).forEach(p => {
           const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
           if (!email) return;
           const raw = (p.studentName || '').trim().toLowerCase();
           if (raw) parentByName[raw] = email;
-          // Also index "Last, First" → "First Last" normalised
           if (raw.includes(',')) {
             const parts = raw.split(',').map(x => x.trim());
             parentByName[`${parts[1]} ${parts[0]}`] = email;
@@ -729,12 +732,33 @@
         });
 
         let nameMatchCount = 0;
+
+        // Pass 1: exact
         students.forEach(s => {
-          if (guardianEmails[s.id]) return; // already matched via A#
-          const fullName   = `${s.firstName} ${s.lastName}`.trim().toLowerCase();
-          const lastFirst  = `${s.lastName}, ${s.firstName}`.trim().toLowerCase();
+          if (guardianEmails[s.id]) return;
+          const fullName  = `${s.firstName} ${s.lastName}`.trim().toLowerCase();
+          const lastFirst = `${s.lastName}, ${s.firstName}`.trim().toLowerCase();
           const email = parentByName[fullName] || parentByName[lastFirst];
           if (email) { guardianEmails[s.id] = email; nameMatchCount++; }
+        });
+
+        // Pass 2: generous includes() — catches middle names, initials, extra spaces
+        students.forEach(s => {
+          if (guardianEmails[s.id]) return;
+          const fn = (s.firstName || '').trim().toLowerCase();
+          const ln = (s.lastName  || '').trim().toLowerCase();
+          if (!fn || !ln) return;
+          const match = (parentsList || []).find(p => {
+            const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
+            if (!email) return false;
+            const pname = (p.studentName || '').toLowerCase();
+            return pname.includes(fn) && pname.includes(ln);
+          });
+          if (match) {
+            const email = match.guardianEmail || match.motherEmail || match.fatherEmail || '';
+            guardianEmails[s.id] = email;
+            nameMatchCount++;
+          }
         });
 
         if (nameMatchCount) console.log(`[ER Emailer] Matched ${nameMatchCount} additional students via name fallback`);
