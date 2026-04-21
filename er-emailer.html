@@ -100,6 +100,10 @@
     .guardian-input { border: none; outline: none; font-size: 12.5px; color: var(--text-muted); width: 100%; background: transparent; padding: 10px 16px; box-sizing: border-box; white-space: nowrap; }
     .guardian-input:focus { color: var(--text-primary); background: #eff6ff; }
     .guardian-input::placeholder { color: #94a3b8; }
+    .th-action { min-width: 52px; width: 52px; text-align: center; }
+    .cell-action { text-align: center; padding: 6px 4px !important; }
+    .btn-row-email { background: none; border: 1.5px solid #e2e8f0; border-radius: 6px; padding: 4px 8px; cursor: pointer; color: var(--primary); font-size: 12px; transition: all .12s; }
+    .btn-row-email:hover { background: var(--primary-light); border-color: var(--primary); }
 
     /* Status indicator in name column */
     .assigned-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; flex-shrink: 0; }
@@ -675,17 +679,19 @@
         allClassSchedules  = cs       || [];
 
         // Build a quick lookup: chattStateANumber → best parent email
+        // Normalise to uppercase so "a12345" and "A12345" both match
         const parentEmailByANum = {};
         (parentsList || []).forEach(p => {
-          const aNum = (p.chattStateANumber || '').trim();
-          if (!aNum) return;
+          const raw  = (p.chattStateANumber || '').trim();
+          if (!raw) return;
+          const aNum = raw.toUpperCase();
           const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
           if (email) parentEmailByANum[aNum] = email;
         });
 
         // Pre-fill guardianEmails from parents data (keyed by student Firestore ID)
         students.forEach(s => {
-          const aNum = (s.chattStateANumber || '').trim();
+          const aNum = (s.chattStateANumber || '').trim().toUpperCase();
           if (aNum && parentEmailByANum[aNum]) {
             guardianEmails[s.id] = parentEmailByANum[aNum];
           }
@@ -850,6 +856,7 @@
       });
       thHtml += `<th class="th-email"><div style="padding:10px 12px;">Student Email</div></th>
         <th class="th-guardian"><div style="padding:10px 12px;">Guardian Email</div></th>
+        <th class="th-action"><div style="padding:10px 6px;"><i class="fas fa-envelope" title="Open in Outlook"></i></div></th>
       </tr>`;
       thead.innerHTML = thHtml;
 
@@ -884,6 +891,11 @@
               value="${esc(gEmail)}"
               data-student="${student.id}"
               onblur="saveGuardianEmail(this)">
+          </td>
+          <td class="cell-action">
+            <button class="btn-row-email" onclick="openSingleEmail('${student.id}')" title="Open in Outlook">
+              <i class="fas fa-envelope"></i>
+            </button>
           </td>
         </tr>`;
       });
@@ -1443,6 +1455,32 @@
     }
 
     // ── Download Mail Merge CSV (main Emailer) ─────────────────────────────────────
+    // ── Single student → open in Outlook ──────────────────────────────────────────
+    window.openSingleEmail = function(studentId) {
+      const tmpl = getSelectedTemplate();
+      if (!tmpl?.subject || !tmpl?.body) {
+        showToast('Select an email template from the dropdown first', 'warning');
+        document.getElementById('er-email-tmpl-sel')?.focus();
+        return;
+      }
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+
+      const wids         = assignments[studentId] || [];
+      const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+      const dateLabel    = fmtDate(currentDate);
+      const dayLabel     = fmtDOW(currentDate);
+      const data         = buildMergeData(student, studentWshops, dateLabel, dayLabel);
+
+      const subject = encodeURIComponent(merge(tmpl.subject, data));
+      const body    = encodeURIComponent(merge(tmpl.body,    data));
+      const to      = encodeURIComponent(student.email || '');
+      const gEmail  = guardianEmails[studentId];
+      const cc      = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
+
+      window.location.href = `mailto:${to}?subject=${subject}${cc}&body=${body}`;
+    };
+
     window.downloadMailMerge = function() {
       const tmpl    = getSelectedTemplate();
       const subject = tmpl?.subject || '';
@@ -1480,7 +1518,10 @@
         if (gEmail) rows.push([csvCell(gEmail), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
       });
 
-      if (rows.length === 1) { showToast('No emails to export — check student emails are set', 'warning'); return; }
+      if (rows.length === 1) {
+        showToast('No emails to export — student emails may be missing. Check Admin → Students, or add guardian emails manually in the table.', 'warning');
+        return;
+      }
 
       const filename = `ER-MailMerge-${currentDate || 'export'}.csv`;
       triggerDownload(filename, rows.join('\r\n'));
