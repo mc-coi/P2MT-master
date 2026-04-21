@@ -711,9 +711,35 @@
           if (email) { guardianEmails[s.id] = email; parentMatchCount++; }
         });
 
-        console.log(`[ER Emailer] Matched ${parentMatchCount} of ${students.length} students to parent emails`);
+        console.log(`[ER Emailer] Matched ${parentMatchCount} of ${students.length} students to parent emails via A#`);
 
-        // Manually-saved guardian email entries override parents data
+        // Fallback: match remaining unmatched students by name against parent's studentName field
+        // Handles cases where Fix A#s didn't catch every record (spelling differences, etc.)
+        const parentByName = {};
+        (parentsList || []).forEach(p => {
+          const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
+          if (!email) return;
+          const raw = (p.studentName || '').trim().toLowerCase();
+          if (raw) parentByName[raw] = email;
+          // Also index "Last, First" → "First Last" normalised
+          if (raw.includes(',')) {
+            const parts = raw.split(',').map(x => x.trim());
+            parentByName[`${parts[1]} ${parts[0]}`] = email;
+          }
+        });
+
+        let nameMatchCount = 0;
+        students.forEach(s => {
+          if (guardianEmails[s.id]) return; // already matched via A#
+          const fullName   = `${s.firstName} ${s.lastName}`.trim().toLowerCase();
+          const lastFirst  = `${s.lastName}, ${s.firstName}`.trim().toLowerCase();
+          const email = parentByName[fullName] || parentByName[lastFirst];
+          if (email) { guardianEmails[s.id] = email; nameMatchCount++; }
+        });
+
+        if (nameMatchCount) console.log(`[ER Emailer] Matched ${nameMatchCount} additional students via name fallback`);
+
+        // Manually-saved guardian email entries override everything
         g.forEach(rec => { if (rec.email) guardianEmails[rec.studentId] = rec.email; });
 
         if (!workshops.length) workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
@@ -1458,11 +1484,17 @@
     // Build one merged-data object for a student+workshop combo
     function buildMergeData(student, studentWshops, dateLabel, dayLabel) {
       // Pull the actual failing class names from erClearance records for this student.
-      // This is more reliable than workshop names because teachers enter these directly.
       const clearanceClasses = erClearanceData
         .filter(c => c.studentId === student.id)
         .map(c => c.className || '')
         .filter(Boolean);
+
+      console.log(`[ER classes] ${student.firstName} ${student.lastName}:`,
+        `clearanceData=${erClearanceData.length} records,`,
+        `clearanceClasses=[${clearanceClasses.join(', ')}],`,
+        `workshopIds=${JSON.stringify(assignments[student.id])},`,
+        `studentWshops=[${studentWshops.map(w=>w.name).join(', ')}]`
+      );
 
       // Fall back to workshop names if no clearance data exists yet
       const classesValue = clearanceClasses.length
