@@ -742,7 +742,22 @@
         // Manually-saved guardian email entries override everything
         g.forEach(rec => { if (rec.email) guardianEmails[rec.studentId] = rec.email; });
 
-        if (!workshops.length) workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
+        if (!workshops.length) {
+          // Auto-save defaults to Firestore so every workshop gets a real document ID.
+          // Without an ID, data-workshop="undefined" (string) gets stored in assignments,
+          // and the later workshops.find(w => w.id === wid) lookup always fails.
+          try {
+            const defaultList = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
+            workshops = await Promise.all(defaultList.map(async w => {
+              const id = await addDoc('erWorkshops', w);
+              return { ...w, id };
+            }));
+            console.log('[ER] Auto-saved', workshops.length, 'default workshops to Firestore with real IDs');
+          } catch(e) {
+            console.warn('[ER] Could not auto-save workshops, using temp defaults (IDs will be undefined):', e);
+            workshops = DEFAULT_WORKSHOPS.map((n, i) => ({ name: n, room: '', order: i }));
+          }
+        }
 
         // Restore saved template selection
         selectedEmailTmplId = localStorage.getItem('p2mt_er_email_tmpl_id') || '';
@@ -849,7 +864,12 @@
         rows.forEach(r => {
           // Support both new (workshopIds array) and old (workshopId string) format
           if (r.workshopIds && Array.isArray(r.workshopIds)) {
-            assignments[r.studentId] = r.workshopIds;
+            // Filter out legacy "undefined" strings (stored when DEFAULT_WORKSHOPS had no Firestore ID)
+            const cleaned = r.workshopIds.filter(wid => wid && wid !== 'undefined');
+            if (cleaned.length) {
+              assignments[r.studentId] = cleaned;
+            }
+            // If ALL ids were "undefined", the record is broken — skip it (student appears unassigned)
           } else if (r.workshopId) {
             assignments[r.studentId] = [r.workshopId];
           }
@@ -1481,6 +1501,32 @@
       URL.revokeObjectURL(url);
     }
 
+    // Resolve which workshops a student is assigned to.
+    // Primary path: look up each stored ID in the workshops array.
+    // Fallback: if stored IDs are the string "undefined" (legacy bug where DEFAULT_WORKSHOPS
+    // had no Firestore IDs), read the DOM checkbox row by position index instead.
+    function getStudentWorkshops(studentId) {
+      const wids = assignments[studentId] || [];
+      // Normal lookup
+      const resolved = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+      if (resolved.length) return resolved;
+
+      // Fallback: DOM-position lookup for legacy "undefined" string IDs
+      if (wids.length > 0) {
+        const firstChk = document.querySelector(`input[type=checkbox][data-student="${studentId}"]`);
+        if (firstChk) {
+          const row  = firstChk.closest('tr');
+          const boxes = row ? Array.from(row.querySelectorAll(`input[type=checkbox][data-student="${studentId}"]`)) : [];
+          const fallback = [];
+          boxes.forEach((cb, idx) => {
+            if (cb.checked && workshops[idx]) fallback.push(workshops[idx]);
+          });
+          if (fallback.length) return fallback;
+        }
+      }
+      return [];
+    }
+
     // Build one merged-data object for a student+workshop combo
     function buildMergeData(student, studentWshops, dateLabel, dayLabel) {
       // Pull the actual failing class names from erClearance records for this student.
@@ -1526,8 +1572,7 @@
       const student = students.find(s => s.id === studentId);
       if (!student) return;
 
-      const wids         = assignments[studentId] || [];
-      const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+      const studentWshops = getStudentWorkshops(studentId);
       const dateLabel    = fmtDate(currentDate);
       const dayLabel     = fmtDOW(currentDate);
       const data         = buildMergeData(student, studentWshops, dateLabel, dayLabel);
@@ -1560,9 +1605,9 @@
       let skippedStudent = 0;
 
       assigned.forEach(student => {
-        const wids          = assignments[student.id] || [];
-        const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
-        if (!studentWshops.length) { skippedStudent++; return; }
+        const studentWshops = getStudentWorkshops(student.id);
+        // Only skip if truly no workshop can be resolved at all
+        if (!studentWshops.length && !(assignments[student.id] || []).length) { skippedStudent++; return; }
 
         const data          = buildMergeData(student, studentWshops, dateLabel, dayLabel);
         const mergedSubject = merge(subject, data);
@@ -1960,8 +2005,7 @@
         `<span class="test-badge-mode"><i class="fas fa-check-circle"></i> ${assigned.length} student${assigned.length !== 1 ? 's' : ''}${metaNote}</span>`;
 
       const cards = assigned.map(student => {
-        const wids          = assignments[student.id] || [];
-        const studentWshops = wids.map(wid => workshops.find(w => w.id === wid)).filter(Boolean);
+        const studentWshops = getStudentWorkshops(student.id);
 
         const clearanceClasses = erClearanceData
           .filter(c => c.studentId === student.id)
