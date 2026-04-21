@@ -326,7 +326,39 @@
 
       <div class="mf-row">
         <label>Body *</label>
-        <textarea id="ed-body" rows="12" placeholder="Dear {{studentName}},&#10;&#10;You are invited to {{pblName}}…"></textarea>
+        <div style="margin-bottom:8px;padding:10px 12px;background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:8px;font-size:12px;color:#1e40af;line-height:1.6;">
+          <strong><i class="fas fa-code" style="margin-right:5px;"></i>HTML supported:</strong>
+          Use basic HTML tags for formatting — <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">&lt;b&gt;bold&lt;/b&gt;</code>,
+          <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">&lt;i&gt;italic&lt;/i&gt;</code>,
+          <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">&lt;br&gt;</code> for line break,
+          <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">&lt;p&gt;…&lt;/p&gt;</code> for paragraphs.
+          Plain text with blank lines also works — they'll be converted to paragraphs automatically.
+          <details style="margin-top:6px;">
+            <summary style="cursor:pointer;font-weight:600;color:#1e3a8a;">Show example structure ▾</summary>
+            <pre style="margin:8px 0 0;font-size:11px;background:#dbeafe;padding:8px;border-radius:6px;white-space:pre-wrap;font-family:monospace;color:#1e3a8a;">&lt;p&gt;Dear Parent/Guardian,&lt;/p&gt;
+
+&lt;p&gt;{{firstName}} is required to attend academic remediation on {{date}}, from 9:30 a.m. to 4:30 p.m., or until they have brought all grades to passing.&lt;/p&gt;
+
+&lt;p&gt;The reason for remediation: &lt;b&gt;{{classes}}&lt;/b&gt;&lt;/p&gt;
+
+&lt;p&gt;Students should bring their lunch or purchase lunch from the STEM cafe.&lt;/p&gt;
+
+&lt;p&gt;If you have any questions, please do not hesitate to reach out.&lt;/p&gt;
+
+&lt;p&gt;Phase II Team&lt;/p&gt;</pre>
+          </details>
+        </div>
+        <!-- Tab bar: Edit / Preview -->
+        <div style="display:flex;gap:0;margin-bottom:-1px;position:relative;z-index:1;">
+          <button type="button" id="body-tab-edit" onclick="switchBodyTab('edit')"
+            style="padding:6px 16px;font-size:12px;font-weight:600;border:1.5px solid #e2e8f0;border-bottom:none;border-radius:7px 7px 0 0;background:white;color:var(--primary);cursor:pointer;">Edit</button>
+          <button type="button" id="body-tab-preview" onclick="switchBodyTab('preview')"
+            style="padding:6px 16px;font-size:12px;font-weight:600;border:1.5px solid #e2e8f0;border-bottom:none;border-radius:7px 7px 0 0;background:#f8fafc;color:#64748b;cursor:pointer;margin-left:4px;">Preview</button>
+        </div>
+        <textarea id="ed-body" rows="14" placeholder="&lt;p&gt;Dear Parent/Guardian,&lt;/p&gt;&#10;&#10;&lt;p&gt;{{firstName}} is required to attend...&lt;/p&gt;&#10;&#10;&lt;p&gt;Phase II Team&lt;/p&gt;"
+          style="border-radius:0 8px 8px 8px;"
+          oninput="updateBodyPreview()"></textarea>
+        <div id="ed-body-preview" style="display:none;min-height:210px;border:1.5px solid #e2e8f0;border-radius:0 8px 8px 8px;padding:14px 16px;font-size:14px;line-height:1.7;background:white;color:#1e293b;overflow:auto;"></div>
       </div>
 
       <div class="modal-footer">
@@ -504,6 +536,23 @@
       }).join('');
     }
 
+    // ── Body tab: Edit / Preview ─────────────────────────────────────────
+    window.switchBodyTab = function(tab) {
+      const isPreview = tab === 'preview';
+      document.getElementById('ed-body').style.display         = isPreview ? 'none' : '';
+      document.getElementById('ed-body-preview').style.display = isPreview ? '' : 'none';
+      document.getElementById('body-tab-edit').style.background    = isPreview ? '#f8fafc' : 'white';
+      document.getElementById('body-tab-edit').style.color         = isPreview ? '#64748b' : 'var(--primary)';
+      document.getElementById('body-tab-preview').style.background = isPreview ? 'white' : '#f8fafc';
+      document.getElementById('body-tab-preview').style.color      = isPreview ? 'var(--primary)' : '#64748b';
+      if (isPreview) updateBodyPreview();
+    };
+
+    window.updateBodyPreview = function() {
+      const raw = document.getElementById('ed-body').value;
+      document.getElementById('ed-body-preview').innerHTML = bodyToHtml(raw);
+    };
+
     window.openEditorModal = function(id = null) {
       editingId = id;
       const t = id ? templates.find(x => x.id === id) : null;
@@ -511,6 +560,8 @@
       document.getElementById('ed-name').value    = t ? (t.name || t.templateTitle || '') : '';
       document.getElementById('ed-subject').value = t ? (t.subject || t.emailSubject || '') : '';
       document.getElementById('ed-body').value    = t ? (t.body || t.templateContent || '') : '';
+      // Reset to Edit tab whenever modal opens
+      switchBodyTab('edit');
       document.getElementById('modal-editor').classList.add('open');
     };
 
@@ -727,6 +778,17 @@
       return Object.entries(data).reduce(
         (t, [k, v]) => t.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v ?? ''), text
       );
+    }
+
+    // Convert a template body (HTML or plain text) to safe HTML for preview/email
+    function bodyToHtml(raw) {
+      if (!raw) return '';
+      // If it contains HTML tags, use as-is (trust the author)
+      if (/<[a-z][\s\S]*>/i.test(raw)) return raw;
+      // Plain text: split on blank lines → <p> paragraphs, single newlines → <br>
+      return raw.split(/\n{2,}/)
+        .map(para => `<p style="margin:0 0 1em 0">${para.replace(/\n/g, '<br>')}</p>`)
+        .join('');
     }
 
     // Build template merge data from a student (and optional PBL/event context)

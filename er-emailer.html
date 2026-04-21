@@ -49,7 +49,11 @@
     .btn-sm.danger:hover { background: #fef2f2; }
 
     /* ── The table ── */
-    .grid-scroll { overflow-x: auto; border: 1.5px solid #e2e8f0; border-radius: 10px; }
+    .grid-scroll { overflow-x: scroll; border: 1.5px solid #e2e8f0; border-radius: 10px; }
+    .grid-scroll::-webkit-scrollbar { height: 8px; }
+    .grid-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 0 0 10px 10px; }
+    .grid-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+    .grid-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
     .er-table { border-collapse: separate; border-spacing: 0; width: 100%; }
     .er-table thead tr { background: var(--primary); }
     .er-table th { padding: 0; font-size: 11px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; border-right: 1px solid rgba(255,255,255,.15); }
@@ -1601,13 +1605,16 @@
       const dayLabel     = fmtDOW(currentDate);
       const data         = buildMergeData(student, studentWshops, dateLabel, dayLabel);
 
-      const subject = encodeURIComponent(merge(tmpl.subject, data));
-      const body    = encodeURIComponent(merge(tmpl.body,    data));
-      const to      = encodeURIComponent(student.email || '');
-      const gEmail  = guardianEmails[studentId];
-      const cc      = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
+      const mergedSubject = merge(tmpl.subject, data);
+      const mergedBody    = merge(tmpl.body, data);
+      const toAddr        = student.email || '';
+      const gEmail        = guardianEmails[studentId] || '';
+      const htmlBody      = bodyToHtml(mergedBody);
+      const safeName      = `${student.lastName}_${student.firstName}`.replace(/[^a-z0-9_-]/gi, '_');
 
-      window.location.href = `mailto:${to}?subject=${subject}${cc}&body=${body}`;
+      const eml = generateEml(toAddr, gEmail, mergedSubject, htmlBody);
+      downloadEml(`email_${safeName}.eml`, eml);
+      showToast('📧 Email file downloaded — open it from your Downloads to launch Outlook', 'info', 6000);
     };
 
     window.downloadMailMerge = function() {
@@ -2081,6 +2088,43 @@
       return Object.entries(data).reduce(
         (t, [k, v]) => t.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), v ?? ''), text
       );
+    }
+
+    // Convert template body (HTML or plain text) to HTML for the .eml
+    function bodyToHtml(raw) {
+      if (!raw) return '';
+      if (/<[a-z][\s\S]*>/i.test(raw)) return raw;  // already HTML
+      // Plain text → paragraphs
+      return raw.split(/\n{2,}/)
+        .map(para => `<p style="margin:0 0 1em 0">${para.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
+
+    // Build a .eml file string with an HTML body that Outlook opens in compose mode
+    function generateEml(to, cc, subject, htmlBody) {
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:14px;color:#1e293b;">${htmlBody}</body></html>`;
+      const headers = [
+        'MIME-Version: 1.0',
+        `To: ${to}`,
+        cc ? `Cc: ${cc}` : null,
+        `Subject: ${subject}`,
+        'Content-Type: text/html; charset=UTF-8',
+        '',
+        fullHtml,
+      ].filter(l => l !== null).join('\r\n');
+      return headers;
+    }
+
+    // Trigger download of an .eml file
+    function downloadEml(filename, emlContent) {
+      const blob = new Blob([emlContent], { type: 'message/rfc822' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
     }
 
     function fmtDate(d) {

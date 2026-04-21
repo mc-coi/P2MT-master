@@ -216,6 +216,41 @@
 
     // ── Shared CSV helpers ────────────────────────────────────────────────────────
     function tmiCsvCell(v) { return `"${String(v ?? '').replace(/"/g, '""')}"`; }
+
+    // Convert template body (HTML or plain text) to HTML for the .eml
+    function bodyToHtml(raw) {
+      if (!raw) return '';
+      if (/<[a-z][\s\S]*>/i.test(raw)) return raw;  // already HTML
+      return raw.split(/\n{2,}/)
+        .map(para => `<p style="margin:0 0 1em 0">${para.replace(/\n/g, '<br>')}</p>`)
+        .join('');
+    }
+
+    // Build a .eml file string with an HTML body
+    function generateEml(to, cc, subject, htmlBody) {
+      const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:14px;color:#1e293b;">${htmlBody}</body></html>`;
+      const headers = [
+        'MIME-Version: 1.0',
+        `To: ${to}`,
+        cc ? `Cc: ${cc}` : null,
+        `Subject: ${subject}`,
+        'Content-Type: text/html; charset=UTF-8',
+        '',
+        fullHtml,
+      ].filter(l => l !== null).join('\r\n');
+      return headers;
+    }
+
+    function downloadEml(filename, emlContent) {
+      const blob = new Blob([emlContent], { type: 'message/rfc822' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    }
     function tmiTriggerDownload(filename, content) {
       const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
       const url  = URL.createObjectURL(blob);
@@ -653,10 +688,12 @@
 
     function openSingleNotifInOutlook() {
       if (!singleNotifEmail) { showToast('No email address found for this recipient', 'warning'); return; }
-      const to      = encodeURIComponent(singleNotifEmail);
-      const subject = encodeURIComponent($('#notifSubject').text());
-      const body    = encodeURIComponent($('#notifContent').text());
-      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+      const subject  = $('#notifSubject').text();
+      const bodyText = $('#notifContent').text();
+      const htmlBody = bodyToHtml(bodyText);
+      const eml      = generateEml(singleNotifEmail, '', subject, htmlBody);
+      downloadEml('tmi_notification.eml', eml);
+      showToast('📧 Email file downloaded — open it from your Downloads to launch Outlook', 'info', 6000);
     }
 
     function downloadBulkMailMerge() {
@@ -747,11 +784,15 @@
       const tmpl = templates.find(t => t.id === sel.value);
       if (!tmpl) { showToast('Select a template first', 'warning'); return; }
       const studentRec = students.find(s => s.id === emailModalStudent?.studentId);
-      const email = studentRec?.email || studentRec?.studentEmail || '';
-      if (!email) { showToast('No email address found for this student', 'warning'); return; }
-      const subject = encodeURIComponent(tmpl.subject || tmpl.emailSubject || '');
-      const body    = encodeURIComponent(document.getElementById('email-preview').textContent);
-      window.location.href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
+      const toEmail = studentRec?.email || studentRec?.studentEmail || '';
+      if (!toEmail) { showToast('No email address found for this student', 'warning'); return; }
+      const subject  = tmpl.subject || tmpl.emailSubject || '';
+      const bodyText = document.getElementById('email-preview').textContent;
+      const htmlBody = bodyToHtml(bodyText);
+      const safeName = (emailModalStudent?.studentName || 'student').replace(/[^a-z0-9_-]/gi, '_');
+      const eml      = generateEml(toEmail, '', subject, htmlBody);
+      downloadEml(`tmi_email_${safeName}.eml`, eml);
+      showToast('📧 Email file downloaded — open it from your Downloads to launch Outlook', 'info', 6000);
     };
 
     // ── Mark time served (close record) ──────────────────────────

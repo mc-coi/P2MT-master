@@ -138,7 +138,7 @@ export function importCSV(file) {
 }
 
 // Show a toast notification
-export function showToast(message, type = 'info') {
+export function showToast(message, type = 'info', duration = 4000) {
   // Ensure container exists
   let container = document.getElementById('toast-container');
   if (!container) {
@@ -176,7 +176,7 @@ export function showToast(message, type = 'info') {
   container.appendChild(toast);
 
   // Auto-dismiss
-  const timer = setTimeout(() => dismissToast(toast), 4000);
+  const timer = setTimeout(() => dismissToast(toast), duration);
   toast._timer = timer;
 }
 
