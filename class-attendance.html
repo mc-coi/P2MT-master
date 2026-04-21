@@ -1124,16 +1124,18 @@
           l => l.assignTmi && l.attendanceCode !== 'U'
         ).length;
 
+        const tardyGroups  = Math.floor(tCount / 3);
+        const tardyMinutes = tardyGroups * 90;
         const totalMinutes = Math.min(
-          (uCount * 120) + (overrideCount * 120) + (tCount >= 3 ? 90 : 0),
+          (uCount * 120) + (overrideCount * 120) + tardyMinutes,
           MAX_TMI
         );
 
         // ── Build human-readable reason ───────────────────────────────────────
         const parts = [];
-        if (uCount > 0)        parts.push(`${uCount}× unexcused (${uCount * 120} min)`);
+        if (uCount > 0)       parts.push(`${uCount}× unexcused (${uCount * 120} min)`);
         if (overrideCount > 0) parts.push(`${overrideCount}× manual override (${overrideCount * 120} min)`);
-        if (tCount >= 3)       parts.push(`${tCount} tardies in period (+90 min)`);
+        if (tardyGroups > 0)  parts.push(`${tCount} tardies → ${tardyGroups}× group of 3 (+${tardyMinutes} min)`);
         const reason = parts.length ? parts.join('; ') : 'No triggering events';
 
         // ── Find the record for THIS specific period (by periodKey) ───────────
