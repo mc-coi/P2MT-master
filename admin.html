@@ -213,6 +213,28 @@
             <i class="fas fa-download"></i> Schedule Template
           </button>
         </div>
+
+        <!-- Year-End Data Management -->
+        <div class="w3-card settings-card w3-margin-top" style="border-left: 4px solid #dc2626;">
+          <h3 style="color:#dc2626;"><i class="fas fa-calendar-times" style="margin-right:8px;"></i>Year-End Data Management</h3>
+          <p class="w3-text-grey" style="margin-bottom:16px;">
+            Use these tools at the end of the school year to reset data for the next year.
+            <strong style="color:#dc2626;">These actions are permanent and cannot be undone.</strong>
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;">
+            <div style="flex:1;min-width:260px;padding:16px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;">
+              <div style="font-weight:700;color:#991b1b;margin-bottom:6px;font-size:14px;">
+                <i class="fas fa-trash-alt" style="margin-right:6px;"></i>Clear All TMI Data
+              </div>
+              <p style="font-size:13px;color:#64748b;margin:0 0 12px;">
+                Permanently deletes all TMI intervention logs and student intervention records. Use this to start fresh at the beginning of a new school year.
+              </p>
+              <button id="btn-clear-tmi" class="w3-button w3-red w3-round" onclick="clearAllTMI()">
+                <i class="fas fa-trash-alt"></i> Clear All TMI Data
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -907,6 +929,55 @@
     }
     window.dedupParents = dedupParents;
     window.deleteParentRecord = deleteParentRecord;
+
+    // ── Year-End: Clear All TMI Data ──────────────────────────────────────────
+    async function clearAllTMI() {
+      // Double confirmation — this is destructive
+      const first = confirm(
+        'This will permanently delete ALL TMI intervention logs and student intervention records.\n\n' +
+        'This cannot be undone. Are you sure you want to continue?'
+      );
+      if (!first) return;
+
+      const typed = prompt('Type CLEAR to confirm deletion of all TMI data:');
+      if ((typed || '').trim().toUpperCase() !== 'CLEAR') {
+        showToast('Cancelled — you must type CLEAR to confirm', 'info');
+        return;
+      }
+
+      const btn = document.getElementById('btn-clear-tmi');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+
+      try {
+        const [logs, interventions] = await Promise.all([
+          getAll('interventionLogs'),
+          getAll('studentInterventions'),
+        ]);
+
+        const deletes = [
+          ...logs.map(r         => ({ type: 'delete', id: r.id,         collection: 'interventionLogs'      })),
+          ...interventions.map(r => ({ type: 'delete', id: r.id,         collection: 'studentInterventions'  })),
+        ];
+
+        const CHUNK = 400;
+        for (let i = 0; i < deletes.length; i += CHUNK) {
+          await batchWrite(deletes.slice(i, i + CHUNK));
+        }
+
+        showToast(
+          `Cleared ${logs.length} intervention log(s) and ${interventions.length} student intervention record(s)`,
+          'success'
+        );
+      } catch (err) {
+        console.error('clearAllTMI error:', err);
+        showToast('Error clearing TMI data — see console', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear All TMI Data';
+      }
+    }
+    window.clearAllTMI = clearAllTMI;
 
     // ── Fix Parent A#s ────────────────────────────────────────────────────────
     // Matches each parent record to a student by name and overwrites the
