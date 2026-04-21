@@ -338,16 +338,38 @@
         <h3>Edit Parent Information</h3>
       </header>
       <form id="parentForm" class="w3-padding">
-        <p><b>Student: <span id="parent-modal-student-name"></span></b></p>
-        <div style="margin-bottom:12px;padding:8px 10px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;font-size:13px;">
-          <label style="display:block;font-weight:700;color:#15803d;margin-bottom:4px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">
-            <i class="fas fa-tag" style="margin-right:4px;"></i>Name on File (used for parent matching)
+        <!-- Hidden fields: track which student this parent record is linked to -->
+        <input type="hidden" id="parent-linked-student-id">
+        <input type="hidden" id="parent-linked-aNumber">
+
+        <!-- Student link widget -->
+        <div style="margin-bottom:14px;padding:10px 12px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:9px;">
+          <label style="display:block;font-weight:700;color:#15803d;margin-bottom:6px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">
+            <i class="fas fa-user-graduate" style="margin-right:5px;"></i>Linked Student
           </label>
-          <input type="text" id="parent-studentName" class="w3-input w3-border"
-            style="background:white;font-size:13px;"
-            placeholder="Student name as it appears in the imported data">
-          <div style="font-size:11px;color:#64748b;margin-top:5px;">
-            This should match the student's exact first and last name so the ER Emailer can link parent emails automatically.
+          <!-- Current link badge -->
+          <div id="parent-linked-badge" style="display:none;margin-bottom:8px;padding:5px 10px;background:white;border:1.5px solid #bbf7d0;border-radius:7px;font-size:13px;font-weight:600;color:#15803d;display:flex;align-items:center;gap:8px;">
+            <i class="fas fa-check-circle" style="color:#16a34a;"></i>
+            <span id="parent-linked-badge-name"></span>
+            <button type="button" onclick="clearStudentLink()" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#94a3b8;font-size:13px;" title="Change student">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <!-- Search box (shown when no student linked, or when changing) -->
+          <div id="parent-student-search-wrap" style="position:relative;">
+            <input type="text" id="parent-student-search"
+              class="w3-input w3-border"
+              style="font-size:13px;padding-right:32px;"
+              placeholder="Search by student name…"
+              autocomplete="off"
+              oninput="filterStudentDropdown(this.value)">
+            <i class="fas fa-search" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#94a3b8;pointer-events:none;font-size:12px;"></i>
+            <div id="parent-student-dropdown"
+              style="display:none;position:absolute;top:100%;left:0;right:0;background:white;border:1.5px solid #e2e8f0;border-radius:7px;max-height:200px;overflow-y:auto;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.12);">
+            </div>
+          </div>
+          <div style="font-size:11px;color:#64748b;margin-top:6px;">
+            Linking to a student updates the A# so the ER Emailer can automatically match parent emails.
           </div>
         </div>
         <hr>
@@ -799,7 +821,19 @@
       const parentData = parentsData.find(p => (p.chattStateANumber || '').trim().toLowerCase() === _a) || {};
       
       document.getElementById('parent-modal-student-name').textContent = studentName;
-      document.getElementById('parent-studentName').value = parentData.studentName || '';
+      // Populate student link widget
+      // Try to find the linked student by A# first, then fall back to stored studentName
+      const linkedStudent = studentsData.find(s =>
+        s.chattStateANumber && parentData.chattStateANumber &&
+        s.chattStateANumber.trim().toUpperCase() === parentData.chattStateANumber.trim().toUpperCase()
+      );
+      if (linkedStudent) {
+        setStudentLink(linkedStudent);
+      } else {
+        // No A# match — show the stored studentName so it can be fixed
+        clearStudentLink(parentData.studentName || '');
+      }
+
       document.getElementById('parent-guardianship').value = parentData.guardianship || '';
       document.getElementById('parent-motherName').value = parentData.motherName || '';
       document.getElementById('parent-motherEmail').value = parentData.motherEmail || '';
@@ -940,11 +974,85 @@
     }
     window.fixParentANumbers = fixParentANumbers;
 
+    // ── Student link widget helpers ────────────────────────────────────────────
+
+    // Show the "linked" badge and hide the search box
+    function setStudentLink(student) {
+      document.getElementById('parent-linked-student-id').value = student.id || '';
+      document.getElementById('parent-linked-aNumber').value    = student.chattStateANumber || '';
+      document.getElementById('parent-linked-badge-name').textContent =
+        `${student.lastName}, ${student.firstName}`;
+      document.getElementById('parent-linked-badge').style.display = 'flex';
+      document.getElementById('parent-student-search-wrap').style.display = 'none';
+      document.getElementById('parent-student-search').value = '';
+      document.getElementById('parent-student-dropdown').style.display = 'none';
+    }
+
+    // Clear the link and show the search box (optionally pre-fill the search text)
+    window.clearStudentLink = function(prefill) {
+      document.getElementById('parent-linked-student-id').value = '';
+      document.getElementById('parent-linked-aNumber').value    = '';
+      document.getElementById('parent-linked-badge').style.display = 'none';
+      document.getElementById('parent-student-search-wrap').style.display = 'block';
+      if (prefill) document.getElementById('parent-student-search').value = prefill;
+    };
+
+    // Live filter the student dropdown as the user types
+    window.filterStudentDropdown = function(query) {
+      const dropdown = document.getElementById('parent-student-dropdown');
+      const q = query.trim().toLowerCase();
+      if (!q) { dropdown.style.display = 'none'; return; }
+
+      const matches = studentsData
+        .filter(s => {
+          const full     = `${s.firstName} ${s.lastName}`.toLowerCase();
+          const lastFirst = `${s.lastName}, ${s.firstName}`.toLowerCase();
+          return full.includes(q) || lastFirst.includes(q);
+        })
+        .slice(0, 10);
+
+      if (!matches.length) {
+        dropdown.innerHTML = '<div style="padding:10px 14px;font-size:13px;color:#94a3b8;">No students found</div>';
+      } else {
+        dropdown.innerHTML = matches.map(s => `
+          <div onclick="selectStudentFromDropdown('${s.id}')"
+            style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:8px;"
+            onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='white'">
+            <i class="fas fa-user-graduate" style="color:#16a34a;font-size:11px;"></i>
+            <span style="font-weight:600;">${s.lastName}, ${s.firstName}</span>
+            <span style="font-size:11px;color:#94a3b8;margin-left:auto;">${s.chattStateANumber || ''}</span>
+          </div>`).join('');
+      }
+      dropdown.style.display = 'block';
+    };
+
+    // Called when user clicks a student in the dropdown
+    window.selectStudentFromDropdown = function(studentId) {
+      const student = studentsData.find(s => s.id === studentId);
+      if (student) setStudentLink(student);
+    };
+
+    // Close dropdown on outside click
+    document.addEventListener('click', e => {
+      if (!e.target.closest('#parent-student-search-wrap')) {
+        const dd = document.getElementById('parent-student-dropdown');
+        if (dd) dd.style.display = 'none';
+      }
+    });
+
     async function handleParentFormSubmit(e) {
       e.preventDefault();
+      // Use the linked student's A# and name if one was selected; fall back to original
+      const linkedANumber  = document.getElementById('parent-linked-aNumber').value  || currentEditParentChattStateA;
+      const linkedStudentId = document.getElementById('parent-linked-student-id').value;
+      const linkedStudent  = linkedStudentId ? studentsData.find(s => s.id === linkedStudentId) : null;
+      const linkedName     = linkedStudent
+        ? `${linkedStudent.firstName} ${linkedStudent.lastName}`
+        : (document.getElementById('parent-student-search').value.trim() || '');
+
       const parentData = {
-        chattStateANumber: currentEditParentChattStateA,
-        studentName: document.getElementById('parent-studentName').value,
+        chattStateANumber: linkedANumber,
+        studentName: linkedName,
         guardianship: document.getElementById('parent-guardianship').value,
         motherName: document.getElementById('parent-motherName').value,
         motherEmail: document.getElementById('parent-motherEmail').value,
