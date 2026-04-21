@@ -203,7 +203,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, updateDoc } from './js/db.js';
-    import { formatDate, exportCSV, showToast, confirmTypedDelete } from './js/utils.js';
+    import { formatDate, exportCSV, showToast } from './js/utils.js';
 
     let interventions = [];
     let students = [];
@@ -463,7 +463,7 @@
         showToast('Time served updated', 'success');
 
         if (served >= assigned && item) {
-          if (await confirmTypedDelete(`Mark ${item.studentName} as complete and remove from the TMI list? They have served all ${assigned} required minutes.`)) {
+          if (confirm(`✓ ${item.studentName} has served all ${assigned} required minutes.\n\nMark as complete and remove from the list?`)) {
             await markComplete(id);
             return;
           }
@@ -575,53 +575,73 @@
         allNotifications = [];
         $('#notificationsList').empty();
 
-        for (let student of tmiData) {
-          if (!student.studentNotified && !student.parentNotified) continue;
-
-          if (student.studentNotified) {
-            let template = templates.find(t => t.sendToStudent === true) || templates[0];
-            if (template) {
-              let notifHtml = `
-                <div class="filter-bar"><h3>${student.studentName} (Student)</h3>
-                  <p><b>Subject:</b> ${template.subject || template.emailSubject || ''}</p>
-                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.body || template.templateContent || ''}</p>
-                </div>
-              `;
-              $('#notificationsList').append(notifHtml);
-              const studentRec = students.find(s => s.id === student.studentId);
-              allNotifications.push({
-                email:   studentRec?.email || studentRec?.studentEmail || '',
-                to:      student.studentName,
-                subject: template.subject || template.emailSubject,
-                content: template.body || template.templateContent
-              });
-            }
-          }
-
-          if (student.parentNotified) {
-            let parent = parents.find(p => p.studentId === student.studentId);
-            let template = templates.find(t => t.sendToParent === true) || templates[0];
-            if (template && parent) {
-              let notifHtml = `
-                <div class="filter-bar"><h3>${parent.firstName} (Parent of ${student.studentName})</h3>
-                  <p><b>Subject:</b> ${template.subject || template.emailSubject || ''}</p>
-                  <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${template.body || template.templateContent || ''}</p>
-                </div>
-              `;
-              $('#notificationsList').append(notifHtml);
-              allNotifications.push({
-                email:   parent?.email || parent?.parentEmail || parent?.guardianEmail || '',
-                to:      parent.firstName,
-                subject: template.subject || template.emailSubject,
-                content: template.body || template.templateContent
-              });
-            }
-          }
+        if (!tmiData.length) {
+          showToast('No TMI data loaded — click Load Data first', 'warning');
+          return;
         }
 
-        if (allNotifications.length === 0) {
-          showToast('No notifications to send', 'warning');
+        // Pick templates: prefer one flagged for each audience, fall back to first available
+        const studentTemplate = templates.find(t => t.sendToStudent === true) || templates[0];
+        const parentTemplate  = templates.find(t => t.sendToParent  === true) || templates[0];
+
+        if (!studentTemplate) {
+          showToast('No email templates found — add one in Contact → Email', 'warning');
           return;
+        }
+
+        for (let student of tmiData) {
+          // ── Student row ───────────────────────────────────────────────────
+          const studentRec = students.find(s => s.id === student.studentId);
+          const studentEmail = studentRec?.email || studentRec?.studentEmail || '';
+
+          $('#notificationsList').append(`
+            <div class="filter-bar">
+              <h3>${student.studentName} (Student)</h3>
+              <p><b>To:</b> ${studentEmail || '<em style="color:#dc2626">no email on file</em>'}</p>
+              <p><b>Subject:</b> ${studentTemplate.subject || studentTemplate.emailSubject || ''}</p>
+              <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">
+                ${studentTemplate.body || studentTemplate.templateContent || ''}
+              </p>
+            </div>
+          `);
+          allNotifications.push({
+            email:   studentEmail,
+            to:      student.studentName,
+            subject: studentTemplate.subject || studentTemplate.emailSubject || '',
+            content: studentTemplate.body    || studentTemplate.templateContent || ''
+          });
+
+          // ── Parent row — match by chattStateANumber (same key Fix A#s uses) ─
+          if (parentTemplate) {
+            const aNum = (student.chattStateA || '').trim().toUpperCase();
+            const parent = parents.find(p => {
+              const pNum = (p.chattStateANumber || '').trim().toUpperCase();
+              return pNum && pNum === aNum;
+            });
+            const parentEmail = parent
+              ? (parent.guardianEmail || parent.motherEmail || parent.fatherEmail || '')
+              : '';
+            const parentName  = parent
+              ? (parent.motherName || parent.fatherName || 'Parent/Guardian')
+              : 'Parent/Guardian';
+
+            $('#notificationsList').append(`
+              <div class="filter-bar">
+                <h3>${parentName} (Parent of ${student.studentName})</h3>
+                <p><b>To:</b> ${parentEmail || '<em style="color:#dc2626">no parent email on file</em>'}</p>
+                <p><b>Subject:</b> ${parentTemplate.subject || parentTemplate.emailSubject || ''}</p>
+                <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">
+                  ${parentTemplate.body || parentTemplate.templateContent || ''}
+                </p>
+              </div>
+            `);
+            allNotifications.push({
+              email:   parentEmail,
+              to:      parentName,
+              subject: parentTemplate.subject || parentTemplate.emailSubject || '',
+              content: parentTemplate.body    || parentTemplate.templateContent || ''
+            });
+          }
         }
 
         $('#bulkNotificationModal').show();

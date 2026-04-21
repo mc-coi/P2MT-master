@@ -222,17 +222,45 @@
             <strong style="color:#dc2626;">These actions are permanent and cannot be undone.</strong>
           </p>
           <div style="display:flex;flex-wrap:wrap;gap:12px;">
+
+            <!-- Clear TMI -->
             <div style="flex:1;min-width:260px;padding:16px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;">
               <div style="font-weight:700;color:#991b1b;margin-bottom:6px;font-size:14px;">
                 <i class="fas fa-trash-alt" style="margin-right:6px;"></i>Clear All TMI Data
               </div>
               <p style="font-size:13px;color:#64748b;margin:0 0 12px;">
-                Permanently deletes all TMI intervention logs and student intervention records. Use this to start fresh at the beginning of a new school year.
+                Deletes all TMI intervention logs. Manually-assigned student interventions are only removed if the student is no longer enrolled.
               </p>
               <button id="btn-clear-tmi" class="w3-button w3-red w3-round" onclick="clearAllTMI()">
                 <i class="fas fa-trash-alt"></i> Clear All TMI Data
               </button>
             </div>
+
+            <!-- Remove Graduated Students -->
+            <div style="flex:1;min-width:260px;padding:16px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:10px;">
+              <div style="font-weight:700;color:#991b1b;margin-bottom:6px;font-size:14px;">
+                <i class="fas fa-user-graduate" style="margin-right:6px;"></i>Remove Graduated Students
+              </div>
+              <p style="font-size:13px;color:#64748b;margin:0 0 12px;">
+                Permanently deletes all student records for a selected graduation year.
+              </p>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <select id="grad-year-select" class="w3-select w3-border" style="width:auto;min-width:100px;font-size:13px;padding:6px 8px;">
+                  <option value="">Select year…</option>
+                  <option value="2025">2025</option>
+                  <option value="2026">2026</option>
+                  <option value="2027">2027</option>
+                  <option value="2028">2028</option>
+                  <option value="2029">2029</option>
+                  <option value="2030">2030</option>
+                </select>
+                <button id="btn-remove-graduates" class="w3-button w3-red w3-round" onclick="removeGraduates()">
+                  <i class="fas fa-user-times"></i> Remove Students
+                </button>
+              </div>
+              <div id="grad-year-preview" style="font-size:12px;color:#64748b;margin-top:8px;"></div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -932,9 +960,9 @@
 
     // ── Year-End: Clear All TMI Data ──────────────────────────────────────────
     async function clearAllTMI() {
-      // Double confirmation — this is destructive
       const first = confirm(
-        'This will permanently delete ALL TMI intervention logs and student intervention records.\n\n' +
+        'This will permanently delete ALL TMI intervention logs.\n' +
+        'Student intervention records will only be removed for students who are no longer enrolled.\n\n' +
         'This cannot be undone. Are you sure you want to continue?'
       );
       if (!first) return;
@@ -955,9 +983,15 @@
           getAll('studentInterventions'),
         ]);
 
+        // Build set of currently enrolled student IDs
+        const enrolledIds = new Set(studentsData.map(s => s.id));
+
+        // Only delete studentInterventions for students no longer enrolled
+        const orphanedInterventions = interventions.filter(r => !enrolledIds.has(r.studentId));
+
         const deletes = [
-          ...logs.map(r         => ({ type: 'delete', id: r.id,         collection: 'interventionLogs'      })),
-          ...interventions.map(r => ({ type: 'delete', id: r.id,         collection: 'studentInterventions'  })),
+          ...logs.map(r => ({ type: 'delete', id: r.id, collection: 'interventionLogs' })),
+          ...orphanedInterventions.map(r => ({ type: 'delete', id: r.id, collection: 'studentInterventions' })),
         ];
 
         const CHUNK = 400;
@@ -965,8 +999,10 @@
           await batchWrite(deletes.slice(i, i + CHUNK));
         }
 
+        const skipped = interventions.length - orphanedInterventions.length;
         showToast(
-          `Cleared ${logs.length} intervention log(s) and ${interventions.length} student intervention record(s)`,
+          `Cleared ${logs.length} TMI log(s) and ${orphanedInterventions.length} orphaned intervention record(s)` +
+          (skipped > 0 ? ` · ${skipped} kept (students still enrolled)` : ''),
           'success'
         );
       } catch (err) {
@@ -978,6 +1014,75 @@
       }
     }
     window.clearAllTMI = clearAllTMI;
+
+    // ── Year-End: Remove Graduated Students ───────────────────────────────────
+    // Live preview: show count of students for selected year
+    document.addEventListener('change', e => {
+      if (e.target.id !== 'grad-year-select') return;
+      const yr = e.target.value;
+      const preview = document.getElementById('grad-year-preview');
+      if (!yr) { preview.textContent = ''; return; }
+      const count = studentsData.filter(s => String(s.yearOfGraduation) === yr).length;
+      preview.textContent = count
+        ? `${count} student${count !== 1 ? 's' : ''} will be removed.`
+        : 'No students found for that year.';
+      preview.style.color = count ? '#991b1b' : '#64748b';
+    });
+
+    async function removeGraduates() {
+      const yr = document.getElementById('grad-year-select').value;
+      if (!yr) { showToast('Select a graduation year first', 'warning'); return; }
+
+      const toRemove = studentsData.filter(s => String(s.yearOfGraduation) === yr);
+      if (!toRemove.length) {
+        showToast(`No students found for graduation year ${yr}`, 'info');
+        return;
+      }
+
+      const first = confirm(
+        `This will permanently delete ${toRemove.length} student record(s) from the class of ${yr}.\n\n` +
+        'This cannot be undone. Are you sure?'
+      );
+      if (!first) return;
+
+      const typed = prompt(`Type ${yr} to confirm removal of the class of ${yr}:`);
+      if ((typed || '').trim() !== String(yr)) {
+        showToast(`Cancelled — you must type ${yr} to confirm`, 'info');
+        return;
+      }
+
+      const btn = document.getElementById('btn-remove-graduates');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing…';
+
+      try {
+        const removedIds = new Set(toRemove.map(s => s.id));
+
+        const deletes = toRemove.map(s => ({ type: 'delete', id: s.id, collection: 'students' }));
+
+        const CHUNK = 400;
+        for (let i = 0; i < deletes.length; i += CHUNK) {
+          await batchWrite(deletes.slice(i, i + CHUNK));
+        }
+
+        // Update local cache so other functions reflect the removal immediately
+        studentsData = studentsData.filter(s => !removedIds.has(s.id));
+
+        await loadAllData();
+        renderStudentsTable();
+
+        document.getElementById('grad-year-select').value = '';
+        document.getElementById('grad-year-preview').textContent = '';
+        showToast(`Removed ${toRemove.length} student(s) from the class of ${yr}`, 'success');
+      } catch (err) {
+        console.error('removeGraduates error:', err);
+        showToast('Error removing students — see console', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-times"></i> Remove Students';
+      }
+    }
+    window.removeGraduates = removeGraduates;
 
     // ── Fix Parent A#s ────────────────────────────────────────────────────────
     // Matches each parent record to a student by name and overwrites the
