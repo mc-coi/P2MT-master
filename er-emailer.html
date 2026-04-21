@@ -678,24 +678,38 @@
         p2mtTemplatesList  = tmplList || [];
         allClassSchedules  = cs       || [];
 
-        // Build a quick lookup: chattStateANumber → best parent email
-        // Normalise to uppercase so "a12345" and "A12345" both match
+        // Build a robust lookup: stores each parent email under THREE keys so
+        // format mismatches (A70446 vs 70446 vs a70446) are all caught.
         const parentEmailByANum = {};
+        const addParentKey = (raw, email) => {
+          if (!raw || !email) return;
+          const up  = raw.trim().toUpperCase();
+          const num = up.startsWith('A') ? up.slice(1) : up;   // strip leading A
+          const full = num.startsWith('A') ? num : 'A' + num;  // ensure leading A
+          parentEmailByANum[up]   = email;
+          parentEmailByANum[num]  = email;
+          parentEmailByANum[full] = email;
+        };
+
         (parentsList || []).forEach(p => {
-          const raw  = (p.chattStateANumber || '').trim();
-          if (!raw) return;
-          const aNum = raw.toUpperCase();
           const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
-          if (email) parentEmailByANum[aNum] = email;
+          addParentKey(p.chattStateANumber, email);
         });
 
+        console.log(`[ER Emailer] Loaded ${parentsList?.length ?? 0} parent records, ${Object.keys(parentEmailByANum).length} A# keys`);
+
         // Pre-fill guardianEmails from parents data (keyed by student Firestore ID)
+        let parentMatchCount = 0;
         students.forEach(s => {
-          const aNum = (s.chattStateANumber || '').trim().toUpperCase();
-          if (aNum && parentEmailByANum[aNum]) {
-            guardianEmails[s.id] = parentEmailByANum[aNum];
-          }
+          const raw = (s.chattStateANumber || '').trim().toUpperCase();
+          if (!raw) return;
+          const num  = raw.startsWith('A') ? raw.slice(1) : raw;
+          const full = 'A' + num;
+          const email = parentEmailByANum[raw] || parentEmailByANum[num] || parentEmailByANum[full];
+          if (email) { guardianEmails[s.id] = email; parentMatchCount++; }
         });
+
+        console.log(`[ER Emailer] Matched ${parentMatchCount} of ${students.length} students to parent emails`);
 
         // Manually-saved guardian email entries override parents data
         g.forEach(rec => { if (rec.email) guardianEmails[rec.studentId] = rec.email; });
