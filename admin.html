@@ -645,7 +645,7 @@
           <td>${p.fatherPhone || ''}</td>
           <td>
             <button class="w3-button w3-small w3-blue action-button"
-              onclick="editParent('${p.chattStateANumber}', '${displayName.replace(/'/g,"\\'")}')">Edit</button>
+              onclick="editParent('${p.chattStateANumber}', '${displayName.replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">Edit</button>
             <button class="w3-button w3-small w3-red action-button"
               onclick="deleteParentRecord('${p.id}')">Delete</button>
           </td>
@@ -1084,11 +1084,10 @@
     }
 
     function filterParentsTable() {
-      const searchValue = document.getElementById('parents-search').value.toLowerCase();
-      if (document.getElementById('parentsTable').dataTable) {
-        document.getElementById('parentsTable').dataTable.destroy();
+      const searchValue = document.getElementById('parents-search').value;
+      if ($.fn.DataTable.isDataTable('#parentsTable')) {
+        $('#parentsTable').DataTable().search(searchValue).draw();
       }
-      $('#parentsTable').DataTable({ paging: true, pageLength: 10, ordering: true, searching: true });
     }
 
     async function openInterventionTypeModal() {
