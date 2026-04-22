@@ -48,6 +48,15 @@
     .btn-sm.danger { border-color: #fca5a5; color: #dc2626; background: white; }
     .btn-sm.danger:hover { background: #fef2f2; }
 
+    /* ── Grade filter chips ── */
+    .grade-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+    .grade-filters label { font-size: 12px; font-weight: 700; color: #64748b; margin-right: 2px; white-space: nowrap; }
+    .grade-chip { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid #e2e8f0; background: white; color: #475569; transition: all .12s; white-space: nowrap; }
+    .grade-chip:hover { border-color: var(--primary); color: var(--primary); }
+    .grade-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+    .grade-chip .chip-count { display: inline-block; background: rgba(255,255,255,0.25); border-radius: 10px; padding: 0 5px; margin-left: 4px; font-size: 11px; }
+    .grade-chip:not(.active) .chip-count { background: #f1f5f9; color: #64748b; }
+
     /* ── The table ── */
     .grid-scroll { overflow-x: scroll; border: 1.5px solid #e2e8f0; border-radius: 10px; }
     .grid-scroll::-webkit-scrollbar { height: 8px; }
@@ -421,6 +430,12 @@
 
     <!-- ══ Tab: Emailer ═══════════════════════════════════════════════════ -->
     <div id="tab-emailer">
+      <!-- Grade filter chips -->
+      <div class="grade-filters" id="grade-filters">
+        <label><i class="fas fa-filter" style="margin-right:3px;"></i>Grade:</label>
+        <!-- chips injected by renderGradeFilters() -->
+      </div>
+
       <div class="grid-controls">
         <span class="grid-summary" id="grid-summary">Loading…</span>
         <div style="flex:1;"></div>
@@ -570,6 +585,7 @@
     let currentDate      = '';
     let erPeriodStart    = '';   // YYYY-MM-DD
     let erPeriodEnd      = '';   // YYYY-MM-DD
+    let gradeFilter      = 'all'; // 'all' | yearOfGraduation string
 
     // ── Rooms & clearance ─────────────────────────────────────────────────────────
     let erRooms          = [];   // [{ id, name, teacherName, order }]
@@ -792,6 +808,7 @@
 
         populateTemplateSelectors();
         await loadAssignmentsForDate(currentDate);
+        renderGradeFilters();
         renderGrid();
         await loadErDataForPeriod();
         await loadAttendanceForDate(currentDate);
@@ -926,6 +943,61 @@
       if (tab === 'er') renderErSetupTab();
     };
 
+    // ── Grade filter helpers ──────────────────────────────────────────────────────
+    // Returns the school year's graduation year for current seniors (12th grade).
+    // After July 1 a new school year starts, so seniors shift.
+    function currentSeniorYear() {
+      const now = new Date();
+      return now.getMonth() >= 6 ? now.getFullYear() + 1 : now.getFullYear();
+    }
+
+    function gradeLabel(yearOfGrad) {
+      const diff = Number(yearOfGrad) - currentSeniorYear();
+      const gradeNum = 12 + diff;  // seniors=12, juniors=11, etc.
+      const names = { 12: 'Seniors (12th)', 11: 'Juniors (11th)', 10: 'Sophomores (10th)', 9: 'Freshmen (9th)' };
+      return names[gradeNum] || `${yearOfGrad}`;
+    }
+
+    function getFilteredStudents() {
+      if (gradeFilter === 'all') return students;
+      return students.filter(s => String(s.yearOfGraduation) === String(gradeFilter));
+    }
+
+    function renderGradeFilters() {
+      const container = document.getElementById('grade-filters');
+      if (!container) return;
+
+      // Gather unique graduation years that exist in the student list
+      const years = [...new Set(
+        students.map(s => s.yearOfGraduation).filter(Boolean)
+      )].sort();
+
+      // Hide the filter bar entirely if there's only one grade (no point filtering)
+      if (years.length <= 1) { container.style.display = 'none'; return; }
+      container.style.display = 'flex';
+
+      const allCount = students.length;
+      let html = `<label><i class="fas fa-filter" style="margin-right:3px;"></i>Grade:</label>
+        <button class="grade-chip ${gradeFilter === 'all' ? 'active' : ''}"
+          onclick="setGradeFilter('all')">All <span class="chip-count">${allCount}</span></button>`;
+
+      years.forEach(yr => {
+        const count = students.filter(s => String(s.yearOfGraduation) === String(yr)).length;
+        const label = gradeLabel(yr);
+        html += `<button class="grade-chip ${String(gradeFilter) === String(yr) ? 'active' : ''}"
+          onclick="setGradeFilter('${yr}')">${label} <span class="chip-count">${count}</span></button>`;
+      });
+
+      container.innerHTML = html;
+    }
+
+    window.setGradeFilter = function(yr) {
+      gradeFilter = yr;
+      renderGradeFilters();
+      renderGrid();
+      updateSummary();
+    };
+
     // ── Grid rendering ────────────────────────────────────────────────────────────
     function renderGrid() {
       if (!workshops.length || !students.length) return;
@@ -953,7 +1025,13 @@
       // ── Body ──
       const tbody = document.getElementById('er-tbody');
       let tbHtml = '';
-      students.forEach(student => {
+      const visibleStudents = getFilteredStudents();
+      if (!visibleStudents.length) {
+        tbHtml = `<tr><td colspan="${workshops.length + 4}" style="text-align:center;padding:32px;color:#94a3b8;font-size:14px;">No students in this grade</td></tr>`;
+        tbody.innerHTML = tbHtml;
+        return;
+      }
+      visibleStudents.forEach(student => {
         const assignedWids = assignments[student.id] || [];
         const hasDot = assignedWids.length ? 'ok' : 'none';
         tbHtml += `<tr>
@@ -999,14 +1077,17 @@
     }
 
     function updateSummary() {
-      const total    = students.length;
-      const assigned = students.filter(s => isAssigned(s.id)).length;
-      const noEmail  = students.filter(s => isAssigned(s.id) && !s.email).length;
+      const visible  = getFilteredStudents();
+      const total    = visible.length;
+      const assigned = visible.filter(s => isAssigned(s.id)).length;
+      const noEmail  = visible.filter(s => isAssigned(s.id) && !s.email).length;
+      const filtered = gradeFilter !== 'all';
 
+      const filterNote = filtered ? ` <span style="color:var(--primary);font-weight:700;">(${gradeLabel(gradeFilter)} only)</span>` : '';
       document.getElementById('grid-summary').innerHTML =
-        `<strong>${assigned}</strong> of ${total} students assigned`;
+        `<strong>${assigned}</strong> of ${total} students assigned${filterNote}`;
       document.getElementById('sb-assigned').innerHTML =
-        `<strong>${assigned}</strong> assigned &nbsp;|&nbsp; <strong>${total - assigned}</strong> unassigned`;
+        `<strong>${assigned}</strong> assigned &nbsp;|&nbsp; <strong>${total - assigned}</strong> unassigned${filterNote}`;
       document.getElementById('sb-missing-email').innerHTML =
         noEmail > 0 ? `<span style="color:#dc2626;"><i class="fas fa-exclamation-circle"></i> ${noEmail} missing student email</span>` : '';
       document.getElementById('send-btn-txt').textContent =
@@ -1073,27 +1154,31 @@
     window.assignAll = async function(workshopId) {
       const w = workshops.find(x => x.id === workshopId);
       if (!w) return;
-      const unassigned = students.filter(s => !isAssigned(s.id));
-      if (!unassigned.length) { showToast('All students are already assigned to at least one workshop', 'info'); return; }
+      const visible    = getFilteredStudents();
+      const unassigned = visible.filter(s => !isAssigned(s.id));
+      if (!unassigned.length) { showToast('All visible students are already assigned to at least one workshop', 'info'); return; }
 
       for (const s of unassigned) {
         assignments[s.id] = [workshopId];
         await saveAssignment(s.id);
       }
       renderGrid();
-      showToast(`Assigned ${unassigned.length} students to ${w.name}`, 'success');
+      const gradeNote = gradeFilter !== 'all' ? ` (${gradeLabel(gradeFilter)})` : '';
+      showToast(`Assigned ${unassigned.length} student${unassigned.length !== 1 ? 's' : ''}${gradeNote} to ${w.name}`, 'success');
     };
 
     // ── Clear all assignments ──────────────────────────────────────────────────────
     window.clearAll = async function() {
-      if (!await confirmTypedDelete('Clear all assignments for this date? This cannot be undone.')) return;
-      const assigned = students.filter(s => isAssigned(s.id));
+      const visible  = getFilteredStudents();
+      const gradeNote = gradeFilter !== 'all' ? ` for ${gradeLabel(gradeFilter)}` : '';
+      if (!await confirmTypedDelete(`Clear all assignments${gradeNote} for this date? This cannot be undone.`)) return;
+      const assigned = visible.filter(s => isAssigned(s.id));
       for (const s of assigned) {
         await deleteAssignment(s.id);
+        delete assignments[s.id];
       }
-      assignments = {};
       renderGrid();
-      showToast('All assignments cleared', 'success');
+      showToast(`All assignments${gradeNote} cleared`, 'success');
     };
 
     // ── Guardian email save ───────────────────────────────────────────────────────
@@ -1627,7 +1712,7 @@
         return;
       }
 
-      const assigned = students.filter(s => isAssigned(s.id));
+      const assigned = getFilteredStudents().filter(s => isAssigned(s.id));
       if (!assigned.length) { showToast('No students assigned to export', 'warning'); return; }
 
       const dateLabel = fmtDate(currentDate);
