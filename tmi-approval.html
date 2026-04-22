@@ -226,6 +226,21 @@
         .join('');
     }
 
+    function bodyToPlainText(raw) {
+      if (!raw) return '';
+      if (!/<[a-z][\s\S]*>/i.test(raw)) return raw;  // already plain text
+      return raw
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
     // Build a .eml file string with an HTML body
     function generateEml(to, cc, subject, htmlBody) {
       const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:14px;color:#1e293b;">${htmlBody}</body></html>`;
@@ -688,12 +703,10 @@
 
     function openSingleNotifInOutlook() {
       if (!singleNotifEmail) { showToast('No email address found for this recipient', 'warning'); return; }
-      const subject  = $('#notifSubject').text();
-      const bodyText = $('#notifContent').text();
-      const htmlBody = bodyToHtml(bodyText);
-      const eml      = generateEml(singleNotifEmail, '', subject, htmlBody);
-      downloadEml('tmi_notification.eml', eml);
-      showToast('📧 Email file downloaded — open it from your Downloads to launch Outlook', 'info', 6000);
+      const subject   = $('#notifSubject').text();
+      const bodyText  = $('#notifContent').text();
+      const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
+      window.location.href = `mailto:${encodeURIComponent(singleNotifEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
     }
 
     function downloadBulkMailMerge() {
@@ -786,13 +799,10 @@
       const studentRec = students.find(s => s.id === emailModalStudent?.studentId);
       const toEmail = studentRec?.email || studentRec?.studentEmail || '';
       if (!toEmail) { showToast('No email address found for this student', 'warning'); return; }
-      const subject  = tmpl.subject || tmpl.emailSubject || '';
-      const bodyText = document.getElementById('email-preview').textContent;
-      const htmlBody = bodyToHtml(bodyText);
-      const safeName = (emailModalStudent?.studentName || 'student').replace(/[^a-z0-9_-]/gi, '_');
-      const eml      = generateEml(toEmail, '', subject, htmlBody);
-      downloadEml(`tmi_email_${safeName}.eml`, eml);
-      showToast('📧 Email file downloaded — open it from your Downloads to launch Outlook', 'info', 6000);
+      const subject   = tmpl.subject || tmpl.emailSubject || '';
+      const bodyText  = document.getElementById('email-preview').textContent;
+      const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
+      window.location.href = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
     };
 
     // ── Mark time served (close record) ──────────────────────────

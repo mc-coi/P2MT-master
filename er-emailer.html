@@ -1713,14 +1713,12 @@
 
       const mergedSubject = merge(tmpl.subject, data);
       const mergedBody    = merge(tmpl.body, data);
-      const toAddr        = student.email || '';
+      const toAddr        = encodeURIComponent(student.email || '');
       const gEmail        = guardianEmails[studentId] || '';
-      const htmlBody      = bodyToHtml(mergedBody);
-      const safeName      = `${student.lastName}_${student.firstName}`.replace(/[^a-z0-9_-]/gi, '_');
+      const cc            = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
+      const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
 
-      const eml = generateEml(toAddr, gEmail, mergedSubject, htmlBody);
-      downloadEml(`email_${safeName}.eml`, eml);
-      showToast('📧 Email file downloaded — open it from your Downloads to launch Outlook', 'info', 6000);
+      window.location.href = `mailto:${toAddr}?subject=${encodeURIComponent(mergedSubject)}${cc}&body=${encodeURIComponent(plainBody)}`;
     };
 
     window.downloadMailMerge = function() {
@@ -2204,6 +2202,26 @@
       return raw.split(/\n{2,}/)
         .map(para => `<p style="margin:0 0 1em 0">${para.replace(/\n/g, '<br>')}</p>`)
         .join('');
+    }
+
+    // Convert HTML (or plain text) to plain text suitable for mailto: body
+    function bodyToPlainText(raw) {
+      if (!raw) return '';
+      if (!/<[a-z][\s\S]*>/i.test(raw)) return raw;  // already plain text
+      return raw
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]+>/g, '')          // strip remaining tags
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')       // collapse excess blank lines
+        .trim();
     }
 
     // Build a .eml file string with an HTML body that Outlook opens in compose mode
