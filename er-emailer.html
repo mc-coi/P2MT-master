@@ -58,14 +58,31 @@
     .grade-chip:not(.active) .chip-count { background: #f1f5f9; color: #64748b; }
 
     /* ── The table ── */
-    .grid-scroll { overflow-x: scroll; border: 1.5px solid #e2e8f0; border-radius: 10px; }
-    .grid-scroll::-webkit-scrollbar { height: 8px; }
+    .grid-scroll {
+      overflow-x: auto;
+      overflow-y: auto;
+      /* Leave room for nav (56px) + page chrome above the table (~230px) + send bar (~80px) */
+      max-height: calc(100vh - 370px);
+      min-height: 200px;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    /* Horizontal scrollbar at bottom */
+    .grid-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
     .grid-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 0 0 10px 10px; }
     .grid-scroll::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
     .grid-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
-    .er-table { border-collapse: separate; border-spacing: 0; width: 100%; }
+    /* width: max-content lets the table exceed the container → enables horizontal scroll */
+    .er-table { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
     .er-table thead tr { background: var(--primary); }
-    .er-table th { padding: 0; font-size: 11px; font-weight: 700; color: white; text-transform: uppercase; letter-spacing: .04em; white-space: nowrap; border-right: 1px solid rgba(255,255,255,.15); }
+    /* Sticky header row — sticks to the top of .grid-scroll */
+    .er-table th {
+      position: sticky; top: 0; z-index: 3;
+      background: var(--primary);
+      padding: 0; font-size: 11px; font-weight: 700; color: white;
+      text-transform: uppercase; letter-spacing: .04em; white-space: nowrap;
+      border-right: 1px solid rgba(255,255,255,.15);
+    }
     .er-table th:last-child { border-right: none; }
     .er-table td { border-right: 1px solid #e2e8f0; border-bottom: 1px solid #f1f5f9; padding: 0; }
     .er-table td:last-child { border-right: none; }
@@ -82,15 +99,19 @@
     .er-pool-chip ::-moz-selection,
     .er-student-chip ::-moz-selection { background: #fbbf24; color: #0F172A; }
 
-    /* Sticky name column */
+    /* Sticky name column — left edge */
     .th-name, .td-name {
-      position: sticky; left: 0; z-index: 2;
-      background: var(--primary);
+      position: sticky; left: 0;
       min-width: 180px; max-width: 220px;
       overflow: hidden;
     }
-    .td-name { background: white; z-index: 1; }
+    /* Corner cell: sticky on BOTH axes — must be above all other sticky elements */
+    .th-name { z-index: 5; background: var(--primary); top: 0; }
+    /* Body name cells: above scrolling columns but below the header */
+    .td-name { z-index: 2; background: var(--surface); }
+    [data-theme="dark"] .td-name { background: var(--surface); }
     .er-table tbody tr:hover .td-name { background: #fef3c7 !important; color: #0F172A !important; }
+    [data-theme="dark"] .er-table tbody tr:hover .td-name { background: #78350f !important; color: #fef3c7 !important; }
     .name-cell { padding: 9px 12px; font-size: 13px; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
     .th-name-inner { padding: 10px 12px; }
 
