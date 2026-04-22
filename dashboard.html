@@ -396,79 +396,80 @@
 
     // ══════════════════════════════════════
     //  ATTENDANCE ALERTS
+    //  Thresholds (rolling 4 weeks across all classes):
+    //    critical  — ≥ 3 unexcused absences
+    //    warning   — ≥ 5 tardies
+    //  Students can appear once; if both thresholds are hit the
+    //  badge shows both counts and severity is critical.
     // ══════════════════════════════════════
     (async function loadAlerts() {
       const body = document.getElementById('alerts-body');
       try {
         const [students, logs] = await Promise.all([
           getAll('students'),
-          getAll('dailyAttendanceLogs')
+          getAll('classAttendanceLogs')   // one record per student per class per day
         ]);
 
-        // Index students by chattStateANumber for fast lookup
+        // Index students by Firestore id and by A-number for fast lookup
+        const studentById   = {};
         const studentByANum = {};
         students.forEach(s => {
+          studentById[s.id] = s;
           if (s.chattStateANumber) studentByANum[s.chattStateANumber] = s;
         });
 
-        // Group logs by chattStateANumber, sorted newest-first
-        const logsByStudent = {};
-        logs.forEach(l => {
-          if (!l.chattStateANumber) return;
-          (logsByStudent[l.chattStateANumber] = logsByStudent[l.chattStateANumber] || []).push(l);
-        });
-        for (const k in logsByStudent) {
-          logsByStudent[k].sort((a, b) => (b.absenceDate || '').localeCompare(a.absenceDate || ''));
-        }
-
+        // Rolling 4-week cutoff
         const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 30);
+        cutoff.setDate(cutoff.getDate() - 28);
+        const cutoffStr = cutoff.toISOString().slice(0, 10); // YYYY-MM-DD for string compare
+
+        // Bucket recent logs by student (prefer studentId, fall back to A-number)
+        const recentByStudent = {}; // { studentId: [log, ...] }
+        logs.forEach(l => {
+          const logDate = l.date || l.absenceDate || '';
+          if (!logDate || logDate < cutoffStr) return;          // outside window
+          const code = l.attendanceCode || l.status || '';
+          if (code !== 'U' && code !== 'T') return;            // only flag U and T
+
+          let sid = l.studentId;
+          if (!sid && l.chattStateANumber) {
+            const s = studentByANum[l.chattStateANumber];
+            sid = s?.id;
+          }
+          if (!sid || !studentById[sid]) return;
+
+          (recentByStudent[sid] = recentByStudent[sid] || []).push(l);
+        });
 
         const alerts = [];
 
-        for (const [aNum, studentLogs] of Object.entries(logsByStudent)) {
-          const s = studentByANum[aNum];
-          if (!s) continue;
+        for (const [sid, sLogs] of Object.entries(recentByStudent)) {
+          const s      = studentById[sid];
+          const uCount = sLogs.filter(l => (l.attendanceCode || l.status) === 'U').length;
+          const tCount = sLogs.filter(l => (l.attendanceCode || l.status) === 'T').length;
 
-          // 1. Consecutive unexcused absences (U) — check the most recent streak
-          let streak = 0;
-          for (const l of studentLogs) {
-            if (l.attendanceCode === 'U') streak++;
-            else break;
-          }
-          if (streak >= 3) {
-            alerts.push({
-              severity: 'critical',
-              studentId: s.id,
-              name: `${s.lastName}, ${s.firstName}`,
-              label: `${streak} consecutive unexcused`,
-              date: studentLogs[0]?.absenceDate || ''
-            });
-            continue; // don't double-alert the same student
-          }
+          const hitU = uCount >= 3;
+          const hitT = tCount >= 5;
+          if (!hitU && !hitT) continue;
 
-          // 2. Frequent tardies/unexcused in last 30 days
-          const recent = studentLogs.filter(l => new Date(l.absenceDate) >= cutoff);
-          const uCount = recent.filter(l => l.attendanceCode === 'U').length;
-          const tCount = recent.filter(l => l.attendanceCode === 'T').length;
+          // Most recent flagged log date for the "Last:" display
+          const latestDate = sLogs
+            .map(l => l.date || l.absenceDate || '')
+            .sort()
+            .at(-1) || '';
 
-          if (uCount >= 3) {
-            alerts.push({
-              severity: 'critical',
-              studentId: s.id,
-              name: `${s.lastName}, ${s.firstName}`,
-              label: `${uCount} unexcused in 30 days`,
-              date: studentLogs[0]?.absenceDate || ''
-            });
-          } else if (tCount >= 5) {
-            alerts.push({
-              severity: 'warning',
-              studentId: s.id,
-              name: `${s.lastName}, ${s.firstName}`,
-              label: `${tCount} tardies in 30 days`,
-              date: studentLogs[0]?.absenceDate || ''
-            });
-          }
+          // Build label — show whichever thresholds are hit
+          const parts = [];
+          if (hitU) parts.push(`${uCount} unexcused`);
+          if (hitT) parts.push(`${tCount} tardies`);
+
+          alerts.push({
+            severity:  hitU ? 'critical' : 'warning',
+            studentId: sid,
+            name:      `${s.lastName}, ${s.firstName}`,
+            label:     parts.join(' · ') + ' (4 wks)',
+            date:      latestDate
+          });
         }
 
         // Sort: critical first, then alpha by name
