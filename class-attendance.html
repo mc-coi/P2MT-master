@@ -164,6 +164,34 @@
     [data-theme="dark"] .att-legend { background: var(--surface); border-top-color: var(--border); color: var(--text-secondary); }
     [data-theme="dark"] .class-section { background: var(--surface); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
     [data-theme="dark"] .save-all-bar { background: var(--surface); box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+
+    @media (max-width: 640px) {
+      /* Make the attendance table scroll horizontally */
+      .class-section { overflow-x: auto; }
+      .att-table { min-width: 520px; }
+      .att-row td { padding: 9px 8px; font-size: 13px; }
+
+      /* Bigger code buttons for fat fingers */
+      .code-btn { width: 44px; height: 40px; font-size: 14px; border-radius: 8px; }
+      .code-btn-group { gap: 4px; }
+
+      /* Comment field usable on mobile */
+      .att-comment { font-size: 14px; min-width: 90px; }
+
+      /* Section header: stack on small screens */
+      .section-header { gap: 8px; padding: 12px 14px; }
+      .section-class-name { font-size: 14px; }
+      .section-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
+      .section-btn { padding: 6px 12px; font-size: 12px; }
+
+      /* Unsaved banner: stack */
+      .unsaved-banner { gap: 10px; }
+      .ub-btn { width: 100%; justify-content: center; text-align: center; }
+
+      /* Save-all bar: stack */
+      .save-all-bar { flex-direction: column; align-items: stretch; gap: 8px; }
+      .save-all-summary { margin-left: 0; text-align: center; }
+    }
   </style>
 </head>
 <body>

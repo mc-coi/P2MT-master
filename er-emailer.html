@@ -420,6 +420,65 @@
     [data-theme="dark"] .clr-chip.cleared { background: rgba(16,185,129,.15); color: #34D399; border-color: rgba(16,185,129,.3); }
     [data-theme="dark"] .clr-chip.pending { background: rgba(239,68,68,.12); color: #FCA5A5; border-color: rgba(239,68,68,.25); }
     [data-theme="dark"] .cleared-badge { background: rgba(16,185,129,.15); color: #34D399; border-color: rgba(16,185,129,.3); }
+
+    /* ── Mobile overrides ── */
+    @media (max-width: 640px) {
+      .er-page { padding: 10px 10px 80px; }
+
+      /* Topbar stacks vertically */
+      .er-topbar { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+      .er-topbar .spacer { display: none; }
+      .er-period-wrap { width: 100%; flex-wrap: wrap; }
+      .er-period-wrap input[type="date"] { flex: 1; min-width: 110px; font-size: 14px; }
+      .live-badge { align-self: flex-start; }
+
+      /* Grade filter chips */
+      .grade-filters { gap: 5px; }
+      .grade-chip { min-height: 36px; font-size: 12px; }
+
+      /* Table grid: shorter max-height */
+      .grid-scroll { max-height: calc(100vh - 240px); }
+
+      /* Name column: narrower on phone */
+      .th-name, .td-name { min-width: 130px; max-width: 150px; }
+      .name-cell { font-size: 12px; padding: 7px 8px; max-width: 150px; }
+
+      /* Send bar: stack */
+      .send-bar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px; }
+      .send-bar .sb-stat { text-align: center; }
+      .send-bar .spacer { display: none; }
+      .send-bar .rcpt-toggle { flex-wrap: wrap; gap: 10px; justify-content: center; }
+      .btn-send-er { width: 100%; justify-content: center; font-size: 15px; padding: 12px; }
+
+      /* Grid controls: stack */
+      .grid-controls { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+      /* Attendance topbar */
+      .att-topbar { gap: 6px; }
+      .att-badge { font-size: 11px; padding: 4px 8px; }
+      .er-date-wrap { width: 100%; }
+      .er-date-wrap input[type="date"] { flex: 1; font-size: 14px; }
+
+      /* Attendance rows: wrap actions to second line */
+      .att-student-row { padding: 8px 10px; gap: 8px; }
+      .att-student-info { min-width: 100%; }
+      .att-pa-wrap { align-self: flex-start; }
+      .pa-btn { width: 44px; height: 40px; font-size: 15px; }
+
+      /* ER setup two-col: single col */
+      .er-setup-two-col { grid-template-columns: 1fr; }
+      .er-pool-panel { position: static; }
+      .er-setup-grid { grid-template-columns: 1fr; }
+
+      /* Template selector */
+      .tmpl-select-card { padding: 14px; }
+      .tmpl-row { flex-direction: column; gap: 6px; }
+      .tmpl-row label { width: auto; }
+      .tmpl-select { width: 100%; }
+
+      /* Tab buttons: stretch across */
+      .er-tab { padding: 9px 14px; font-size: 13px; flex: 1; justify-content: center; }
+    }
   </style>
 </head>
 <body>
@@ -488,9 +547,6 @@
         <div class="sb-stat" id="sb-assigned"></div>
         <div class="sb-stat" id="sb-missing-email"></div>
         <div class="spacer"></div>
-        <button class="btn-send-er" id="btn-test-er" onclick="testEmails()" style="background:#475569;">
-          <i class="fas fa-flask"></i> Test
-        </button>
         <button class="btn-send-er" id="btn-send-er" onclick="downloadMailMerge()">
           <i class="fas fa-file-csv"></i> <span id="send-btn-txt">Download Mail Merge</span>
         </button>
@@ -523,6 +579,18 @@
 
     <!-- ══ Tab: ER Room Assignment ══════════════════════════════════════════ -->
     <div id="tab-er" style="display:none;">
+
+      <!-- ER Classes (workshops) management -->
+      <div class="setup-card" style="margin-bottom:20px;">
+        <h3><i class="fas fa-chalkboard"></i> ER Classes
+          <span style="font-size:11px;font-weight:400;color:var(--text-muted);margin-left:6px;">These become the columns in the Emailer grid</span>
+        </h3>
+        <div class="workshop-list" id="workshop-list"></div>
+        <button class="add-workshop-btn" onclick="addWorkshopRow()"><i class="fas fa-plus"></i> Add Class</button>
+        <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+          <button class="save-workshops-btn" onclick="saveWorkshops()"><i class="fas fa-save"></i> Save Classes</button>
+        </div>
+      </div>
 
       <!-- Room assignment -->
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
@@ -557,24 +625,6 @@
     </div>
 
   </div><!-- /er-page -->
-
-  <!-- Test preview modal -->
-  <div id="modal-test" class="modal-bd">
-    <div class="modal-box" style="max-width:720px;">
-      <div class="modal-head">
-        <h2><i class="fas fa-flask" style="color:#475569; margin-right:7px;"></i>Email Preview — Test Mode</h2>
-        <button class="modal-close" onclick="document.getElementById('modal-test').classList.remove('open')">&times;</button>
-      </div>
-      <p style="font-size:13px; color:var(--text-muted); margin: 0 0 14px;">
-        No emails are sent. This shows exactly what each assigned student would receive based on the current template and assignments.
-      </p>
-      <div id="test-meta" style="font-size:12px;color:#64748b;margin-bottom:12px;"></div>
-      <div id="test-list" style="display:flex;flex-direction:column;gap:14px;max-height:60vh;overflow-y:auto;padding-right:4px;"></div>
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="document.getElementById('modal-test').classList.remove('open')">Close</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Mail Merge instructions modal -->
   <div id="modal-mailmerge" class="modal-bd">
@@ -1348,6 +1398,7 @@
         const pd = buildPeriodData();
         if (lbl) lbl.textContent = pd.erDateRange ? `(${pd.erDateRange})` : '';
       }
+      renderWorkshopList();
       renderPoolChips();
       renderRoomCards();
     }
@@ -2162,85 +2213,6 @@
       const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
       for (const id of allIds) await attSaveRow(id);
       showToast(`Saved attendance for ${allIds.length} students`, 'success');
-    };
-
-    // ── Test: preview emails without sending ──────────────────────────────────────
-    window.testEmails = function() {
-      const tmpl    = getSelectedTemplate();
-      const subject = tmpl?.subject || '';
-      const body    = tmpl?.body    || '';
-
-      const assigned = students.filter(s => isAssigned(s.id));
-      const dateLabel = fmtDate(erPeriodStart);
-      const dayLabel  = fmtDOW(erPeriodStart);
-
-      document.getElementById('modal-test').classList.add('open');
-
-      if (!subject || !body) {
-        document.getElementById('test-list').innerHTML =
-          `<div class="test-no-tmpl"><i class="fas fa-exclamation-triangle" style="font-size:24px;display:block;margin-bottom:8px;"></i>No email template selected.<br>Choose a template from the <strong>Template</strong> dropdown in the send bar first.</div>`;
-        document.getElementById('test-meta').innerHTML = '';
-        return;
-      }
-
-      if (!assigned.length) {
-        document.getElementById('test-list').innerHTML =
-          `<div class="test-no-tmpl" style="color:#64748b;"><i class="fas fa-user-slash" style="font-size:24px;display:block;margin-bottom:8px;"></i>No students assigned for this date.</div>`;
-        document.getElementById('test-meta').innerHTML = '';
-        return;
-      }
-
-      const withGuardian = assigned.filter(s => guardianEmails[s.id]).length;
-      const metaNote = withGuardian > 0 ? ` &nbsp;·&nbsp; ${withGuardian} with guardian CC` : '';
-      document.getElementById('test-meta').innerHTML =
-        `<span class="test-badge-mode"><i class="fas fa-check-circle"></i> ${assigned.length} student${assigned.length !== 1 ? 's' : ''}${metaNote}</span>`;
-
-      const cards = assigned.map(student => {
-        const studentWshops = getStudentWorkshops(student.id);
-
-        const clearanceClasses = erClearanceData
-          .filter(c => c.studentId === student.id)
-          .map(c => c.className || '')
-          .filter(Boolean);
-        const classesValue = clearanceClasses.length
-          ? clearanceClasses.join(', ')
-          : studentWshops.map(w => w.room ? `${w.name} (Room ${w.room})` : w.name).join(', ');
-
-        const data = {
-          firstName:    student.firstName,
-          studentName:  `${student.firstName} ${student.lastName}`,
-          workshopName: studentWshops.map(w => w.name).join(', '),
-          classes:      classesValue,
-          room:         studentWshops.map(w => w.room || 'TBD').join(', '),
-          date:         dateLabel,
-          dayOfWeek:    dayLabel,
-          studentEmail: student.email || '',
-          ...buildPeriodData(),
-        };
-
-        const mergedSubject = merge(subject, data);
-        const mergedBody    = merge(body, data);
-        const workshopBadge = studentWshops.map(w => esc(w.name)).join(', ') || '—';
-        const guardianEmail = guardianEmails[student.id];
-        const ccLine = guardianEmail
-          ? `<span style="margin-left:8px;font-size:11px;color:#64748b;"><i class="fas fa-user-friends" style="font-size:10px;"></i> Guardian: ${esc(guardianEmail)}</span>`
-          : '';
-        const noEmailWarn = !student.email
-          ? `<span style="color:#dc2626;font-size:11px;margin-left:8px;"><i class="fas fa-exclamation-triangle"></i> No student email — would be skipped</span>`
-          : '';
-
-        return `<div class="test-email-card">
-          <div class="test-email-hdr">
-            <span class="te-name">${esc(student.lastName)}, ${esc(student.firstName)}</span>
-            <span class="te-workshops">${workshopBadge}</span>
-            <span class="te-email">${esc(student.email || 'no email')}${ccLine}${noEmailWarn}</span>
-          </div>
-          <div class="test-email-subj">Subject: ${esc(mergedSubject)}</div>
-          <div class="test-email-body">${esc(mergedBody)}</div>
-        </div>`;
-      });
-
-      document.getElementById('test-list').innerHTML = cards.join('');
     };
 
     // ── Helpers ────────────────────────────────────────────────────────────────────

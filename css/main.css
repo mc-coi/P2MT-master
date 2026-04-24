@@ -1457,6 +1457,181 @@ select:focus-visible, textarea:focus-visible {
   .page-container, .w3-container.w3-padding { padding: 12px; }
 }
 
+/* ─── Mobile (≤ 640px) ───────────────────────────────────────── */
+@media (max-width: 640px) {
+
+  /* ── Layout ── */
+  .page-container,
+  .w3-container.w3-padding { padding: 10px 10px 80px; }
+
+  .page-header { gap: 8px; margin-bottom: 16px; }
+  .page-header h1 { font-size: 18px; }
+  .page-header .actions { width: 100%; }
+  .page-header .actions .btn,
+  .page-header .actions button { flex: 1; justify-content: center; }
+
+  /* ── Touch targets: buttons & inputs ── */
+  .btn,
+  button.btn,
+  .w3-button,
+  .tab-button,
+  .tab-btn {
+    min-height: 44px;
+    font-size: 14px;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="date"],
+  input[type="number"],
+  input[type="password"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px !important; /* Prevents iOS auto-zoom */
+    min-height: 44px;
+  }
+  textarea { min-height: auto; }
+
+  /* ── Nav mobile: bigger touch targets ── */
+  .p2mt-nav-inner { padding: 0 10px; }
+  .p2mt-nav-mobile-toggle { width: 44px; height: 44px; font-size: 18px; }
+  .p2mt-nav-mobile-menu .p2mt-nav-link { min-height: 44px; padding: 10px 16px; font-size: 14px; }
+  .dark-toggle { width: 40px; height: 40px; font-size: 16px; }
+
+  /* ── Cards & grids ── */
+  .w3-card, .w3-card-4, .card { border-radius: var(--radius-md); }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  .grid-stats { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── Modals: full-width sheet on mobile ── */
+  .w3-modal,
+  .modal-bd {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+  .w3-modal-content,
+  .modal-box {
+    max-width: 100% !important;
+    width: 100% !important;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+    max-height: 92vh !important;
+    margin: 0 !important;
+  }
+  .modal-body { padding: 16px; }
+  .modal-footer { padding: 12px 16px; }
+  .w3-modal-content .w3-container.w3-padding,
+  .w3-modal-content form.w3-padding { padding: 14px; }
+  .w3-modal-content footer.w3-container { padding: 12px 14px; }
+
+  /* ── Toast: full-width at bottom ── */
+  #toast-container {
+    bottom: 12px;
+    right: 8px;
+    left: 8px;
+  }
+  .toast {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* ── DataTables ── */
+  .dataTables_wrapper .dataTables_length,
+  .dataTables_wrapper .dataTables_filter { padding: 10px 12px; }
+  .dataTables_wrapper .dataTables_filter input { width: 100%; }
+  .dataTables_wrapper .dataTables_length,
+  .dataTables_wrapper .dataTables_filter {
+    display: block;
+    float: none;
+    text-align: left;
+  }
+  .dataTables_wrapper .dataTables_info,
+  .dataTables_wrapper .dataTables_paginate { padding: 8px 12px; }
+  .dataTables_wrapper .paginate_button {
+    min-width: 36px;
+    min-height: 36px;
+    font-size: 13px;
+  }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .w3-table { font-size: 12px; min-width: 500px; }
+  .w3-table th, .w3-table td { padding: 8px 10px; }
+
+  /* ── Filter bar ── */
+  .filter-bar { gap: 8px; }
+  .filter-group { min-width: 100%; }
+  .filter-group select,
+  .filter-group input { width: 100%; }
+
+  /* ── Tab bar ── */
+  .tab-bar { gap: 2px; padding: 4px; }
+  .tab-btn { padding: 8px 10px; font-size: 12px; flex: 1; justify-content: center; }
+
+  /* ── Stat cards ── */
+  .stat-card { padding: 14px; }
+  .stat-value { font-size: 24px; }
+
+  /* ── Form rows (already 1fr via 640px rule above, reinforce) ── */
+  .form-row, .form-row-3 { grid-template-columns: 1fr; gap: 12px; }
+  .form-group { margin-bottom: 12px; }
+
+  /* ── Attendance row ── */
+  .attendance-row { padding: 10px 12px; }
+}
+
+/* ─── ER Selector mobile ──────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* Topbar: stack vertically */
+  .er-topbar {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .er-topbar h1 { font-size: 16px; }
+  .er-period-wrap {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .er-period-wrap input[type="date"] { flex: 1; min-width: 120px; }
+  .ep-sep { align-self: center; }
+
+  /* Grade filter chips: full-width row, wrap */
+  .grade-filter-bar {
+    gap: 4px;
+    flex-wrap: wrap;
+    padding: 6px 10px;
+  }
+  .grade-chip { min-height: 36px; font-size: 12px; padding: 4px 10px; }
+
+  /* Send bar: stack vertically */
+  .send-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .send-bar select { width: 100%; }
+  .send-bar .btn-group,
+  .send-bar > div { width: 100%; flex-wrap: wrap; }
+  .send-bar .btn { flex: 1; min-width: 120px; }
+
+  /* Scroll container: shorter on phone */
+  .grid-scroll { max-height: calc(100vh - 260px); }
+
+  /* Attendance topbar: stack */
+  .att-topbar {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 10px;
+  }
+  .att-badge { font-size: 11px; padding: 4px 8px; }
+  .er-date-wrap { width: 100%; justify-content: flex-start; }
+  .er-date-wrap input[type="date"] { flex: 1; }
+}
+
 /* ─── Print ──────────────────────────────────────────────────── */
 @media print {
   #nav-container, .p2mt-nav, .no-print,

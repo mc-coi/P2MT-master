@@ -142,6 +142,22 @@
     .alert-date  { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
     .alerts-empty { text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13px; }
     .alerts-empty i { font-size: 28px; display: block; margin-bottom: 8px; opacity: .35; color: #10B981; }
+
+    @media (max-width: 640px) {
+      .quick-access { grid-template-columns: 1fr 1fr; gap: 10px; }
+      .quick-btn { padding: 18px 16px 44px; border-radius: 12px; }
+      .qb-icon  { font-size: 26px; margin-bottom: 10px; }
+      .qb-label { font-size: 15px; }
+      .qb-desc  { font-size: 12px; }
+      .qb-arrow { bottom: 14px; right: 14px; }
+
+      .weather-card { min-height: 200px; padding: 16px; }
+      .wx-temp { font-size: 52px; }
+      .wx-icon { font-size: 40px; }
+
+      .alert-row { padding: 10px 12px; gap: 8px; }
+      .alert-name { font-size: 12px; }
+    }
   </style>
 </head>
 <body>
