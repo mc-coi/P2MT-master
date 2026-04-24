@@ -423,10 +423,6 @@
     <!-- Top bar -->
     <div class="er-topbar">
       <h1><i class="fas fa-bolt"></i> ER Selector</h1>
-      <div class="er-date-wrap">
-        <label>ER Date:</label>
-        <input type="date" id="er-date" onchange="onDateChange()">
-      </div>
       <div class="er-period-wrap">
         <span class="ep-label"><i class="fas fa-calendar-week"></i> ER Period:</span>
         <input type="date" id="er-period-start" onchange="onPeriodChange()" title="ER period start date">
@@ -501,13 +497,17 @@
         <span class="att-badge green" id="att-badge-complete"><i class="fas fa-flag-checkered"></i> <span id="att-complete-txt">0 complete</span></span>
         <span class="att-badge" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;" id="att-badge-cleared"><i class="fas fa-graduation-cap"></i> <span id="att-cleared-txt">0 cleared</span></span>
         <div style="flex:1;"></div>
+        <div class="er-date-wrap">
+          <label style="font-size:12px;font-weight:700;color:#475569;">ER Date:</label>
+          <input type="date" id="att-date" onchange="onAttDateChange()" style="padding:5px 9px;font-size:13px;">
+        </div>
         <button class="btn-sm outline" onclick="attMarkAllPresent()"><i class="fas fa-check-double"></i> All Present</button>
         <button class="btn-sm outline" onclick="attSaveAll()" style="border-color:#a7f3d0;color:#065f46;"><i class="fas fa-save"></i> Save All</button>
       </div>
       <div id="att-rooms-wrap">
         <div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
           <i class="fas fa-door-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
-          Set up rooms in <strong>ER Room Assignment</strong> and select an ER date above to see the attendance roster.
+          Set up rooms in <strong>ER Room Assignment</strong> and select an ER date to see the attendance roster.
         </div>
       </div>
     </div>
@@ -601,9 +601,9 @@
     // ── Data ─────────────────────────────────────────────────────────────────────
     let students         = [];
     let workshops        = [];
-    let assignments      = {};   // { studentId: [workshopId, ...] } for current date
+    let assignments      = {};   // { studentId: [workshopId, ...] } for the current ER period
     let guardianEmails   = {};   // { studentId: email }
-    let currentDate      = '';
+    let attCurrentDate   = '';   // date shown in the ER Attendance tab's own date picker
     let erPeriodStart    = '';   // YYYY-MM-DD
     let erPeriodEnd      = '';   // YYYY-MM-DD
     let gradeFilter      = 'all'; // 'all' | yearOfGraduation string
@@ -643,7 +643,7 @@
     // ── Boot ──────────────────────────────────────────────────────────────────────
     initAuth().then(async (user) => {
       initNav('er-emailer');
-      setDefaultDate();
+      setDefaultAttDate();
       loadErPeriod();
 
       // Look up logged-in teacher's last name from staff collection
@@ -657,11 +657,12 @@
       await loadAll();
     });
 
-    function setDefaultDate() {
+    function setDefaultAttDate() {
       const n = new Date();
       const d = `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
-      document.getElementById('er-date').value = d;
-      currentDate = d;
+      const el = document.getElementById('att-date');
+      if (el && !el.value) el.value = d;
+      attCurrentDate = el?.value || d;
     }
 
     function loadErPeriod() {
@@ -676,7 +677,10 @@
       erPeriodEnd   = document.getElementById('er-period-end').value;
       localStorage.setItem('p2mt_er_period_start', erPeriodStart);
       localStorage.setItem('p2mt_er_period_end',   erPeriodEnd);
-      await loadErDataForPeriod();
+      await Promise.all([loadAssignments(), loadErDataForPeriod()]);
+      renderGradeFilters();
+      renderGrid();
+      updateSummary();
       renderErSetupTab();
       renderAttendanceTab();
     };
@@ -828,11 +832,11 @@
         selectedEmailTmplId = localStorage.getItem('p2mt_er_email_tmpl_id') || '';
 
         populateTemplateSelectors();
-        await loadAssignmentsForDate(currentDate);
+        await loadAssignments();
         renderGradeFilters();
         renderGrid();
         await loadErDataForPeriod();
-        await loadAttendanceForDate(currentDate);
+        await loadAttendanceForDate(attCurrentDate);
       } catch (err) {
         console.error(err);
         showToast('Error loading data', 'error');
@@ -923,19 +927,17 @@
       return erPeriodStart && erPeriodEnd ? `${erPeriodStart}_${erPeriodEnd}` : '';
     }
 
-    async function loadAssignmentsForDate(date) {
+    // Assignments are period-wide — no date, keyed by the ER period
+    async function loadAssignments() {
       assignments = {};
+      const pk = periodKey();
+      if (!pk) return; // no period set yet — nothing to load
       try {
-        const rows = await getWhere('erAssignments', 'date', '==', date);
+        const rows = await getWhere('erAssignments', 'periodKey', '==', pk);
         rows.forEach(r => {
-          // Support both new (workshopIds array) and old (workshopId string) format
           if (r.workshopIds && Array.isArray(r.workshopIds)) {
-            // Filter out legacy "undefined" strings (stored when DEFAULT_WORKSHOPS had no Firestore ID)
             const cleaned = r.workshopIds.filter(wid => wid && wid !== 'undefined');
-            if (cleaned.length) {
-              assignments[r.studentId] = cleaned;
-            }
-            // If ALL ids were "undefined", the record is broken — skip it (student appears unassigned)
+            if (cleaned.length) assignments[r.studentId] = cleaned;
           } else if (r.workshopId) {
             assignments[r.studentId] = [r.workshopId];
           }
@@ -945,12 +947,11 @@
       }
     }
 
-    window.onDateChange = async function() {
-      currentDate = document.getElementById('er-date').value;
-      if (!currentDate) return;
-      await loadAssignmentsForDate(currentDate);
-      renderGrid();
-      await loadAttendanceForDate(currentDate);
+    window.onAttDateChange = async function() {
+      const el = document.getElementById('att-date');
+      attCurrentDate = el?.value || '';
+      if (!attCurrentDate) return;
+      await loadAttendanceForDate(attCurrentDate);
       renderAttendanceTab();
     };
 
@@ -1153,15 +1154,16 @@
 
     async function saveAssignment(studentId) {
       const workshopIds = assignments[studentId] || [];
+      const pk = periodKey();
       try {
-        const existing = await getWhere('erAssignments', 'studentId', '==', studentId);
-        const forDate  = existing.find(r => r.date === currentDate);
+        const existing  = await getWhere('erAssignments', 'studentId', '==', studentId);
+        const forPeriod = existing.find(r => r.periodKey === pk) || null;
         if (workshopIds.length === 0) {
-          if (forDate) await deleteDoc('erAssignments', forDate.id);
-        } else if (forDate) {
-          await updateDoc('erAssignments', forDate.id, { workshopIds, date: currentDate, studentId });
+          if (forPeriod) await deleteDoc('erAssignments', forPeriod.id);
+        } else if (forPeriod) {
+          await updateDoc('erAssignments', forPeriod.id, { workshopIds, periodKey: pk, studentId });
         } else {
-          await addDoc('erAssignments', { studentId, workshopIds, date: currentDate });
+          await addDoc('erAssignments', { studentId, workshopIds, periodKey: pk });
         }
       } catch (err) { console.error('Save assignment error:', err); }
     }
@@ -1192,7 +1194,7 @@
     window.clearAll = async function() {
       const visible  = getFilteredStudents();
       const gradeNote = gradeFilter !== 'all' ? ` for ${gradeLabel(gradeFilter)}` : '';
-      if (!await confirmTypedDelete(`Clear all assignments${gradeNote} for this date? This cannot be undone.`)) return;
+      if (!await confirmTypedDelete(`Clear all assignments${gradeNote}? This cannot be undone.`)) return;
       const assigned = visible.filter(s => isAssigned(s.id));
       for (const s of assigned) {
         await deleteAssignment(s.id);
@@ -1707,8 +1709,8 @@
       if (!student) return;
 
       const studentWshops = getStudentWorkshops(studentId);
-      const dateLabel    = fmtDate(currentDate);
-      const dayLabel     = fmtDOW(currentDate);
+      const dateLabel    = fmtDate(erPeriodStart);
+      const dayLabel     = fmtDOW(erPeriodStart);
       const data         = buildMergeData(student, studentWshops, dateLabel, dayLabel);
 
       const mergedSubject = merge(tmpl.subject, data);
@@ -1734,8 +1736,8 @@
       const assigned = getFilteredStudents().filter(s => isAssigned(s.id));
       if (!assigned.length) { showToast('No students assigned to export', 'warning'); return; }
 
-      const dateLabel = fmtDate(currentDate);
-      const dayLabel  = fmtDOW(currentDate);
+      const dateLabel = fmtDate(erPeriodStart);
+      const dayLabel  = fmtDOW(erPeriodStart);
       const rows      = ['Email,Subject,Body'];
       let skippedStudent = 0;
 
@@ -1763,7 +1765,7 @@
         return;
       }
 
-      const filename = `ER-MailMerge-${currentDate || 'export'}.csv`;
+      const filename = `ER-MailMerge-${erPeriodStart || 'export'}.csv`;
       triggerDownload(filename, rows.join('\r\n'));
 
       const exported = rows.length - 1;
@@ -1810,7 +1812,7 @@
       if (!erRooms.length && !unplacedStudents.length) {
         wrap.innerHTML = `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
           <i class="fas fa-door-open" style="font-size:28px;display:block;margin-bottom:10px;"></i>
-          Set up rooms in <strong>ER Room Assignment</strong> and select an ER date above to see the attendance roster.
+          Set up rooms in <strong>ER Room Assignment</strong> and select an ER date to see the attendance roster.
         </div>`;
         updateAttBadges(0,0,0,0,0);
         return;
@@ -2003,13 +2005,14 @@
           if (c.id) { try { await deleteDoc('erCleared', c.id); } catch(e) { console.error(e); } }
         }
 
-        // 5 — Delete all erAssignments for the current date
+        // 5 — Delete all erAssignments for the current period
+        const pk = periodKey();
         const assignedIds = students.filter(s => isAssigned(s.id)).map(s => s.id);
         for (const sid of assignedIds) {
           try {
-            const existing = await getWhere('erAssignments', 'studentId', '==', sid);
-            const forDate  = existing.find(r => r.date === currentDate);
-            if (forDate) await deleteDoc('erAssignments', forDate.id);
+            const existing   = await getWhere('erAssignments', 'studentId', '==', sid);
+            const forPeriod  = existing.find(r => r.periodKey === pk);
+            if (forPeriod) await deleteDoc('erAssignments', forPeriod.id);
           } catch(e) { console.error(e); }
         }
 
@@ -2080,8 +2083,8 @@
 
     async function attSaveRow(studentId) {
       const st = attState[studentId];
-      if (!st || !currentDate) return;
-      const data = { studentId, date: currentDate, teacherRoom: st.teacherRoom, status: st.status, complete: st.complete };
+      if (!st || !attCurrentDate) return;
+      const data = { studentId, date: attCurrentDate, teacherRoom: st.teacherRoom, status: st.status, complete: st.complete };
       try {
         if (st.logId) {
           await updateDoc('erAttendance', st.logId, data);
@@ -2115,8 +2118,8 @@
       const body    = tmpl?.body    || '';
 
       const assigned = students.filter(s => isAssigned(s.id));
-      const dateLabel = fmtDate(currentDate);
-      const dayLabel  = fmtDOW(currentDate);
+      const dateLabel = fmtDate(erPeriodStart);
+      const dayLabel  = fmtDOW(erPeriodStart);
 
       document.getElementById('modal-test').classList.add('open');
 
