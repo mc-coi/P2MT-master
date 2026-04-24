@@ -325,12 +325,10 @@
           <div><div class="rpt-stat-val" style="color:#0D9488;" id="er-total">—</div><div class="rpt-stat-lbl">Total ER Assignments</div></div></div>
         <div class="rpt-stat"><div class="rpt-stat-icon ic-blue"><i class="fas fa-users"></i></div>
           <div><div class="rpt-stat-val txt-blue" id="er-students">—</div><div class="rpt-stat-lbl">Unique Students</div></div></div>
-        <div class="rpt-stat"><div class="rpt-stat-icon ic-purple"><i class="fas fa-chalkboard"></i></div>
-          <div><div class="rpt-stat-val txt-purple" id="er-workshops">—</div><div class="rpt-stat-lbl">Workshops Used</div></div></div>
         <div class="rpt-stat"><div class="rpt-stat-icon ic-yellow"><i class="fas fa-redo"></i></div>
           <div><div class="rpt-stat-val txt-yellow" id="er-avg">—</div><div class="rpt-stat-lbl">Avg Assignments / Student</div></div></div>
         <div class="rpt-stat"><div class="rpt-stat-icon ic-red"><i class="fas fa-star"></i></div>
-          <div><div class="rpt-stat-val txt-red" id="er-top-workshop">—</div><div class="rpt-stat-lbl">Most Assigned Workshop</div></div></div>
+          <div><div class="rpt-stat-val txt-red" id="er-top-workshop">—</div><div class="rpt-stat-lbl">Most Assigned Class</div></div></div>
       </div>
 
       <div class="chart-grid chart-grid-2">
@@ -745,19 +743,25 @@
     //  ER REPORT
     // ═══════════════════════════════════════════════════════════════════════════
     function buildER(assignments, workshops, clearance, range, studentMap) {
-      const filtered = assignments.filter(a => inRange(a.date, range));
+      // periodKey format is "YYYY-MM-DD_YYYY-MM-DD" — use the period start date for range filtering
+      const filtered = assignments.filter(a => {
+        const periodStart = (a.periodKey||'').split('_')[0] || a.date || '';
+        return inRange(periodStart, range);
+      });
       rawData.er = filtered;
 
       // Build workshop name lookup
       const wsMap = {};
       workshops.forEach(w => { wsMap[w.id] = w.name||w.id; });
 
-      // Flatten assignments — each assignment has workshopId (array of workshop IDs)
+      // Flatten assignments — each assignment has workshopIds (array of workshop IDs, one per checkmark)
       const rows = [];
       filtered.forEach(a => {
-        const wsIds = Array.isArray(a.workshopId) ? a.workshopId : (a.workshopId ? [a.workshopId] : []);
+        const wsIds = Array.isArray(a.workshopIds) ? a.workshopIds
+                    : Array.isArray(a.workshopId)  ? a.workshopId   // legacy field name fallback
+                    : (a.workshopIds || a.workshopId) ? [a.workshopIds || a.workshopId] : [];
         wsIds.forEach(wid => {
-          rows.push({ studentId:a.studentId, date:a.date, workshopId:wid, workshopName:wsMap[wid]||wid });
+          rows.push({ studentId:a.studentId, periodKey:a.periodKey, workshopId:wid, workshopName:wsMap[wid]||wid });
         });
       });
 
@@ -768,8 +772,7 @@
         if (c.className) clearByStudent[c.studentId].add(c.className+(c.teacherLastName?` (${c.teacherLastName})`:''));
       });
 
-      const uniqueStudents   = new Set(filtered.map(a=>a.studentId)).size;
-      const workshopsUsed    = new Set(rows.map(r=>r.workshopId)).size;
+      const uniqueStudents = new Set(filtered.map(a=>a.studentId)).size;
       const avg = uniqueStudents ? (rows.length/uniqueStudents).toFixed(1) : '0';
 
       // Workshop counts
@@ -777,11 +780,10 @@
       rows.forEach(r => { wsCount[r.workshopName]=(wsCount[r.workshopName]||0)+1; });
       const topWs = Object.entries(wsCount).sort((a,b)=>b[1]-a[1]);
 
-      $('er-total').textContent       = rows.length;
-      $('er-students').textContent    = uniqueStudents;
-      $('er-workshops').textContent   = workshopsUsed;
-      $('er-avg').textContent         = avg;
-      $('er-top-workshop').textContent= topWs[0]?topWs[0][0]:'—';
+      $('er-total').textContent        = rows.length;
+      $('er-students').textContent     = uniqueStudents;
+      $('er-avg').textContent          = avg;
+      $('er-top-workshop').textContent = topWs[0]?topWs[0][0]:'—';
 
       // Most assigned workshops chart
       const topWs10 = topWs.slice(0,10);
@@ -861,8 +863,8 @@
           Category: l.category||'', Level: l.level||'', Comments: l.comments||'',
         })),
         er: () => rawData.er.map(a=>({
-          Date: (a.date||'').substring(0,10), 'Student ID': a.studentId||'',
-          Workshops: Array.isArray(a.workshopId)?a.workshopId.join(', '):(a.workshopId||''),
+          'Period Start': (a.periodKey||'').split('_')[0]||'', 'Student ID': a.studentId||'',
+          Classes: Array.isArray(a.workshopIds)?a.workshopIds.join(', '):(a.workshopIds||''),
         })),
       };
       const rows = map[section]?.();
