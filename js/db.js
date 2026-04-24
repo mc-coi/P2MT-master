@@ -9,6 +9,7 @@ import {
   getDoc,
   query,
   where,
+  onSnapshot,
   addDoc as firebaseAddDoc,
   setDoc as firebaseSetDoc,
   updateDoc as firebaseUpdateDoc,
@@ -169,4 +170,18 @@ export async function batchWrite(operations) {
     console.error('Error during batch write:', error);
     throw error;
   }
+}
+
+// Real-time listener — returns an unsubscribe function to stop listening
+export function listenWhere(collectionName, field, operator, value, callback) {
+  const q = query(collection(db, collectionName), where(field, operator, value));
+  return onSnapshot(q, (snapshot) => {
+    const documents = [];
+    snapshot.forEach((docSnap) => {
+      documents.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    callback(documents, snapshot);
+  }, (error) => {
+    console.error(`listenWhere error on ${collectionName}:`, error);
+  });
 }

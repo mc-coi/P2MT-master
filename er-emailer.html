@@ -21,6 +21,12 @@
     .er-date-wrap input[type="date"] { padding: 7px 11px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; color: var(--text-primary); outline: none; }
     .er-date-wrap input:focus { border-color: var(--primary); }
 
+    /* ── Live sync badge ── */
+    .live-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:#f0fdf4; border:1.5px solid #bbf7d0; border-radius:20px; font-size:11px; font-weight:700; color:#15803d; white-space:nowrap; }
+    .live-dot { width:7px; height:7px; border-radius:50%; background:#16a34a; animation:livepulse 2s ease-in-out infinite; }
+    @keyframes livepulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.45;transform:scale(.8)} }
+    [data-theme="dark"] .live-badge { background:rgba(16,185,129,.1); border-color:rgba(16,185,129,.3); color:#34d399; }
+
     /* ── ER Period range ── */
     .er-period-wrap { display: flex; align-items: center; gap: 8px; padding: 7px 12px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 9px; }
     .er-period-wrap .ep-label { font-size: 12px; font-weight: 700; color: #15803d; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
@@ -429,6 +435,9 @@
         <span class="ep-sep">→</span>
         <input type="date" id="er-period-end" onchange="onPeriodChange()" title="ER period end date">
       </div>
+      <span class="live-badge" id="live-badge" style="display:none;">
+        <span class="live-dot"></span> Live
+      </span>
       <div class="spacer"></div>
     </div>
 
@@ -595,18 +604,20 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav }    from './js/nav.js';
-    import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
+    import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, listenWhere } from './js/db.js';
     import { showToast, confirmTypedDelete }  from './js/utils.js';
 
     // ── Data ─────────────────────────────────────────────────────────────────────
-    let students         = [];
-    let workshops        = [];
-    let assignments      = {};   // { studentId: [workshopId, ...] } for the current ER period
-    let guardianEmails   = {};   // { studentId: email }
-    let attCurrentDate   = '';   // date shown in the ER Attendance tab's own date picker
-    let erPeriodStart    = '';   // YYYY-MM-DD
-    let erPeriodEnd      = '';   // YYYY-MM-DD
-    let gradeFilter      = 'all'; // 'all' | yearOfGraduation string
+    let students              = [];
+    let workshops             = [];
+    let assignments           = {};   // { studentId: [workshopId, ...] } for the current ER period
+    let guardianEmails        = {};   // { studentId: email }
+    let attCurrentDate        = '';   // date shown in the ER Attendance tab's own date picker
+    let erPeriodStart         = '';   // YYYY-MM-DD
+    let erPeriodEnd           = '';   // YYYY-MM-DD
+    let gradeFilter           = 'all'; // 'all' | yearOfGraduation string
+    let assignmentUnsubscribe = null; // Firestore real-time listener cleanup fn
+    let localSaveInProgress   = false; // suppress remote re-renders during own saves
 
     // ── Rooms & clearance ─────────────────────────────────────────────────────────
     let erRooms          = [];   // [{ id, name, teacherName, order }]
@@ -677,10 +688,9 @@
       erPeriodEnd   = document.getElementById('er-period-end').value;
       localStorage.setItem('p2mt_er_period_start', erPeriodStart);
       localStorage.setItem('p2mt_er_period_end',   erPeriodEnd);
-      await Promise.all([loadAssignments(), loadErDataForPeriod()]);
+      startAssignmentListener(); // restarts listener for new period key; renders inside callback
+      await loadErDataForPeriod();
       renderGradeFilters();
-      renderGrid();
-      updateSummary();
       renderErSetupTab();
       renderAttendanceTab();
     };
@@ -832,9 +842,8 @@
         selectedEmailTmplId = localStorage.getItem('p2mt_er_email_tmpl_id') || '';
 
         populateTemplateSelectors();
-        await loadAssignments();
+        startAssignmentListener(); // sets up real-time sync; initial render happens inside callback
         renderGradeFilters();
-        renderGrid();
         await loadErDataForPeriod();
         await loadAttendanceForDate(attCurrentDate);
       } catch (err) {
@@ -927,24 +936,62 @@
       return erPeriodStart && erPeriodEnd ? `${erPeriodStart}_${erPeriodEnd}` : '';
     }
 
-    // Assignments are period-wide — no date, keyed by the ER period
-    async function loadAssignments() {
+    // Parse a Firestore erAssignments snapshot into the assignments map
+    function applyAssignmentRows(rows) {
       assignments = {};
+      rows.forEach(r => {
+        if (r.workshopIds && Array.isArray(r.workshopIds)) {
+          const cleaned = r.workshopIds.filter(wid => wid && wid !== 'undefined');
+          if (cleaned.length) assignments[r.studentId] = cleaned;
+        } else if (r.workshopId) {
+          assignments[r.studentId] = [r.workshopId];
+        }
+      });
+    }
+
+    // One-shot load (used during reset/clear where we don't want listener re-entry)
+    async function loadAssignments() {
       const pk = periodKey();
-      if (!pk) return; // no period set yet — nothing to load
+      if (!pk) { assignments = {}; return; }
       try {
         const rows = await getWhere('erAssignments', 'periodKey', '==', pk);
-        rows.forEach(r => {
-          if (r.workshopIds && Array.isArray(r.workshopIds)) {
-            const cleaned = r.workshopIds.filter(wid => wid && wid !== 'undefined');
-            if (cleaned.length) assignments[r.studentId] = cleaned;
-          } else if (r.workshopId) {
-            assignments[r.studentId] = [r.workshopId];
-          }
-        });
+        applyAssignmentRows(rows);
       } catch (err) {
         console.error('Error loading assignments:', err);
       }
+    }
+
+    // Start (or restart) the real-time Firestore listener for erAssignments
+    function startAssignmentListener() {
+      // Cancel any existing listener first
+      if (assignmentUnsubscribe) { assignmentUnsubscribe(); assignmentUnsubscribe = null; }
+
+      const pk = periodKey();
+      if (!pk) {
+        assignments = {};
+        document.getElementById('live-badge').style.display = 'none';
+        renderGrid();
+        updateSummary();
+        return;
+      }
+
+      document.getElementById('live-badge').style.display = 'inline-flex';
+
+      assignmentUnsubscribe = listenWhere('erAssignments', 'periodKey', '==', pk, (rows, snapshot) => {
+        // Skip re-render for our own writes — Firestore fires once for local
+        // (hasPendingWrites=true) and once for server confirm. We suppress both
+        // during a local save to avoid flickering the grid mid-interaction.
+        if (localSaveInProgress) return;
+
+        applyAssignmentRows(rows);
+        renderGrid();
+        updateSummary();
+      });
+
+      // Clean up when the page unloads
+      window.addEventListener('beforeunload', () => {
+        if (assignmentUnsubscribe) assignmentUnsubscribe();
+      }, { once: true });
     }
 
     window.onAttDateChange = async function() {
@@ -1155,6 +1202,7 @@
     async function saveAssignment(studentId) {
       const workshopIds = assignments[studentId] || [];
       const pk = periodKey();
+      localSaveInProgress = true;
       try {
         const existing  = await getWhere('erAssignments', 'studentId', '==', studentId);
         const forPeriod = existing.find(r => r.periodKey === pk) || null;
@@ -1165,7 +1213,12 @@
         } else {
           await addDoc('erAssignments', { studentId, workshopIds, periodKey: pk });
         }
-      } catch (err) { console.error('Save assignment error:', err); }
+      } catch (err) {
+        console.error('Save assignment error:', err);
+      } finally {
+        // Brief delay — let Firestore's local + server snapshots pass before re-enabling
+        setTimeout(() => { localSaveInProgress = false; }, 800);
+      }
     }
 
     async function deleteAssignment(studentId) {
