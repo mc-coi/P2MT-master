@@ -292,19 +292,37 @@
     .tmpl-manage-link:hover { text-decoration: underline; }
 
     /* ── Room builder (ER Room Assignment) ── */
-    .er-setup-two-col { display: grid; grid-template-columns: 220px 1fr; gap: 16px; align-items: start; }
-    @media (max-width: 900px) { .er-setup-two-col { grid-template-columns: 1fr; } }
-    .er-pool-panel { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; position: sticky; top: 80px; }
+    /* Pool spans full width at top; rooms in a 2-col grid below */
+    .er-setup-two-col { display: flex; flex-direction: column; gap: 16px; }
+    .er-pool-panel { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; }
     .er-pool-panel h4 { font-size: 13px; font-weight: 700; color: var(--text-primary); margin: 0 0 10px; display: flex; align-items: center; gap: 7px; }
     .er-pool-panel h4 i { color: var(--primary); }
-    .er-pool-chips { display: flex; flex-direction: column; gap: 5px; min-height: 60px; }
-    .er-pool-chip { display: flex; align-items: center; gap: 6px; padding: 6px 10px; background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: grab; user-select: none; transition: opacity .1s, transform .1s; white-space: nowrap; }
-    .er-pool-chip:hover { background: #dcfce7; }
+    /* Chips wrap horizontally — click chip OR drag to assign */
+    .er-pool-chips { display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; min-height: 40px; }
+    .er-pool-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: #f0fdf4; color: #15803d; border: 1.5px solid #bbf7d0; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none; transition: background .1s, transform .1s, opacity .1s; white-space: nowrap; }
+    .er-pool-chip:hover { background: #dcfce7; border-color: #86efac; }
     .er-pool-chip.dragging { opacity: .3; transform: scale(.9); }
-    .er-pool-chip i { font-size: 10px; opacity: .6; }
-    .er-pool-empty { font-size: 12px; color: #94a3b8; padding: 8px 0; }
+    .er-pool-chip i.grip { font-size: 10px; opacity: .45; }
+    .er-pool-empty { font-size: 12px; color: #94a3b8; padding: 4px 0; }
 
-    .er-rooms-panel { display: flex; flex-direction: column; gap: 12px; }
+    /* Rooms render in a 2-column grid so more are visible at once */
+    .er-rooms-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; align-items: start; }
+
+    /* ── Quick-assign popover (click a pool chip) ── */
+    .er-assign-popover { position: absolute; z-index: 3000; background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.18); padding: 10px; min-width: 200px; }
+    .eap-title { font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; padding: 0 4px; }
+    .eap-room-btn { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 7px 10px; border-radius: 7px; border: 1.5px solid #e2e8f0; background: white; cursor: pointer; margin-bottom: 4px; text-align: left; transition: background .1s; gap: 1px; }
+    .eap-room-btn:hover { background: #eff6ff; border-color: var(--primary); }
+    .eap-room-btn strong { font-size: 13px; color: var(--text-primary); }
+    .eap-room-btn span { font-size: 11px; color: #64748b; }
+    .eap-room-btn.active { background: #f0fdf4; border-color: #bbf7d0; }
+    .eap-room-btn.active strong { color: #15803d; }
+    .eap-cancel { width: 100%; padding: 6px; border-radius: 7px; border: 1.5px solid #fca5a5; background: white; color: #dc2626; font-size: 12px; cursor: pointer; margin-top: 4px; }
+    .eap-cancel:hover { background: #fef2f2; }
+    [data-theme="dark"] .er-assign-popover { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .eap-room-btn { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .eap-room-btn:hover { background: var(--surface-2); }
+    [data-theme="dark"] .eap-cancel { background: var(--surface-2); color: var(--text-secondary); }
     .er-room-card { background: white; border: 1.5px solid #e2e8f0; border-radius: 12px; padding: 14px; }
     .er-room-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
     .er-room-header .room-num { font-size: 11px; font-weight: 800; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; min-width: 48px; }
@@ -465,9 +483,8 @@
       .att-pa-wrap { align-self: flex-start; }
       .pa-btn { width: 44px; height: 40px; font-size: 15px; }
 
-      /* ER setup two-col: single col */
-      .er-setup-two-col { grid-template-columns: 1fr; }
-      .er-pool-panel { position: static; }
+      /* ER setup already stacks, rooms go single-col on mobile */
+      .er-rooms-panel { grid-template-columns: 1fr; }
       .er-setup-grid { grid-template-columns: 1fr; }
 
       /* Template selector */
@@ -1418,8 +1435,9 @@
       pool.innerHTML = poolStudents.map(s =>
         `<div class="er-pool-chip" draggable="true" data-sid="${s.id}"
           ondragstart="onChipDragStart(event,'${s.id}')"
-          ondragend="onChipDragEnd(event)">
-          <i class="fas fa-grip-vertical"></i>
+          ondragend="onChipDragEnd(event)"
+          onclick="openAssignPopover(event,'${s.id}')">
+          <i class="fas fa-grip-vertical grip"></i>
           ${esc(s.lastName)}, ${esc(s.firstName)}
         </div>`
       ).join('');
@@ -1571,29 +1589,20 @@
     window.onDropZoneLeave = function(e) {
       e.currentTarget.classList.remove('drag-over');
     };
-    window.onDropToRoom = function(e, targetRoomId) {
-      e.preventDefault();
-      e.currentTarget.classList.remove('drag-over');
-      const sid = e.dataTransfer.getData('studentId');
-      const fromRoomId = e.dataTransfer.getData('fromRoomId');
-      if (!sid) return;
-
-      // Already in target room? Do nothing (also purge any stray duplicates)
+    // ── Shared assign logic (used by drag-drop AND click-to-assign) ──────────────
+    function assignStudentToRoom(sid, targetRoomId) {
+      // Already in target room? Purge stray duplicates and bail
       const existingInTarget = erRoomStudents.filter(rs => rs.studentId === sid && rs.roomId === targetRoomId);
       if (existingInTarget.length) {
-        // Remove any duplicate entries in the target room beyond the first
         for (let i = 1; i < existingInTarget.length; i++) {
           const dup = existingInTarget[i];
           erRoomStudents = erRoomStudents.filter(rs => rs !== dup);
           if (dup.id && !dup._isNew) deleteDoc('erRoomStudents', dup.id).catch(console.error);
         }
-        renderRoomCards();
-        renderPoolChips();
+        renderRoomCards(); renderPoolChips();
         return;
       }
-
-      // Remove the student from ANY other room they may be in — prevents duplicates
-      // across rooms (stale state, double-drops, race conditions, etc.)
+      // Remove from any other room (prevents cross-room duplicates)
       const stale = erRoomStudents.filter(rs => rs.studentId === sid);
       if (stale.length) {
         erRoomStudents = erRoomStudents.filter(rs => rs.studentId !== sid);
@@ -1601,15 +1610,11 @@
           if (rs.id && !rs._isNew) deleteDoc('erRoomStudents', rs.id).catch(console.error);
         }
       }
-
-      // Find student info
       const student = students.find(s => s.id === sid);
       if (!student) return;
-      const pk = periodKey();
-
       erRoomStudents.push({
         _isNew: true,
-        periodKey: pk,
+        periodKey: periodKey(),
         roomId: targetRoomId,
         studentId: sid,
         studentName: `${student.firstName} ${student.lastName}`,
@@ -1617,10 +1622,103 @@
         house: student.house || '',
         yearOfGraduation: student.yearOfGraduation || '',
       });
+      renderRoomCards(); renderPoolChips();
+    }
 
-      renderRoomCards();
-      renderPoolChips();
+    window.onDropToRoom = function(e, targetRoomId) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      const sid = e.dataTransfer.getData('studentId');
+      if (!sid) return;
+      assignStudentToRoom(sid, targetRoomId);
     };
+
+    // ── Click-to-assign popover ───────────────────────────────────────────────────
+    window.openAssignPopover = function(e, studentId) {
+      // Suppress if this click was triggered at the end of a drag
+      if (draggedStudentId) return;
+      e.stopPropagation();
+
+      // Remove any existing popover
+      document.querySelectorAll('.er-assign-popover').forEach(p => p.remove());
+
+      if (!erRooms.length) {
+        showToast('Add rooms first using the Add Room button', 'info');
+        return;
+      }
+
+      const popover = document.createElement('div');
+      popover.className = 'er-assign-popover';
+      const currentRoom = erRoomStudents.find(rs => rs.studentId === studentId);
+
+      popover.innerHTML = `
+        <div class="eap-title">Assign to room</div>
+        ${erRooms.map(r => {
+          const isHere = currentRoom?.roomId === r.id;
+          return `<button class="eap-room-btn${isHere ? ' active' : ''}"
+            onclick="eapAssign(event,'${studentId}','${r.id}')">
+            <strong>${esc(r.name || 'Unnamed room')}</strong>
+            ${r.teacherName ? `<span>${esc(r.teacherName)}</span>` : ''}
+          </button>`;
+        }).join('')}
+        ${currentRoom ? `<button class="eap-cancel" onclick="eapUnassign(event,'${studentId}')"><i class="fas fa-times" style="margin-right:4px;"></i>Remove from room</button>` : ''}
+      `;
+
+      document.body.appendChild(popover);
+
+      // Position below the chip, flip up if near bottom
+      const rect = e.currentTarget.getBoundingClientRect();
+      const scrollY = window.scrollY;
+      popover.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+      const below = rect.bottom + scrollY + 4;
+      const popH  = popover.offsetHeight || 200;
+      popover.style.top = (below + popH > scrollY + window.innerHeight)
+        ? (rect.top + scrollY - popH - 4) + 'px'
+        : below + 'px';
+
+      // Close on outside click
+      setTimeout(() => {
+        document.addEventListener('click', function handler() {
+          document.querySelectorAll('.er-assign-popover').forEach(p => p.remove());
+          document.removeEventListener('click', handler);
+        });
+      }, 10);
+    };
+
+    window.eapAssign = function(e, studentId, roomId) {
+      e.stopPropagation();
+      document.querySelectorAll('.er-assign-popover').forEach(p => p.remove());
+      assignStudentToRoom(studentId, roomId);
+    };
+
+    window.eapUnassign = function(e, studentId) {
+      e.stopPropagation();
+      document.querySelectorAll('.er-assign-popover').forEach(p => p.remove());
+      const rs = erRoomStudents.find(r => r.studentId === studentId);
+      if (rs) removeStudentFromRoom(studentId, rs.roomId);
+    };
+
+    // ── Auto-scroll viewport while dragging ───────────────────────────────────────
+    {
+      let _scrollTimer = null;
+      const EDGE = 120; // px from viewport edge that triggers scroll
+      const SPEED = 12; // px per frame
+
+      document.addEventListener('dragover', function(e) {
+        clearInterval(_scrollTimer);
+        const y = e.clientY;
+        const h = window.innerHeight;
+        if (y < EDGE) {
+          const rate = Math.round(SPEED * (1 - y / EDGE));
+          _scrollTimer = setInterval(() => window.scrollBy(0, -rate), 16);
+        } else if (y > h - EDGE) {
+          const rate = Math.round(SPEED * (1 - (h - y) / EDGE));
+          _scrollTimer = setInterval(() => window.scrollBy(0, rate), 16);
+        }
+      });
+      document.addEventListener('dragend',  () => clearInterval(_scrollTimer));
+      document.addEventListener('drop',     () => clearInterval(_scrollTimer));
+    }
 
     // ── Teacher clearance ─────────────────────────────────────────────────────────
     window.toggleClearance = async function(studentId, teacherLastName, className) {
