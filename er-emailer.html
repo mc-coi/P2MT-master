@@ -764,10 +764,11 @@
 
     // ER Attendance state: { studentId: { status:'P'|'A'|null, complete:bool, logId:null } }
     let attState = {};
-    let attUnsubscribe      = null;   // Firestore listener for erAttendance
-    let attClrUnsubscribe   = null;   // Firestore listener for erClearance
+    let attUnsubscribe        = null;   // Firestore listener for erAttendance
+    let attClrUnsubscribe     = null;   // Firestore listener for erClearance
+    let attClearedUnsubscribe = null;   // Firestore listener for erCleared (fully-cleared records)
     let attLocalSaveInProgress = false; // suppress listener re-render during local write
-    let checkoutTmplId      = '';     // template selected in the Checked-Out panel
+    let checkoutTmplId        = '';     // template selected in the Checked-Out panel
 
 
     // ── Template variables ────────────────────────────────────────────────────────
@@ -2050,8 +2051,9 @@
     // ── ER Attendance — real-time listeners ───────────────────────────────────────
     function startAttendanceListeners(date) {
       // Tear down existing listeners
-      if (attUnsubscribe)    { attUnsubscribe();    attUnsubscribe    = null; }
-      if (attClrUnsubscribe) { attClrUnsubscribe(); attClrUnsubscribe = null; }
+      if (attUnsubscribe)        { attUnsubscribe();        attUnsubscribe        = null; }
+      if (attClrUnsubscribe)     { attClrUnsubscribe();     attClrUnsubscribe     = null; }
+      if (attClearedUnsubscribe) { attClearedUnsubscribe(); attClearedUnsubscribe = null; }
 
       const badge = document.getElementById('att-live-badge');
       if (!date) {
@@ -2077,20 +2079,31 @@
         renderAttendanceTab();
       });
 
-      // Also listen on erClearance for the period so teacher clearances appear live
       const pk = periodKey();
       if (pk) {
+        // Live listener for individual clearance chips
         attClrUnsubscribe = listenWhere('erClearance', 'periodKey', '==', pk, (rows) => {
           if (attLocalSaveInProgress) return;
           erClearanceData = rows;
+          renderAttendanceTab();
+        });
+
+        // Live listener for erCleared (fully-cleared records).
+        // Without this, teachers on other machines write the erCleared record but
+        // the local erClearedData stays stale — so the "Cleared from ER" badge
+        // never appears and Done does nothing until a page refresh.
+        attClearedUnsubscribe = listenWhere('erCleared', 'periodKey', '==', pk, (rows) => {
+          if (attLocalSaveInProgress) return;
+          erClearedData = rows;
           renderAttendanceTab();
         });
       }
 
       // Clean up on page unload
       window.addEventListener('beforeunload', () => {
-        if (attUnsubscribe)    attUnsubscribe();
-        if (attClrUnsubscribe) attClrUnsubscribe();
+        if (attUnsubscribe)        attUnsubscribe();
+        if (attClrUnsubscribe)     attClrUnsubscribe();
+        if (attClearedUnsubscribe) attClearedUnsubscribe();
       }, { once: true });
     }
 
