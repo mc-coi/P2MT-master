@@ -623,6 +623,7 @@
         </div>
         <button class="btn-sm outline" onclick="attMarkAllPresent()"><i class="fas fa-check-double"></i> All Present</button>
         <button class="btn-sm outline" onclick="attSaveAll()" style="border-color:#a7f3d0;color:#065f46;"><i class="fas fa-save"></i> Save All</button>
+        <button class="btn-sm outline" onclick="printRoomList()" style="border-color:#94a3b8;color:#475569;"><i class="fas fa-print"></i> Print Room List</button>
       </div>
       <div id="att-rooms-wrap">
         <div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
@@ -2597,6 +2598,108 @@
       const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
       for (const id of allIds) await attSaveRow(id);
       showToast(`Saved attendance for ${allIds.length} students`, 'success');
+    };
+
+    // ── Print Room List ───────────────────────────────────────────────────────────
+    window.printRoomList = function() {
+      const pk = periodKey();
+      if (!pk) { showToast('Set ER Period dates first', 'warning'); return; }
+      if (!erRooms.length) { showToast('No rooms set up yet — add rooms in ER Room Assignment', 'warning'); return; }
+
+      // Build room → sorted student list
+      const cols = erRooms.map(room => {
+        const roomStudents = erRoomStudents
+          .filter(rs => rs.roomId === room.id)
+          .map(rs => students.find(s => s.id === rs.studentId))
+          .filter(Boolean)
+          .sort((a, b) => a.lastName.localeCompare(b.lastName));
+        return { name: room.name || 'Room', teacher: room.teacherName || '', students: roomStudents };
+      });
+
+      // Unplaced assigned students get their own column
+      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      const unplaced = students
+        .filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id))
+        .sort((a, b) => a.lastName.localeCompare(b.lastName));
+      if (unplaced.length) cols.push({ name: 'Not Assigned', teacher: '', students: unplaced });
+
+      const allCols = cols.filter(c => c.students.length);
+      if (!allCols.length) { showToast('No students placed in rooms yet', 'warning'); return; }
+
+      const maxRows = Math.max(...allCols.map(c => c.students.length));
+      const dateLabel = attCurrentDate ? fmtDate(attCurrentDate) : fmtDate(erPeriodStart) || 'All Students';
+      const numCols = allCols.length;
+
+      // Build table header and rows
+      const thead = allCols.map(c =>
+        `<th><div class="rn">${c.name}</div>${c.teacher ? `<div class="rt">${c.teacher}</div>` : ''}</th>`
+      ).join('');
+
+      let tbody = '';
+      for (let i = 0; i < maxRows; i++) {
+        tbody += '<tr>' + allCols.map(c => {
+          const s = c.students[i];
+          return s ? `<td>${s.lastName}, ${s.firstName}</td>` : '<td></td>';
+        }).join('') + '</tr>';
+      }
+
+      // Count per room for footer
+      const totals = allCols.map(c =>
+        `<td class="total">${c.students.length} student${c.students.length !== 1 ? 's' : ''}</td>`
+      ).join('');
+
+      // Rough column width — scale font down when many rooms
+      const colPct = Math.floor(100 / numCols);
+      const fontSize = numCols <= 4 ? 13 : numCols <= 6 ? 12 : numCols <= 8 ? 11 : 10;
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ER Room List</title>
+<style>
+  @page { size: landscape; margin: 0.45in 0.4in; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: ${fontSize}px; color: #111; }
+  .hdr { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
+  .hdr h2 { font-size: 15px; font-weight: 800; }
+  .hdr span { font-size: 11px; color: #555; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  th { background: #0f766e; color: #fff; padding: 5px 6px; text-align: left;
+       border: 1px solid #0d9488; vertical-align: bottom; }
+  .rn { font-size: ${Math.min(fontSize + 1, 14)}px; font-weight: 700; }
+  .rt { font-size: ${Math.max(fontSize - 2, 8)}px; opacity: .85; font-weight: 400; margin-top: 1px; }
+  td { padding: 3px 6px; border: 1px solid #d1d5db; vertical-align: top;
+       width: ${colPct}%; }
+  tr:nth-child(even) td { background: #f9fafb; }
+  tr.totals td { background: #f0fdf4; font-weight: 700; font-size: ${Math.max(fontSize - 1, 9)}px;
+                 color: #166534; border-top: 2px solid #bbf7d0; }
+  td.total { color: #166534; }
+  .foot { margin-top: 6px; font-size: 9px; color: #888; }
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h2>ER Room List</h2>
+  <span>${dateLabel}</span>
+  <span style="margin-left:auto;">${allCols.reduce((n,c)=>n+c.students.length,0)} students total</span>
+</div>
+<table>
+  <thead><tr>${thead}</tr></thead>
+  <tbody>
+    ${tbody}
+    <tr class="totals">${totals}</tr>
+  </tbody>
+</table>
+<div class="foot">Printed ${new Date().toLocaleString()}</div>
+<script>window.onload=()=>{ window.print(); }<\/script>
+</body>
+</html>`;
+
+      const win = window.open('', '_blank', 'width=900,height=650');
+      if (!win) { showToast('Pop-up blocked — allow pop-ups for this page', 'warning'); return; }
+      win.document.write(html);
+      win.document.close();
     };
 
     // ── Helpers ────────────────────────────────────────────────────────────────────
