@@ -372,6 +372,41 @@
     .clr-chip.mine:hover { opacity: .8; }
     .clr-chip i { font-size: 10px; }
 
+    /* ── Checked-Out panel ── */
+    .checkout-section { margin-top: 24px; background: #f0fdf4; border: 1.5px solid #bbf7d0; border-radius: 14px; overflow: hidden; }
+    .checkout-sec-hdr { display: flex; align-items: center; gap: 10px; padding: 10px 16px; background: #dcfce7; border-bottom: 1.5px solid #bbf7d0; cursor: pointer; user-select: none; }
+    .checkout-sec-title { font-size: 13px; font-weight: 700; color: #166534; flex: 1; display: flex; align-items: center; gap: 8px; }
+    .checkout-chevron { color: #16a34a; font-size: 12px; transition: transform .2s; }
+    .checkout-chevron.up { transform: rotate(180deg); }
+    .checkout-body { display: none; }
+    .checkout-body.open { display: block; }
+    .checkout-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid #bbf7d0; background: white; }
+    .checkout-count-badge { font-size: 12px; font-weight: 700; background: #22c55e; color: white; border-radius: 20px; padding: 3px 11px; white-space: nowrap; }
+    .checkout-tmpl-sel { font-size: 12px; padding: 5px 9px; border-radius: 8px; border: 1.5px solid #86efac; flex: 1; min-width: 160px; color: #1e293b; outline: none; background: white; }
+    .checkout-tmpl-sel:focus { border-color: #16a34a; }
+    .checkout-list { padding: 10px 14px; display: flex; flex-direction: column; gap: 6px; }
+    .checkout-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: white; border-radius: 9px; border: 1px solid #d1fae5; }
+    .checkout-row:hover { background: #f0fdf4; }
+    .checkout-student-info { flex: 1; min-width: 0; }
+    .checkout-name { font-size: 13px; font-weight: 700; color: #15803d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .checkout-email-lbl { font-size: 11px; color: #64748b; margin-top: 1px; }
+    .checkout-no-email { font-size: 11px; color: #f59e0b; margin-top: 1px; }
+    .checkout-empty { padding: 20px; text-align: center; color: #86efac; font-size: 13px; font-weight: 600; }
+    .btn-checkout-email { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border: 1.5px solid #86efac; background: white; color: #15803d; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: background .12s; }
+    .btn-checkout-email:hover { background: #dcfce7; }
+    .btn-checkout-email:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-checkout-mass { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .12s; }
+    .btn-checkout-mass:hover { background: #15803d; }
+    [data-theme="dark"] .checkout-section { background: rgba(22,163,74,.08); border-color: rgba(22,163,74,.3); }
+    [data-theme="dark"] .checkout-sec-hdr { background: rgba(22,163,74,.15); border-color: rgba(22,163,74,.25); }
+    [data-theme="dark"] .checkout-sec-title { color: #4ade80; }
+    [data-theme="dark"] .checkout-toolbar { background: var(--surface); border-color: rgba(22,163,74,.2); }
+    [data-theme="dark"] .checkout-tmpl-sel { background: var(--surface); border-color: rgba(22,163,74,.3); color: var(--text-primary); }
+    [data-theme="dark"] .checkout-row { background: var(--surface); border-color: rgba(22,163,74,.2); }
+    [data-theme="dark"] .checkout-row:hover { background: var(--surface-2); }
+    [data-theme="dark"] .btn-checkout-email { background: var(--surface); border-color: rgba(22,163,74,.3); color: #4ade80; }
+    [data-theme="dark"] .btn-checkout-email:hover { background: rgba(22,163,74,.12); }
+
     /* ── Dark mode overrides ── */
     [data-theme="dark"] .modal-box { background: var(--surface); }
     [data-theme="dark"] .modal-close { color: var(--text-muted); }
@@ -595,6 +630,31 @@
           Set up rooms in <strong>ER Room Assignment</strong> and select an ER date to see the attendance roster.
         </div>
       </div>
+
+      <!-- ── Checked Out Today panel ── -->
+      <div class="checkout-section" id="checkout-section" style="display:none;">
+        <div class="checkout-sec-hdr" onclick="toggleCheckoutSection()">
+          <span class="checkout-sec-title">
+            <i class="fas fa-flag-checkered"></i>
+            Checked Out Today
+            <span id="checkout-count-badge" class="checkout-count-badge" style="display:none;">0</span>
+          </span>
+          <i class="fas fa-chevron-down checkout-chevron" id="checkout-chevron"></i>
+        </div>
+        <div class="checkout-body open" id="checkout-body">
+          <div class="checkout-toolbar" id="checkout-toolbar">
+            <select id="checkout-tmpl-sel" class="checkout-tmpl-sel" onchange="onCheckoutTmplChange()">
+              <option value="">— select email template —</option>
+            </select>
+            <button class="btn-checkout-mass" onclick="downloadCheckoutMailMerge()">
+              <i class="fas fa-file-csv"></i> Email All (CSV)
+            </button>
+          </div>
+          <div class="checkout-list" id="checkout-list">
+            <div class="checkout-empty"><i class="fas fa-flag-checkered"></i> No students checked out yet</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ══ Tab: ER Room Assignment ══════════════════════════════════════════ -->
@@ -707,6 +767,7 @@
     let attUnsubscribe      = null;   // Firestore listener for erAttendance
     let attClrUnsubscribe   = null;   // Firestore listener for erClearance
     let attLocalSaveInProgress = false; // suppress listener re-render during local write
+    let checkoutTmplId      = '';     // template selected in the Checked-Out panel
 
 
     // ── Template variables ────────────────────────────────────────────────────────
@@ -2110,7 +2171,175 @@
 
       wrap.innerHTML = html || `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">No students placed in rooms yet.</div>`;
       updateAttBadges(totalStudents, presentCount, absentCount, completeCount, clearedCount);
+      renderCheckoutPanel();
     }
+
+    // ── Checked-Out Today panel ───────────────────────────────────────────────────
+    function renderCheckoutPanel() {
+      const section = document.getElementById('checkout-section');
+      const listEl  = document.getElementById('checkout-list');
+      const badge   = document.getElementById('checkout-count-badge');
+      if (!section || !listEl) return;
+
+      // Gather all tracked student IDs (room-placed + unplaced)
+      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      const unplaced = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
+      const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
+
+      // Checked-out = marked Done today
+      const checkedOut = allIds
+        .filter(id => attState[id]?.complete)
+        .map(id => students.find(s => s.id === id))
+        .filter(Boolean)
+        .sort((a, b) => a.lastName.localeCompare(b.lastName));
+
+      // Show / hide the whole section
+      section.style.display = (attCurrentDate && isAssigned !== null) ? '' : 'none';
+      if (!attCurrentDate) { section.style.display = 'none'; return; }
+      section.style.display = '';
+
+      // Update count badge
+      if (badge) {
+        badge.textContent = checkedOut.length;
+        badge.style.display = checkedOut.length ? '' : 'none';
+      }
+
+      // Populate template selector if needed
+      const sel = document.getElementById('checkout-tmpl-sel');
+      if (sel && p2mtTemplatesList.length && sel.options.length <= 1) {
+        p2mtTemplatesList.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = t.name || t.subject || t.id;
+          if (t.id === checkoutTmplId) opt.selected = true;
+          sel.appendChild(opt);
+        });
+      }
+
+      if (!checkedOut.length) {
+        listEl.innerHTML = `<div class="checkout-empty"><i class="fas fa-flag-checkered"></i> No students checked out yet today</div>`;
+        return;
+      }
+
+      listEl.innerHTML = checkedOut.map(student => {
+        const gEmail = guardianEmails[student.id] || '';
+        const noEmail = !student.email && !gEmail;
+        return `<div class="checkout-row">
+          <div class="checkout-student-info">
+            <div class="checkout-name">${esc(student.lastName)}, ${esc(student.firstName)}</div>
+            ${gEmail
+              ? `<div class="checkout-email-lbl"><i class="fas fa-envelope" style="opacity:.5;font-size:10px;margin-right:3px;"></i>${esc(gEmail)}</div>`
+              : noEmail
+                ? `<div class="checkout-no-email"><i class="fas fa-exclamation-triangle" style="font-size:10px;"></i> No email on file</div>`
+                : ''}
+          </div>
+          <button class="btn-checkout-email" onclick="openCheckoutEmail('${student.id}')"
+            ${noEmail ? 'disabled title="No email address on file"' : ''}>
+            <i class="fas fa-envelope"></i> Email
+          </button>
+        </div>`;
+      }).join('');
+    }
+
+    window.toggleCheckoutSection = function() {
+      const body    = document.getElementById('checkout-body');
+      const chevron = document.getElementById('checkout-chevron');
+      if (!body) return;
+      const isOpen = body.classList.toggle('open');
+      if (chevron) chevron.classList.toggle('up', isOpen);
+    };
+
+    window.onCheckoutTmplChange = function() {
+      const sel = document.getElementById('checkout-tmpl-sel');
+      if (sel) checkoutTmplId = sel.value;
+    };
+
+    window.openCheckoutEmail = function(studentId) {
+      const tmpl = p2mtTemplatesList.find(t => t.id === checkoutTmplId);
+      if (!tmpl?.subject || !tmpl?.body) {
+        showToast('Select an email template in the Checked Out panel first', 'warning');
+        document.getElementById('checkout-tmpl-sel')?.focus();
+        return;
+      }
+      const student = students.find(s => s.id === studentId);
+      if (!student) return;
+
+      const data = {
+        firstName:    student.firstName || '',
+        lastName:     student.lastName  || '',
+        studentName:  `${student.firstName} ${student.lastName}`.trim(),
+        date:         fmtDate(attCurrentDate),
+        dayOfWeek:    fmtDOW(attCurrentDate),
+        studentEmail: student.email || '',
+        ...buildPeriodData(),
+      };
+
+      const mergedSubject = merge(tmpl.subject, data);
+      const mergedBody    = merge(tmpl.body, data);
+      const toAddr        = encodeURIComponent(student.email || '');
+      const gEmail        = guardianEmails[studentId] || '';
+      const cc            = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
+      const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
+
+      window.location.href = `mailto:${toAddr}?subject=${encodeURIComponent(mergedSubject)}${cc}&body=${encodeURIComponent(plainBody)}`;
+    };
+
+    window.downloadCheckoutMailMerge = function() {
+      const tmpl = p2mtTemplatesList.find(t => t.id === checkoutTmplId);
+      if (!tmpl?.subject || !tmpl?.body) {
+        showToast('Select an email template in the Checked Out panel first', 'warning');
+        document.getElementById('checkout-tmpl-sel')?.focus();
+        return;
+      }
+
+      // Get checked-out students
+      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      const unplaced = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
+      const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
+      const checkedOut = allIds
+        .filter(id => attState[id]?.complete)
+        .map(id => students.find(s => s.id === id))
+        .filter(Boolean);
+
+      if (!checkedOut.length) {
+        showToast('No students have been checked out yet today', 'warning');
+        return;
+      }
+
+      const rows = ['Email,Subject,Body'];
+      let skipped = 0;
+
+      checkedOut.forEach(student => {
+        const data = {
+          firstName:    student.firstName || '',
+          lastName:     student.lastName  || '',
+          studentName:  `${student.firstName} ${student.lastName}`.trim(),
+          date:         fmtDate(attCurrentDate),
+          dayOfWeek:    fmtDOW(attCurrentDate),
+          studentEmail: student.email || '',
+          ...buildPeriodData(),
+        };
+        const mergedSubject = merge(tmpl.subject, data);
+        const mergedBody    = merge(tmpl.body, data);
+
+        if (student.email) {
+          rows.push([csvCell(student.email), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
+        } else { skipped++; }
+
+        const gEmail = guardianEmails[student.id];
+        if (gEmail) rows.push([csvCell(gEmail), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
+      });
+
+      if (rows.length === 1) {
+        showToast('No email addresses found — add them in the Emailer tab', 'warning');
+        return;
+      }
+
+      const filename = `ER-CheckedOut-${attCurrentDate || 'export'}.csv`;
+      triggerDownload(filename, rows.join('\r\n'));
+      const exported = rows.length - 1;
+      showToast(`✓ Downloaded ${exported} row${exported !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped — no email)` : ''}`, 'success');
+    };
 
     function renderStudentAttRow(student, st, isCleared) {
       const pActive = st.status === 'P' ? 'active' : '';
@@ -2322,6 +2551,7 @@
         allIds.filter(id => attState[id]?.complete).length,
         erClearedData.length
       );
+      renderCheckoutPanel();
     }
 
     async function attSaveRow(studentId) {
