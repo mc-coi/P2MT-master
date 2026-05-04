@@ -578,6 +578,9 @@
         <span class="att-badge red"   id="att-badge-absent"  ><i class="fas fa-times-circle"></i> <span id="att-absent-txt">0 absent</span></span>
         <span class="att-badge green" id="att-badge-complete"><i class="fas fa-flag-checkered"></i> <span id="att-complete-txt">0 complete</span></span>
         <span class="att-badge" style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;" id="att-badge-cleared"><i class="fas fa-graduation-cap"></i> <span id="att-cleared-txt">0 cleared</span></span>
+        <span class="live-badge" id="att-live-badge" style="display:none;">
+          <span class="live-dot"></span> Live
+        </span>
         <div style="flex:1;"></div>
         <div class="er-date-wrap">
           <label style="font-size:12px;font-weight:700;color:#475569;">ER Date:</label>
@@ -701,6 +704,9 @@
 
     // ER Attendance state: { studentId: { status:'P'|'A'|null, complete:bool, logId:null } }
     let attState = {};
+    let attUnsubscribe      = null;   // Firestore listener for erAttendance
+    let attClrUnsubscribe   = null;   // Firestore listener for erClearance
+    let attLocalSaveInProgress = false; // suppress listener re-render during local write
 
 
     // ── Template variables ────────────────────────────────────────────────────────
@@ -759,7 +765,8 @@
       await loadErDataForPeriod();
       renderGradeFilters();
       renderErSetupTab();
-      renderAttendanceTab();
+      // Restart clearance listener for the new period, keep attendance listener on same date
+      startAttendanceListeners(attCurrentDate);
     };
 
     // Build the three ER-period template values from current state
@@ -912,7 +919,7 @@
         startAssignmentListener(); // sets up real-time sync; initial render happens inside callback
         renderGradeFilters();
         await loadErDataForPeriod();
-        await loadAttendanceForDate(attCurrentDate);
+        startAttendanceListeners(attCurrentDate); // real-time; snapshot callback renders
       } catch (err) {
         console.error(err);
         showToast('Error loading data', 'error');
@@ -1061,12 +1068,11 @@
       }, { once: true });
     }
 
-    window.onAttDateChange = async function() {
+    window.onAttDateChange = function() {
       const el = document.getElementById('att-date');
       attCurrentDate = el?.value || '';
-      if (!attCurrentDate) return;
-      await loadAttendanceForDate(attCurrentDate);
-      renderAttendanceTab();
+      // Restart listeners for the new date — snapshot callback will render
+      startAttendanceListeners(attCurrentDate);
     };
 
     // ── Tab switching ─────────────────────────────────────────────────────────────
@@ -1075,7 +1081,11 @@
         document.getElementById(`tab-${t}`).style.display        = t === tab ? '' : 'none';
         document.getElementById(`tab-btn-${t}`).classList.toggle('active', t === tab);
       });
-      if (tab === 'er-attendance') renderAttendanceTab();
+      if (tab === 'er-attendance') {
+        // Start listeners if a date is already selected but listener isn't running
+        if (attCurrentDate && !attUnsubscribe) startAttendanceListeners(attCurrentDate);
+        else renderAttendanceTab();
+      }
       if (tab === 'er') renderErSetupTab();
     };
 
@@ -1976,11 +1986,25 @@
     };
 
 
-    // ── ER Attendance ─────────────────────────────────────────────────────────────
-    async function loadAttendanceForDate(date) {
-      attState = {};
-      try {
-        const rows = await getWhere('erAttendance', 'date', '==', date);
+    // ── ER Attendance — real-time listeners ───────────────────────────────────────
+    function startAttendanceListeners(date) {
+      // Tear down existing listeners
+      if (attUnsubscribe)    { attUnsubscribe();    attUnsubscribe    = null; }
+      if (attClrUnsubscribe) { attClrUnsubscribe(); attClrUnsubscribe = null; }
+
+      const badge = document.getElementById('att-live-badge');
+      if (!date) {
+        if (badge) badge.style.display = 'none';
+        attState = {};
+        renderAttendanceTab();
+        return;
+      }
+      if (badge) badge.style.display = 'inline-flex';
+
+      // Listen on erAttendance for this date
+      attUnsubscribe = listenWhere('erAttendance', 'date', '==', date, (rows) => {
+        if (attLocalSaveInProgress) return;
+        attState = {};
         rows.forEach(r => {
           attState[r.studentId] = {
             teacherRoom: r.teacherRoom || '',
@@ -1989,7 +2013,24 @@
             logId:       r.id,
           };
         });
-      } catch (err) { console.error('Error loading ER attendance:', err); }
+        renderAttendanceTab();
+      });
+
+      // Also listen on erClearance for the period so teacher clearances appear live
+      const pk = periodKey();
+      if (pk) {
+        attClrUnsubscribe = listenWhere('erClearance', 'periodKey', '==', pk, (rows) => {
+          if (attLocalSaveInProgress) return;
+          erClearanceData = rows;
+          renderAttendanceTab();
+        });
+      }
+
+      // Clean up on page unload
+      window.addEventListener('beforeunload', () => {
+        if (attUnsubscribe)    attUnsubscribe();
+        if (attClrUnsubscribe) attClrUnsubscribe();
+      }, { once: true });
     }
 
     function renderAttendanceTab() {
@@ -2287,6 +2328,7 @@
       const st = attState[studentId];
       if (!st || !attCurrentDate) return;
       const data = { studentId, date: attCurrentDate, teacherRoom: st.teacherRoom, status: st.status, complete: st.complete };
+      attLocalSaveInProgress = true;
       try {
         if (st.logId) {
           await updateDoc('erAttendance', st.logId, data);
@@ -2295,6 +2337,9 @@
           attState[studentId].logId = id;
         }
       } catch (err) { console.error('Error saving ER attendance row:', err); }
+      finally {
+        setTimeout(() => { attLocalSaveInProgress = false; }, 800);
+      }
     }
 
     window.attMarkAllPresent = function() {
