@@ -109,12 +109,20 @@
     </div>
 
     <!-- View Toggle -->
-    <div class="view-tabs">
-      <button id="tabTable" class="view-tab active" onclick="setView('table')">
-        <i class="fas fa-table"></i> Table View
-      </button>
-      <button id="tabCal" class="view-tab" onclick="setView('calendar')">
-        <i class="fas fa-calendar-week"></i> Weekly View
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
+      <div class="view-tabs" style="margin-bottom:0;">
+        <button id="tabTable" class="view-tab active" onclick="setView('table')">
+          <i class="fas fa-table"></i> Table View
+        </button>
+        <button id="tabCal" class="view-tab" onclick="setView('calendar')">
+          <i class="fas fa-calendar-week"></i> Weekly View
+        </button>
+      </div>
+      <button id="btnPrintSchedule" onclick="printWeeklySchedule()" style="display:none;
+        align-items:center; gap:7px; padding:8px 18px;
+        background:#0f766e; color:white; border:none; border-radius:6px;
+        font-size:13px; font-weight:700; cursor:pointer; transition:background .15s;">
+        <i class="fas fa-print"></i> Print Schedule
       </button>
     </div>
 
@@ -371,6 +379,8 @@
       document.getElementById('calendarSection').style.display = view === 'calendar' ? '' : 'none';
       document.getElementById('tabTable').classList.toggle('active', view === 'table');
       document.getElementById('tabCal').classList.toggle('active', view === 'calendar');
+      const printBtn = document.getElementById('btnPrintSchedule');
+      if (printBtn) printBtn.style.display = view === 'calendar' ? 'inline-flex' : 'none';
       if (view === 'calendar') renderCalendar();
     };
 
@@ -965,6 +975,268 @@
       }
       progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Done!</strong> Created ${logs.length} attendance logs</div>`;
       showToast('Attendance logs propagated', 'success');
+    };
+
+    // ─────────────────────────────────────────────
+    //  PRINT WEEKLY SCHEDULE
+    // ─────────────────────────────────────────────
+    window.printWeeklySchedule = function() {
+      // School hours: 9:30 AM – 4:30 PM
+      const SCH_START = 9 * 60 + 30;   // 570 min
+      const SCH_END   = 16 * 60 + 30;  // 990 min
+      const SCH_SPAN  = SCH_END - SCH_START; // 420 min
+
+      // Gather what's currently shown in the calendar
+      let printClasses = [];  // [{ cls, color, subtitle }]
+      let title = 'Weekly Schedule';
+      let legendItems = [];
+
+      if (calMode === 'teacher') {
+        const checked = getCheckedTeachers();
+        if (!checked.size) { showToast('Select at least one teacher in the sidebar first', 'warning'); return; }
+        const unique = getUniqueClasses(filteredSchedules.filter(s => checked.has(s.teacherLastName)));
+        unique.forEach(cls => {
+          const color = teacherColors[cls.teacherLastName] || '#6B7280';
+          printClasses.push({ cls, color, subtitle: checked.size > 1 ? cls.teacherLastName : '' });
+        });
+        legendItems = [...checked].sort().map(t => ({ label: t, color: teacherColors[t] || '#6B7280' }));
+        title = checked.size === 1 ? `${[...checked][0]} — Weekly Schedule` : 'Weekly Schedule';
+      } else {
+        const stuEntries = Object.values(selectedStudents);
+        if (!stuEntries.length) { showToast('Select at least one student in the sidebar first', 'warning'); return; }
+        stuEntries.forEach(stu => {
+          filteredSchedules
+            .filter(s => s.studentId === stu.id)
+            .forEach(cls => printClasses.push({ cls, color: stu.color, subtitle: cls.teacherLastName }));
+        });
+        legendItems = stuEntries.map(s => ({ label: s.name, color: s.color }));
+        title = stuEntries.length === 1 ? `${stuEntries[0].name} — Weekly Schedule` : 'Student Schedules';
+      }
+
+      // ── Time label positions ──
+      // Show labels every 30 min; bold on-the-hour labels
+      const timeRows = [];
+      for (let m = SCH_START; m <= SCH_END; m += 30) {
+        const h = Math.floor(m / 60);
+        const min = m % 60;
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12  = h > 12 ? h - 12 : (h === 0 ? 12 : h);
+        timeRows.push({
+          pct:   (m - SCH_START) / SCH_SPAN * 100,
+          label: min === 0 ? `${h12} ${ampm}` : `${h12}:30`,
+          onHour: min === 0,
+        });
+      }
+
+      // ── Build one event block (% positioned) ──
+      function buildPE(cls, color, subtitle) {
+        const s = toMins(cls.startTime);
+        const e = toMins(cls.endTime);
+        if (!cls.startTime || !cls.endTime || e <= s) return '';
+        const cs = Math.max(s, SCH_START);
+        const ce = Math.min(e, SCH_END);
+        if (ce <= cs) return '';
+        const top = ((cs - SCH_START) / SCH_SPAN * 100).toFixed(3);
+        const ht  = ((ce - cs)        / SCH_SPAN * 100).toFixed(3);
+        const lab = cls.learningLab ? '⭐ ' : '';
+        const timeStr = `${fmtTime(cls.startTime)}–${fmtTime(cls.endTime)}`;
+        // Estimate rendered height so we can hide sub-lines when the block is tiny
+        // We'll use a data attr and CSS for that
+        return `<div class="pe" style="top:${top}%;height:${ht}%;background:${color};"
+            data-h="${ht}">
+          <div class="pe-name">${lab}${cls.className}</div>
+          ${subtitle ? `<div class="pe-sub">${subtitle}</div>` : ''}
+          <div class="pe-time">${timeStr}</div>
+        </div>`;
+      }
+
+      // ── Build day columns ──
+      const dayCols = DAYS.map((day, di) => {
+        const glLines = timeRows.map(r =>
+          `<div class="gl" style="top:${r.pct.toFixed(3)}%;${r.onHour ? 'border-top:1px solid #d1d5db;' : 'border-top:1px solid #f1f5f9;'}"></div>`
+        ).join('');
+
+        const events = printClasses
+          .filter(p => (p.cls.classDays || []).includes(day))
+          .map(p => buildPE(p.cls, p.color, p.subtitle))
+          .join('');
+
+        return `<div class="p-day">
+          <div class="p-day-hdr">${DAY_LABELS[di]}</div>
+          <div class="p-day-body">${glLines}${events}</div>
+        </div>`;
+      }).join('');
+
+      // ── Time column ──
+      const timeColBody = timeRows.map(r =>
+        `<div class="p-tl ${r.onHour ? 'tl-hour' : ''}" style="top:${r.pct.toFixed(3)}%;">${r.label}</div>`
+      ).join('');
+
+      // ── Legend ──
+      const legendHtml = legendItems.map(l =>
+        `<span class="leg-item"><span class="leg-dot" style="background:${l.color};"></span>${l.label}</span>`
+      ).join('');
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${title}</title>
+<style>
+  @page { size: landscape; margin: 0; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* Full-page wrapper — fills the landscape sheet */
+  html, body { width: 11in; height: 8.5in; overflow: hidden; }
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10px;
+    color: #1e293b;
+    display: flex;
+    flex-direction: column;
+    padding: 0.38in 0.42in 0.32in;
+    gap: 5px;
+  }
+
+  /* Header row */
+  .ps-hdr {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .ps-title { font-size: 17px; font-weight: 800; color: #0f172a; }
+  .ps-sub   { font-size: 10px; color: #64748b; }
+
+  /* Legend */
+  .ps-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    flex-shrink: 0;
+    padding: 4px 0;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .leg-item { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; }
+  .leg-dot  { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+  /* Calendar grid */
+  .ps-grid {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  /* Time column */
+  .p-timecol {
+    width: 50px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+    border-right: 1.5px solid #e2e8f0;
+  }
+  .p-timecol-hdr { height: 26px; flex-shrink: 0; border-bottom: 2px solid #cbd5e1; }
+  .p-timecol-body { flex: 1; position: relative; }
+
+  /* Day column */
+  .p-day {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-left: 1px solid #e2e8f0;
+  }
+  .p-day-hdr {
+    height: 26px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+    color: #0f172a;
+    background: linear-gradient(to bottom, #f1f5f9, #e9eef4);
+    border-bottom: 2px solid #cbd5e1;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+  }
+  .p-day-body { flex: 1; position: relative; overflow: hidden; }
+
+  /* Grid lines (horizontal) */
+  .gl { position: absolute; left: 0; right: 0; height: 0; }
+
+  /* Time labels */
+  .p-tl {
+    position: absolute;
+    right: 4px;
+    transform: translateY(-50%);
+    font-size: 8px;
+    color: #94a3b8;
+    white-space: nowrap;
+    line-height: 1;
+  }
+  .tl-hour { font-size: 8.5px; font-weight: 700; color: #475569; }
+
+  /* Event blocks */
+  .pe {
+    position: absolute;
+    left: 2px; right: 2px;
+    border-radius: 4px;
+    padding: 2px 4px 2px 5px;
+    color: white;
+    overflow: hidden;
+    border-left: 3.5px solid rgba(0,0,0,.22);
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+  }
+  .pe-name { font-size: 9.5px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pe-sub  { font-size: 8px;   opacity: .9;    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pe-time { font-size: 7.5px; opacity: .82;   white-space: nowrap; margin-top: 1px; }
+
+  /* Hide sub-lines when block is very small — use JS to add class */
+  .pe.tiny .pe-sub,
+  .pe.tiny .pe-time { display: none; }
+  .pe.small .pe-time { display: none; }
+
+  /* Footer */
+  .ps-footer { flex-shrink: 0; font-size: 8px; color: #94a3b8; text-align: right; }
+</style>
+</head>
+<body>
+<div class="ps-hdr">
+  <span class="ps-title">${title}</span>
+  <span class="ps-sub">School hours: 9:30 AM – 4:30 PM &nbsp;|&nbsp; Monday – Friday</span>
+</div>
+${legendItems.length > 1 ? `<div class="ps-legend">${legendHtml}</div>` : ''}
+<div class="ps-grid">
+  <div class="p-timecol">
+    <div class="p-timecol-hdr"></div>
+    <div class="p-timecol-body">${timeColBody}</div>
+  </div>
+  ${dayCols}
+</div>
+<div class="ps-footer">Printed ${new Date().toLocaleString()}</div>
+<script>
+  // After layout settles, add .tiny/.small to very short event blocks
+  window.onload = function() {
+    document.querySelectorAll('.pe').forEach(el => {
+      const h = el.getBoundingClientRect().height;
+      if (h < 22) el.classList.add('tiny');
+      else if (h < 36) el.classList.add('small');
+    });
+    window.print();
+  };
+<\/script>
+</body>
+</html>`;
+
+      const win = window.open('', '_blank', 'width=1050,height=760');
+      if (!win) { showToast('Pop-up blocked — allow pop-ups for this page and try again', 'warning'); return; }
+      win.document.write(html);
+      win.document.close();
     };
   </script>
 </body>
