@@ -2181,20 +2181,18 @@
       const badge   = document.getElementById('checkout-count-badge');
       if (!section || !listEl) return;
 
-      // Gather all tracked student IDs (room-placed + unplaced)
-      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
-      const unplaced = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
-      const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
-
-      // Checked-out = marked Done today
-      const checkedOut = allIds
-        .filter(id => attState[id]?.complete)
-        .map(id => students.find(s => s.id === id))
+      // Checked-out = any student with complete:true in today's attState.
+      // We read from attState directly (not erRoomStudents) so students who've
+      // completed ER and been removed from the roster still appear here.
+      // attState is rebuilt from erAttendance on every listener fire, so this
+      // list persists correctly across page refreshes.
+      const checkedOut = Object.entries(attState)
+        .filter(([, st]) => st.complete)
+        .map(([sid]) => students.find(s => s.id === sid))
         .filter(Boolean)
         .sort((a, b) => a.lastName.localeCompare(b.lastName));
 
-      // Show / hide the whole section
-      section.style.display = (attCurrentDate && isAssigned !== null) ? '' : 'none';
+      // Show section only when a date is selected
       if (!attCurrentDate) { section.style.display = 'none'; return; }
       section.style.display = '';
 
