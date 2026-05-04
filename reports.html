@@ -750,6 +750,12 @@
       });
       rawData.er = filtered;
 
+      // Filter clearance by the same period range (erClearance has periodKey too)
+      const filteredClearance = clearance.filter(c => {
+        const periodStart = (c.periodKey||'').split('_')[0] || '';
+        return periodStart ? inRange(periodStart, range) : true; // include legacy records with no periodKey
+      });
+
       // Build workshop name lookup
       const wsMap = {};
       workshops.forEach(w => { wsMap[w.id] = w.name||w.id; });
@@ -765,11 +771,21 @@
         });
       });
 
-      // Clearance-based class info
+      // Clearance-based class info (range-filtered)
       const clearByStudent = {};
-      clearance.forEach(c => {
+      filteredClearance.forEach(c => {
         if (!clearByStudent[c.studentId]) clearByStudent[c.studentId]=new Set();
         if (c.className) clearByStudent[c.studentId].add(c.className+(c.teacherLastName?` (${c.teacherLastName})`:''));
+      });
+
+      // Assignment-based class count per student (workshopIds = actual checkmarks)
+      const assignClassesByStudent = {};
+      filtered.forEach(a => {
+        const wsIds = Array.isArray(a.workshopIds) ? a.workshopIds
+                    : Array.isArray(a.workshopId)  ? a.workshopId
+                    : (a.workshopIds || a.workshopId) ? [a.workshopIds || a.workshopId] : [];
+        assignClassesByStudent[a.studentId] = (assignClassesByStudent[a.studentId] || new Set());
+        wsIds.forEach(wid => assignClassesByStudent[a.studentId].add(wid));
       });
 
       const uniqueStudents = new Set(filtered.map(a=>a.studentId)).size;
@@ -793,16 +809,16 @@
                     backgroundColor:PALETTE.map(c=>c+'CC') }],
       }, hBarOpts());
 
-      // ER by class/teacher (from erClearance)
+      // Teacher sign-off chart (from filteredClearance — how many clearances each teacher/class issued)
       const classCount = {};
-      clearance.forEach(c => {
+      filteredClearance.forEach(c => {
         const key = c.className?(c.className+(c.teacherLastName?` (${c.teacherLastName})`:'')):c.teacherLastName||'Unknown';
         classCount[key]=(classCount[key]||0)+1;
       });
       const topClasses = Object.entries(classCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
       mkChart('chart-er-class', 'bar', {
         labels: topClasses.map(([k])=>k.length>26?k.substring(0,24)+'…':k),
-        datasets:[{ label:'ER Records', data:topClasses.map(([,v])=>v),
+        datasets:[{ label:'Clearances', data:topClasses.map(([,v])=>v),
                     backgroundColor:PALETTE.map(c=>c+'BB') }],
       }, hBarOpts());
 
@@ -812,24 +828,25 @@
         if (!r.studentId) return;
         if (!sMap[r.studentId]) {
           const s=studentMap[r.studentId];
-          sMap[r.studentId]={name:(s?`${s.firstName} ${s.lastName}`:r.studentId),count:0,classCount:0};
+          sMap[r.studentId]={name:(s?`${s.firstName} ${s.lastName}`:r.studentId),count:0,assignedClasses:0};
         }
         sMap[r.studentId].count++;
       });
       Object.keys(sMap).forEach(sid => {
-        sMap[sid].classCount = clearByStudent[sid]?.size||0;
+        // assignedClasses = distinct workshopIds for this student (= distinct missing-work classes)
+        sMap[sid].assignedClasses = assignClassesByStudent[sid]?.size || 0;
       });
       const topStudents = Object.values(sMap).sort((a,b)=>b.count-a.count).slice(0,10);
       fillTable('tbl-er-students', topStudents.map((s,i)=>[
         i+1, s.name,
         `<strong>${s.count}</strong>`,
-        s.classCount||'—',
+        s.assignedClasses||'—',
       ]));
 
-      // Classes per student distribution (histogram)
+      // Classes per student distribution — buckets by distinct ER classes assigned (workshopIds)
       const classDist = {};
-      Object.values(sMap).forEach(s => {
-        const n = s.classCount;
+      Object.keys(assignClassesByStudent).forEach(sid => {
+        const n = assignClassesByStudent[sid].size;
         const bucket = n===0?'0':n<=2?'1-2':n<=4?'3-4':n<=6?'5-6':'7+';
         classDist[bucket]=(classDist[bucket]||0)+1;
       });
