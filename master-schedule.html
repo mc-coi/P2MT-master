@@ -991,25 +991,60 @@
       let title = 'Weekly Schedule';
       let legendItems = [];
 
+      // Extended palette for per-class coloring (print only)
+      const PRINT_PALETTE = [
+        '#2563EB','#059669','#DC2626','#7C3AED','#D97706',
+        '#0891B2','#BE185D','#16A34A','#EA580C','#0F766E',
+        '#1D4ED8','#047857','#B91C1C','#6D28D9','#B45309',
+        '#0E7490','#9D174D','#15803D','#C2410C','#115E59',
+      ];
+
       if (calMode === 'teacher') {
         const checked = getCheckedTeachers();
         if (!checked.size) { showToast('Select at least one teacher in the sidebar first', 'warning'); return; }
         const unique = getUniqueClasses(filteredSchedules.filter(s => checked.has(s.teacherLastName)));
-        unique.forEach(cls => {
-          const color = teacherColors[cls.teacherLastName] || '#6B7280';
+        // Assign each unique class its own color from the print palette
+        const classColorMap = {};
+        unique.forEach((cls, i) => {
+          const key = `${cls.teacherLastName}|${cls.className}`;
+          classColorMap[key] = PRINT_PALETTE[i % PRINT_PALETTE.length];
+        });
+        unique.forEach((cls, i) => {
+          const key = `${cls.teacherLastName}|${cls.className}`;
+          const color = classColorMap[key];
           printClasses.push({ cls, color, subtitle: checked.size > 1 ? cls.teacherLastName : '' });
         });
-        legendItems = [...checked].sort().map(t => ({ label: t, color: teacherColors[t] || '#6B7280' }));
+        // Legend: one entry per class (not per teacher)
+        legendItems = unique.map((cls, i) => {
+          const key = `${cls.teacherLastName}|${cls.className}`;
+          const label = checked.size > 1
+            ? `${cls.className} (${cls.teacherLastName})`
+            : cls.className;
+          return { label, color: classColorMap[key] };
+        });
         title = checked.size === 1 ? `${[...checked][0]} — Weekly Schedule` : 'Weekly Schedule';
       } else {
         const stuEntries = Object.values(selectedStudents);
         if (!stuEntries.length) { showToast('Select at least one student in the sidebar first', 'warning'); return; }
+        // For student view: color per class across all students
+        const allStuClasses = [];
         stuEntries.forEach(stu => {
-          filteredSchedules
-            .filter(s => s.studentId === stu.id)
-            .forEach(cls => printClasses.push({ cls, color: stu.color, subtitle: cls.teacherLastName }));
+          getUniqueClasses(filteredSchedules.filter(s => s.studentId === stu.id))
+            .forEach(cls => allStuClasses.push({ cls, stu }));
         });
-        legendItems = stuEntries.map(s => ({ label: s.name, color: s.color }));
+        const classColorMap = {};
+        allStuClasses.forEach(({ cls }, i) => {
+          const key = `${cls.teacherLastName}|${cls.className}`;
+          if (!classColorMap[key]) classColorMap[key] = PRINT_PALETTE[Object.keys(classColorMap).length % PRINT_PALETTE.length];
+        });
+        allStuClasses.forEach(({ cls, stu }) => {
+          const key = `${cls.teacherLastName}|${cls.className}`;
+          printClasses.push({ cls, color: classColorMap[key], subtitle: cls.teacherLastName });
+        });
+        legendItems = Object.entries(classColorMap).map(([key, color]) => {
+          const [teacher, className] = key.split('|');
+          return { label: `${className} (${teacher})`, color };
+        });
         title = stuEntries.length === 1 ? `${stuEntries[0].name} — Weekly Schedule` : 'Student Schedules';
       }
 
@@ -1210,7 +1245,7 @@
   <span class="ps-title">${title}</span>
   <span class="ps-sub">School hours: 9:30 AM – 4:30 PM &nbsp;|&nbsp; Monday – Friday</span>
 </div>
-${legendItems.length > 1 ? `<div class="ps-legend">${legendHtml}</div>` : ''}
+${legendItems.length ? `<div class="ps-legend">${legendHtml}</div>` : ''}
 <div class="ps-grid">
   <div class="p-timecol">
     <div class="p-timecol-hdr"></div>
