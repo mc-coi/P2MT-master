@@ -2304,13 +2304,11 @@
         return;
       }
 
-      // Get checked-out students
-      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
-      const unplaced = students.filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id));
-      const allIds = [...Array.from(roomStudentIdSet), ...unplaced.map(s => s.id)];
-      const checkedOut = allIds
-        .filter(id => attState[id]?.complete)
-        .map(id => students.find(s => s.id === id))
+      // Get checked-out students — read from attState directly so students who've
+      // been removed from the roster after completing ER are still included.
+      const checkedOut = Object.entries(attState)
+        .filter(([, st]) => st.complete)
+        .map(([sid]) => students.find(s => s.id === sid))
         .filter(Boolean);
 
       if (!checkedOut.length) {
