@@ -109,16 +109,20 @@
       <!-- ── Manage Students in an Existing Class ── -->
       <hr style="margin:32px 0 24px; border:none; border-top:2px solid #e2e8f0;">
       <h3 style="margin-top:0;"><i class="fas fa-users-cog" style="color:#4f46e5;margin-right:8px;"></i>Manage Students in an Existing Class</h3>
-      <p class="w3-text-grey" style="margin-top:0;">Search for a class, then add or remove individual students.</p>
+      <p class="w3-text-grey" style="margin-top:0;">Search by teacher name, then pick a class to view and edit its roster.</p>
 
       <div class="form-row">
-        <div>
-          <label>Teacher Last Name:<input class="w3-input w3-border" type="text" id="mgmtTeacher" placeholder="Type to filter…" oninput="mgmtPopulateClasses()"></label>
+        <div style="position:relative;">
+          <label>Teacher Last Name:
+            <input class="w3-input w3-border" type="text" id="mgmtTeacher" placeholder="Type teacher name…"
+              oninput="mgmtTeacherInput()" autocomplete="off">
+          </label>
+          <div id="mgmtTeacherDropdown" style="display:none;position:absolute;z-index:300;background:white;border:1.5px solid #e2e8f0;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;min-width:220px;width:100%;top:100%;left:0;"></div>
         </div>
         <div>
-          <label>Class Name:
+          <label>Class:
             <select class="w3-input w3-border" id="mgmtClassName" onchange="mgmtLoadRoster()">
-              <option value="">— select teacher first —</option>
+              <option value="">— type teacher name first —</option>
             </select>
           </label>
         </div>
@@ -676,27 +680,92 @@
     let mgmtCurrentSchedules = []; // ALL raw docs for the selected class (may have duplicates)
     let mgmtDisplaySchedules = []; // deduplicated by studentId for display
 
+    // Teacher autocomplete — shows matching teacher last names as a dropdown
+    window.mgmtTeacherInput = function() {
+      const q   = document.getElementById('mgmtTeacher').value.trim().toLowerCase();
+      const dd  = document.getElementById('mgmtTeacherDropdown');
+
+      // Repopulate classes whenever the text changes
+      mgmtPopulateClasses();
+
+      if (!q) { dd.style.display = 'none'; return; }
+
+      const uniqueTeachers = [...new Set(
+        allSchedules.map(s => s.teacherLastName).filter(Boolean)
+      )].filter(t => t.toLowerCase().includes(q)).sort();
+
+      if (!uniqueTeachers.length) { dd.style.display = 'none'; return; }
+
+      dd.innerHTML = uniqueTeachers.map(t =>
+        `<div onclick="mgmtSelectTeacher('${t.replace(/'/g,"&#39;")}')"
+           style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:13px;"
+           onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='white'">
+           <i class="fas fa-chalkboard-teacher" style="color:#6366f1;margin-right:6px;font-size:11px;"></i>${t}
+        </div>`
+      ).join('');
+      dd.style.display = 'block';
+
+      // Close on outside click
+      setTimeout(() => {
+        document.addEventListener('click', function handler(e) {
+          if (!dd.contains(e.target) && e.target.id !== 'mgmtTeacher') {
+            dd.style.display = 'none';
+            document.removeEventListener('click', handler);
+          }
+        });
+      }, 10);
+    };
+
+    window.mgmtSelectTeacher = function(teacher) {
+      document.getElementById('mgmtTeacher').value = teacher;
+      document.getElementById('mgmtTeacherDropdown').style.display = 'none';
+      mgmtPopulateClasses();
+    };
+
     window.mgmtPopulateClasses = function() {
       const teacher = document.getElementById('mgmtTeacher').value.trim().toLowerCase();
       const sel = document.getElementById('mgmtClassName');
       const filtered = allSchedules.filter(s =>
         !teacher || (s.teacherLastName || '').toLowerCase().includes(teacher)
       );
-      const uniqueClasses = [...new Set(filtered.map(s => s.className).filter(Boolean))].sort();
-      sel.innerHTML = '<option value="">— select class —</option>' +
-        uniqueClasses.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      // Build unique teacher+class combos so same class name under different teachers shows separately
+      const seen = new Set();
+      const combos = [];
+      filtered.forEach(s => {
+        if (!s.className) return;
+        const key = `${(s.teacherLastName||'').toLowerCase()}|||${s.className.toLowerCase()}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        combos.push({ className: s.className, teacherLastName: s.teacherLastName || '' });
+      });
+      combos.sort((a, b) => a.className.localeCompare(b.className));
+
+      // When a single teacher is matched exactly, just show class name; otherwise show Teacher — Class
+      const singleTeacher = combos.length && combos.every(c => c.teacherLastName.toLowerCase() === combos[0].teacherLastName.toLowerCase());
+
+      sel.innerHTML = '<option value="">— select a class —</option>' +
+        combos.map(c => {
+          const val   = JSON.stringify({ cls: c.className, tch: c.teacherLastName });
+          const label = singleTeacher ? c.className : `${c.teacherLastName ? c.teacherLastName + ' — ' : ''}${c.className}`;
+          return `<option value='${val.replace(/'/g,"&#39;")}'>${label}</option>`;
+        }).join('');
+
       document.getElementById('mgmtRosterWrap').style.display = 'none';
     };
 
     window.mgmtLoadRoster = function() {
-      const teacher   = document.getElementById('mgmtTeacher').value.trim();
-      const className = document.getElementById('mgmtClassName').value;
-      if (!className) { document.getElementById('mgmtRosterWrap').style.display = 'none'; return; }
+      const raw = document.getElementById('mgmtClassName').value;
+      if (!raw) { document.getElementById('mgmtRosterWrap').style.display = 'none'; return; }
+
+      let className, teacherLastName;
+      try { ({ cls: className, tch: teacherLastName } = JSON.parse(raw)); }
+      catch(e) { return; }
 
       // All raw docs for this class (may include duplicates from re-imports)
       mgmtCurrentSchedules = allSchedules.filter(s =>
         s.className === className &&
-        (!teacher || s.teacherLastName === teacher)
+        (!teacherLastName || (s.teacherLastName || '').toLowerCase() === teacherLastName.toLowerCase())
       );
 
       // Deduplicate by studentId for display — keep first occurrence per student.
@@ -712,7 +781,7 @@
       const dupCount = mgmtCurrentSchedules.length - mgmtDisplaySchedules.length;
 
       document.getElementById('mgmtRosterTitle').textContent =
-        `${className}${teacher ? ' — ' + teacher : ''} (${mgmtDisplaySchedules.length} student${mgmtDisplaySchedules.length !== 1 ? 's' : ''})`;
+        `${className}${teacherLastName ? ' — ' + teacherLastName : ''} (${mgmtDisplaySchedules.length} student${mgmtDisplaySchedules.length !== 1 ? 's' : ''})`;
 
       // Show/hide the clean-duplicates button
       const cleanBtn = document.getElementById('mgmtCleanBtn');

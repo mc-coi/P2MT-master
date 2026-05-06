@@ -843,19 +843,21 @@
         s.assignedClasses||'—',
       ]));
 
-      // Classes per student distribution — buckets by distinct ER classes assigned (workshopIds)
+      // Classes per student distribution — one pie slice per exact count (1, 2, 3 … max)
       const classDist = {};
       Object.keys(assignClassesByStudent).forEach(sid => {
         const n = assignClassesByStudent[sid].size;
-        const bucket = n===0?'0':n<=2?'1-2':n<=4?'3-4':n<=6?'5-6':'7+';
-        classDist[bucket]=(classDist[bucket]||0)+1;
+        classDist[n] = (classDist[n] || 0) + 1;
       });
-      const distOrder = ['0','1-2','3-4','5-6','7+'];
-      mkChart('chart-er-class-dist', 'bar', {
-        labels: distOrder.filter(k=>classDist[k]),
-        datasets:[{ label:'Students', data:distOrder.filter(k=>classDist[k]).map(k=>classDist[k]),
-                    backgroundColor:'#06B6D4CC' }],
-      }, vBarOpts());
+      const maxClasses = Math.max(0, ...Object.keys(classDist).map(Number));
+      const distLabels = Array.from({length: maxClasses}, (_, i) => `${i+1} class${i+1!==1?'es':''}`);
+      const distData   = Array.from({length: maxClasses}, (_, i) => classDist[i+1] || 0);
+      const distColors = distLabels.map((_, i) => PALETTE[i % PALETTE.length]);
+      mkChart('chart-er-class-dist', 'pie', {
+        labels: distLabels,
+        datasets:[{ data: distData, backgroundColor: distColors, borderWidth: 1 }],
+      }, { responsive:true, maintainAspectRatio:false,
+           plugins:{ legend:{ position:'right', labels:{ font:{size:11}, boxWidth:14 } } } });
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

@@ -348,8 +348,13 @@
     const TODO_KEY = 'p2mt_todo_items';
 
     function todoLoad() {
-      try { return JSON.parse(localStorage.getItem(TODO_KEY)) || []; }
-      catch(e) { return []; }
+      try {
+        const raw = JSON.parse(localStorage.getItem(TODO_KEY)) || [];
+        // Migrate legacy plain-string arrays to object format
+        return raw.map(item =>
+          typeof item === 'string' ? { id: Date.now() + Math.random(), text: item } : item
+        );
+      } catch(e) { return []; }
     }
 
     function todoSave(items) {
@@ -368,20 +373,19 @@
       }
       empty.style.display = 'none';
 
-      items.forEach((text, idx) => {
+      items.forEach(item => {
         const li = document.createElement('li');
         li.className = 'todo-item';
         li.innerHTML = `
-          <input type="checkbox" class="todo-cb" id="todo-cb-${idx}">
-          <label class="todo-text" for="todo-cb-${idx}">${text.replace(/</g,'&lt;')}</label>`;
+          <input type="checkbox" class="todo-cb" id="todo-cb-${item.id}">
+          <label class="todo-text" for="todo-cb-${item.id}">${item.text.replace(/</g,'&lt;')}</label>`;
 
         li.querySelector('.todo-cb').addEventListener('change', () => {
           li.classList.add('done');
-          // Wait for fade-out transition then remove from storage
+          // Wait for fade-out transition, then remove by stable ID (not index)
           setTimeout(() => {
             const current = todoLoad();
-            current.splice(idx, 1);
-            todoSave(current);
+            todoSave(current.filter(i => i.id !== item.id));
             todoRender();
           }, 320);
         });
@@ -395,7 +399,7 @@
       const text  = input.value.trim();
       if (!text) return;
       const items = todoLoad();
-      items.push(text);
+      items.push({ id: Date.now() + Math.random(), text });
       todoSave(items);
       input.value = '';
       todoRender();
