@@ -2184,7 +2184,12 @@
       }
 
       wrap.innerHTML = html || `<div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">No students placed in rooms yet.</div>`;
-      updateAttBadges(totalStudents, presentCount, absentCount, completeCount, clearedCount);
+      // completeCount and clearedCount must include students who've been removed
+      // from the roster after completing ER — attState and erClearedData persist
+      // those records even after removeStudentFromRoster clears their room placement.
+      const totalComplete = Object.values(attState).filter(s => s.complete).length;
+      const totalCleared  = erClearedData.length;
+      updateAttBadges(totalStudents, presentCount, absentCount, totalComplete, totalCleared);
       renderCheckoutPanel();
     }
 
@@ -2558,7 +2563,7 @@
         allIds.length,
         allIds.filter(id => (attState[id]?.status || null) === 'P').length,
         allIds.filter(id => (attState[id]?.status || null) === 'A').length,
-        allIds.filter(id => attState[id]?.complete).length,
+        Object.values(attState).filter(s => s.complete).length,
         erClearedData.length
       );
       renderCheckoutPanel();
