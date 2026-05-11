@@ -247,14 +247,18 @@
     .room-sel { border: 1.5px solid #e2e8f0; border-radius: 7px; padding: 6px 10px; font-size: 13px; color: #1e293b; outline: none; min-width: 160px; background: white; }
     .room-sel:focus { border-color: var(--primary); }
 
-    /* P / A toggle */
-    .pa-group { display: flex; gap: 5px; }
-    .pa-btn { width: 42px; height: 34px; border-radius: 7px; border: 2px solid; font-weight: 800; font-size: 14px; cursor: pointer; background: transparent; transition: all .12s; }
+    /* P / T / E / U attendance buttons */
+    .pa-group { display: flex; gap: 4px; }
+    .pa-btn { width: 36px; height: 34px; border-radius: 7px; border: 2px solid; font-weight: 800; font-size: 13px; cursor: pointer; background: transparent; transition: all .12s; }
     .pa-btn:hover { opacity: .8; }
     .pa-btn.P { border-color: #16a34a; color: #16a34a; }
     .pa-btn.P.active { background: #16a34a; color: white; box-shadow: 0 0 0 2px #bbf7d0; }
-    .pa-btn.A { border-color: #dc2626; color: #dc2626; }
-    .pa-btn.A.active { background: #dc2626; color: white; box-shadow: 0 0 0 2px #fca5a5; }
+    .pa-btn.T { border-color: #f59e0b; color: #f59e0b; }
+    .pa-btn.T.active { background: #f59e0b; color: white; box-shadow: 0 0 0 2px #fde68a; }
+    .pa-btn.E { border-color: #6366f1; color: #6366f1; }
+    .pa-btn.E.active { background: #6366f1; color: white; box-shadow: 0 0 0 2px #c7d2fe; }
+    .pa-btn.U { border-color: #dc2626; color: #dc2626; }
+    .pa-btn.U.active { background: #dc2626; color: white; box-shadow: 0 0 0 2px #fca5a5; }
 
     /* Complete checkbox */
     .complete-wrap { display: flex; justify-content: center; }
@@ -703,6 +707,46 @@
         </div>
       </div>
 
+      <!-- ── Purge / End-of-Year Cleanup ─────────────────────────────────── -->
+      <div class="setup-card" style="margin-top:24px;border-color:#fca5a5;">
+        <h3 style="color:#dc2626;"><i class="fas fa-trash-alt"></i> Purge &amp; Cleanup</h3>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;">Remove ER data for students who have graduated or are no longer enrolled. This permanently deletes assignments, attendance, clearance records, and daily attendance entries for the selected students.</p>
+
+        <!-- Purge by graduation year -->
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;"><i class="fas fa-user-graduate" style="color:#7c3aed;margin-right:6px;"></i>Purge by Graduation Year</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <select id="purge-grad-year" onchange="sel_purgeGradYear_onChange()" style="padding:7px 12px;border-radius:7px;border:1.5px solid #e2e8f0;font-size:13px;background:var(--bg-card);color:var(--text-primary);min-width:180px;">
+              <option value="">Select graduation year…</option>
+            </select>
+            <span id="purge-grad-count" style="font-size:12px;color:var(--text-muted);"></span>
+            <button class="btn-sm danger" style="margin-left:auto;" onclick="purgeByGradYear()"><i class="fas fa-trash-alt"></i> Purge Class</button>
+          </div>
+        </div>
+
+        <!-- Purge students not in system -->
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:14px 16px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;"><i class="fas fa-user-slash" style="color:#dc2626;margin-right:6px;"></i>Purge Students No Longer Enrolled</div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="btn-sm" style="background:#f1f5f9;border:1.5px solid #e2e8f0;color:var(--text-primary);" onclick="scanUnenrolled()"><i class="fas fa-search"></i> Scan for orphaned records</button>
+            <span id="purge-orphan-count" style="font-size:12px;color:var(--text-muted);"></span>
+            <button id="purge-orphan-btn" class="btn-sm danger" style="margin-left:auto;display:none;" onclick="purgeOrphaned()"><i class="fas fa-trash-alt"></i> Purge Orphaned Records</button>
+          </div>
+          <div id="purge-orphan-list" style="margin-top:10px;font-size:12px;color:var(--text-muted);max-height:120px;overflow-y:auto;"></div>
+        </div>
+
+        <!-- End-of-year: clear all ER attendance for a date range -->
+        <div style="background:var(--bg-secondary);border-radius:10px;padding:14px 16px;">
+          <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:10px;"><i class="fas fa-calendar-times" style="color:#f59e0b;margin-right:6px;"></i>End-of-Year Attendance Cleanup</div>
+          <p style="font-size:12px;color:var(--text-muted);margin:0 0 10px;">Delete all ER attendance records before a cutoff date. Useful for archiving after the school year ends. Does <strong>not</strong> remove assignments or room setup.</p>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <label style="font-size:12px;font-weight:600;color:var(--text-muted);">Delete attendance before:</label>
+            <input type="date" id="purge-att-before" style="padding:7px 10px;border-radius:7px;border:1.5px solid #e2e8f0;font-size:13px;background:var(--bg-card);color:var(--text-primary);">
+            <button class="btn-sm danger" onclick="purgeAttendanceBefore()"><i class="fas fa-calendar-times"></i> Purge Attendance</button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </div><!-- /er-page -->
@@ -763,7 +807,7 @@
     let p2mtTemplatesList     = [];  // from p2mtTemplates collection
     let selectedEmailTmplId   = '';  // localStorage: p2mt_er_email_tmpl_id
 
-    // ER Attendance state: { studentId: { status:'P'|'A'|null, complete:bool, logId:null } }
+    // ER Attendance state: { studentId: { status:'P'|'T'|'E'|'U'|null, complete:bool, logId:null, classLogId:null } }
     let attState = {};
     let attUnsubscribe        = null;   // Firestore listener for erAttendance
     let attClrUnsubscribe     = null;   // Firestore listener for erClearance
@@ -1149,7 +1193,7 @@
         if (attCurrentDate && !attUnsubscribe) startAttendanceListeners(attCurrentDate);
         else renderAttendanceTab();
       }
-      if (tab === 'er') renderErSetupTab();
+      if (tab === 'er') { renderErSetupTab(); populatePurgeGradYears(); }
     };
 
     // ── Grade filter helpers ──────────────────────────────────────────────────────
@@ -2071,10 +2115,11 @@
         attState = {};
         rows.forEach(r => {
           attState[r.studentId] = {
-            teacherRoom: r.teacherRoom || '',
-            status:      r.status      || null,
-            complete:    r.complete    || false,
+            teacherRoom: r.teacherRoom  || '',
+            status:      r.status       || null,
+            complete:    r.complete     || false,
             logId:       r.id,
+            classLogId:  r.classLogId  || null,
           };
         });
         renderAttendanceTab();
@@ -2155,7 +2200,7 @@
           const st = attState[student.id] || { status: null, complete: false, logId: null };
           const isCleared = erClearedData.some(c => c.studentId === student.id);
           if (st.status === 'P') presentCount++;
-          if (st.status === 'A') absentCount++;
+          if (['A','T','E','U'].includes(st.status)) absentCount++;
           if (st.complete) completeCount++;
           if (isCleared) clearedCount++;
           html += renderStudentAttRow(student, st, isCleared);
@@ -2175,7 +2220,7 @@
           const st = attState[student.id] || { status: null, complete: false, logId: null };
           const isCleared = erClearedData.some(c => c.studentId === student.id);
           if (st.status === 'P') presentCount++;
-          if (st.status === 'A') absentCount++;
+          if (['A','T','E','U'].includes(st.status)) absentCount++;
           if (st.complete) completeCount++;
           if (isCleared) clearedCount++;
           html += renderStudentAttRow(student, st, isCleared);
@@ -2358,7 +2403,9 @@
 
     function renderStudentAttRow(student, st, isCleared) {
       const pActive = st.status === 'P' ? 'active' : '';
-      const aActive = st.status === 'A' ? 'active' : '';
+      const tActive = st.status === 'T' ? 'active' : '';
+      const eActive = st.status === 'E' ? 'active' : '';
+      const uActive = (st.status === 'U' || st.status === 'A') ? 'active' : ''; // A is legacy U
 
       // Build clearance chips — STEM campus classes only, deduped by teacher+class
       const schedules = getStudentStemSchedules(student.id);
@@ -2386,8 +2433,10 @@
           <div class="att-student-sub">${esc(student.chattStateANumber || student.email || '')}</div>
         </div>
         <div class="att-pa-wrap">
-          <button class="pa-btn P ${pActive}" onclick="attSetStatus('${student.id}','P')">P</button>
-          <button class="pa-btn A ${aActive}" onclick="attSetStatus('${student.id}','A')">A</button>
+          <button class="pa-btn P ${pActive}" onclick="attSetStatus('${student.id}','P')" title="Present">P</button>
+          <button class="pa-btn T ${tActive}" onclick="attSetStatus('${student.id}','T')" title="Tardy">T</button>
+          <button class="pa-btn E ${eActive}" onclick="attSetStatus('${student.id}','E')" title="Excused Absent">E</button>
+          <button class="pa-btn U ${uActive}" onclick="attSetStatus('${student.id}','U')" title="Unexcused Absent">U</button>
         </div>
         <div class="att-done-wrap">
           <input type="checkbox" class="complete-chk" ${st.complete ? 'checked' : ''}
@@ -2412,14 +2461,15 @@
     }
 
     window.attSetStatus = function(studentId, status) {
-      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null };
+      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null, classLogId: null };
       attState[studentId].status = status;
 
-      // Update DOM buttons
+      // Update DOM buttons (legacy 'A' maps to U button)
+      const activeCode = status === 'A' ? 'U' : status;
       const row = document.getElementById(`att-row-${studentId}`);
       if (row) {
         row.querySelectorAll('.pa-btn').forEach(btn => {
-          btn.classList.toggle('active', btn.classList.contains(status));
+          btn.classList.toggle('active', btn.classList.contains(activeCode));
         });
       }
       attSaveRow(studentId);
@@ -2427,13 +2477,13 @@
     };
 
     window.attSetRoom = function(studentId, room) {
-      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null };
+      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null, classLogId: null };
       attState[studentId].teacherRoom = room;
       attSaveRow(studentId);
     };
 
     window.attSetComplete = async function(studentId, checked) {
-      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null };
+      if (!attState[studentId]) attState[studentId] = { teacherRoom: '', status: null, complete: false, logId: null, classLogId: null };
       attState[studentId].complete = checked;
 
       // Toggle green row class
@@ -2524,6 +2574,212 @@
       }
     };
 
+    // ── Purge helpers ──────────────────────────────────────────────────────────
+
+    // Delete ALL ER data (across all periods) for a list of student IDs.
+    async function purgeStudentErData(studentIds) {
+      let deletedCount = 0;
+      for (const sid of studentIds) {
+        const colls = ['erAttendance','erAssignments','erClearance','erCleared','erRoomStudents'];
+        for (const coll of colls) {
+          try {
+            const rows = await getWhere(coll, 'studentId', '==', sid);
+            for (const r of rows) {
+              if (r.id) { await deleteDoc(coll, r.id); deletedCount++; }
+            }
+          } catch(e) { console.error(`purge ${coll}:`, e); }
+        }
+        // Also remove Early Release entries from classAttendanceLogs
+        try {
+          const logs = await getWhere('classAttendanceLogs', 'studentId', '==', sid);
+          for (const l of logs) {
+            if (l.id && l.className === 'Early Release') {
+              await deleteDoc('classAttendanceLogs', l.id); deletedCount++;
+            }
+          }
+        } catch(e) { console.error('purge classAttendanceLogs:', e); }
+      }
+      return deletedCount;
+    }
+
+    // Populate the grad-year dropdown when the ER tab is shown.
+    function populatePurgeGradYears() {
+      const sel = document.getElementById('purge-grad-year');
+      if (!sel) return;
+      // Collect years from current students who are assigned to ER
+      const assignedIds = new Set(Object.keys(assignments));
+      const years = [...new Set(
+        students.filter(s => assignedIds.has(s.id) && s.yearOfGraduation)
+                .map(s => s.yearOfGraduation)
+      )].sort();
+      const currentOptions = [...sel.options].slice(1).map(o => o.value);
+      const same = years.length === currentOptions.length && years.every((y,i) => String(y) === currentOptions[i]);
+      if (same) return;
+      // Rebuild
+      while (sel.options.length > 1) sel.remove(1);
+      for (const yr of years) {
+        const opt = document.createElement('option');
+        opt.value = yr;
+        opt.textContent = `Class of ${yr} — ${gradeLabel(yr)}`;
+        sel.appendChild(opt);
+      }
+    }
+
+    window.sel_purgeGradYear_onChange = function() {
+      const yr = document.getElementById('purge-grad-year')?.value;
+      const span = document.getElementById('purge-grad-count');
+      if (!span) return;
+      if (!yr) { span.textContent = ''; return; }
+      const count = students.filter(s => String(s.yearOfGraduation) === String(yr) && assignments[s.id]).length;
+      span.textContent = `${count} student${count !== 1 ? 's' : ''} with ER data`;
+    };
+
+    window.purgeByGradYear = async function() {
+      const yr = document.getElementById('purge-grad-year')?.value;
+      if (!yr) { showToast('Select a graduation year first', 'warning'); return; }
+      const targets = students.filter(s => String(s.yearOfGraduation) === String(yr));
+      if (!targets.length) { showToast('No students found for that year', 'warning'); return; }
+
+      const confirmed = await confirmTypedDelete(
+        `This will permanently delete ALL ER data for ${targets.length} student${targets.length !== 1 ? 's' : ''} in the Class of ${yr} (assignments, attendance, clearances, daily-attendance Early Release entries).`
+      );
+      if (!confirmed) return;
+
+      showToast('Purging…', 'info');
+      try {
+        const count = await purgeStudentErData(targets.map(s => s.id));
+        // Remove from in-memory state
+        for (const s of targets) {
+          erRoomStudents = erRoomStudents.filter(rs => rs.studentId !== s.id);
+          erClearanceData = erClearanceData.filter(c => c.studentId !== s.id);
+          erClearedData   = erClearedData.filter(c => c.studentId !== s.id);
+          delete assignments[s.id];
+          delete attState[s.id];
+        }
+        renderGrid(); renderErSetupTab(); renderAttendanceTab(); populatePurgeGradYears();
+        showToast(`Purged ${count} records for Class of ${yr}`, 'success');
+      } catch(err) {
+        console.error('purgeByGradYear error:', err);
+        showToast('Error during purge', 'error');
+      }
+    };
+
+    // Stores orphan IDs found by most recent scan
+    let _orphanIds = [];
+
+    window.scanUnenrolled = async function() {
+      const countEl = document.getElementById('purge-orphan-count');
+      const listEl  = document.getElementById('purge-orphan-list');
+      const btn     = document.getElementById('purge-orphan-btn');
+      if (!countEl || !listEl || !btn) return;
+      countEl.textContent = 'Scanning…';
+      listEl.innerHTML = '';
+      btn.style.display = 'none';
+      _orphanIds = [];
+      try {
+        // Collect all student IDs that appear in in-memory ER state
+        const inMemoryIds = new Set([
+          ...Object.keys(assignments),
+          ...erRoomStudents.map(rs => rs.studentId),
+          ...erClearanceData.map(c => c.studentId),
+          ...erClearedData.map(c => c.studentId),
+          ...Object.keys(attState),
+        ]);
+        const enrolledIds = new Set(students.map(s => s.id));
+        const orphans = [...inMemoryIds].filter(id => !enrolledIds.has(id));
+        _orphanIds = orphans;
+        if (!orphans.length) {
+          countEl.textContent = '✓ No orphaned records found';
+          return;
+        }
+        countEl.textContent = `${orphans.length} student ID${orphans.length !== 1 ? 's' : ''} with ER data but not in Students list`;
+        listEl.innerHTML = orphans.map(id => `<div style="padding:2px 0;font-family:monospace;">${esc(id)}</div>`).join('');
+        btn.style.display = '';
+      } catch(err) {
+        console.error('scanUnenrolled error:', err);
+        countEl.textContent = 'Error during scan';
+      }
+    };
+
+    window.purgeOrphaned = async function() {
+      if (!_orphanIds.length) { showToast('Run "Scan" first', 'warning'); return; }
+      const confirmed = await confirmTypedDelete(
+        `This will permanently delete ALL ER data for ${_orphanIds.length} student ID${_orphanIds.length !== 1 ? 's' : ''} not found in the current student list.`
+      );
+      if (!confirmed) return;
+      showToast('Purging…', 'info');
+      try {
+        const count = await purgeStudentErData(_orphanIds);
+        for (const id of _orphanIds) {
+          erRoomStudents = erRoomStudents.filter(rs => rs.studentId !== id);
+          erClearanceData = erClearanceData.filter(c => c.studentId !== id);
+          erClearedData   = erClearedData.filter(c => c.studentId !== id);
+          delete assignments[id];
+          delete attState[id];
+        }
+        _orphanIds = [];
+        document.getElementById('purge-orphan-count').textContent = '✓ Orphaned records purged';
+        document.getElementById('purge-orphan-list').innerHTML = '';
+        document.getElementById('purge-orphan-btn').style.display = 'none';
+        renderGrid(); renderErSetupTab(); renderAttendanceTab();
+        showToast(`Purged ${count} orphaned records`, 'success');
+      } catch(err) {
+        console.error('purgeOrphaned error:', err);
+        showToast('Error during purge', 'error');
+      }
+    };
+
+    window.purgeAttendanceBefore = async function() {
+      const dateInput = document.getElementById('purge-att-before');
+      const cutoff = dateInput?.value;
+      if (!cutoff) { showToast('Select a cutoff date first', 'warning'); return; }
+
+      const confirmed = await confirmTypedDelete(
+        `This will permanently delete all ER attendance records (erAttendance + Early Release daily-attendance entries) dated before ${cutoff}. Room assignments and clearances are not affected.`
+      );
+      if (!confirmed) return;
+      showToast('Purging attendance…', 'info');
+      let deleted = 0;
+      try {
+        // getAll erAttendance and filter by date — no direct Firestore range query available via wrapper
+        // Use getWhere with all students (in memory) to stay efficient
+        const allStudentIds = [...new Set([
+          ...Object.keys(assignments),
+          ...erRoomStudents.map(rs => rs.studentId),
+        ])];
+        for (const sid of allStudentIds) {
+          try {
+            const rows = await getWhere('erAttendance', 'studentId', '==', sid);
+            for (const r of rows) {
+              if (r.date && r.date < cutoff) {
+                if (r.id) { await deleteDoc('erAttendance', r.id); deleted++; }
+                // Also delete linked classAttendanceLogs record
+                if (r.classLogId) {
+                  try { await deleteDoc('classAttendanceLogs', r.classLogId); deleted++; } catch(e) {}
+                }
+              }
+            }
+          } catch(e) { console.error(e); }
+        }
+        // Also scan classAttendanceLogs with className Early Release independently
+        try {
+          const erLogs = await getWhere('classAttendanceLogs', 'className', '==', 'Early Release');
+          for (const l of erLogs) {
+            if (l.date && l.date < cutoff && l.id) {
+              try { await deleteDoc('classAttendanceLogs', l.id); deleted++; } catch(e) {}
+            }
+          }
+        } catch(e) { console.error(e); }
+
+        showToast(`Purged ${deleted} attendance records before ${cutoff}`, 'success');
+      } catch(err) {
+        console.error('purgeAttendanceBefore error:', err);
+        showToast('Error during attendance purge', 'error');
+      }
+    };
+
+    // ── End purge helpers ──────────────────────────────────────────────────────
+
     async function removeStudentFromRoster(studentId) {
       const student = students.find(s => s.id === studentId);
       const name = student ? `${student.firstName} ${student.lastName}` : 'Student';
@@ -2562,7 +2818,7 @@
       updateAttBadges(
         allIds.length,
         allIds.filter(id => (attState[id]?.status || null) === 'P').length,
-        allIds.filter(id => (attState[id]?.status || null) === 'A').length,
+        allIds.filter(id => ['A','T','E','U'].includes(attState[id]?.status)).length,
         Object.values(attState).filter(s => s.complete).length,
         erClearedData.length
       );
@@ -2572,7 +2828,47 @@
     async function attSaveRow(studentId) {
       const st = attState[studentId];
       if (!st || !attCurrentDate) return;
-      const data = { studentId, date: attCurrentDate, teacherRoom: st.teacherRoom, status: st.status, complete: st.complete };
+
+      // ── Sync to classAttendanceLogs so ER absences appear in Daily Attendance ──
+      // T / E / U statuses are written as a classAttendanceLogs record with
+      // className='Early Release'.  P (or null) removes that record if one exists.
+      const absenceCode = ['T','E','U'].includes(st.status) ? st.status
+                        : st.status === 'A'                 ? 'U'   // legacy A → U
+                        : null;
+      try {
+        if (absenceCode) {
+          const student = students.find(s => s.id === studentId);
+          const classLogData = {
+            studentId,
+            studentName:        student ? `${student.lastName}, ${student.firstName}` : studentId,
+            chattStateANumber:  student?.chattStateANumber || '',
+            teacherLastName:    '',
+            className:          'Early Release',
+            date:               attCurrentDate,
+            attendanceCode:     absenceCode,
+            comment:            '',
+            assignTmi:          false,
+            updatedAt:          new Date().toISOString(),
+          };
+          if (st.classLogId) {
+            await updateDoc('classAttendanceLogs', st.classLogId, classLogData);
+          } else {
+            const cid = await addDoc('classAttendanceLogs', classLogData);
+            attState[studentId].classLogId = cid;
+          }
+        } else if (st.classLogId) {
+          // Status cleared back to P / null — remove the daily attendance record
+          await deleteDoc('classAttendanceLogs', st.classLogId);
+          attState[studentId].classLogId = null;
+        }
+      } catch (err) { console.error('Error syncing ER absence to classAttendanceLogs:', err); }
+
+      // ── Save to erAttendance ──
+      const data = {
+        studentId, date: attCurrentDate,
+        teacherRoom: st.teacherRoom, status: st.status, complete: st.complete,
+        classLogId: attState[studentId].classLogId || null,
+      };
       attLocalSaveInProgress = true;
       try {
         if (st.logId) {

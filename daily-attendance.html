@@ -272,7 +272,6 @@
         if (!start) document.getElementById('filter-start').value = effectiveStart;
         if (!end)   document.getElementById('filter-end').value   = effectiveEnd;
 
-        // Skip '?' entries that are just placeholders with no T/U/E — show ALL lab entries
         labEntries = allLabLogs.filter(l => {
           const d = getDate(l);
           if (d < effectiveStart || d > effectiveEnd) return false;
@@ -283,7 +282,7 @@
             if (!name.includes(student) && !aNum.includes(student)) return false;
           }
           // If code filter is active, only show lab entries with that code (or all labs if no code filter)
-          if (code && l.attendanceCode !== code && l.attendanceCode !== '?') return false;
+          if (code && l.attendanceCode !== code) return false;
           return true;
         });
       }
@@ -310,12 +309,10 @@
     }
 
     function codeBadge(code, isLab) {
+      const map = { U: 'code-U', T: 'code-T', E: 'code-E', P: '' };
       if (isLab) {
-        const map = { U: 'code-U', T: 'code-T', E: 'code-E', P: '', '?': 'code-Lab' };
-        const label = code === '?' ? '⭐ Pending' : `⭐ Lab/${code}`;
-        return `<span class="code-badge ${map[code] || 'code-Lab'}">${label}</span>`;
+        return `<span class="code-badge ${map[code] || 'code-Lab'}">⭐ Lab/${code}</span>`;
       }
-      const map = { U: 'code-U', T: 'code-T', E: 'code-E' };
       return `<span class="code-badge ${map[code] || ''}">${code}</span>`;
     }
 

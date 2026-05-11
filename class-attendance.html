@@ -30,7 +30,6 @@
     .att-row[data-code="T"] { background: #fffbeb; }
     .att-row[data-code="E"] { background: #eff6ff; }
     .att-row[data-code="P"] { background: #f0fdf4; }
-    .att-row[data-code="?"] { background: #f9fafb; }
     .att-num  { width: 36px; color: #94a3b8; font-size: 13px; text-align: center; }
     .att-name { font-weight: 600; color: var(--text-primary); }
     .att-anum { font-size: 12px; color: var(--text-muted); }
@@ -159,7 +158,6 @@
     [data-theme="dark"] .att-row[data-code="T"] { background: rgba(217,119,6,0.1); }
     [data-theme="dark"] .att-row[data-code="E"] { background: rgba(37,99,235,0.1); }
     [data-theme="dark"] .att-row[data-code="P"] { background: rgba(22,163,74,0.1); }
-    [data-theme="dark"] .att-row[data-code="?"] { background: var(--surface); }
     [data-theme="dark"] .att-comment { background: var(--surface-2); border-color: var(--border); color: var(--text-primary); }
     [data-theme="dark"] .att-legend { background: var(--surface); border-top-color: var(--border); color: var(--text-secondary); }
     [data-theme="dark"] .class-section { background: var(--surface); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
@@ -363,7 +361,7 @@
     import { formatDate, exportCSV, showToast, ATTENDANCE_CODES } from './js/utils.js';
 
     // Valid attendance codes — any value not in this set defaults to 'P' at render time
-    const VALID_ATT_CODES = new Set(['P', 'T', 'E', 'U', '?']);
+    const VALID_ATT_CODES = new Set(['P', 'T', 'E', 'U']);
     function resolveAttCode(raw) {
       const c = (raw || '').toString().trim();
       return VALID_ATT_CODES.has(c) ? c : 'P';
@@ -681,11 +679,10 @@
           comment: rawState.comment || '',
           tmi:     rawState.tmi    || false
         };
-        const codes = ['P', 'T', 'E', 'U', '?'];
+        const codes = ['P', 'T', 'E', 'U'];
         const codeBtns = codes.map(c => {
-          const cls    = c === '?' ? 'Q' : c;
           const active = state.code === c ? 'active' : '';
-          return `<button class="code-btn ${cls} ${active}" onclick="setCodeSection(${idx},'${student.id}','${c}')">${c}</button>`;
+          return `<button class="code-btn ${c} ${active}" onclick="setCodeSection(${idx},'${student.id}','${c}')">${c}</button>`;
         }).join('');
 
         const safeComment = (state.comment || '').replace(/"/g, '&quot;');
@@ -770,7 +767,7 @@
       if (row) {
         row.dataset.code = code;
         row.querySelectorAll('.code-btn').forEach(btn => {
-          const btnCode = btn.classList.contains('Q') ? '?' : [...btn.classList].find(c => ['P','T','E','U'].includes(c));
+          const btnCode = [...btn.classList].find(c => ['P','T','E','U'].includes(c));
           btn.classList.toggle('active', btnCode === code);
         });
       }
