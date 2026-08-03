@@ -166,6 +166,16 @@
 
       <button class="w3-button btn-primary w3-margin-top" onclick="propagateAttendance()"><i class="fas fa-play"></i> Propagate</button>
       <div id="propagateProgress" style="margin-top:20px;"></div>
+
+      <hr style="margin:28px 0;">
+
+      <h3 style="color:#dc2626;"><i class="fas fa-trash-alt"></i> Clear Propagated Logs</h3>
+      <p class="w3-text-grey">Delete all attendance log records for the same school year, semester, and date range. Use this before re-propagating after schedule changes. <strong>This also removes any manual attendance edits for those days.</strong></p>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-danger" onclick="clearPropagatedLogs()"><i class="fas fa-trash-alt"></i> Clear Propagated Logs</button>
+        <span id="clearPropProgress" style="font-size:13px;color:#64748b;"></span>
+      </div>
     </div>
 
     <!-- TAB 4: Delete Schedule -->
@@ -1059,6 +1069,69 @@
       } catch (error) {
         console.error('Propagate error:', error);
         showToast('Error propagating attendance logs', 'error');
+      }
+    };
+
+    window.clearPropagatedLogs = async function() {
+      const schoolYear = document.getElementById('propSchoolYear').value.trim();
+      const semester   = document.getElementById('propSemester').value;
+      const startVal   = document.getElementById('propStartDate').value;
+      const endVal     = document.getElementById('propEndDate').value;
+
+      if (!schoolYear || !semester || !startVal || !endVal) {
+        showToast('Fill in School Year, Semester, and Date Range first', 'warning');
+        return;
+      }
+
+      const statusEl = document.getElementById('clearPropProgress');
+      statusEl.textContent = 'Scanning…';
+
+      // Fetch all logs for this school year + semester, then filter by date range in memory
+      let matchingLogs = [];
+      try {
+        const byYear = await getWhere('classAttendanceLogs', 'schoolYear', '==', schoolYear);
+        matchingLogs = byYear.filter(l => {
+          if (l.semester !== semester) return false;
+          const d = l.date || l.classDate || '';
+          return d >= startVal && d <= endVal;
+        });
+      } catch(e) {
+        console.error('clearPropagatedLogs scan error:', e);
+        showToast('Error scanning logs', 'error');
+        statusEl.textContent = '';
+        return;
+      }
+
+      if (matchingLogs.length === 0) {
+        statusEl.textContent = 'No matching logs found for those parameters.';
+        return;
+      }
+
+      statusEl.textContent = `Found ${matchingLogs.length} logs.`;
+
+      const { confirmTypedDelete } = await import('./js/utils.js');
+      const confirmed = await confirmTypedDelete(
+        `This will permanently delete ${matchingLogs.length} attendance log${matchingLogs.length !== 1 ? 's' : ''} for ${schoolYear} ${semester} between ${startVal} and ${endVal}. Any manual edits in that range will also be removed.`
+      );
+      if (!confirmed) { statusEl.textContent = ''; return; }
+
+      statusEl.textContent = 'Deleting…';
+      let deleted = 0;
+      try {
+        const chunkSize = 20;
+        for (let i = 0; i < matchingLogs.length; i += chunkSize) {
+          const chunk = matchingLogs.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
+          deleted += chunk.length;
+          const pct = Math.round(deleted / matchingLogs.length * 100);
+          statusEl.textContent = `Deleting… ${deleted} / ${matchingLogs.length} (${pct}%)`;
+        }
+        statusEl.textContent = `✓ Deleted ${deleted} log${deleted !== 1 ? 's' : ''}.`;
+        showToast(`Cleared ${deleted} propagated logs`, 'success');
+      } catch(err) {
+        console.error('clearPropagatedLogs delete error:', err);
+        showToast('Error during deletion', 'error');
+        statusEl.textContent = 'Error — some records may not have been deleted.';
       }
     };
 

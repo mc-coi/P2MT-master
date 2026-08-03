@@ -481,6 +481,18 @@
         currentTeacher = teacher;
         currentDate    = classDate;
 
+        // Refresh attendance logs for this date from Firestore so the banner
+        // always reflects live data, not a stale page-load cache.
+        // We keep logs from OTHER dates in place — the TMI calculation needs
+        // cross-date records to compute weekly absence totals.
+        try {
+          const freshDateLogs = await getWhere('classAttendanceLogs', 'date', '==', classDate);
+          allClassAttendanceLogs = [
+            ...allClassAttendanceLogs.filter(l => (l.date || l.classDate) !== classDate),
+            ...freshDateLogs,
+          ];
+        } catch(e) { /* non-critical — stale cache is better than no data */ }
+
         // Local Date object for display only (day name in no-classes message)
         const [yr, mo, dy] = classDate.split('-').map(Number);
         const dt = new Date(yr, mo - 1, dy);
