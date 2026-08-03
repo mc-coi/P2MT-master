@@ -237,6 +237,19 @@
           </button>
         </div>
       </div>
+
+      <hr style="margin:28px 0;">
+
+      <h3><i class="fas fa-search" style="color:#7c3aed;"></i> Scan All Schedule Records</h3>
+      <p class="w3-text-grey">Find schedule records regardless of school year — useful for discovering old or untagged records that don't appear in the dropdown above.</p>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-primary" onclick="scanClassSchedules()"><i class="fas fa-search"></i> Scan Schedules</button>
+        <button class="w3-button btn-danger" id="clearScheduleScanBtn" style="display:none;" onclick="clearScannedSchedules()">
+          <i class="fas fa-trash-alt"></i> Delete Selected
+        </button>
+      </div>
+      <div id="scheduleScanResults" style="margin-top:16px;"></div>
     </div>
 
     <!-- TAB 5: Download Reports -->
@@ -1456,6 +1469,131 @@
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-trash"></i> Delete Records';
+      }
+    };
+
+    // ── Scan / clear classSchedules (no schoolYear required) ───────────────────
+
+    let _scannedScheduleGroups = {};   // key → { label, ids[] } for checkboxes
+    let _scheduleGroupKeys = [];
+
+    window.scanClassSchedules = async function() {
+      const resultsEl = document.getElementById('scheduleScanResults');
+      const clearBtn  = document.getElementById('clearScheduleScanBtn');
+      resultsEl.innerHTML = '<p style="color:#64748b;font-size:13px;">Scanning…</p>';
+      clearBtn.style.display = 'none';
+      _scannedScheduleGroups = {};
+      _scheduleGroupKeys = [];
+
+      try {
+        const all = await getAll('classSchedules');
+        if (!all.length) {
+          resultsEl.innerHTML = '<p style="color:#16a34a;font-size:13px;">✓ No schedule records found in the database.</p>';
+          return;
+        }
+
+        // Group by schoolYear+semester (bucket untagged records separately)
+        all.forEach(s => {
+          const yr  = s.schoolYear || '(no school year)';
+          const sem = s.semester   || '(no semester)';
+          const key = `${yr}__${sem}`;
+          if (!_scannedScheduleGroups[key]) {
+            _scannedScheduleGroups[key] = { label: `${yr} — ${sem}`, ids: [], records: [] };
+          }
+          _scannedScheduleGroups[key].ids.push(s.id);
+          _scannedScheduleGroups[key].records.push(s);
+        });
+
+        _scheduleGroupKeys = Object.keys(_scannedScheduleGroups).sort((a, b) => b.localeCompare(a));
+
+        // Build results UI — one row per group with a checkbox
+        let html = `<div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;font-size:13px;margin-bottom:10px;">
+          <div style="background:#f8fafc;padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;">
+            ${all.length} total schedule records — select groups to delete
+          </div>`;
+
+        _scheduleGroupKeys.forEach(key => {
+          const grp = _scannedScheduleGroups[key];
+          // Gather unique teachers and classes in this group
+          const teachers = [...new Set(grp.records.map(r => r.teacherLastName).filter(Boolean))].sort().join(', ') || '—';
+          const classes  = [...new Set(grp.records.map(r => r.className).filter(Boolean))].sort();
+          const classStr = classes.length <= 4 ? classes.join(', ') : `${classes.slice(0,4).join(', ')} +${classes.length - 4} more`;
+          html += `
+            <div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;display:flex;align-items:flex-start;gap:12px;">
+              <input type="checkbox" id="chk-${key}" style="margin-top:3px;width:16px;height:16px;cursor:pointer;" onchange="updateScheduleScanDeleteBtn()">
+              <label for="chk-${key}" style="cursor:pointer;flex:1;">
+                <div style="font-weight:700;color:#1e293b;">${grp.label} <span style="font-weight:400;color:#64748b;">(${grp.ids.length} record${grp.ids.length !== 1 ? 's' : ''})</span></div>
+                <div style="color:#475569;margin-top:2px;">Teachers: ${teachers}</div>
+                <div style="color:#475569;">Classes: ${classStr}</div>
+              </label>
+            </div>`;
+        });
+
+        html += `</div>`;
+        resultsEl.innerHTML = html;
+        clearBtn.style.display = '';
+        updateScheduleScanDeleteBtn();
+      } catch(err) {
+        console.error('scanClassSchedules error:', err);
+        resultsEl.innerHTML = '<p style="color:#dc2626;font-size:13px;">Error scanning — see console.</p>';
+      }
+    };
+
+    window.updateScheduleScanDeleteBtn = function() {
+      const clearBtn = document.getElementById('clearScheduleScanBtn');
+      const selected = _scheduleGroupKeys.filter(k => document.getElementById(`chk-${k}`)?.checked);
+      const totalIds = selected.reduce((sum, k) => sum + _scannedScheduleGroups[k].ids.length, 0);
+      if (totalIds > 0) {
+        clearBtn.innerHTML = `<i class="fas fa-trash-alt"></i> Delete ${totalIds} Selected Record${totalIds !== 1 ? 's' : ''}`;
+        clearBtn.style.display = '';
+      } else {
+        clearBtn.style.display = 'none';
+      }
+    };
+
+    window.clearScannedSchedules = async function() {
+      const selected = _scheduleGroupKeys.filter(k => document.getElementById(`chk-${k}`)?.checked);
+      const allIds   = selected.flatMap(k => _scannedScheduleGroups[k].ids);
+      if (!allIds.length) { showToast('Check at least one group to delete', 'warning'); return; }
+
+      const labels = selected.map(k => `${_scannedScheduleGroups[k].label} (${_scannedScheduleGroups[k].ids.length})`).join(', ');
+      const { confirmTypedDelete } = await import('./js/utils.js');
+      const confirmed = await confirmTypedDelete(
+        `This will permanently delete ${allIds.length} classSchedule record${allIds.length !== 1 ? 's' : ''} for: ${labels}.`
+      );
+      if (!confirmed) return;
+
+      const resultsEl = document.getElementById('scheduleScanResults');
+      const clearBtn  = document.getElementById('clearScheduleScanBtn');
+      clearBtn.disabled = true;
+
+      let deleted = 0;
+      const chunkSize = 20;
+      try {
+        for (let i = 0; i < allIds.length; i += chunkSize) {
+          const chunk = allIds.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(id => deleteDoc('classSchedules', id)));
+          deleted += chunk.length;
+          const pct = Math.round(deleted / allIds.length * 100);
+          resultsEl.innerHTML = `
+            <div style="background:#e2e8f0;border-radius:6px;overflow:hidden;height:28px;margin:4px 0;">
+              <div style="width:${pct}%;background:#dc2626;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;">${pct}%</div>
+            </div>
+            <p style="font-size:13px;color:#475569;">${deleted} / ${allIds.length} deleted</p>`;
+        }
+        // Refresh in-memory schedules and dropdown
+        allSchedules = await getAll('classSchedules');
+        populateDeleteDropdown();
+        _scannedScheduleGroups = {};
+        _scheduleGroupKeys = [];
+        clearBtn.style.display = 'none';
+        resultsEl.innerHTML = `<p style="color:#16a34a;font-size:13px;font-weight:600;">✓ Deleted ${deleted} schedule record${deleted !== 1 ? 's' : ''}. Run Scan again to see remaining records.</p>`;
+        showToast(`Cleared ${deleted} schedule records`, 'success');
+      } catch(err) {
+        console.error('clearScannedSchedules error:', err);
+        showToast('Error during deletion', 'error');
+      } finally {
+        clearBtn.disabled = false;
       }
     };
 
