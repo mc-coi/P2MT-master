@@ -337,7 +337,7 @@
     window.downloadTemplate = function() {
       const headers = ['Student Name', 'ChattState A#', 'School Year', 'Semester', 'Campus', 'Class Name', 'Teacher Last Name', 'Days (comma separated: M,T,W,Th,F)', 'Start Time (HH:MM)', 'End Time (HH:MM)', 'Online (Yes/No)', 'Ind Study (Yes/No)', 'Learning Lab (Yes/No)', 'Comment'];
       const rows = [['John Doe', 'A123456', '2025-2026', 'Fall', 'STEM School', 'Math 101', 'Smith', 'M,W,F', '09:00', '10:00', 'No', 'No', 'No', '']];
-      exportCSV(headers, rows, 'schedule-template.csv');
+      exportCSV([headers, ...rows], 'schedule-template.csv');
     };
 
     // ── CSV format helpers ───────────────────────────────────────
@@ -1258,7 +1258,7 @@
           s.learningLab ? 'Yes' : 'No',
           s.comment || ''
         ]);
-        exportCSV(headers, rows, 'schedule-report.csv');
+        exportCSV([headers, ...rows], 'schedule-report.csv');
         showToast('Schedule report downloaded', 'success');
       } catch (error) {
         console.error('Report error:', error);
@@ -1302,7 +1302,7 @@
             log.status || 'unmarked'
           ]);
 
-          exportCSV(headers, rows, 'attendance-report.csv');
+          exportCSV([headers, ...rows], 'attendance-report.csv');
           showToast('Attendance report downloaded', 'success');
         } catch (e) {
           showToast('Error retrieving attendance logs', 'error');

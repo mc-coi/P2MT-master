@@ -26,6 +26,9 @@
         <h2><i class="fas fa-user-tie"></i> Parent Information</h2>
       </div>
       <div class="w3-col m4 w3-right-align w3-padding-top">
+        <button id="btn-remove-orphans" class="w3-button w3-red action-button">
+          <i class="fas fa-user-slash"></i> Remove Graduated Parents
+        </button>
         <button id="btn-download-csv" class="w3-button w3-blue action-button">
           <i class="fas fa-download"></i> Download CSV
         </button>
@@ -149,8 +152,8 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, updateDoc, batchWrite } from './js/db.js';
-    import { formatDate, exportCSV, showToast, generateId } from './js/utils.js';
+    import { getAll, getById, updateDoc, batchWrite, deleteDoc } from './js/db.js';
+    import { formatDate, exportCSV, showToast, generateId, confirmTypedDelete } from './js/utils.js';
 
     let studentsData = [];
     let parentsData = [];
@@ -239,6 +242,7 @@
     }
 
     function setupEventListeners() {
+      document.getElementById('btn-remove-orphans').addEventListener('click', removeOrphanedParents);
       document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
       document.getElementById('btn-upload-csv').addEventListener('click', () => {
         document.getElementById('file-upload').click();
@@ -328,6 +332,46 @@
           $(this.node()).hide();
         }
       });
+    }
+
+    async function removeOrphanedParents() {
+      // Find parent records whose chattStateANumber has no matching student
+      const enrolledANumbers = new Set(studentsData.map(s => s.chattStateANumber).filter(Boolean));
+      const orphans = parentsData.filter(p => p.chattStateANumber && !enrolledANumbers.has(p.chattStateANumber));
+
+      if (!orphans.length) {
+        showToast('No orphaned parent records found — all parents match a current student.', 'success');
+        return;
+      }
+
+      // Build a preview list for the confirmation dialog
+      const names = orphans.map(p => p.chattStateANumber).join(', ');
+      const confirmed = await confirmTypedDelete(
+        `Found ${orphans.length} parent record${orphans.length !== 1 ? 's' : ''} with no matching student (A#: ${names}). This will permanently delete them.`
+      );
+      if (!confirmed) return;
+
+      const btn = document.getElementById('btn-remove-orphans');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Removing…';
+
+      try {
+        for (const p of orphans) {
+          if (p.id) await deleteDoc('parents', p.id);
+        }
+        // Remove from in-memory arrays and re-render
+        const orphanANums = new Set(orphans.map(o => o.chattStateANumber));
+        parentsData = parentsData.filter(p => !orphanANums.has(p.chattStateANumber));
+        joinData();
+        renderTable();
+        showToast(`Removed ${orphans.length} orphaned parent record${orphans.length !== 1 ? 's' : ''}`, 'success');
+      } catch (err) {
+        console.error('removeOrphanedParents error:', err);
+        showToast('Error removing parent records', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-user-slash"></i> Remove Graduated Parents';
+      }
     }
 
     async function downloadCSV() {
