@@ -176,6 +176,22 @@
         <button class="w3-button btn-danger" onclick="clearPropagatedLogs()"><i class="fas fa-trash-alt"></i> Clear Propagated Logs</button>
         <span id="clearPropProgress" style="font-size:13px;color:#64748b;"></span>
       </div>
+
+      <hr style="margin:28px 0;">
+
+      <h3><i class="fas fa-search" style="color:#7c3aed;"></i> Scan for Unknown Logs</h3>
+      <p class="w3-text-grey">Find all attendance log records in the database for a date range, regardless of school year or how they were created. Useful for discovering leftover propagation runs or unexpected records.</p>
+
+      <div class="form-row">
+        <div><label>From:<input class="w3-input w3-border" type="date" id="scanStartDate"></label></div>
+        <div><label>To:<input class="w3-input w3-border" type="date" id="scanEndDate"></label></div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-primary" onclick="scanAttendanceLogs()"><i class="fas fa-search"></i> Scan</button>
+        <button class="w3-button btn-danger" id="clearScanBtn" style="display:none;" onclick="clearScannedLogs()"><i class="fas fa-trash-alt"></i> Delete All Found</button>
+      </div>
+      <div id="scanResults" style="margin-top:16px;"></div>
     </div>
 
     <!-- TAB 4: Delete Schedule -->
@@ -1132,6 +1148,146 @@
         console.error('clearPropagatedLogs delete error:', err);
         showToast('Error during deletion', 'error');
         statusEl.textContent = 'Error — some records may not have been deleted.';
+      }
+    };
+
+    // ── Scan / clear by date range (ignores schoolYear) ───────────────────────
+
+    let _scannedLogs = [];  // holds results of last scan for the delete button
+
+    window.scanAttendanceLogs = async function() {
+      const startVal = document.getElementById('scanStartDate').value;
+      const endVal   = document.getElementById('scanEndDate').value;
+      const resultsEl = document.getElementById('scanResults');
+      const clearBtn  = document.getElementById('clearScanBtn');
+
+      if (!startVal || !endVal) {
+        showToast('Select a date range first', 'warning');
+        return;
+      }
+      if (startVal > endVal) {
+        showToast('"From" date must be on or before "To" date', 'warning');
+        return;
+      }
+
+      resultsEl.innerHTML = '<p style="color:#64748b;font-size:13px;">Scanning…</p>';
+      clearBtn.style.display = 'none';
+      _scannedLogs = [];
+
+      try {
+        // Fetch ALL classAttendanceLogs — no index needed, filter in memory
+        const all = await getAll('classAttendanceLogs');
+        _scannedLogs = all.filter(l => {
+          const d = l.date || l.classDate || '';
+          return d >= startVal && d <= endVal;
+        });
+
+        if (_scannedLogs.length === 0) {
+          resultsEl.innerHTML = '<p style="color:#16a34a;font-size:13px;">✓ No attendance logs found in that date range.</p>';
+          return;
+        }
+
+        // Group by origin (propagated vs manually saved) and by school year
+        const propagated = _scannedLogs.filter(l => l.status === 'P' && !l.attendanceCode);
+        const manual     = _scannedLogs.filter(l => l.attendanceCode);
+        const other      = _scannedLogs.filter(l => !l.status && !l.attendanceCode);
+
+        // Summarise propagated by schoolYear+semester
+        const propByYear = {};
+        propagated.forEach(l => {
+          const key = `${l.schoolYear || '(no year)'} ${l.semester || '(no semester)'}`;
+          propByYear[key] = (propByYear[key] || 0) + 1;
+        });
+
+        // Summarise manual by teacher
+        const manByTeacher = {};
+        manual.forEach(l => {
+          const key = l.teacherLastName || '(no teacher)';
+          manByTeacher[key] = (manByTeacher[key] || 0) + 1;
+        });
+
+        // Date range in the found records
+        const dates = _scannedLogs.map(l => l.date || l.classDate || '').filter(Boolean).sort();
+        const dateRange = dates.length ? `${dates[0]} → ${dates[dates.length - 1]}` : 'unknown';
+
+        let html = `
+          <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;font-size:13px;">
+            <div style="background:#f8fafc;padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;">
+              Found <strong>${_scannedLogs.length}</strong> total records &nbsp;·&nbsp; ${dateRange}
+            </div>`;
+
+        if (propagated.length) {
+          html += `<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
+            <div style="font-weight:600;color:#7c3aed;margin-bottom:4px;"><i class="fas fa-play-circle"></i> Propagated logs — ${propagated.length}</div>`;
+          Object.entries(propByYear).forEach(([k,v]) => {
+            html += `<div style="padding:2px 0 2px 16px;color:#475569;">${k}: ${v}</div>`;
+          });
+          html += `</div>`;
+        }
+
+        if (manual.length) {
+          html += `<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
+            <div style="font-weight:600;color:#0369a1;margin-bottom:4px;"><i class="fas fa-hand-paper"></i> Manually saved — ${manual.length}</div>`;
+          Object.entries(manByTeacher).sort((a,b) => b[1]-a[1]).forEach(([k,v]) => {
+            html += `<div style="padding:2px 0 2px 16px;color:#475569;">${k}: ${v}</div>`;
+          });
+          html += `</div>`;
+        }
+
+        if (other.length) {
+          html += `<div style="padding:10px 14px;">
+            <div style="font-weight:600;color:#92400e;margin-bottom:4px;"><i class="fas fa-question-circle"></i> Other / unknown origin — ${other.length}</div>
+          </div>`;
+        }
+
+        html += `</div>`;
+        resultsEl.innerHTML = html;
+        clearBtn.style.display = '';
+        clearBtn.textContent = '';
+        clearBtn.innerHTML = `<i class="fas fa-trash-alt"></i> Delete All ${_scannedLogs.length} Found`;
+
+      } catch(err) {
+        console.error('scanAttendanceLogs error:', err);
+        resultsEl.innerHTML = '<p style="color:#dc2626;font-size:13px;">Error scanning — see console.</p>';
+      }
+    };
+
+    window.clearScannedLogs = async function() {
+      if (!_scannedLogs.length) { showToast('Run Scan first', 'warning'); return; }
+
+      const { confirmTypedDelete } = await import('./js/utils.js');
+      const confirmed = await confirmTypedDelete(
+        `This will permanently delete all ${_scannedLogs.length} attendance log records found in the scan. This includes both propagated and manually saved records in that date range.`
+      );
+      if (!confirmed) return;
+
+      const resultsEl = document.getElementById('scanResults');
+      const clearBtn  = document.getElementById('clearScanBtn');
+      clearBtn.disabled = true;
+
+      let deleted = 0;
+      const chunkSize = 20;
+      try {
+        for (let i = 0; i < _scannedLogs.length; i += chunkSize) {
+          const chunk = _scannedLogs.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
+          deleted += chunk.length;
+          const pct = Math.round(deleted / _scannedLogs.length * 100);
+          resultsEl.innerHTML = `
+            <div style="background:#e2e8f0;border-radius:6px;overflow:hidden;height:28px;margin:4px 0;">
+              <div style="width:${pct}%;background:#dc2626;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;">${pct}%</div>
+            </div>
+            <p style="font-size:13px;color:#475569;">${deleted} / ${_scannedLogs.length} deleted</p>`;
+        }
+        _scannedLogs = [];
+        clearBtn.style.display = 'none';
+        resultsEl.innerHTML = `<p style="color:#16a34a;font-size:13px;font-weight:600;">✓ Deleted ${deleted} records.</p>`;
+        showToast(`Cleared ${deleted} attendance logs`, 'success');
+      } catch(err) {
+        console.error('clearScannedLogs error:', err);
+        showToast('Error during deletion', 'error');
+      } finally {
+        clearBtn.disabled = false;
       }
     };
 
