@@ -95,6 +95,9 @@
         <button id="btn-upload-csv" class="w3-button btn-primary action-button">
           <i class="fas fa-upload"></i> Upload CSV
         </button>
+        <button id="btn-download-template" class="w3-button btn-primary action-button" onclick="downloadStudentTemplate()">
+          <i class="fas fa-file-csv"></i> Download Template
+        </button>
         <input type="file" id="file-upload" style="display:none;" accept=".csv">
         <div class="bulk-delete-wrap" id="bulk-delete-wrap">
           <button class="w3-button btn-danger action-button" id="btn-bulk-delete-toggle"
@@ -953,6 +956,14 @@
         }
       });
     }
+
+    function downloadStudentTemplate() {
+      const headers = ['First Name', 'Last Name', 'Email', 'ChattState A#', 'Graduation Year', 'House', 'Student Number', 'Google Calendar ID'];
+      const example = ['Jane', 'Doe', 'jane.doe@student.edu', 'A123456', '2027', 'Hawk', '12345', ''];
+      exportCSV([headers, example], 'students-template.csv');
+      showToast('Template downloaded', 'success');
+    }
+    window.downloadStudentTemplate = downloadStudentTemplate;
 
     async function downloadCSV() {
       try {
