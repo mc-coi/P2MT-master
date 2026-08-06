@@ -151,6 +151,8 @@
     [data-theme="dark"] .send-panel { background: var(--surface); border-color: var(--border); }
     [data-theme="dark"] .form-row select,
     [data-theme="dark"] .form-row input[type="text"] { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
+    [data-theme="dark"] #filter-grad-year,
+    [data-theme="dark"] #filter-house { background: var(--surface); border-color: var(--border); color: var(--text-primary); }
 
     [data-theme="dark"] .student-checklist { background: var(--surface-2); border-color: var(--border); }
     [data-theme="dark"] .student-check-item { border-bottom-color: var(--border); color: var(--text-primary); }
@@ -238,6 +240,21 @@
 
           <div class="form-row">
             <input type="text" id="student-search" placeholder="&#xf002; Search students by name…" oninput="filterStudentList()" style="font-family: inherit;">
+          </div>
+
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <div style="flex:1;">
+              <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">Grad Year</label>
+              <select id="filter-grad-year" class="form-row" style="width:100%;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:white;color:var(--text-primary);outline:none;" onchange="filterStudentList()">
+                <option value="">All Years</option>
+              </select>
+            </div>
+            <div style="flex:1;">
+              <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:4px;">House</label>
+              <select id="filter-house" class="form-row" style="width:100%;padding:7px 8px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;background:white;color:var(--text-primary);outline:none;" onchange="filterStudentList()">
+                <option value="">All Houses</option>
+              </select>
+            </div>
           </div>
 
           <div class="sel-bar">
@@ -651,21 +668,41 @@
       if (tv) ts.value = tv;
 
       // Student checklist
+      populateStudentFilters();
       renderStudentChecklist();
     }
 
-    function renderStudentChecklist(query = '') {
+    function populateStudentFilters() {
+      const years  = [...new Set(students.map(s => s.yearOfGraduation).filter(Boolean))].sort();
+      const houses = [...new Set(students.map(s => s.house).filter(Boolean))].sort();
+
+      const ySel = document.getElementById('filter-grad-year');
+      const hSel = document.getElementById('filter-house');
+      if (ySel) {
+        const prev = ySel.value;
+        ySel.innerHTML = '<option value="">All Years</option>' +
+          years.map(y => `<option value="${y}"${y === prev ? ' selected' : ''}>${y}</option>`).join('');
+      }
+      if (hSel) {
+        const prev = hSel.value;
+        hSel.innerHTML = '<option value="">All Houses</option>' +
+          houses.map(h => `<option value="${h}"${h === prev ? ' selected' : ''}>${h}</option>`).join('');
+      }
+    }
+
+    function renderStudentChecklist(query = '', gradYear = '', house = '') {
       const list = document.getElementById('student-checklist');
       const q    = query.toLowerCase();
       const sorted = [...students].sort((a, b) =>
         (a.lastName || '').localeCompare(b.lastName || '')
       );
-      const visible = q
-        ? sorted.filter(s =>
-            `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-            (s.chattStateANumber || '').toLowerCase().includes(q)
-          )
-        : sorted;
+      const visible = sorted.filter(s => {
+        if (q && !`${s.firstName} ${s.lastName}`.toLowerCase().includes(q) &&
+                 !(s.chattStateANumber || '').toLowerCase().includes(q)) return false;
+        if (gradYear && String(s.yearOfGraduation || '') !== String(gradYear)) return false;
+        if (house    && (s.house || '') !== house) return false;
+        return true;
+      });
 
       if (!visible.length) {
         list.innerHTML = `<div class="checklist-empty">${q ? 'No students match your search' : 'No students loaded'}</div>`;
@@ -706,8 +743,10 @@
     }
 
     window.filterStudentList = function() {
-      const q = document.getElementById('student-search').value;
-      renderStudentChecklist(q);
+      const q        = document.getElementById('student-search')?.value   || '';
+      const gradYear = document.getElementById('filter-grad-year')?.value || '';
+      const house    = document.getElementById('filter-house')?.value     || '';
+      renderStudentChecklist(q, gradYear, house);
     };
 
     window.selectAllStudents = function() {
