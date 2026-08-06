@@ -403,12 +403,12 @@
           <label class="form-label">Attendance Code</label>
           <select id="attendance-code" class="w3-select w3-border w3-margin-bottom" required onchange="onAttCodeChange()">
             <option value="">Select Code</option>
-            <option value="Present">Present</option>
-            <option value="Absent">Absent</option>
-            <option value="Tardy">Tardy</option>
-            <option value="Excused">Excused</option>
-            <option value="ParentExcuse">Parent Excuse</option>
-            <option value="MissedCheckInOut">Missed Check In/Out</option>
+            <option value="P">Present</option>
+            <option value="U">Absent (Unexcused)</option>
+            <option value="T">Tardy</option>
+            <option value="E">Excused</option>
+            <option value="PE">Parent Excuse</option>
+            <option value="MC">Missed Check In/Out</option>
           </select>
           <div id="tmi-auto-notice" style="display:none;background:#FEF3C7;border:1px solid #FDE68A;border-radius:6px;padding:8px 12px;font-size:12px;color:#92400E;margin-top:-8px;margin-bottom:8px;">
             <i class="fas fa-clock" style="margin-right:6px;"></i>This will automatically assign <strong>60 minutes of TMI</strong> to this student.
@@ -1011,7 +1011,7 @@
     function onAttCodeChange() {
       const code = document.getElementById('attendance-code').value;
       document.getElementById('tmi-auto-notice').style.display =
-        code === 'MissedCheckInOut' ? 'block' : 'none';
+        code === 'MC' ? 'block' : 'none';
     }
 
     async function handleAttendanceFormSubmit(e) {
@@ -1039,23 +1039,47 @@
         dates = [document.getElementById('attendance-date').value];
       }
 
+      // Map select value → stored attendanceCode + optional excuseType
+      const CODE_MAP = {
+        P:  { attendanceCode: 'P' },
+        U:  { attendanceCode: 'U' },
+        T:  { attendanceCode: 'T' },
+        E:  { attendanceCode: 'E' },
+        PE: { attendanceCode: 'E', excuseType: 'PE' },
+        MC: { attendanceCode: 'U' },
+      };
+      const mapped = CODE_MAP[code] || { attendanceCode: code };
+
+      const student   = studentsData.find(x => x.id === currentAttendanceId);
+      const staffName = getCurrentUser()?.displayName || getCurrentUser()?.email || '';
+
       try {
         for (const date of dates) {
-          const attendanceData = { studentId: currentAttendanceId, date, code, comment };
-          await addDoc('attendance', attendanceData);
+          const attendanceData = {
+            studentId:         currentAttendanceId,
+            chattStateANumber: student?.chattStateANumber || '',
+            studentName:       student ? `${student.firstName} ${student.lastName}` : '',
+            absenceDate:       date,
+            date,                          // kept for any legacy reads
+            attendanceCode:    mapped.attendanceCode,
+            excuseType:        mapped.excuseType || '',
+            comment,
+            staffName,
+            createdAt:         new Date().toISOString(),
+          };
+          await addDoc('dailyAttendanceLogs', attendanceData);
 
           // Auto-assign 60 min TMI for missed check in/out (single-date only to avoid flooding)
-          if (code === 'MissedCheckInOut' && mode !== 'range') {
-            const s = studentsData.find(x => x.id === currentAttendanceId);
-            if (s) {
+          if (code === 'MC' && mode !== 'range') {
+            if (student) {
               await addDoc('interventionLogs', {
                 interventionType:    'TMI',
                 interventionStatus:  'Pending Review',
                 studentId:           currentAttendanceId,
-                studentName:         `${s.firstName} ${s.lastName}`,
-                chattStateANumber:   s.chattStateANumber || '',
-                house:               s.house || '',
-                yearOfGraduation:    s.yearOfGraduation || '',
+                studentName:         `${student.firstName} ${student.lastName}`,
+                chattStateANumber:   student.chattStateANumber || '',
+                house:               student.house || '',
+                yearOfGraduation:    student.yearOfGraduation || '',
                 tmiMinutes:          60,
                 tmiMinutesRemaining: 60,
                 comment:             comment || 'Missed Check In/Out',
@@ -1067,7 +1091,7 @@
 
         if (mode === 'range') {
           showToast(`Attendance recorded for ${dates.length} day${dates.length !== 1 ? 's' : ''}`, 'success');
-        } else if (code === 'MissedCheckInOut') {
+        } else if (code === 'MC') {
           showToast('Attendance recorded & 60 min TMI assigned', 'success');
         } else {
           showToast('Attendance recorded successfully', 'success');
