@@ -40,6 +40,26 @@
     .int-view-table tr:last-child td { border-bottom: none; }
     .int-level-chip { display: inline-block; background: #fff3e0; color: #e65100; border-radius: 10px; padding: 1px 8px; font-size: 0.78rem; font-weight: 600; }
 
+    /* Import / Export dropdown (neutral colours, reuses bulk-delete-wrap layout) */
+    .action-menu-wrap { position: relative; display: inline-block; }
+    .action-menu {
+      position: absolute; top: calc(100% + 4px); right: 0;
+      background: #fff; border: 1.5px solid #e2e8f0; border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0,0,0,.13); z-index: 999; min-width: 210px; overflow: hidden;
+    }
+    .action-menu button {
+      display: flex; align-items: center; gap: 9px;
+      width: 100%; padding: 11px 16px; background: none; border: none;
+      font-size: 13px; font-weight: 600; color: #374151; cursor: pointer; text-align: left;
+      transition: background .12s;
+    }
+    .action-menu button:hover { background: #f8fafc; }
+    .action-menu button + button { border-top: 1px solid #f1f5f9; }
+    [data-theme="dark"] .action-menu { background: var(--surface); border-color: var(--border); }
+    [data-theme="dark"] .action-menu button { color: var(--text-primary); }
+    [data-theme="dark"] .action-menu button:hover { background: var(--surface-2); }
+    [data-theme="dark"] .action-menu button + button { border-top-color: var(--border); }
+
     /* Bulk delete dropdown */
     .bulk-delete-wrap { position: relative; display: inline-block; }
     .bulk-delete-menu {
@@ -89,15 +109,16 @@
         <button id="btn-add-student" class="w3-button btn-primary action-button">
           <i class="fas fa-plus"></i> Add Student
         </button>
-        <button id="btn-download-csv" class="w3-button btn-primary action-button">
-          <i class="fas fa-download"></i> Download CSV
-        </button>
-        <button id="btn-upload-csv" class="w3-button btn-primary action-button">
-          <i class="fas fa-upload"></i> Upload CSV
-        </button>
-        <button id="btn-download-template" class="w3-button btn-primary action-button" onclick="downloadStudentTemplate()">
-          <i class="fas fa-file-csv"></i> Download Template
-        </button>
+        <div class="action-menu-wrap" id="import-export-wrap">
+          <button class="w3-button btn-primary action-button" onclick="toggleImportExportMenu(event)">
+            <i class="fas fa-exchange-alt"></i> Import / Export <i class="fas fa-caret-down" style="margin-left:4px;"></i>
+          </button>
+          <div class="action-menu" id="import-export-menu" style="display:none;">
+            <button id="btn-download-csv"><i class="fas fa-download"></i> Download CSV</button>
+            <button onclick="downloadStudentTemplate()"><i class="fas fa-file-csv"></i> Download Template</button>
+            <button id="btn-upload-csv"><i class="fas fa-upload"></i> Upload CSV</button>
+          </div>
+        </div>
         <input type="file" id="file-upload" style="display:none;" accept=".csv">
         <div class="bulk-delete-wrap" id="bulk-delete-wrap">
           <button class="w3-button btn-danger action-button" id="btn-bulk-delete-toggle"
@@ -140,12 +161,6 @@
             <label class="form-label">Graduation Year</label>
             <select id="grad-year-filter" class="w3-select w3-border">
               <option value="">All Graduation Years</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-              <option value="2027">2027</option>
-              <option value="2028">2028</option>
-              <option value="2029">2029</option>
-              <option value="2030">2030</option>
             </select>
           </div>
         </div>
@@ -588,10 +603,20 @@
         showToast('Loading students...', 'info');
         studentsData = await getAll('students');
         document.getElementById('student-count').textContent = studentsData.length;
+        populateGradYearFilter();
       } catch (error) {
         console.error('Error loading students:', error);
         showToast('Error loading students', 'error');
       }
+    }
+
+    function populateGradYearFilter() {
+      const years = [...new Set(studentsData.map(s => s.yearOfGraduation).filter(Boolean))]
+        .map(String).sort();
+      const sel = document.getElementById('grad-year-filter');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">All Graduation Years</option>' +
+        years.map(y => `<option value="${y}"${y === prev ? ' selected' : ''}>${y}</option>`).join('');
     }
 
     function renderTable() {
@@ -743,14 +768,29 @@
       }
     }
 
+    // ── Import / Export dropdown ──────────────────────────────────────────────
+    window.toggleImportExportMenu = function(e) {
+      e.stopPropagation();
+      const menu = document.getElementById('import-export-menu');
+      const isOpen = menu.style.display !== 'none';
+      // Close bulk-delete if open
+      document.getElementById('bulk-delete-menu').style.display = 'none';
+      menu.style.display = isOpen ? 'none' : 'block';
+      if (!isOpen) {
+        const handler = () => { menu.style.display = 'none'; document.removeEventListener('click', handler); };
+        document.addEventListener('click', handler);
+      }
+    };
+
     // ── Bulk delete dropdown ───────────────────────────────────────────────────
     function toggleBulkDeleteMenu(e) {
       e.stopPropagation();
       const menu = document.getElementById('bulk-delete-menu');
       const isOpen = menu.style.display !== 'none';
+      // Close import-export if open
+      document.getElementById('import-export-menu').style.display = 'none';
       menu.style.display = isOpen ? 'none' : 'block';
       if (!isOpen) {
-        // Close when clicking anywhere else
         const handler = () => { menu.style.display = 'none'; document.removeEventListener('click', handler); };
         document.addEventListener('click', handler);
       }
@@ -911,6 +951,11 @@
 
     function closeAttendanceModal() {
       document.getElementById('attendanceModal').style.display = 'none';
+      document.getElementById('attendanceForm').reset();
+      // Always reset back to single-date mode
+      const singleRadio = document.querySelector('input[name="att-date-mode"][value="single"]');
+      if (singleRadio) { singleRadio.checked = true; onAttDateModeChange(); }
+      document.getElementById('tmi-auto-notice').style.display = 'none';
       currentAttendanceId = null;
     }
 
@@ -1029,7 +1074,6 @@
         }
 
         closeAttendanceModal();
-        document.getElementById('attendanceForm').reset();
       } catch (error) {
         console.error('Error recording attendance:', error);
         showToast('Error recording attendance', 'error');

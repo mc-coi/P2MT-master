@@ -22,7 +22,7 @@ const navItems = [
     children: [
       { id: 'class-attendance', label: 'Class',        href: './class-attendance.html', icon: 'fa-calendar-check' },
       { id: 'daily-attendance', label: 'Daily',        href: './daily-attendance.html', icon: 'fa-clipboard-list' },
-      { id: 'master-schedule',  label: 'Master',       href: './master-schedule.html',  icon: 'fa-calendar-alt' },
+      { id: 'master-schedule',  label: 'Master Schedule', href: './master-schedule.html',  icon: 'fa-calendar-alt' },
       { id: 'learning-lab',     label: 'Learning Lab', href: './learning-lab.html',     icon: 'fa-flask' },
       { id: 'tmi-review',       label: 'TMI Review',   href: './tmi-review.html',       icon: 'fa-search' },
       { id: 'tmi-approval',     label: 'TMI Final',    href: './tmi-approval.html',     icon: 'fa-check-double' },
