@@ -620,6 +620,14 @@
     }
 
     function renderTable() {
+      // Destroy BEFORE touching the DOM — DataTable.destroy() restores its cached
+      // rows on top of whatever is currently in the tbody, so we must clear its
+      // internal state first, then rewrite the rows cleanly.
+      if (dataTable) {
+        dataTable.destroy();
+        dataTable = null;
+      }
+
       const tbody = document.getElementById('students-tbody');
       tbody.innerHTML = '';
 
@@ -647,10 +655,6 @@
           </td>
         `;
       });
-
-      if (dataTable) {
-        dataTable.destroy();
-      }
 
       dataTable = $('#studentsTable').DataTable({
         paging: true,
