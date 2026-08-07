@@ -914,22 +914,9 @@
       const total  = sections.length;
       if (total === 0) { banner.classList.remove('visible', 'all-done'); return; }
 
-      // Check how many sections are "saved" — either via this session's save action
-      // OR by having existing logs in Firebase for this teacher+date
-      const alreadySaved = sections.filter((sec, idx) => {
-        if (savedSections.has(idx)) return true;
-        // Check Firebase cache — must match teacher, date, class, lab flag, AND startTime
-        const secStartTime = sec.schedule?.startTime || sec.startTime || '';
-        return allClassAttendanceLogs.some(l => {
-          if (l.teacherLastName !== currentTeacher) return false;
-          if ((l.date || l.classDate) !== currentDate) return false;
-          if (l.className !== sec.className) return false;
-          if (sec.isLab ? l.learningLab !== true : l.learningLab === true) return false;
-          // If the section has a startTime and the log has one, they must match
-          if (secStartTime && l.startTime && l.startTime !== secStartTime) return false;
-          return true;
-        });
-      });
+      // Only count sections explicitly saved this session — pre-existing Firebase logs
+      // do NOT count as "saved" so teachers must always confirm attendance themselves.
+      const alreadySaved = sections.filter((sec, idx) => savedSections.has(idx));
 
       const savedCount   = alreadySaved.length;
       const unsavedCount = total - savedCount;
