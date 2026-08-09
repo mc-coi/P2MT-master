@@ -323,12 +323,15 @@
       </div>
 
       <!-- Footer -->
-      <div style="padding:16px 24px;border-top:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;">
+      <div style="padding:16px 24px;border-top:1.5px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;gap:12px;flex-wrap:wrap;">
         <span style="font-size:13px;color:#64748b;" id="pbl-send-label"></span>
-        <div style="display:flex;gap:10px;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button onclick="closeEmailModal()" style="padding:9px 18px;border:1.5px solid #e2e8f0;background:white;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;color:#475569;">Cancel</button>
-          <button id="pbl-btn-send" onclick="pblOpenInOutlook()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 22px;background:#0078d4;color:white;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
-            <i class="fas fa-envelope"></i> <span id="pbl-btn-send-txt">Open in Outlook</span>
+          <button id="pbl-btn-send-one" onclick="pblSendCurrentGmail()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 18px;background:#0078d4;color:white;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;" title="Open this email in Outlook compose">
+            <i class="fab fa-microsoft"></i> Open This in Outlook
+          </button>
+          <button id="pbl-btn-send-all" onclick="pblSendAllGmail()" style="display:inline-flex;align-items:center;gap:8px;padding:9px 22px;background:#005a9e;color:white;border:none;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;" title="Open all emails in Outlook compose tabs">
+            <i class="fab fa-microsoft"></i> <span id="pbl-btn-send-txt">Send All in Outlook</span>
           </button>
         </div>
       </div>
@@ -1269,7 +1272,7 @@
       document.getElementById('pbl-preview-empty').style.display  = 'none';
       document.getElementById('pbl-preview-content').style.display = 'flex';
       document.getElementById('pbl-send-label').textContent  = `${msgs.length} recipient${msgs.length !== 1 ? 's' : ''}`;
-      document.getElementById('pbl-btn-send-txt').textContent = `Open in Outlook (${msgs.length} Email${msgs.length !== 1 ? 's' : ''})`;
+      document.getElementById('pbl-btn-send-txt').textContent = `Send All in Outlook (${msgs.length})`;
       pblRenderSlide();
     };
 
@@ -1326,15 +1329,43 @@
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── PBL email via mailto ──────────────────────────────────────────────────────
-    window.pblOpenInOutlook = function() {
-      const msg = pblPreviewMsgs[pblPreviewIdx];
-      if (!msg?.to) { showToast('No recipient for this email', 'warning'); return; }
-      const to      = encodeURIComponent(msg.to);
+    // ── PBL email via Outlook Web compose ────────────────────────────────────────
+    function pblOutlookUrl(msg) {
+      const to      = encodeURIComponent(msg.to || '');
       const subject = encodeURIComponent(msg.subject || '');
       const body    = encodeURIComponent(msg.body    || '');
-      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+      return `https://outlook.office.com/mail/deeplink/compose?to=${to}&subject=${subject}&body=${body}`;
+    }
+
+    // Open the currently-previewed email in Outlook compose (new tab)
+    window.pblSendCurrentGmail = function() {
+      const msg = pblPreviewMsgs[pblPreviewIdx];
+      if (!msg?.to) { showToast('No email address for this student', 'warning'); return; }
+      window.open(pblOutlookUrl(msg), '_blank');
     };
+
+    // Open ALL emails in Outlook compose — one new tab per recipient.
+    // Browsers allow multiple window.open() calls from a single user-gesture event,
+    // so all tabs open immediately without popup-blocker interference.
+    window.pblSendAllGmail = function() {
+      if (!pblPreviewMsgs.length) { showToast('No emails to send', 'warning'); return; }
+
+      const noEmail = pblPreviewMsgs.filter(m => !m.to);
+      if (noEmail.length) {
+        showToast(`${noEmail.length} student${noEmail.length > 1 ? 's have' : ' has'} no email address and will be skipped`, 'warning');
+      }
+
+      const toSend = pblPreviewMsgs.filter(m => m.to);
+      if (!toSend.length) { showToast('No students with email addresses found', 'error'); return; }
+
+      // Open all compose tabs — called from a click handler so popup blocker won't fire
+      toSend.forEach(msg => window.open(pblOutlookUrl(msg), '_blank'));
+
+      showToast(`Opened ${toSend.length} Outlook compose tab${toSend.length > 1 ? 's' : ''} — review and click Send in each`, 'success');
+    };
+
+    // Keep old name as alias in case anything else references it
+    window.pblOpenInOutlook = window.pblSendCurrentGmail;
 
     window.addEventListener('click', (event) => {
       const modalPbl     = document.getElementById('modal-pbl');
