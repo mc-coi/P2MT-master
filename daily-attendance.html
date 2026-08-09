@@ -40,7 +40,10 @@
     <div class="page-header">
       <h1><i class="fas fa-calendar-check"></i> Daily Attendance Log</h1>
       <div class="actions">
-        <button id="btn-download-csv" class="w3-button btn-primary action-button">
+        <button onclick="openAddRecordModal()" class="w3-button btn-primary action-button">
+          <i class="fas fa-plus"></i> Log Attendance
+        </button>
+        <button id="btn-download-csv" class="w3-button btn-secondary action-button">
           <i class="fas fa-download"></i> Download CSV
         </button>
       </div>
@@ -181,13 +184,74 @@
     </div>
   </div>
 
+  <!-- Add Attendance Record Modal -->
+  <div id="addRecordModal" class="w3-modal" onclick="if(event.target===this)closeAddRecordModal()">
+    <div class="w3-modal-content w3-card" style="max-width:520px;">
+      <button class="modal-close-btn" onclick="closeAddRecordModal()">×</button>
+      <div class="modal-body">
+        <h3><i class="fas fa-plus-circle"></i> Log Attendance Record</h3>
+
+        <label class="form-label">Student Name</label>
+        <input type="text" id="add-student-name" list="add-student-datalist"
+               class="w3-input w3-border w3-margin-bottom" placeholder="Start typing name…" autocomplete="off">
+        <datalist id="add-student-datalist"></datalist>
+
+        <label class="form-label">ChattState A#</label>
+        <input type="text" id="add-anum" class="w3-input w3-border w3-margin-bottom" placeholder="A0000000">
+
+        <div class="w3-row">
+          <div class="w3-col m6 w3-padding-small" style="padding-left:0;">
+            <label class="form-label">Date</label>
+            <input type="date" id="add-date" class="w3-input w3-border">
+          </div>
+          <div class="w3-col m6 w3-padding-small" style="padding-right:0;">
+            <label class="form-label">Attendance Code</label>
+            <select id="add-code" class="w3-select w3-border">
+              <option value="U">U — Unexcused</option>
+              <option value="T">T — Tardy</option>
+              <option value="E">E — Excused</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="w3-row w3-margin-top">
+          <div class="w3-col m6 w3-padding-small" style="padding-left:0;">
+            <label class="form-label">Class Name</label>
+            <input type="text" id="add-class" class="w3-input w3-border" placeholder="e.g. English 101">
+          </div>
+          <div class="w3-col m6 w3-padding-small" style="padding-right:0;">
+            <label class="form-label">Teacher</label>
+            <input type="text" id="add-teacher" list="add-teacher-datalist"
+                   class="w3-input w3-border" placeholder="Last name">
+            <datalist id="add-teacher-datalist"></datalist>
+          </div>
+        </div>
+
+        <label class="form-label w3-margin-top">Comment (optional)</label>
+        <textarea id="add-comment" class="w3-input w3-border w3-margin-bottom" rows="2"
+                  placeholder="Notes…"></textarea>
+
+        <div class="w3-row">
+          <div class="w3-col m6 w3-padding-small" style="padding-left:0;">
+            <button class="w3-button btn-primary w3-block" onclick="saveNewRecord()">
+              <i class="fas fa-save"></i> Save Record
+            </button>
+          </div>
+          <div class="w3-col m6 w3-padding-small" style="padding-right:0;">
+            <button class="w3-button btn-ghost w3-block" onclick="closeAddRecordModal()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
-    import { getAll, updateDoc }        from './js/db.js';
+    import { getAll, updateDoc, addDoc } from './js/db.js';
     import { initNav }                  from './js/nav.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
 
@@ -426,6 +490,103 @@
       } catch(e) {
         console.error(e);
         showToast('Error saving excuse', 'error');
+      }
+    };
+
+    // ── Add Record Modal ─────────────────────────────────────────────────────
+
+    let studentsForAdd = null;
+
+    window.openAddRecordModal = async function() {
+      // Lazy-load students for autocomplete
+      if (!studentsForAdd) {
+        try {
+          studentsForAdd = await getAll('students');
+          const dl = document.getElementById('add-student-datalist');
+          dl.innerHTML = '';
+          [...studentsForAdd]
+            .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
+            .forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = `${s.lastName}, ${s.firstName}`;
+              dl.appendChild(opt);
+            });
+        } catch(e) { console.error(e); }
+      }
+
+      // Populate teacher datalist from loaded logs
+      const teacherDl = document.getElementById('add-teacher-datalist');
+      teacherDl.innerHTML = '';
+      [...new Set([...allLogs, ...allLabLogs].map(l => l.teacherLastName).filter(Boolean))]
+        .sort()
+        .forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t;
+          teacherDl.appendChild(opt);
+        });
+
+      // Defaults
+      document.getElementById('add-date').value    = new Date().toISOString().split('T')[0];
+      document.getElementById('add-student-name').value = '';
+      document.getElementById('add-anum').value    = '';
+      document.getElementById('add-code').value    = 'U';
+      document.getElementById('add-class').value   = '';
+      document.getElementById('add-teacher').value = '';
+      document.getElementById('add-comment').value = '';
+
+      document.getElementById('addRecordModal').style.display = 'block';
+    };
+
+    window.closeAddRecordModal = function() {
+      document.getElementById('addRecordModal').style.display = 'none';
+    };
+
+    // Auto-fill A# when a student is picked from the datalist
+    document.getElementById('add-student-name').addEventListener('input', function() {
+      if (!studentsForAdd) return;
+      const val = this.value.trim();
+      const match = studentsForAdd.find(s => `${s.lastName}, ${s.firstName}` === val);
+      if (match) document.getElementById('add-anum').value = match.chattStateANumber || '';
+    });
+
+    window.saveNewRecord = async function() {
+      const studentName = document.getElementById('add-student-name').value.trim();
+      const anum        = document.getElementById('add-anum').value.trim();
+      const date        = document.getElementById('add-date').value;
+      const code        = document.getElementById('add-code').value;
+      const className   = document.getElementById('add-class').value.trim();
+      const teacher     = document.getElementById('add-teacher').value.trim();
+      const comment     = document.getElementById('add-comment').value.trim();
+
+      if (!studentName || !anum || !date || !code) {
+        showToast('Student name, A#, date, and code are required', 'warning');
+        return;
+      }
+
+      const record = {
+        studentName,
+        chattStateANumber: anum,
+        classDate:         date,
+        date,
+        attendanceCode:    code,
+        className:         className  || '',
+        teacherLastName:   teacher    || '',
+        comment:           comment    || '',
+        staffName:         currentUser?.displayName || currentUser?.email || 'Staff',
+        createdAt:         new Date().toISOString(),
+      };
+
+      try {
+        const id = await addDoc('classAttendanceLogs', record);
+        record.id = id;
+        allLogs.push(record);
+        populateTeacherFilter();
+        applyFilters();
+        closeAddRecordModal();
+        showToast('Attendance record saved', 'success');
+      } catch(e) {
+        console.error(e);
+        showToast('Error saving record', 'error');
       }
     };
 

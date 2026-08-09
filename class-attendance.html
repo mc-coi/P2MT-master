@@ -150,6 +150,34 @@
       color: white;
     }
 
+    /* ── Cross-section absent summary panel ── */
+    #cross-section-summary { display:none; margin-bottom:14px; }
+    .absent-summary-card {
+      background: #fff8f8; border: 1.5px solid #fecaca; border-radius: 10px;
+      padding: 12px 16px;
+    }
+    [data-theme="dark"] .absent-summary-card {
+      background: rgba(220,38,38,0.08); border-color: rgba(220,38,38,0.3);
+    }
+    .absent-summary-header {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 13px; font-weight: 700; color: #dc2626;
+      margin-bottom: 10px;
+    }
+    [data-theme="dark"] .absent-summary-header { color: #fca5a5; }
+    .absent-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+    .absent-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    }
+    .absent-chip.U { background:#fee2e2; color:#991b1b; }
+    .absent-chip.T { background:#fef3c7; color:#92400e; }
+    .absent-chip.E { background:#dbeafe; color:#1d4ed8; }
+    [data-theme="dark"] .absent-chip.U { background:rgba(239,68,68,0.2); color:#fca5a5; }
+    [data-theme="dark"] .absent-chip.T { background:rgba(245,158,11,0.2); color:#fde68a; }
+    [data-theme="dark"] .absent-chip.E { background:rgba(59,130,246,0.2); color:#93c5fd; }
+    .chip-class { font-size: 10px; opacity: .70; font-weight: 400; }
+
     /* ── Dark mode overrides ── */
     [data-theme="dark"] .filter-card { background: var(--surface); }
     [data-theme="dark"] .att-row { border-bottom-color: var(--border); }
@@ -278,6 +306,9 @@
         </button>
         <span class="save-all-summary" id="save-all-summary"></span>
       </div>
+
+      <!-- Cross-section absent summary -->
+      <div id="cross-section-summary"></div>
 
       <!-- Sections container -->
       <div id="sections-container"></div>
@@ -693,12 +724,60 @@
       }
     }
 
+    // ── Cross-section absent/tardy summary ──────────────────────────────────
+    function renderCrossSectionSummary() {
+      const panel = document.getElementById('cross-section-summary');
+      if (sections.length === 0) { panel.style.display = 'none'; return; }
+
+      // Collect all non-present students across sections
+      const absent = [];
+      sections.forEach(sec => {
+        sec.students.forEach(student => {
+          const code = resolveAttCode((sec.state[student.id] || {}).code);
+          if (code === 'U' || code === 'T' || code === 'E') {
+            absent.push({ student, code, className: sec.className });
+          }
+        });
+      });
+
+      if (absent.length === 0) {
+        panel.style.display = 'none';
+        return;
+      }
+
+      panel.style.display = 'block';
+
+      // Group by student
+      const byStudent = {};
+      absent.forEach(({ student, code, className }) => {
+        const key = student.id;
+        if (!byStudent[key]) byStudent[key] = { student, entries: [] };
+        byStudent[key].entries.push({ code, className });
+      });
+
+      const chips = Object.values(byStudent).map(({ student, entries }) => {
+        const name = `${student.lastName || ''}, ${student.firstName || ''}`;
+        const classes = entries.map(e => `<span class="chip-class">(${e.className})</span>`).join(' ');
+        const code = entries[0].code; // use first code for color
+        return `<span class="absent-chip ${code}">${name} ${classes}</span>`;
+      }).join('');
+
+      panel.innerHTML = `
+        <div class="absent-summary-card">
+          <div class="absent-summary-header">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${absent.length} absence${absent.length !== 1 ? 's' : ''} across ${Object.keys(byStudent).length} student${Object.keys(byStudent).length !== 1 ? 's' : ''}
+          </div>
+          <div class="absent-chips">${chips}</div>
+        </div>`;
+    }
+
     // ── Render all sections ──────────────────────────────────────────────────
     function renderAllSections() {
       const container = document.getElementById('sections-container');
       container.innerHTML = '';
 
-      if (sections.length === 0) return;
+      if (sections.length === 0) { renderCrossSectionSummary(); return; }
 
       const totalStudents = sections.reduce((sum, s) => sum + s.students.length, 0);
       const summary = `${sections.length} class${sections.length !== 1 ? 'es' : ''} · ${totalStudents} student${totalStudents !== 1 ? 's' : ''}`;
@@ -708,6 +787,8 @@
       sections.forEach(sec => {
         container.appendChild(buildSectionEl(sec));
       });
+
+      renderCrossSectionSummary();
     }
 
     function fmt12(t) {
@@ -833,6 +914,9 @@
           btn.classList.toggle('active', btnCode === code);
         });
       }
+
+      // Refresh the cross-section summary panel
+      renderCrossSectionSummary();
     };
 
     window.setCommentSection = function(idx, studentId, val) {
@@ -866,6 +950,7 @@
           });
         });
       }
+      renderCrossSectionSummary();
       showToast(`All students in ${sec.className} marked present`, 'success');
     };
 

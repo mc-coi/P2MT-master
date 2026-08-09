@@ -26,6 +26,9 @@
         <h2><i class="fas fa-user-tie"></i> Parent Information</h2>
       </div>
       <div class="w3-col m4 w3-right-align w3-padding-top">
+        <button id="btn-add-parent" class="w3-button w3-green action-button">
+          <i class="fas fa-user-plus"></i> Add Parent
+        </button>
         <button id="btn-remove-orphans" class="w3-button w3-red action-button">
           <i class="fas fa-user-slash"></i> Remove Graduated Parents
         </button>
@@ -72,9 +75,16 @@
     <div class="w3-modal-content w3-card modal-form">
       <header class="w3-container w3-teal">
         <span class="w3-button w3-display-topright" onclick="closeEditModal()">&times;</span>
-        <h3>Edit Parent Information</h3>
+        <h3 id="modal-title">Edit Parent Information</h3>
       </header>
       <form id="parentForm" class="w3-padding">
+        <!-- Student selector — shown only in Add mode -->
+        <div id="add-student-row" style="display:none; margin-bottom:12px;">
+          <label class="w3-text-teal"><b>Select Student</b></label>
+          <select id="add-student-select" class="w3-select w3-border">
+            <option value="">-- Select a student --</option>
+          </select>
+        </div>
         <p><b>Student: <span id="modal-student-name"></span></b></p>
         <hr>
         
@@ -242,6 +252,7 @@
     }
 
     function setupEventListeners() {
+      document.getElementById('btn-add-parent').addEventListener('click', openAddParentModal);
       document.getElementById('btn-remove-orphans').addEventListener('click', removeOrphanedParents);
       document.getElementById('btn-download-csv').addEventListener('click', downloadCSV);
       document.getElementById('btn-upload-csv').addEventListener('click', () => {
@@ -250,6 +261,52 @@
       document.getElementById('file-upload').addEventListener('change', handleFileUpload);
       document.getElementById('parentForm').addEventListener('submit', handleParentFormSubmit);
       document.getElementById('search-input').addEventListener('keyup', applyFilters);
+
+      // Auto-populate student name when a student is selected in add mode
+      document.getElementById('add-student-select').addEventListener('change', function() {
+        const aNum = this.value;
+        if (!aNum) { currentEditChattStateA = null; document.getElementById('modal-student-name').textContent = ''; return; }
+        currentEditChattStateA = aNum;
+        const s = studentsData.find(s => s.chattStateANumber === aNum);
+        document.getElementById('modal-student-name').textContent = s ? `${s.lastName}, ${s.firstName}` : aNum;
+        // Clear fields for fresh entry
+        ['guardianship','motherName','motherEmail','motherHomePhone','motherDayPhone',
+         'fatherName','fatherEmail','fatherHomePhone','fatherDayPhone','guardianEmail','comment']
+          .forEach(id => { document.getElementById(id).value = ''; });
+      });
+    }
+
+    function openAddParentModal() {
+      // Populate student selector with students who don't already have a parent record
+      const sel = document.getElementById('add-student-select');
+      sel.innerHTML = '<option value="">-- Select a student --</option>';
+      const existingANums = new Set(parentsData.map(p => p.chattStateANumber).filter(Boolean));
+      const addable = studentsData
+        .filter(s => s.chattStateANumber && !existingANums.has(s.chattStateANumber))
+        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+
+      if (addable.length === 0) {
+        showToast('All students already have a parent record. Use Edit to update existing records.', 'info');
+        return;
+      }
+
+      addable.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.chattStateANumber;
+        opt.textContent = `${s.lastName}, ${s.firstName} (${s.chattStateANumber})`;
+        sel.appendChild(opt);
+      });
+
+      // Switch modal to add mode
+      currentEditChattStateA = null;
+      document.getElementById('modal-title').textContent = 'Add Parent Information';
+      document.getElementById('add-student-row').style.display = 'block';
+      document.getElementById('modal-student-name').textContent = '';
+      ['guardianship','motherName','motherEmail','motherHomePhone','motherDayPhone',
+       'fatherName','fatherEmail','fatherHomePhone','fatherDayPhone','guardianEmail','comment']
+        .forEach(id => { document.getElementById(id).value = ''; });
+
+      document.getElementById('editModal').style.display = 'block';
     }
 
     async function editParent(chattStateANumber) {
@@ -274,6 +331,8 @@
 
     function closeEditModal() {
       document.getElementById('editModal').style.display = 'none';
+      document.getElementById('modal-title').textContent = 'Edit Parent Information';
+      document.getElementById('add-student-row').style.display = 'none';
       currentEditChattStateA = null;
     }
 

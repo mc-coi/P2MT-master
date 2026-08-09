@@ -706,7 +706,8 @@
       const subject   = $('#notifSubject').text();
       const bodyText  = $('#notifContent').text();
       const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
-      window.location.href = `mailto:${encodeURIComponent(singleNotifEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(singleNotifEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      window.open(outlookUrl, '_blank');
     }
 
     function downloadBulkMailMerge() {
@@ -802,7 +803,8 @@
       const subject   = tmpl.subject || tmpl.emailSubject || '';
       const bodyText  = document.getElementById('email-preview').textContent;
       const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
-      window.location.href = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      window.open(outlookUrl, '_blank');
     };
 
     // ── Mark time served (close record) ──────────────────────────

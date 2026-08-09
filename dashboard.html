@@ -205,6 +205,19 @@
       </div>
     </div>
 
+    <!-- Today's Attendance Summary -->
+    <div class="card w3-margin-bottom">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fas fa-calendar-check" style="margin-right:6px;color:#4f46e5;"></i>Today's Attendance
+        </div>
+        <a href="daily-attendance.html" style="font-size:12px;color:var(--primary);text-decoration:none;">View all →</a>
+      </div>
+      <div id="today-att-body" style="padding:0;">
+        <div class="loading-container" style="padding:28px;"><div class="spinner"></div></div>
+      </div>
+    </div>
+
     <!-- Attendance Alerts -->
     <div class="card w3-margin-bottom">
       <div class="card-header">
@@ -524,6 +537,72 @@
       } catch(e) {
         console.error('Alert load error:', e);
         body.innerHTML = `<div class="alerts-empty"><i class="fas fa-exclamation-circle"></i>Could not load alerts</div>`;
+      }
+    })();
+
+    // ══════════════════════════════════════
+    //  TODAY'S ATTENDANCE SUMMARY
+    // ══════════════════════════════════════
+    (async function loadTodayAttendance() {
+      const todayBody = document.getElementById('today-att-body');
+      const todayStr  = new Date().toISOString().slice(0, 10);
+
+      try {
+        const logs = await getAll('classAttendanceLogs');
+        const todayLogs = logs.filter(l => {
+          const d = l.classDate || l.date || l.absenceDate || '';
+          return d === todayStr;
+        });
+
+        if (todayLogs.length === 0) {
+          todayBody.innerHTML = `
+            <div style="padding:20px 18px;display:flex;align-items:center;gap:14px;color:var(--text-muted);">
+              <i class="fas fa-circle" style="color:#e5e7eb;font-size:22px;"></i>
+              <div>
+                <div style="font-weight:600;font-size:14px;color:var(--text-primary);">No attendance logged yet today</div>
+                <div style="font-size:12px;margin-top:2px;">
+                  <a href="class-attendance.html" style="color:var(--primary);">Take attendance →</a>
+                </div>
+              </div>
+            </div>`;
+          return;
+        }
+
+        const pCount  = todayLogs.filter(l => l.attendanceCode === 'P').length;
+        const uCount  = todayLogs.filter(l => l.attendanceCode === 'U').length;
+        const tCount  = todayLogs.filter(l => l.attendanceCode === 'T').length;
+        const eCount  = todayLogs.filter(l => l.attendanceCode === 'E').length;
+        const total   = todayLogs.length;
+        const uniqStu = new Set(todayLogs.map(l => l.chattStateANumber).filter(Boolean)).size;
+
+        todayBody.innerHTML = `
+          <div style="padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
+            <i class="fas fa-check-circle" style="color:#10B981;"></i>
+            <span style="font-size:13px;font-weight:600;color:var(--text-secondary);">
+              ${uniqStu} student${uniqStu !== 1 ? 's' : ''} logged across ${total} record${total !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">
+            <div style="padding:14px 16px;text-align:center;border-right:1px solid var(--border);">
+              <div style="font-size:26px;font-weight:800;color:#10B981;">${pCount}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Present</div>
+            </div>
+            <div style="padding:14px 16px;text-align:center;border-right:1px solid var(--border);">
+              <div style="font-size:26px;font-weight:800;color:#EF4444;">${uCount}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Unexcused</div>
+            </div>
+            <div style="padding:14px 16px;text-align:center;border-right:1px solid var(--border);">
+              <div style="font-size:26px;font-weight:800;color:#F59E0B;">${tCount}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Tardy</div>
+            </div>
+            <div style="padding:14px 16px;text-align:center;">
+              <div style="font-size:26px;font-weight:800;color:#3B82F6;">${eCount}</div>
+              <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Excused</div>
+            </div>
+          </div>`;
+      } catch(e) {
+        console.error('Today attendance error:', e);
+        todayBody.innerHTML = `<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px;">Could not load today's data</div>`;
       }
     })();
 

@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         .avatar-circle {
             width: 48px;
@@ -430,6 +431,16 @@
                             <div class="stat-small-label">Rate</div>
                         </div>
                     </div>
+                    <!-- Attendance trend chart -->
+                    <div id="att-chart-wrap" style="margin-bottom:20px;display:none;">
+                      <div style="font-size:13px;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">
+                        <i class="fas fa-chart-bar"></i> Absences by Month
+                      </div>
+                      <div style="position:relative;height:180px;">
+                        <canvas id="att-trend-chart"></canvas>
+                      </div>
+                    </div>
+
                     <div class="table-wrap">
                         <table id="attendance-table" class="w3-table w3-striped">
                             <thead>
@@ -842,8 +853,50 @@
                 document.getElementById('attendance-absent').textContent = absentCount;
                 document.getElementById('attendance-rate-tab').textContent = `${rate}%`;
 
+                // ── Attendance trend chart ────────────────────────────────
+                const nonPresent = attendanceLogs.filter(l => ['U','T','E'].includes(l.attendanceCode));
+                if (nonPresent.length > 0 && typeof Chart !== 'undefined') {
+                  // Group by YYYY-MM
+                  const monthMap = {};
+                  nonPresent.forEach(l => {
+                    const d = l.absenceDate || l.date || '';
+                    const ym = d.slice(0, 7); // "2025-09"
+                    if (!ym) return;
+                    if (!monthMap[ym]) monthMap[ym] = { U:0, T:0, E:0 };
+                    const c = l.attendanceCode;
+                    if (monthMap[ym][c] !== undefined) monthMap[ym][c]++;
+                  });
+                  const labels = Object.keys(monthMap).sort();
+                  const fmtLabel = ym => {
+                    const [y, m] = ym.split('-');
+                    return new Date(+y, +m - 1, 1).toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+                  };
+
+                  document.getElementById('att-chart-wrap').style.display = 'block';
+                  const ctx = document.getElementById('att-trend-chart').getContext('2d');
+                  new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                      labels: labels.map(fmtLabel),
+                      datasets: [
+                        { label: 'Unexcused', data: labels.map(m => monthMap[m].U), backgroundColor: 'rgba(239,68,68,0.75)', borderRadius: 4 },
+                        { label: 'Tardy',     data: labels.map(m => monthMap[m].T), backgroundColor: 'rgba(245,158,11,0.75)', borderRadius: 4 },
+                        { label: 'Excused',   data: labels.map(m => monthMap[m].E), backgroundColor: 'rgba(59,130,246,0.75)',  borderRadius: 4 },
+                      ]
+                    },
+                    options: {
+                      responsive: true, maintainAspectRatio: false,
+                      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+                      scales: {
+                        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+                        y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.06)' } }
+                      }
+                    }
+                  });
+                }
+
                 // Sort by date descending
-                const sortedLogs = attendanceLogs.sort((a, b) => 
+                const sortedLogs = attendanceLogs.sort((a, b) =>
                     new Date(b.absenceDate) - new Date(a.absenceDate)
                 );
 
