@@ -998,9 +998,11 @@
       );
       if (!confirmed) return;
 
-      const cleanBtn = document.getElementById('mgmtCleanBtn');
+      const cleanBtn     = document.getElementById('mgmtCleanBtn');
+      const cleanIcon    = cleanBtn.querySelector('i');
+      const dupCountSpan = document.getElementById('mgmtDupCount');
       cleanBtn.disabled = true;
-      cleanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Cleaning…';
+      if (cleanIcon) cleanIcon.className = 'fas fa-spinner fa-spin';
 
       // Build the set of doc IDs that are in the DISPLAY (keepers)
       const keepIds = new Set(mgmtDisplaySchedules.map(s => s.id));
@@ -1019,7 +1021,7 @@
 
         // Hide button now that there are no duplicates
         cleanBtn.style.display = 'none';
-        document.getElementById('mgmtDupCount').textContent = '0';
+        if (dupCountSpan) dupCountSpan.textContent = '0';
 
         showToast(`Cleaned up ${dupsToDelete.length} duplicate record${dupsToDelete.length !== 1 ? 's' : ''}`, 'success');
       } catch(e) {
@@ -1027,7 +1029,8 @@
         showToast('Error cleaning duplicates', 'error');
       } finally {
         cleanBtn.disabled = false;
-        cleanBtn.innerHTML = '<i class="fas fa-broom"></i> Clean Duplicates (<span id="mgmtDupCount">0</span>)';
+        if (cleanIcon)    cleanIcon.className = 'fas fa-broom';
+        if (dupCountSpan) dupCountSpan.textContent = '0';
       }
     };
 

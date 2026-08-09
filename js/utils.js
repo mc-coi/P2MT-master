@@ -82,14 +82,25 @@ export function getCurrentSemester() {
   }
 }
 
-// Export data as CSV file using PapaParse
-export function exportCSV(data, filename) {
+// Export data as CSV file using PapaParse.
+// Accepts two signatures:
+//   exportCSV(data, filename)            — data is a full array (objects or array-of-arrays)
+//   exportCSV(headers, rows, filename)   — headers is a string[] and rows is an array of arrays
+export function exportCSV(data, filenameOrRows, filename) {
+  // 3-arg form: exportCSV(headers, rows, filename)
+  if (Array.isArray(filenameOrRows)) {
+    data     = [data, ...filenameOrRows];  // combine headers + rows into array-of-arrays
+    filename = filename;
+  } else {
+    filename = filenameOrRows;
+  }
+
   if (!window.Papa) {
     console.error('PapaParse not loaded');
     showToast('Error: CSV library not loaded', 'error');
     return;
   }
-  
+
   try {
     const csv = window.Papa.unparse(data);
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });

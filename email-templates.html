@@ -921,7 +921,32 @@
     function setSuggestedRedirect() {
       const el = document.getElementById('suggested-redirect');
       if (el) el.textContent = window.location.origin + window.location.pathname;
+      // Pre-fill with any previously saved client ID
+      const saved = localStorage.getItem('p2mt-azure-client-id');
+      if (saved) {
+        const input = document.getElementById('azure-client-id');
+        if (input) input.value = saved;
+      }
     }
+
+    // Save the Azure client ID entered by the teacher and close the modal.
+    // The ID is persisted in localStorage so it survives page refreshes.
+    window.saveAzureId = function() {
+      const input = document.getElementById('azure-client-id');
+      const id    = (input?.value || '').trim();
+      if (!id) {
+        showToast('Please enter a client ID', 'warning');
+        return;
+      }
+      // Basic UUID format check (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+        showToast('That does not look like a valid Application ID — check and try again', 'warning');
+        return;
+      }
+      localStorage.setItem('p2mt-azure-client-id', id);
+      document.getElementById('modal-azure').classList.remove('open');
+      showToast('Azure client ID saved — Outlook sending is now configured', 'success');
+    };
 
     // Close modals on backdrop click
     document.querySelectorAll('.modal-bd').forEach(bd => {

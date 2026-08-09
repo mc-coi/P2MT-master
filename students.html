@@ -888,9 +888,12 @@
         showToast('Type DELETE to confirm', 'warning'); return;
       }
       const toDelete = studentsData.filter(s => s.yearOfGraduation === year);
-      const btn = document.getElementById('btn-confirm-delete-year');
+      const btn     = document.getElementById('btn-confirm-delete-year');
+      const btnIcon = btn.querySelector('i');
+      const btnLbl  = btn.querySelector('#btn-year-label');
       btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+      if (btnIcon) btnIcon.className = 'fas fa-spinner fa-spin';
+      if (btnLbl)  btnLbl.textContent = 'Deleting…';
       try {
         let count = 0;
         for (const s of toDelete) {
@@ -906,7 +909,8 @@
         showToast('Error during bulk delete', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = `<i class="fas fa-trash-alt"></i> Delete Class of <span id="btn-year-label">${year}</span>`;
+        if (btnIcon) btnIcon.className = 'fas fa-trash-alt';
+        if (btnLbl)  btnLbl.textContent = year;
       }
     }
 
