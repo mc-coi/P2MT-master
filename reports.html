@@ -466,8 +466,9 @@
 
       $('rpt-loading').classList.add('active');
       try {
-        const [attLogs, tmiLogs, intLogs, erAssign, erWorkshops, erClearance, students] = await Promise.all([
+        const [rawClassLogs, rawDailyLogs, tmiLogs, intLogs, erAssign, erWorkshops, erClearance, students] = await Promise.all([
           getAll('classAttendanceLogs'),
+          getAll('dailyAttendanceLogs'),
           getAll('interventionLogs'),
           getAll('studentInterventions'),
           getAll('erAssignments'),
@@ -479,7 +480,23 @@
         const studentMap = {};
         students.forEach(s => { studentMap[s.id] = s; });
 
-        buildAttendance(attLogs, range, studentMap);
+        // Merge attendance collections, de-duplicating by student+date.
+        // Class records take priority; daily records fill gaps for manually-logged absences.
+        const classAbsKeys = new Set(
+          rawClassLogs.filter(l => ['T','U','E'].includes(l.attendanceCode))
+                      .map(l => `${l.chattStateANumber}|${(l.classDate||l.date||'').substring(0,10)}`)
+        );
+        const mergedAttLogs = [
+          ...rawClassLogs,
+          ...rawDailyLogs
+            .filter(l => {
+              const d = (l.absenceDate || l.date || '').substring(0,10);
+              return !classAbsKeys.has(`${l.chattStateANumber}|${d}`);
+            })
+            .map(l => ({ ...l, classDate: l.absenceDate || l.date || '' })),
+        ];
+
+        buildAttendance(mergedAttLogs, range, studentMap);
         buildTMI(tmiLogs, range, studentMap);
         buildInterventions(intLogs, range, studentMap);
         buildER(erAssign, erWorkshops, erClearance, range, studentMap);
