@@ -256,7 +256,7 @@
     import { formatDate, exportCSV, showToast } from './js/utils.js';
 
     let currentUser = null;
-    let allLogs     = [];   // classAttendanceLogs with code T/U/E
+    let allLogs     = [];   // merged classAttendanceLogs + dailyAttendanceLogs with code T/U/E
     let allLabLogs  = [];   // classAttendanceLogs with learningLab:true
     let filtered    = [];
     let attTable    = null;
@@ -270,11 +270,38 @@
     async function init() {
       try {
         document.getElementById('loading-container').style.display = 'flex';
-        const raw = await getAll('classAttendanceLogs');
-        // T, U, E absences for the main view
-        allLogs    = raw.filter(l => ['T','U','E'].includes(l.attendanceCode));
-        // All learning lab entries (any code) for the lab overlay
-        allLabLogs = raw.filter(l => l.learningLab === true);
+
+        // Load both attendance collections in parallel
+        const [rawClass, rawDaily] = await Promise.all([
+          getAll('classAttendanceLogs'),
+          getAll('dailyAttendanceLogs')
+        ]);
+
+        // Tag each record with its source collection so excuse saves go to the right place
+        const classMapped = rawClass.map(l => ({ ...l, _collection: 'classAttendanceLogs' }));
+        const dailyMapped = rawDaily.map(l => ({ ...l, _collection: 'dailyAttendanceLogs' }));
+
+        // Class-based T/U/E records
+        const classLogs = classMapped.filter(l => ['T','U','E'].includes(l.attendanceCode));
+
+        // Manually-logged T/U/E records from the Students page that aren't already covered
+        // by a classAttendanceLogs entry for the same student+date
+        const classKeys = new Set(
+          classLogs.map(l => `${l.chattStateANumber}|${l.classDate || l.date || ''}`)
+        );
+        const dailyLogs = dailyMapped.filter(l => {
+          if (!['T','U','E'].includes(l.attendanceCode)) return false;
+          const d   = l.absenceDate || l.date || '';
+          const key = `${l.chattStateANumber}|${d}`;
+          return !classKeys.has(key); // omit if already in classAttendanceLogs for same student+date
+        });
+
+        // Merge — class records first (they have richer class/teacher info)
+        allLogs = [...classLogs, ...dailyLogs];
+
+        // Learning lab entries
+        allLabLogs = classMapped.filter(l => l.learningLab === true);
+
         document.getElementById('loading-container').style.display = 'none';
 
         populateTeacherFilter();
@@ -300,7 +327,7 @@
     }
 
     function getDate(log) {
-      return log.classDate || log.date || '';
+      return log.classDate || log.date || log.absenceDate || '';
     }
 
     function applyFilters() {
@@ -473,11 +500,13 @@
       const excuseType = document.querySelector('input[name="excuseType"]:checked')?.value || '';
       const excuseNotes = document.getElementById('excuse-notes').value.trim();
 
-      try {
-        await updateDoc('classAttendanceLogs', logId, { excuseType, excuseNotes });
+      const log  = allLogs.find(l => l.id === logId);
+      const coll = log?._collection || 'classAttendanceLogs';
 
-        // Update local cache
-        const log = allLogs.find(l => l.id === logId);
+      try {
+        await updateDoc(coll, logId, { excuseType, excuseNotes });
+
+        // Update local cache (log already found above)
         if (log) { log.excuseType = excuseType; log.excuseNotes = excuseNotes; }
 
         // Update cell without full re-render
