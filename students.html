@@ -1112,27 +1112,24 @@
       }
     }
 
+    // Custom DataTables search — registered once, re-evaluated on every draw()
+    $.fn.dataTable.ext.search.push(function(_settings, data) {
+      const searchValue   = (document.getElementById('search-input')?.value   || '').toLowerCase();
+      const gradYearValue =  document.getElementById('grad-year-filter')?.value || '';
+      const houseValue    =  document.getElementById('house-filter')?.value    || '';
+
+      const fullName = `${(data[0]||'').toLowerCase()} ${(data[3]||'').toLowerCase()}`;
+      const gradYear = data[1] || '';
+      const house    = data[2] || '';
+
+      return fullName.includes(searchValue)
+          && (!gradYearValue || gradYear === gradYearValue)
+          && (!houseValue    || house    === houseValue);
+    });
+
     function applyFilters() {
-      const searchValue = document.getElementById('search-input').value.toLowerCase();
-      const gradYearValue = document.getElementById('grad-year-filter').value;
-      const houseValue = document.getElementById('house-filter').value;
-
-      dataTable.rows().every(function() {
-        const data = this.data();
-        const fullName = `${data[0].toLowerCase()} ${data[3].toLowerCase()}`;
-        const gradYear = data[1];
-        const house = data[2];
-
-        const searchMatch = fullName.includes(searchValue);
-        const gradYearMatch = !gradYearValue || gradYear === gradYearValue;
-        const houseMatch = !houseValue || house === houseValue;
-
-        if (searchMatch && gradYearMatch && houseMatch) {
-          $(this.node()).show();
-        } else {
-          $(this.node()).hide();
-        }
-      });
+      if (!dataTable) return;
+      dataTable.page('first').draw();   // re-runs the search fn above and resets to page 1
     }
 
     function downloadStudentTemplate() {
