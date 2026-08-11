@@ -548,9 +548,26 @@
       const todayStr  = new Date().toISOString().slice(0, 10);
 
       try {
-        const logs = await getAll('classAttendanceLogs');
-        const todayLogs = logs.filter(l => {
-          const d = l.classDate || l.date || l.absenceDate || '';
+        const [classLogs, dailyLogs] = await Promise.all([
+          getAll('classAttendanceLogs'),
+          getAll('dailyAttendanceLogs'),
+        ]);
+        // Merge: daily records that don't already have a class record for the same student+date
+        const classAbsKeys = new Set(
+          classLogs.filter(l => ['T','U','E'].includes(l.attendanceCode))
+                   .map(l => `${l.chattStateANumber}|${(l.classDate||l.date||'').substring(0,10)}`)
+        );
+        const mergedLogs = [
+          ...classLogs,
+          ...dailyLogs
+            .filter(l => {
+              const d = (l.absenceDate || l.date || '').substring(0,10);
+              return !classAbsKeys.has(`${l.chattStateANumber}|${d}`);
+            })
+            .map(l => ({ ...l, classDate: l.absenceDate || l.date || '' })),
+        ];
+        const todayLogs = mergedLogs.filter(l => {
+          const d = (l.classDate || l.date || l.absenceDate || '').substring(0, 10);
           return d === todayStr;
         });
 
