@@ -184,12 +184,13 @@
     </div>
   </div>
 
-  <!-- Add Attendance Record Modal -->
+  <!-- Add / Edit Attendance Record Modal -->
   <div id="addRecordModal" class="w3-modal" onclick="if(event.target===this)closeAddRecordModal()">
     <div class="w3-modal-content w3-card" style="max-width:520px;">
       <button class="modal-close-btn" onclick="closeAddRecordModal()">×</button>
       <div class="modal-body">
-        <h3><i class="fas fa-plus-circle"></i> Log Attendance Record</h3>
+        <input type="hidden" id="edit-record-id">
+        <h3 id="add-record-title"><i class="fas fa-plus-circle"></i> Log Attendance Record</h3>
 
         <label class="form-label">Student Name</label>
         <input type="text" id="add-student-name" list="add-student-datalist"
@@ -233,7 +234,7 @@
 
         <div class="w3-row">
           <div class="w3-col m6 w3-padding-small" style="padding-left:0;">
-            <button class="w3-button btn-primary w3-block" onclick="saveNewRecord()">
+            <button id="add-record-save-btn" class="w3-button btn-primary w3-block" onclick="saveNewRecord()">
               <i class="fas fa-save"></i> Save Record
             </button>
           </div>
@@ -251,7 +252,7 @@
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
-    import { getAll, updateDoc, addDoc } from './js/db.js';
+    import { getAll, updateDoc, addDoc, deleteDoc } from './js/db.js';
     import { initNav }                  from './js/nav.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
 
@@ -429,13 +430,21 @@
           row.style.background = '#fff5f5';
         }
         // For lab entries still pending (?) the Excuse button is less relevant
-        const excuseBtn = (isLab && log.attendanceCode === '?')
+        const actionBtns = (isLab && log.attendanceCode === '?')
           ? `<a class="w3-button w3-small w3-purple action-button" href="class-attendance.html" title="Take attendance in Class Attendance">
                <i class="fas fa-flask"></i> Take Att.
              </a>`
-          : `<button class="w3-button w3-small w3-blue action-button" onclick="openExcuseModal('${log.id}')">
-               <i class="fas fa-file-medical"></i> Excuse
-             </button>`;
+          : `<div style="display:flex;gap:4px;flex-wrap:wrap;">
+               <button class="w3-button w3-small w3-blue action-button" onclick="openExcuseModal('${log.id}')" title="Add/edit excuse">
+                 <i class="fas fa-file-medical"></i>
+               </button>
+               <button class="w3-button w3-small w3-green action-button" onclick="openEditRecordModal('${log.id}')" title="Edit record">
+                 <i class="fas fa-pencil-alt"></i>
+               </button>
+               <button class="w3-button w3-small w3-red action-button" onclick="confirmDeleteRecord('${log.id}')" title="Delete record">
+                 <i class="fas fa-trash"></i>
+               </button>
+             </div>`;
         row.innerHTML = `
           <td>${formatDate(d)}</td>
           <td style="font-weight:600;">${log.studentName || '—'}${isLab ? ' <span class="lab-badge"><i class="fas fa-flask"></i> Lab</span>' : ''}</td>
@@ -445,7 +454,7 @@
           <td>${log.teacherLastName || '—'}</td>
           <td id="excuse-cell-${log.id}">${excuseBadge(log)}</td>
           <td style="font-size:12px;color:#64748b;">${log.comment || log.excuseNotes || '—'}</td>
-          <td>${excuseBtn}</td>
+          <td>${actionBtns}</td>
         `;
         tbody.appendChild(row);
       });
@@ -554,6 +563,13 @@
           teacherDl.appendChild(opt);
         });
 
+      // Reset to "add" mode
+      document.getElementById('edit-record-id').value = '';
+      document.getElementById('add-record-title').innerHTML = '<i class="fas fa-plus-circle"></i> Log Attendance Record';
+      document.getElementById('add-record-save-btn').innerHTML = '<i class="fas fa-save"></i> Save Record';
+      document.getElementById('add-student-name').disabled = false;
+      document.getElementById('add-anum').disabled = false;
+
       // Defaults
       document.getElementById('add-date').value    = new Date().toISOString().split('T')[0];
       document.getElementById('add-student-name').value = '';
@@ -568,6 +584,46 @@
 
     window.closeAddRecordModal = function() {
       document.getElementById('addRecordModal').style.display = 'none';
+      document.getElementById('edit-record-id').value = '';
+    };
+
+    // Open modal pre-filled for editing an existing record
+    window.openEditRecordModal = async function(logId) {
+      const log = allLogs.find(l => l.id === logId);
+      if (!log) return;
+
+      // Lazy-load students for autocomplete (same as add modal)
+      if (!studentsForAdd) {
+        try {
+          studentsForAdd = await getAll('students');
+          const dl = document.getElementById('add-student-datalist');
+          dl.innerHTML = '';
+          [...studentsForAdd]
+            .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
+            .forEach(s => {
+              const opt = document.createElement('option');
+              opt.value = `${s.lastName}, ${s.firstName}`;
+              dl.appendChild(opt);
+            });
+        } catch(e) { console.error(e); }
+      }
+
+      document.getElementById('edit-record-id').value = logId;
+      document.getElementById('add-record-title').innerHTML = '<i class="fas fa-pencil-alt"></i> Edit Attendance Record';
+      document.getElementById('add-record-save-btn').innerHTML = '<i class="fas fa-save"></i> Update Record';
+
+      // Pre-fill fields (student name/A# locked since identity shouldn't change)
+      document.getElementById('add-student-name').value = log.studentName || '';
+      document.getElementById('add-student-name').disabled = true;
+      document.getElementById('add-anum').value = log.chattStateANumber || '';
+      document.getElementById('add-anum').disabled = true;
+      document.getElementById('add-date').value  = getDate(log).substring(0, 10);
+      document.getElementById('add-code').value  = log.attendanceCode || 'U';
+      document.getElementById('add-class').value = log.className || '';
+      document.getElementById('add-teacher').value = log.teacherLastName || '';
+      document.getElementById('add-comment').value = log.comment || '';
+
+      document.getElementById('addRecordModal').style.display = 'block';
     };
 
     // Auto-fill A# when a student is picked from the datalist
@@ -579,6 +635,7 @@
     });
 
     window.saveNewRecord = async function() {
+      const editId      = document.getElementById('edit-record-id').value;
       const studentName = document.getElementById('add-student-name').value.trim();
       const anum        = document.getElementById('add-anum').value.trim();
       const date        = document.getElementById('add-date').value;
@@ -592,30 +649,80 @@
         return;
       }
 
-      const record = {
-        studentName,
-        chattStateANumber: anum,
-        classDate:         date,
-        date,
-        attendanceCode:    code,
-        className:         className  || '',
-        teacherLastName:   teacher    || '',
-        comment:           comment    || '',
-        staffName:         currentUser?.displayName || currentUser?.email || 'Staff',
-        createdAt:         new Date().toISOString(),
-      };
+      if (editId) {
+        // ── EDIT existing record ──────────────────────────────────────────────
+        const log  = allLogs.find(l => l.id === editId);
+        const coll = log?._collection || 'classAttendanceLogs';
+        const changes = {
+          attendanceCode: code,
+          classDate:      date,
+          date,
+          className:      className || '',
+          teacherLastName: teacher  || '',
+          comment:        comment   || '',
+          updatedAt:      new Date().toISOString(),
+        };
+        try {
+          await updateDoc(coll, editId, changes);
+          if (log) Object.assign(log, changes);
+          populateTeacherFilter();
+          applyFilters();
+          closeAddRecordModal();
+          showToast('Record updated', 'success');
+        } catch(e) {
+          console.error(e);
+          showToast('Error updating record', 'error');
+        }
+      } else {
+        // ── ADD new record ────────────────────────────────────────────────────
+        const record = {
+          studentName,
+          chattStateANumber: anum,
+          classDate:         date,
+          date,
+          attendanceCode:    code,
+          className:         className  || '',
+          teacherLastName:   teacher    || '',
+          comment:           comment    || '',
+          staffName:         currentUser?.displayName || currentUser?.email || 'Staff',
+          createdAt:         new Date().toISOString(),
+        };
+        try {
+          const id = await addDoc('classAttendanceLogs', record);
+          record.id = id;
+          allLogs.push(record);
+          populateTeacherFilter();
+          applyFilters();
+          closeAddRecordModal();
+          showToast('Attendance record saved', 'success');
+        } catch(e) {
+          console.error(e);
+          showToast('Error saving record', 'error');
+        }
+      }
+    };
 
+    // ── Delete Record ────────────────────────────────────────────────────────
+
+    window.confirmDeleteRecord = function(logId) {
+      const log = allLogs.find(l => l.id === logId);
+      if (!log) return;
+      const info = `${log.studentName || 'Unknown'} — ${formatDate(getDate(log))} [${log.attendanceCode}]`;
+      if (!confirm(`Delete this absence record?\n\n${info}\n\nThis cannot be undone.`)) return;
+      deleteAbsenceRecord(logId);
+    };
+
+    async function deleteAbsenceRecord(logId) {
+      const log  = allLogs.find(l => l.id === logId);
+      const coll = log?._collection || 'classAttendanceLogs';
       try {
-        const id = await addDoc('classAttendanceLogs', record);
-        record.id = id;
-        allLogs.push(record);
-        populateTeacherFilter();
+        await deleteDoc(coll, logId);
+        allLogs = allLogs.filter(l => l.id !== logId);
         applyFilters();
-        closeAddRecordModal();
-        showToast('Attendance record saved', 'success');
+        showToast('Record deleted', 'success');
       } catch(e) {
         console.error(e);
-        showToast('Error saving record', 'error');
+        showToast('Error deleting record', 'error');
       }
     };
 
