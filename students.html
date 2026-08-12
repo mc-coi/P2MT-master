@@ -1090,6 +1090,10 @@
                 yearOfGraduation:    student.yearOfGraduation || '',
                 tmiMinutes:          60,
                 tmiMinutesRemaining: 60,
+                tmiMinutesServed:    0,
+                // startDate is what Reports and TMI Approval filter on — without it
+                // this record is invisible to both.
+                startDate:           date,
                 comment:             comment || 'Missed Check In/Out',
                 createdAt:           new Date().toISOString()
               });
@@ -1452,6 +1456,10 @@
         yearOfGraduation:     s.yearOfGraduation || '',
         tmiMinutes:           minutes,
         tmiMinutesRemaining:  minutes,
+        tmiMinutesServed:     0,
+        // startDate is what Reports and TMI Approval filter on — without it
+        // this record is invisible to both.
+        startDate:            new Date().toISOString().substring(0, 10),
         comment:              reason,
         createdAt:            new Date().toISOString()
       };

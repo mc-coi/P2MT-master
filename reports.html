@@ -605,8 +605,11 @@
     //  TMI REPORT
     // ═══════════════════════════════════════════════════════════════════════════
     function buildTMI(logs, range, studentMap) {
+      // Fall back through the date fields the various write paths use, so TMI
+      // records created outside Class Attendance are still counted.
+      const tmiDate = l => l.startDate || l.dateTime || l.createDate || l.createdAt || '';
       const tmi = logs.filter(l =>
-        l.interventionType === 'TMI' && inRange(l.startDate, range)
+        l.interventionType === 'TMI' && inRange(tmiDate(l), range)
       );
       rawData.tmi = tmi;
 

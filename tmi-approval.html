@@ -342,8 +342,11 @@
           if (intervention.interventionType !== 'TMI') return;
           if (intervention.interventionStatus === 'Closed') return;
 
-          // Timezone-safe date comparison using string comparison (YYYY-MM-DD)
-          const iDate = (intervention.startDate || '').substring(0, 10);
+          // Timezone-safe date comparison using string comparison (YYYY-MM-DD).
+          // Fall back through the date fields used by the different write paths
+          // so TMI assigned from the Students page is not silently skipped.
+          const iDate = (intervention.startDate || intervention.dateTime ||
+                         intervention.createDate || intervention.createdAt || '').substring(0, 10);
           if (iDate < startDate || iDate > endDate) return;
 
           {
