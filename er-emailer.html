@@ -2581,28 +2581,46 @@
     // ── Purge helpers ──────────────────────────────────────────────────────────
 
     // Delete ALL ER data (across all periods) for a list of student IDs.
+    //
+    // Records are matched on studentId OR chattStateANumber: not every write
+    // path stores studentId (the Daily Attendance "Log Attendance" modal, for
+    // example, stores only the A#), so a studentId-only query silently leaves
+    // those rows behind.
     async function purgeStudentErData(studentIds) {
       let deletedCount = 0;
-      for (const sid of studentIds) {
-        const colls = ['erAttendance','erAssignments','erClearance','erCleared','erRoomStudents'];
-        for (const coll of colls) {
-          try {
-            const rows = await getWhere(coll, 'studentId', '==', sid);
-            for (const r of rows) {
-              if (r.id) { await deleteDoc(coll, r.id); deletedCount++; }
-            }
-          } catch(e) { console.error(`purge ${coll}:`, e); }
-        }
-        // Also remove Early Release entries from classAttendanceLogs
+
+      // Map each target student to its A# so we can match either identifier.
+      const idSet   = new Set(studentIds.filter(Boolean));
+      const anumSet = new Set(
+        studentIds.map(sid => students.find(s => s.id === sid)?.chattStateANumber)
+                  .filter(Boolean)
+      );
+      const isTarget = r =>
+        (r.studentId && idSet.has(r.studentId)) ||
+        (r.chattStateANumber && anumSet.has(r.chattStateANumber));
+
+      const colls = ['erAttendance','erAssignments','erClearance','erCleared','erRoomStudents'];
+      for (const coll of colls) {
         try {
-          const logs = await getWhere('classAttendanceLogs', 'studentId', '==', sid);
-          for (const l of logs) {
-            if (l.id && l.className === 'Early Release') {
-              await deleteDoc('classAttendanceLogs', l.id); deletedCount++;
-            }
+          // Single full scan per collection, then match in memory — this catches
+          // rows missing studentId, which a getWhere('studentId') query cannot.
+          const rows = await getAll(coll);
+          for (const r of rows) {
+            if (r.id && isTarget(r)) { await deleteDoc(coll, r.id); deletedCount++; }
           }
-        } catch(e) { console.error('purge classAttendanceLogs:', e); }
+        } catch(e) { console.error(`purge ${coll}:`, e); }
       }
+
+      // Early Release entries mirrored into classAttendanceLogs
+      try {
+        const logs = await getAll('classAttendanceLogs');
+        for (const l of logs) {
+          if (l.id && l.className === 'Early Release' && isTarget(l)) {
+            await deleteDoc('classAttendanceLogs', l.id); deletedCount++;
+          }
+        }
+      } catch(e) { console.error('purge classAttendanceLogs:', e); }
+
       return deletedCount;
     }
 
@@ -2744,36 +2762,45 @@
       if (!confirmed) return;
       showToast('Purging attendance…', 'info');
       let deleted = 0;
+      // Different write paths store the date under different keys — normalize
+      // so records written outside this page are not silently skipped.
+      const recDate = r => (r.date || r.classDate || r.absenceDate || '').substring(0, 10);
+      const alreadyDeleted = new Set();   // guard against double-deleting linked rows
       try {
-        // getAll erAttendance and filter by date — no direct Firestore range query available via wrapper
-        // Use getWhere with all students (in memory) to stay efficient
-        const allStudentIds = [...new Set([
-          ...Object.keys(assignments),
-          ...erRoomStudents.map(rs => rs.studentId),
-        ])];
-        for (const sid of allStudentIds) {
-          try {
-            const rows = await getWhere('erAttendance', 'studentId', '==', sid);
-            for (const r of rows) {
-              if (r.date && r.date < cutoff) {
-                if (r.id) { await deleteDoc('erAttendance', r.id); deleted++; }
-                // Also delete linked classAttendanceLogs record
-                if (r.classLogId) {
-                  try { await deleteDoc('classAttendanceLogs', r.classLogId); deleted++; } catch(e) {}
-                }
-              }
-            }
-          } catch(e) { console.error(e); }
-        }
-        // Also scan classAttendanceLogs with className Early Release independently
+        // Full scan rather than per-student getWhere: rows belonging to students
+        // no longer in assignments/erRoomStudents would otherwise be orphaned,
+        // as would any row written without a studentId.
         try {
-          const erLogs = await getWhere('classAttendanceLogs', 'className', '==', 'Early Release');
-          for (const l of erLogs) {
-            if (l.date && l.date < cutoff && l.id) {
-              try { await deleteDoc('classAttendanceLogs', l.id); deleted++; } catch(e) {}
+          const rows = await getAll('erAttendance');
+          for (const r of rows) {
+            const d = recDate(r);
+            if (!d || d >= cutoff) continue;
+            if (r.id) { await deleteDoc('erAttendance', r.id); deleted++; }
+            // Also delete the linked classAttendanceLogs record
+            if (r.classLogId && !alreadyDeleted.has(r.classLogId)) {
+              try {
+                await deleteDoc('classAttendanceLogs', r.classLogId);
+                alreadyDeleted.add(r.classLogId); deleted++;
+              } catch(e) { /* already gone */ }
             }
           }
-        } catch(e) { console.error(e); }
+        } catch(e) { console.error('purge erAttendance:', e); }
+
+        // Independent sweep of Early Release rows in classAttendanceLogs, to catch
+        // entries with no matching erAttendance row (e.g. logged manually).
+        try {
+          const erLogs = await getAll('classAttendanceLogs');
+          for (const l of erLogs) {
+            if (l.className !== 'Early Release' || !l.id) continue;
+            if (alreadyDeleted.has(l.id)) continue;
+            const d = recDate(l);
+            if (!d || d >= cutoff) continue;
+            try {
+              await deleteDoc('classAttendanceLogs', l.id);
+              alreadyDeleted.add(l.id); deleted++;
+            } catch(e) { /* already gone */ }
+          }
+        } catch(e) { console.error('purge classAttendanceLogs:', e); }
 
         showToast(`Purged ${deleted} attendance records before ${cutoff}`, 'success');
       } catch(err) {
