@@ -144,12 +144,39 @@
       <div class="diag-status info" id="orphanStatus">Not run yet.</div>
       <div class="diag-results" id="orphanResults" style="display:none;"></div>
     </div>
+
+    <!-- MIGRATION: ER class name rename -->
+    <div class="diag-card" id="scan-ername">
+      <h3><i class="fas fa-tag"></i> ER Class Name Migration</h3>
+      <div class="desc">
+        Extended Remediation records were historically written to
+        <code>classAttendanceLogs</code> with <code>className = "Early Release"</code>.
+        This renames them to <code>"Extended Remediation"</code> so the Class column,
+        reports, and CSV exports all use the correct term.
+        Also flags saved <code>p2mtTemplates</code> whose text still says "Early Release".
+      </div>
+      <div class="diag-actions">
+        <button class="btn-diag btn-diag-primary" onclick="scanErClassName()">
+          <i class="fas fa-search"></i> Scan
+        </button>
+        <button class="btn-diag btn-diag-warn" id="migrateErNameBtn" onclick="migrateErClassName()" disabled>
+          <i class="fas fa-wand-magic-sparkles"></i> Rename Records
+        </button>
+      </div>
+      <div style="font-size: 12px; color: #92400e; background: #fef3c7; padding: 8px 10px; border-radius: 4px; margin-bottom: 10px;">
+        <i class="fas fa-info-circle"></i> This updates the <code>className</code> field only — no records are
+        deleted and no other field is touched. Readers accept both spellings, so the app works correctly
+        before and after. Scan first to preview exactly what will change.
+      </div>
+      <div class="diag-status info" id="erNameStatus">Not run yet.</div>
+      <div class="diag-results" id="erNameResults" style="display:none;"></div>
+    </div>
   </div>
 
   <script type="module">
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, deleteDoc } from './js/db.js';
+    import { getAll, deleteDoc, updateDoc } from './js/db.js';
     import { showToast, confirmTypedDelete } from './js/utils.js';
 
     // State: last scan results keyed by scan name → { groups: [...], toDelete: [...] }
@@ -157,7 +184,8 @@
       schedules: null,
       errooms: null,
       attendance: null,
-      orphans: null
+      orphans: null,
+      erName: null
     };
 
     function setStatus(id, cls, html) {
@@ -472,6 +500,101 @@
       showToast(`Deleted ${done} record(s)${failed ? `, ${failed} failed` : ''}`, failed ? 'warning' : 'success');
     }
 
+    // ── ER class-name migration ───────────────────────────────────────────────
+    // 'Early Release' was the original className for Extended Remediation
+    // records. Rename to the correct term without touching any other field.
+    const ER_LEGACY_NAMES = ['Early Release', 'ER'];
+    const ER_CANONICAL    = 'Extended Remediation';
+
+    async function scanErClassName() {
+      setStatus('erNameStatus', 'info', '<span class="spinner-inline"></span> Scanning…');
+      document.getElementById('erNameResults').style.display = 'none';
+      document.getElementById('migrateErNameBtn').disabled = true;
+      try {
+        const [logs, templates] = await Promise.all([
+          getAll('classAttendanceLogs'),
+          getAll('p2mtTemplates').catch(() => []),
+        ]);
+
+        const toRename = logs.filter(l =>
+          l.id && ER_LEGACY_NAMES.includes((l.className || '').trim())
+        );
+        const already = logs.filter(l => (l.className || '').trim() === ER_CANONICAL).length;
+
+        // Saved templates still containing the old wording (text only — these are
+        // edited by hand in Email Templates, not rewritten by this migration).
+        const staleTemplates = templates.filter(t =>
+          /early\s+release/i.test(`${t.name || ''} ${t.subject || ''} ${t.body || ''}`)
+        );
+
+        state.erName = { toRename, staleTemplates };
+
+        if (toRename.length === 0 && staleTemplates.length === 0) {
+          setStatus('erNameStatus', 'ok',
+            `<i class="fas fa-check-circle"></i> Nothing to migrate. ${already} record(s) already use "${ER_CANONICAL}".`);
+          return;
+        }
+
+        let html = '';
+        if (toRename.length) {
+          const byName = {};
+          toRename.forEach(l => {
+            const k = (l.className || '').trim();
+            byName[k] = (byName[k] || 0) + 1;
+          });
+          const sample = toRename.slice(0, 15).map(l =>
+            `<li>${esc((l.date || l.classDate || l.absenceDate || 'no date').substring(0,10))} — ` +
+            `${esc(l.studentName || l.chattStateANumber || l.studentId || 'unknown')} ` +
+            `<code>${esc(l.className)}</code> → <code>${ER_CANONICAL}</code></li>`
+          ).join('');
+          html += `<p><strong>${toRename.length} attendance record(s)</strong> will be renamed ` +
+                  `(${Object.entries(byName).map(([k,v]) => `${esc(k)}: ${v}`).join(', ')}).</p>` +
+                  `<ul>${sample}</ul>` +
+                  (toRename.length > 15 ? `<p>…and ${toRename.length - 15} more.</p>` : '');
+        }
+        if (staleTemplates.length) {
+          html += `<p style="margin-top:12px;"><strong>${staleTemplates.length} saved email template(s)</strong> ` +
+                  `still say "Early Release". These are <em>not</em> changed automatically — ` +
+                  `edit them on the Email Templates page:</p><ul>` +
+                  staleTemplates.map(t => `<li>${esc(t.name || t.subject || t.id)}</li>`).join('') +
+                  `</ul>`;
+        }
+        document.getElementById('erNameResults').innerHTML = html;
+        document.getElementById('erNameResults').style.display = '';
+        setStatus('erNameStatus', toRename.length ? 'warn' : 'info',
+          `<i class="fas fa-exclamation-triangle"></i> ${toRename.length} record(s) to rename, ` +
+          `${staleTemplates.length} template(s) to review manually.`);
+        document.getElementById('migrateErNameBtn').disabled = toRename.length === 0;
+      } catch (e) {
+        console.error('scanErClassName', e);
+        setStatus('erNameStatus', 'err', `<i class="fas fa-times-circle"></i> Scan failed: ${esc(e.message || e)}`);
+      }
+    }
+
+    async function migrateErClassName() {
+      const rows = state.erName?.toRename || [];
+      if (!rows.length) { showToast('Run the scan first', 'warning'); return; }
+      if (!confirm(`Rename className to "${ER_CANONICAL}" on ${rows.length} record(s)?\n\n` +
+                   `No records are deleted and no other field is modified.`)) return;
+
+      const btn = document.getElementById('migrateErNameBtn');
+      btn.disabled = true;
+      let done = 0, failed = 0;
+      for (const r of rows) {
+        try { await updateDoc('classAttendanceLogs', r.id, { className: ER_CANONICAL }); done++; }
+        catch (e) { console.error('rename failed', r.id, e); failed++; }
+        if ((done + failed) % 5 === 0 || done + failed === rows.length) {
+          setStatus('erNameStatus', 'info',
+            `<span class="spinner-inline"></span> Renaming ${done + failed} / ${rows.length}…`);
+        }
+      }
+      setStatus('erNameStatus', failed ? 'warn' : 'ok',
+        `<i class="fas fa-check-circle"></i> Renamed ${done} record(s)${failed ? `, ${failed} failed` : ''}. ` +
+        `Re-run the scan to confirm.`);
+      showToast(`Renamed ${done} record(s)${failed ? `, ${failed} failed` : ''}`, failed ? 'warning' : 'success');
+      state.erName = null;
+    }
+
     // ── Run all ──
     async function runAllScans() {
       const btn = document.getElementById('runAllBtn');
@@ -482,6 +605,7 @@
         await scanErRoomDuplicates();
         await scanAttendanceDuplicates();
         await scanOrphans();
+        await scanErClassName();
       } finally {
         btn.disabled = false;
         btn.innerHTML = '<i class="fas fa-play"></i> Run All Scans';
@@ -497,6 +621,8 @@
     window.cleanAttendanceDuplicates = cleanAttendanceDuplicates;
     window.scanOrphans = scanOrphans;
     window.cleanOrphans = cleanOrphans;
+    window.scanErClassName = scanErClassName;
+    window.migrateErClassName = migrateErClassName;
     window.runAllScans = runAllScans;
 
     // Init

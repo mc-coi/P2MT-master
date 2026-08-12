@@ -2580,6 +2580,17 @@
 
     // ── Purge helpers ──────────────────────────────────────────────────────────
 
+    // ER = Extended Remediation.
+    // ER_CLASS_NAME is the canonical value written into classAttendanceLogs.
+    // ER_CLASS_NAMES also lists legacy spellings ('Early Release' was used
+    // before the rename) so readers and purge routines still reach older
+    // records. Run the ER className migration in Diagnostics to normalize
+    // existing data; keep the legacy entries here regardless, since a record
+    // created before the migration may still surface from a stale cache.
+    const ER_CLASS_NAME  = 'Extended Remediation';
+    const ER_CLASS_NAMES = [ER_CLASS_NAME, 'Early Release', 'ER'];
+    const isErClassName = name => ER_CLASS_NAMES.includes((name || '').trim());
+
     // Delete ALL ER data (across all periods) for a list of student IDs.
     //
     // Records are matched on studentId OR chattStateANumber: not every write
@@ -2611,11 +2622,13 @@
         } catch(e) { console.error(`purge ${coll}:`, e); }
       }
 
-      // Early Release entries mirrored into classAttendanceLogs
+      // ER (Extended Remediation) entries mirrored into classAttendanceLogs.
+      // Matches every className variant that has been written historically so
+      // nothing is left behind — see ER_CLASS_NAMES.
       try {
         const logs = await getAll('classAttendanceLogs');
         for (const l of logs) {
-          if (l.id && l.className === 'Early Release' && isTarget(l)) {
+          if (l.id && isErClassName(l.className) && isTarget(l)) {
             await deleteDoc('classAttendanceLogs', l.id); deletedCount++;
           }
         }
@@ -2663,7 +2676,7 @@
       if (!targets.length) { showToast('No students found for that year', 'warning'); return; }
 
       const confirmed = await confirmTypedDelete(
-        `This will permanently delete ALL ER data for ${targets.length} student${targets.length !== 1 ? 's' : ''} in the Class of ${yr} (assignments, attendance, clearances, daily-attendance Early Release entries).`
+        `This will permanently delete ALL Extended Remediation data for ${targets.length} student${targets.length !== 1 ? 's' : ''} in the Class of ${yr} (assignments, attendance, clearances, daily-attendance ER entries).`
       );
       if (!confirmed) return;
 
@@ -2757,7 +2770,7 @@
       if (!cutoff) { showToast('Select a cutoff date first', 'warning'); return; }
 
       const confirmed = await confirmTypedDelete(
-        `This will permanently delete all ER attendance records (erAttendance + Early Release daily-attendance entries) dated before ${cutoff}. Room assignments and clearances are not affected.`
+        `This will permanently delete all Extended Remediation attendance records (erAttendance + ER daily-attendance entries) dated before ${cutoff}. Room assignments and clearances are not affected.`
       );
       if (!confirmed) return;
       showToast('Purging attendance…', 'info');
@@ -2786,12 +2799,12 @@
           }
         } catch(e) { console.error('purge erAttendance:', e); }
 
-        // Independent sweep of Early Release rows in classAttendanceLogs, to catch
-        // entries with no matching erAttendance row (e.g. logged manually).
+        // Independent sweep of ER rows in classAttendanceLogs, to catch entries
+        // with no matching erAttendance row (e.g. logged manually).
         try {
           const erLogs = await getAll('classAttendanceLogs');
           for (const l of erLogs) {
-            if (l.className !== 'Early Release' || !l.id) continue;
+            if (!isErClassName(l.className) || !l.id) continue;
             if (alreadyDeleted.has(l.id)) continue;
             const d = recDate(l);
             if (!d || d >= cutoff) continue;
@@ -2861,8 +2874,8 @@
       if (!st || !attCurrentDate) return;
 
       // ── Sync to classAttendanceLogs so ER absences appear in Daily Attendance ──
-      // T / E / U statuses are written as a classAttendanceLogs record with
-      // className='Early Release'.  P (or null) removes that record if one exists.
+      // T / E / U statuses are written as a classAttendanceLogs record whose
+      // className is ER_CLASS_NAME. P (or null) removes that record if one exists.
       const absenceCode = ['T','E','U'].includes(st.status) ? st.status
                         : st.status === 'A'                 ? 'U'   // legacy A → U
                         : null;
@@ -2874,7 +2887,7 @@
             studentName:        student ? `${student.lastName}, ${student.firstName}` : studentId,
             chattStateANumber:  student?.chattStateANumber || '',
             teacherLastName:    '',
-            className:          'Early Release',
+            className:          ER_CLASS_NAME,
             date:               attCurrentDate,
             attendanceCode:     absenceCode,
             comment:            '',
@@ -3122,14 +3135,14 @@
     const DEFAULT_BODY =
 `Dear {{firstName}},
 
-Your Early Release workshop assignment for {{date}} is:
+Your Extended Remediation workshop assignment for {{date}} is:
 
   Workshop: {{workshopName}}
   Room: {{room}}
 
 ER Period: {{erDateRange}}
 
-Please report to Room {{room}} at the start of the Early Release period.
+Please report to Room {{room}} at the start of the Extended Remediation period.
 
 If you have any questions, please contact your teacher.
 
@@ -3138,7 +3151,7 @@ Thank you`;
     const DEFAULT_NOTIFY_BODY =
 `Dear {{firstName}},
 
-This is a reminder about your Early Release assignment for {{date}}.
+This is a reminder about your Extended Remediation assignment for {{date}}.
 
   Class / Workshop: {{classes}}
 
