@@ -223,6 +223,37 @@
         <button class="w3-button btn-danger" id="clearScanBtn" style="display:none;" onclick="clearScannedLogs()"><i class="fas fa-trash-alt"></i> Delete All Found</button>
       </div>
       <div id="scanResults" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
+      <h3><i class="fas fa-trash-alt" style="color:#dc2626;"></i> Clear Attendance Logs by Date Range</h3>
+      <p class="w3-text-grey">Scan and delete attendance logs within a date range, optionally narrowed by teacher and log type. Use the filters to preview the scope before deleting.</p>
+
+      <div class="form-row">
+        <div><label>Teacher:
+          <select class="w3-input w3-border" id="ml-teacher"><option value="">All Teachers</option></select>
+        </label></div>
+        <div><label>Log Type:
+          <select class="w3-input w3-border" id="ml-log-type">
+            <option value="all">All logs</option>
+            <option value="manual">Manually saved only (have an attendance code)</option>
+            <option value="propagated">Propagated only (status = P, no attendance code)</option>
+          </select>
+        </label></div>
+      </div>
+
+      <div class="form-row">
+        <div><label>Start Date:<input class="w3-input w3-border" type="date" id="ml-start-date"></label></div>
+        <div><label>End Date:<input class="w3-input w3-border" type="date" id="ml-end-date"></label></div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-primary" onclick="scanLogsByRange()"><i class="fas fa-search"></i> Scan</button>
+        <button class="w3-button btn-danger" id="ml-clear-btn" style="display:none;" onclick="clearScannedRangeLogs()">
+          <i class="fas fa-trash-alt"></i> Delete <span id="ml-clear-count"></span>
+        </button>
+      </div>
+      <div id="ml-scan-results" style="margin-top:16px;"></div>
     </div>
 
     <!-- TAB 4: Delete Schedule -->
@@ -380,6 +411,7 @@
       document.getElementById('tab-' + tab).classList.add('active');
       if (btn) btn.classList.add('active');
       if (tab === 'delete') populateDeleteDropdown();
+      if (tab === 'propagate') populateManageLogsTeachers();
     };
 
     window.handleDragOver = function(e) {
@@ -1476,6 +1508,119 @@
         showToast('Error during deletion', 'error');
       } finally {
         clearBtn.disabled = false;
+      }
+    };
+
+    // ── Clear attendance logs by date range (teacher + log-type filtered) ─────
+    // Moved here from Class Attendance's "Manage Logs" tab, since it's a
+    // schedule/attendance administration task.
+
+    let _mlScannedLogs = [];
+
+    function populateManageLogsTeachers() {
+      const sel = document.getElementById('ml-teacher');
+      if (!sel) return;
+      const teachers = [...new Set(allSchedules.map(s => s.teacherLastName).filter(Boolean))].sort();
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">All Teachers</option>' +
+        teachers.map(t => `<option value="${t}"${t === prev ? ' selected' : ''}>${t}</option>`).join('');
+    }
+
+    window.scanLogsByRange = async function() {
+      const teacher  = document.getElementById('ml-teacher')?.value    || '';
+      const startRaw = document.getElementById('ml-start-date')?.value || '';
+      const endRaw   = document.getElementById('ml-end-date')?.value   || '';
+      const logType  = document.getElementById('ml-log-type')?.value   || 'all';
+
+      if (!startRaw && !endRaw) {
+        showToast('Please enter at least a start or end date', 'warning');
+        return;
+      }
+
+      showToast('Scanning…', 'info');
+      let logs;
+      try {
+        logs = await getAll('classAttendanceLogs');
+      } catch (e) {
+        showToast('Error fetching logs', 'error');
+        return;
+      }
+
+      _mlScannedLogs = logs.filter(l => {
+        const d = l.date || l.classDate || '';
+        if (startRaw && d < startRaw) return false;
+        if (endRaw   && d > endRaw)   return false;
+        if (teacher  && l.teacherLastName !== teacher) return false;
+        if (logType === 'propagated') {
+          if (l.status !== 'P' || l.attendanceCode) return false;
+        } else if (logType === 'manual') {
+          if (!l.attendanceCode) return false;
+        }
+        return true;
+      });
+
+      const resultsEl = document.getElementById('ml-scan-results');
+      const clearBtn  = document.getElementById('ml-clear-btn');
+      const countEl   = document.getElementById('ml-clear-count');
+      if (!resultsEl || !clearBtn || !countEl) return;
+
+      resultsEl.style.display = 'block';
+
+      if (_mlScannedLogs.length === 0) {
+        resultsEl.innerHTML = '<p style="color:#64748b;font-size:13px;margin:0;">No logs matched the selected filters.</p>';
+        clearBtn.style.display = 'none';
+        return;
+      }
+
+      // Group by teacher → class for summary
+      const grouped = {};
+      _mlScannedLogs.forEach(l => {
+        const t = l.teacherLastName || '(unknown)';
+        const c = l.className || '(no class)';
+        if (!grouped[t]) grouped[t] = {};
+        grouped[t][c] = (grouped[t][c] || 0) + 1;
+      });
+
+      let html = `<p style="font-size:13px;font-weight:600;margin:0 0 10px;">Found <strong>${_mlScannedLogs.length}</strong> log${_mlScannedLogs.length !== 1 ? 's' : ''} matching filters:</p>`;
+      html += '<table class="w3-table w3-striped w3-bordered" style="font-size:12px;">';
+      html += '<tr><th>Teacher</th><th>Class</th><th>Records</th></tr>';
+      Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).forEach(([t, classes]) => {
+        Object.entries(classes).sort(([a],[b]) => a.localeCompare(b)).forEach(([c, count]) => {
+          html += `<tr><td>${t}</td><td>${c}</td><td>${count}</td></tr>`;
+        });
+      });
+      html += '</table>';
+
+      resultsEl.innerHTML = html;
+      countEl.textContent = `${_mlScannedLogs.length} log${_mlScannedLogs.length !== 1 ? 's' : ''}`;
+      clearBtn.style.display = '';
+    };
+
+    window.clearScannedRangeLogs = async function() {
+      if (!_mlScannedLogs.length) { showToast('Nothing to delete — run Scan first', 'warning'); return; }
+
+      const { confirmTypedDelete } = await import('./js/utils.js');
+      const confirmed = await confirmTypedDelete(
+        `Permanently delete ${_mlScannedLogs.length} attendance log${_mlScannedLogs.length !== 1 ? 's' : ''}? This cannot be undone.`
+      );
+      if (!confirmed) return;
+
+      try {
+        const chunkSize = 20;
+        for (let i = 0; i < _mlScannedLogs.length; i += chunkSize) {
+          const chunk = _mlScannedLogs.slice(i, i + chunkSize);
+          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
+        }
+        showToast(`Deleted ${_mlScannedLogs.length} log${_mlScannedLogs.length !== 1 ? 's' : ''}`, 'success');
+        _mlScannedLogs = [];
+        const resultsEl = document.getElementById('ml-scan-results');
+        const clearBtn  = document.getElementById('ml-clear-btn');
+        if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+        if (clearBtn)  clearBtn.style.display = 'none';
+        populateManageLogsTeachers();
+      } catch (err) {
+        console.error('Error clearing logs:', err);
+        showToast('Error deleting logs — see console', 'error');
       }
     };
 

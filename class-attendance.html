@@ -276,9 +276,6 @@
       <button class="tab-btn" onclick="switchTab('absence-tab', this)">
         <i class="fas fa-ban"></i> Absence Summary
       </button>
-      <button class="tab-btn" onclick="switchTab('manage-logs-tab', this)">
-        <i class="fas fa-tools"></i> Manage Logs
-      </button>
     </div>
 
     <!-- Tab 1: Take Attendance -->
@@ -377,55 +374,6 @@
       </div>
     </div>
 
-    <!-- Tab 3: Manage Logs -->
-    <div id="manage-logs-tab" class="tab-content">
-      <div class="card card-body w3-margin-bottom">
-        <h4 style="margin:0 0 4px;font-size:15px;font-weight:700;"><i class="fas fa-trash-alt" style="color:var(--danger,#dc2626);margin-right:6px;"></i>Clear Attendance Logs by Date Range</h4>
-        <p style="font-size:13px;color:var(--text-secondary);margin:0 0 16px;">
-          Scan and delete attendance logs within a date range. Use the filters to narrow the scope before deleting.
-        </p>
-
-        <div class="w3-row">
-          <div class="w3-col m4 w3-padding-small">
-            <label class="form-label">Teacher</label>
-            <select id="ml-teacher" class="w3-select w3-border">
-              <option value="">All Teachers</option>
-            </select>
-          </div>
-          <div class="w3-col m4 w3-padding-small">
-            <label class="form-label">Start Date</label>
-            <input type="date" id="ml-start-date" class="w3-input w3-border">
-          </div>
-          <div class="w3-col m4 w3-padding-small">
-            <label class="form-label">End Date</label>
-            <input type="date" id="ml-end-date" class="w3-input w3-border">
-          </div>
-        </div>
-
-        <div class="w3-row w3-margin-top">
-          <div class="w3-col m6 w3-padding-small">
-            <label class="form-label">Log Type</label>
-            <select id="ml-log-type" class="w3-select w3-border">
-              <option value="all">All logs</option>
-              <option value="manual">Manually saved only (have an attendance code)</option>
-              <option value="propagated">Propagated only (status = P, no attendance code)</option>
-            </select>
-          </div>
-        </div>
-
-        <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <button class="w3-button btn-primary" onclick="scanLogsByRange()">
-            <i class="fas fa-search"></i> Scan
-          </button>
-          <button id="ml-clear-btn" class="w3-button w3-red" style="display:none;" onclick="clearScannedRangeLogs()">
-            <i class="fas fa-trash"></i> Delete <span id="ml-clear-count"></span>
-          </button>
-        </div>
-
-        <div id="ml-scan-results" style="margin-top:16px;display:none;"></div>
-      </div>
-    </div>
-
   </div>
 
   <!-- Toast Container -->
@@ -439,7 +387,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
     import { initNav } from './js/nav.js';
-    import { formatDate, exportCSV, showToast, ATTENDANCE_CODES, confirmTypedDelete } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, ATTENDANCE_CODES } from './js/utils.js';
 
     // Valid attendance codes — any value not in this set defaults to 'P' at render time
     const VALID_ATT_CODES = new Set(['P', 'T', 'E', 'U']);
@@ -1496,127 +1444,12 @@
     }
 
     // ── Tab switcher ──────────────────────────────────────────────────────────
-    // ── Manage Logs tab ───────────────────────────────────────────────────────
-    let _mlScannedLogs = [];
-
-    function populateManageLogsTeachers() {
-      const sel = document.getElementById('ml-teacher');
-      if (!sel) return;
-      const teachers = [...new Set(allClassAttendanceLogs.map(l => l.teacherLastName).filter(Boolean))].sort();
-      // preserve selection
-      const prev = sel.value;
-      sel.innerHTML = '<option value="">All Teachers</option>' +
-        teachers.map(t => `<option value="${t}"${t === prev ? ' selected' : ''}>${t}</option>`).join('');
-    }
-
-    window.scanLogsByRange = async function() {
-      const teacher  = document.getElementById('ml-teacher')?.value  || '';
-      const startRaw = document.getElementById('ml-start-date')?.value || '';
-      const endRaw   = document.getElementById('ml-end-date')?.value   || '';
-      const logType  = document.getElementById('ml-log-type')?.value  || 'all';
-
-      if (!startRaw && !endRaw) {
-        showToast('Please enter at least a start or end date', 'warning');
-        return;
-      }
-
-      showToast('Scanning…', 'info');
-      let logs;
-      try {
-        logs = await getAll('classAttendanceLogs');
-      } catch (e) {
-        showToast('Error fetching logs', 'error');
-        return;
-      }
-
-      _mlScannedLogs = logs.filter(l => {
-        const d = l.date || l.classDate || '';
-        if (startRaw && d < startRaw) return false;
-        if (endRaw   && d > endRaw)   return false;
-        if (teacher  && l.teacherLastName !== teacher) return false;
-        if (logType === 'propagated') {
-          if (l.status !== 'P' || l.attendanceCode) return false;
-        } else if (logType === 'manual') {
-          if (!l.attendanceCode) return false;
-        }
-        return true;
-      });
-
-      const resultsEl = document.getElementById('ml-scan-results');
-      const clearBtn  = document.getElementById('ml-clear-btn');
-      const countEl   = document.getElementById('ml-clear-count');
-      if (!resultsEl || !clearBtn || !countEl) return;
-
-      if (_mlScannedLogs.length === 0) {
-        resultsEl.style.display = 'block';
-        resultsEl.innerHTML = '<p style="color:var(--text-secondary);font-size:13px;margin:0;">No logs matched the selected filters.</p>';
-        clearBtn.style.display = 'none';
-        return;
-      }
-
-      // Group by teacher → class for summary
-      const grouped = {};
-      _mlScannedLogs.forEach(l => {
-        const t = l.teacherLastName || '(unknown)';
-        const c = l.className || '(no class)';
-        if (!grouped[t]) grouped[t] = {};
-        grouped[t][c] = (grouped[t][c] || 0) + 1;
-      });
-
-      let html = `<p style="font-size:13px;font-weight:600;margin:0 0 10px;">Found <strong>${_mlScannedLogs.length}</strong> log${_mlScannedLogs.length !== 1 ? 's' : ''} matching filters:</p>`;
-      html += '<table class="w3-table w3-striped w3-bordered" style="font-size:12px;">';
-      html += '<tr><th>Teacher</th><th>Class</th><th>Records</th></tr>';
-      Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).forEach(([t, classes]) => {
-        Object.entries(classes).sort(([a],[b]) => a.localeCompare(b)).forEach(([c, count]) => {
-          html += `<tr><td>${t}</td><td>${c}</td><td>${count}</td></tr>`;
-        });
-      });
-      html += '</table>';
-
-      resultsEl.style.display = 'block';
-      resultsEl.innerHTML = html;
-      countEl.textContent = `${_mlScannedLogs.length} log${_mlScannedLogs.length !== 1 ? 's' : ''}`;
-      clearBtn.style.display = '';
-    };
-
-    window.clearScannedRangeLogs = async function() {
-      if (!_mlScannedLogs.length) { showToast('Nothing to delete — run Scan first', 'warning'); return; }
-
-      const confirmed = await confirmTypedDelete(
-        `Permanently delete ${_mlScannedLogs.length} attendance log${_mlScannedLogs.length !== 1 ? 's' : ''}? This cannot be undone.`
-      );
-      if (!confirmed) return;
-
-      try {
-        const chunkSize = 20;
-        for (let i = 0; i < _mlScannedLogs.length; i += chunkSize) {
-          const chunk = _mlScannedLogs.slice(i, i + chunkSize);
-          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
-        }
-        showToast(`Deleted ${_mlScannedLogs.length} log${_mlScannedLogs.length !== 1 ? 's' : ''}`, 'success');
-        _mlScannedLogs = [];
-        // Refresh cache
-        await loadAllData();
-        // Hide scan results and clear button
-        const resultsEl = document.getElementById('ml-scan-results');
-        const clearBtn  = document.getElementById('ml-clear-btn');
-        if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
-        if (clearBtn)  clearBtn.style.display = 'none';
-        // Repopulate teacher dropdown with fresh data
-        populateManageLogsTeachers();
-      } catch (err) {
-        console.error('Error clearing logs:', err);
-        showToast('Error deleting logs — see console', 'error');
-      }
-    };
-
     window.switchTab = function(tabName, btn) {
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
       document.querySelectorAll('.tab-btn').forEach(b   => b.classList.remove('active'));
       document.getElementById(tabName).classList.add('active');
       if (btn) btn.classList.add('active');
-      if (tabName === 'absence-tab')    loadAbsenceData();
-      if (tabName === 'manage-logs-tab') populateManageLogsTeachers();
+      if (tabName === 'absence-tab') loadAbsenceData();
     };
   </script>
 </body>
