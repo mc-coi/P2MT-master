@@ -199,6 +199,17 @@
 
       <hr style="margin:28px 0;">
 
+      <h3><i class="fas fa-calendar-check" style="color:#0891b2;"></i> Propagation Coverage</h3>
+      <p class="w3-text-grey">Check which school days already have attendance logs and which are still missing, for the school year, semester, and date range entered above.</p>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-primary" onclick="checkPropagationCoverage()"><i class="fas fa-calendar-check"></i> Check Coverage</button>
+        <button class="w3-button btn-secondary" id="coverageCsvBtn" style="display:none;" onclick="downloadCoverageCSV()"><i class="fas fa-download"></i> Download CSV</button>
+      </div>
+      <div id="coverageResults" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
       <h3><i class="fas fa-search" style="color:#7c3aed;"></i> Scan for Unknown Logs</h3>
       <p class="w3-text-grey">Find all attendance log records in the database for a date range, regardless of school year or how they were created. Useful for discovering leftover propagation runs or unexpected records.</p>
 
@@ -1185,6 +1196,147 @@
         showToast('Error during deletion', 'error');
         statusEl.textContent = 'Error — some records may not have been deleted.';
       }
+    };
+
+    // ── Propagation coverage check ────────────────────────────────────────────
+    // Compares the days schedules SAY classes meet against the attendance logs
+    // that actually exist, so gaps in propagation are visible at a glance.
+
+    let _coverageRows = [];  // holds last coverage result for CSV export
+
+    window.checkPropagationCoverage = async function() {
+      const schoolYear = document.getElementById('propSchoolYear').value.trim();
+      const semester   = document.getElementById('propSemester').value;
+      const startVal   = document.getElementById('propStartDate').value;
+      const endVal     = document.getElementById('propEndDate').value;
+      const resultsEl  = document.getElementById('coverageResults');
+      const csvBtn     = document.getElementById('coverageCsvBtn');
+
+      if (!schoolYear || !semester || !startVal || !endVal) {
+        showToast('Fill in school year, semester, and both dates above', 'warning');
+        return;
+      }
+      if (startVal > endVal) {
+        showToast('Start date must be on or before end date', 'warning');
+        return;
+      }
+
+      resultsEl.innerHTML = '<p>Checking…</p>';
+      csvBtn.style.display = 'none';
+
+      try {
+        const parseLocal   = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
+        const localDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+
+        // Schedules for this year + semester
+        const matching = allSchedules.filter(s =>
+          s.schoolYear === schoolYear && s.semester === semester
+        );
+        if (matching.length === 0) {
+          resultsEl.innerHTML = `<p class="w3-text-red">No schedules found for ${schoolYear} ${semester}.</p>`;
+          return;
+        }
+
+        // All logs in range, indexed by date
+        const allLogs = await getAll('classAttendanceLogs');
+        const logsByDate = {};
+        allLogs.forEach(l => {
+          const d = (l.date || l.classDate || '').substring(0,10);
+          if (!d || d < startVal || d > endVal) return;
+          (logsByDate[d] = logsByDate[d] || []).push(l);
+        });
+
+        // Walk every day in range; expected = schedules meeting that weekday
+        const rows = [];
+        let cur = parseLocal(startVal);
+        const end = parseLocal(endVal);
+        while (cur <= end) {
+          const dow     = cur.getDay();
+          const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][dow];
+          const dateStr = localDateStr(cur);
+
+          if (dayAbbr) {  // skip weekends
+            const expected = matching.filter(s => (s.classDays || []).includes(dayAbbr)).length;
+            if (expected > 0) {
+              const dayLogs = logsByDate[dateStr] || [];
+              const actual  = dayLogs.length;
+              const taken   = dayLogs.filter(l => ['P','U','T','E'].includes(l.attendanceCode)).length;
+
+              let status, color;
+              if (actual === 0)            { status = 'Missing';    color = '#dc2626'; }
+              else if (actual < expected)  { status = 'Partial';    color = '#f59e0b'; }
+              else                         { status = 'Propagated'; color = '#16a34a'; }
+
+              rows.push({
+                date: dateStr,
+                day: cur.toLocaleDateString('en-US', { weekday: 'short' }),
+                expected, actual, taken, status, color,
+              });
+            }
+          }
+          cur.setDate(cur.getDate() + 1);
+        }
+
+        if (rows.length === 0) {
+          resultsEl.innerHTML = '<p class="w3-text-grey">No scheduled class days fall in this date range.</p>';
+          return;
+        }
+
+        _coverageRows = rows;
+        const nMissing = rows.filter(r => r.status === 'Missing').length;
+        const nPartial = rows.filter(r => r.status === 'Partial').length;
+        const nDone    = rows.filter(r => r.status === 'Propagated').length;
+
+        resultsEl.innerHTML = `
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+            <div style="flex:1;min-width:120px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:8px;padding:12px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:#16a34a;">${nDone}</div>
+              <div style="font-size:12px;color:#166534;">Propagated</div>
+            </div>
+            <div style="flex:1;min-width:120px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:12px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:#f59e0b;">${nPartial}</div>
+              <div style="font-size:12px;color:#92400e;">Partial</div>
+            </div>
+            <div style="flex:1;min-width:120px;border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:12px;text-align:center;">
+              <div style="font-size:24px;font-weight:800;color:#dc2626;">${nMissing}</div>
+              <div style="font-size:12px;color:#991b1b;">Missing</div>
+            </div>
+          </div>
+          <div style="max-height:420px;overflow:auto;border:1px solid var(--border,#e2e8f0);border-radius:8px;">
+            <table class="w3-table w3-striped" style="width:100%;font-size:13px;">
+              <thead style="position:sticky;top:0;background:#f1f5f9;">
+                <tr>
+                  <th>Date</th><th>Day</th><th>Expected</th><th>Found</th>
+                  <th>Attendance Taken</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows.map(r => `
+                  <tr>
+                    <td>${r.date}</td>
+                    <td>${r.day}</td>
+                    <td>${r.expected}</td>
+                    <td>${r.actual}</td>
+                    <td>${r.taken}</td>
+                    <td><strong style="color:${r.color};">${r.status}</strong></td>
+                  </tr>`).join('')}
+              </tbody>
+            </table>
+          </div>`;
+        csvBtn.style.display = '';
+        showToast(`${nDone} propagated · ${nPartial} partial · ${nMissing} missing`, nMissing ? 'warning' : 'success');
+      } catch(e) {
+        console.error('Coverage check error:', e);
+        resultsEl.innerHTML = '<p class="w3-text-red">Error checking coverage — see console.</p>';
+      }
+    };
+
+    window.downloadCoverageCSV = function() {
+      if (!_coverageRows.length) { showToast('Run a coverage check first', 'warning'); return; }
+      exportCSV(_coverageRows.map(r => ({
+        Date: r.date, Day: r.day, 'Expected Logs': r.expected,
+        'Found Logs': r.actual, 'Attendance Taken': r.taken, Status: r.status,
+      })), `propagation-coverage-${new Date().toISOString().substring(0,10)}.csv`);
     };
 
     // ── Scan / clear by date range (ignores schoolYear) ───────────────────────

@@ -598,15 +598,22 @@
         const selectedDayAbbr = DAY_ABBR[dt.getDay()];
 
         // Filter schedules: teacher + day-of-week + optional date range.
+        // Track *why* rows drop out so the empty-state message can explain itself.
+        const reject = { notTeacher:0, beforeStart:0, afterEnd:0, wrongDay:0 };
+        const daysSeen = new Set();
         const teacherSchedules = allClassSchedules.filter(cs => {
-          if (cs.teacherLastName !== teacher) return false;
-          // Only apply date-range check when both bounds are explicitly stored
-          if (cs.startDate && classDate < cs.startDate) return false;
-          if (cs.endDate   && classDate > cs.endDate)   return false;
+          if (cs.teacherLastName !== teacher) { reject.notTeacher++; return false; }
+          // Only apply date-range check when the bound is explicitly stored
+          if (cs.startDate && classDate < cs.startDate) { reject.beforeStart++; return false; }
+          if (cs.endDate   && classDate > cs.endDate)   { reject.afterEnd++;    return false; }
           // If classDays is populated, only show the class on days it meets.
           // If classDays is missing or empty, allow it through (legacy records).
           const cd = cs.classDays;
-          if (cd && cd.length > 0 && !cd.includes(selectedDayAbbr)) return false;
+          if (cd && cd.length > 0 && !cd.includes(selectedDayAbbr)) {
+            cd.forEach(d => daysSeen.add(d));
+            reject.wrongDay++;
+            return false;
+          }
           return true;
         });
 
@@ -623,10 +630,28 @@
         });
 
         if (groupMap.size === 0) {
+          // Explain which gate removed the schedules instead of a generic message.
+          let why = '';
+          if (allClassSchedules.length === 0) {
+            why = ' No class schedules exist in the system at all — check Schedule Admin.';
+          } else if (reject.afterEnd > 0) {
+            why = ` ${reject.afterEnd} of ${teacher}'s class record(s) have an end date BEFORE ${classDate}, `
+                + `so they no longer apply. Update the end date in Schedule Admin (likely a prior school year).`;
+          } else if (reject.beforeStart > 0) {
+            why = ` ${reject.beforeStart} of ${teacher}'s class record(s) have a start date AFTER ${classDate}, `
+                + `so they haven't begun yet.`;
+          } else if (reject.wrongDay > 0) {
+            why = ` ${teacher} has ${reject.wrongDay} class record(s), but none meet on ${dayName} (${selectedDayAbbr}). `
+                + `They meet on: ${[...daysSeen].join(', ')}.`;
+          } else if (reject.notTeacher === allClassSchedules.length) {
+            why = ` No class records are assigned to the teacher name "${teacher}".`;
+          }
           document.getElementById('no-classes-text').textContent =
-            `No classes found for ${teacher} on ${dayName}, ${displayDate}.`;
+            `No classes found for ${teacher} on ${dayName}, ${displayDate}.${why}`;
           document.getElementById('no-classes-message').style.display = 'block';
           document.getElementById('filter-loading').style.display = 'none';
+          console.log('[class-attendance] schedules total:', allClassSchedules.length,
+                      '| rejection breakdown:', reject);
           return;
         }
 
