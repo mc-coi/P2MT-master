@@ -579,15 +579,17 @@
                     backgroundColor: PALETTE.map(c=>c+'CC') }],
       }, hBarOpts());
 
-      // Top 10 students
+      // Top 10 students — group by chattStateANumber (present on every record source)
+      // so students logged via any page are counted correctly.
       const studentAbsMap = {};
       filtered.forEach(l => {
-        if (!l.studentId) return;
-        if (!studentAbsMap[l.studentId]) studentAbsMap[l.studentId] = {name:l.studentName||'Unknown',U:0,T:0,E:0};
+        const key = l.chattStateANumber || l.studentId;
+        if (!key) return;
+        if (!studentAbsMap[key]) studentAbsMap[key] = {name:l.studentName||'Unknown',U:0,T:0,E:0};
         const code = l.attendanceCode;
-        if (code==='U') studentAbsMap[l.studentId].U++;
-        else if (code==='T') studentAbsMap[l.studentId].T++;
-        else if (code==='E') studentAbsMap[l.studentId].E++;
+        if (code==='U') studentAbsMap[key].U++;
+        else if (code==='T') studentAbsMap[key].T++;
+        else if (code==='E') studentAbsMap[key].E++;
       });
       const topStudents = Object.values(studentAbsMap)
         .sort((a,b)=>(b.U+b.T)-(a.U+a.T)).slice(0,10);
