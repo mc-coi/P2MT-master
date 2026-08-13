@@ -480,6 +480,18 @@
         const studentMap = {};
         students.forEach(s => { studentMap[s.id] = s; });
 
+        // Reverse lookup: normalized A# → student.id. Attendance records from
+        // free-typed entry points (e.g. Daily Attendance's "Log Attendance"
+        // modal) may store the A# with different casing/whitespace than the
+        // roster, or carry no studentId at all — this resolves them back to
+        // one canonical student so a student's absences aren't split across
+        // multiple rows in the Top 10 table.
+        const anumToId = {};
+        students.forEach(s => {
+          const anum = (s.chattStateANumber || '').trim().toUpperCase();
+          if (anum) anumToId[anum] = s.id;
+        });
+
         // Merge attendance collections, de-duplicating by student+date.
         // Class records take priority; daily records fill gaps for manually-logged absences.
         const classAbsKeys = new Set(
@@ -496,7 +508,7 @@
             .map(l => ({ ...l, classDate: l.absenceDate || l.date || '' })),
         ];
 
-        buildAttendance(mergedAttLogs, range, studentMap);
+        buildAttendance(mergedAttLogs, range, studentMap, anumToId);
         buildTMI(tmiLogs, range, studentMap);
         buildInterventions(intLogs, range, studentMap);
         buildER(erAssign, erWorkshops, erClearance, range, studentMap);
@@ -511,7 +523,7 @@
     // ═══════════════════════════════════════════════════════════════════════════
     //  ATTENDANCE REPORT
     // ═══════════════════════════════════════════════════════════════════════════
-    function buildAttendance(logs, range, studentMap) {
+    function buildAttendance(logs, range, studentMap, anumToId) {
       const filtered = logs.filter(l => {
         const d = (l.classDate || l.date || '').substring(0,10);
         return d && d >= range.start && d <= range.end && !l.learningLab;
@@ -579,13 +591,26 @@
                     backgroundColor: PALETTE.map(c=>c+'CC') }],
       }, hBarOpts());
 
-      // Top 10 students — group by chattStateANumber (present on every record source)
-      // so students logged via any page are counted correctly.
+      // Top 10 students — resolve every record back to one canonical student
+      // via the roster (studentId first, then normalized A#) before grouping.
+      // Records logged from different pages can carry the A# with different
+      // casing/whitespace or omit studentId entirely; grouping on the raw
+      // field (as before) silently split one student's absences into several
+      // rows, so no single row crossed the Top 10 cutoff.
+      const resolveKey = l => {
+        if (l.studentId && studentMap[l.studentId]) return l.studentId;
+        const anum = (l.chattStateANumber || '').trim().toUpperCase();
+        if (anum && anumToId?.[anum]) return anumToId[anum];
+        return l.studentId || anum || null;
+      };
       const studentAbsMap = {};
       filtered.forEach(l => {
-        const key = l.chattStateANumber || l.studentId;
+        const key = resolveKey(l);
         if (!key) return;
-        if (!studentAbsMap[key]) studentAbsMap[key] = {name:l.studentName||'Unknown',U:0,T:0,E:0};
+        if (!studentAbsMap[key]) {
+          const s = studentMap[key];
+          studentAbsMap[key] = {name: s ? `${s.lastName}, ${s.firstName}` : (l.studentName || 'Unknown'), U:0, T:0, E:0};
+        }
         const code = l.attendanceCode;
         if (code==='U') studentAbsMap[key].U++;
         else if (code==='T') studentAbsMap[key].T++;
