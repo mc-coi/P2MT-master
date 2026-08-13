@@ -58,6 +58,27 @@
       </button>
     </div>
 
+    <!-- LOOKUP: raw attendance records for one student -->
+    <div class="diag-card" id="lookup-attendance">
+      <h3><i class="fas fa-user-clock"></i> Student Attendance Lookup</h3>
+      <div class="desc">
+        Shows <strong>every</strong> matching record from <code>classAttendanceLogs</code> and
+        <code>dailyAttendanceLogs</code> for a student — every date, every code, including Learning Lab
+        entries. Reports and the Top 10 table apply filters (date range, code, Learning Lab exclusion)
+        before counting; this view skips all of that so you can see exactly what's stored and figure out
+        why a student is or isn't showing up elsewhere.
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <input type="text" id="lookup-query" class="w3-input w3-border" style="max-width:280px;"
+               placeholder="Name or A# (e.g. Green or A100200)" onkeyup="if(event.key==='Enter')lookupStudentAttendance()">
+        <button class="btn-diag btn-diag-primary" onclick="lookupStudentAttendance()">
+          <i class="fas fa-search"></i> Search
+        </button>
+      </div>
+      <div class="diag-status info" id="lookupStatus" style="margin-top:10px;">Enter a name or A# above.</div>
+      <div class="diag-results" id="lookupResults" style="display:none;"></div>
+    </div>
+
     <!-- SCAN 1: classSchedules duplicates -->
     <div class="diag-card" id="scan-schedules">
       <h3><i class="fas fa-calendar-alt"></i> Duplicate Class Schedules</h3>
@@ -181,6 +202,129 @@
         '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
       })[c]);
     }
+
+    // ── Student Attendance Lookup ──
+    // Deliberately bypasses every filter Reports applies (date range, U/T/E-only,
+    // Learning Lab exclusion, dedup) so raw data is visible for troubleshooting.
+    window.lookupStudentAttendance = async function() {
+      const raw = document.getElementById('lookup-query').value.trim();
+      if (!raw) { showToast('Enter a name or A# first', 'warning'); return; }
+
+      setStatus('lookupStatus', 'info', '<span class="spinner-inline"></span> Searching…');
+      document.getElementById('lookupResults').style.display = 'none';
+
+      try {
+        const [students, classLogs, dailyLogs] = await Promise.all([
+          getAll('students'),
+          getAll('classAttendanceLogs'),
+          getAll('dailyAttendanceLogs'),
+        ]);
+
+        const q = raw.toLowerCase();
+        const qAnum = q.replace(/\s+/g, '').toUpperCase();
+
+        // Resolve to roster student(s) matching by name substring or A#.
+        const matchedStudents = students.filter(s => {
+          const full = `${s.firstName || ''} ${s.lastName || ''}`.toLowerCase();
+          const anum = (s.chattStateANumber || '').trim().toUpperCase();
+          return full.includes(q) || anum === qAnum;
+        });
+        const idSet   = new Set(matchedStudents.map(s => s.id));
+        const anumSet = new Set(matchedStudents.map(s => (s.chattStateANumber || '').trim().toUpperCase()).filter(Boolean));
+        // Also allow a direct A# search to match records even if no roster entry matches
+        // (e.g. the roster's A# doesn't match what was typed into an attendance record).
+        if (anumSet.size === 0 && qAnum) anumSet.add(qAnum);
+
+        const isMatch = l => {
+          if (l.studentId && idSet.has(l.studentId)) return true;
+          const lAnum = (l.chattStateANumber || '').trim().toUpperCase();
+          if (lAnum && anumSet.has(lAnum)) return true;
+          const lName = (l.studentName || '').toLowerCase();
+          return lName.includes(q);
+        };
+
+        const rows = [
+          ...classLogs.filter(isMatch).map(l => ({ ...l, _source: 'classAttendanceLogs' })),
+          ...dailyLogs.filter(isMatch).map(l => ({ ...l, _source: 'dailyAttendanceLogs' })),
+        ];
+
+        const resultsEl = document.getElementById('lookupResults');
+
+        if (matchedStudents.length === 0 && rows.length === 0) {
+          setStatus('lookupStatus', 'warn', `<i class="fas fa-exclamation-triangle"></i> No roster match and no attendance records found for "${esc(raw)}".`);
+          return;
+        }
+
+        // Flag distinct A#/studentId spellings seen across the matched records —
+        // if this is >1, records are NOT all resolving to one identity upstream.
+        const anumsSeen = new Set(rows.map(l => (l.chattStateANumber || '(none)').trim()));
+        const sidsSeen  = new Set(rows.map(l => l.studentId || '(none)'));
+
+        const d = l => (l.classDate || l.date || l.absenceDate || '').substring(0, 10);
+        rows.sort((a, b) => d(a).localeCompare(d(b)));
+
+        const codeCounts = { P: 0, T: 0, U: 0, E: 0, other: 0 };
+        rows.forEach(l => {
+          if (codeCounts[l.attendanceCode] !== undefined) codeCounts[l.attendanceCode]++;
+          else codeCounts.other++;
+        });
+
+        let html = '';
+        if (matchedStudents.length) {
+          html += `<p style="font-size:13px;"><strong>Roster match${matchedStudents.length !== 1 ? 'es' : ''}:</strong> ` +
+            matchedStudents.map(s => `${esc(s.lastName)}, ${esc(s.firstName)} (A#: ${esc(s.chattStateANumber || '—')}, id: ${esc(s.id)})`).join('; ') +
+            `</p>`;
+        } else {
+          html += `<p style="font-size:13px;color:#92400e;"><i class="fas fa-exclamation-triangle"></i> No student in the roster matches "${esc(raw)}" — showing attendance records matched by name/A# text only.</p>`;
+        }
+
+        html += `<p style="font-size:13px;">Found <strong>${rows.length}</strong> record(s). ` +
+          `P: ${codeCounts.P}, T: ${codeCounts.T}, U: ${codeCounts.U}, E: ${codeCounts.E}` +
+          (codeCounts.other ? `, other/blank: ${codeCounts.other}` : '') + `</p>`;
+
+        if (anumsSeen.size > 1) {
+          html += `<p style="font-size:12px;color:#92400e;background:#fef3c7;padding:6px 10px;border-radius:4px;">` +
+            `<i class="fas fa-exclamation-triangle"></i> Records use <strong>${anumsSeen.size} different A# spellings</strong>: ` +
+            [...anumsSeen].map(esc).join(', ') + `. This is why identity-based grouping can miss records.</p>`;
+        }
+        if (sidsSeen.size > 1 || sidsSeen.has('(none)')) {
+          html += `<p style="font-size:12px;color:#92400e;background:#fef3c7;padding:6px 10px;border-radius:4px;">` +
+            `<i class="fas fa-exclamation-triangle"></i> studentId values seen: ` +
+            [...sidsSeen].map(esc).join(', ') + `${sidsSeen.has('(none)') ? ' — some records have no studentId at all.' : ''}</p>`;
+        }
+
+        if (rows.length) {
+          html += '<div style="max-height:420px;overflow:auto;border:1px solid var(--border,#e2e8f0);border-radius:6px;">';
+          html += '<table class="w3-table w3-striped" style="width:100%;font-size:12px;">';
+          html += '<thead style="position:sticky;top:0;background:#f1f5f9;"><tr>' +
+            '<th>Source</th><th>Date</th><th>Code</th><th>Class</th><th>Teacher</th>' +
+            '<th>Lab?</th><th>Student Name (raw)</th><th>A# (raw)</th><th>studentId (raw)</th></tr></thead><tbody>';
+          rows.forEach(l => {
+            html += `<tr>
+              <td>${esc(l._source)}</td>
+              <td>${esc(d(l) || '—')}</td>
+              <td><strong>${esc(l.attendanceCode || '—')}</strong></td>
+              <td>${esc(l.className || '—')}</td>
+              <td>${esc(l.teacherLastName || '—')}</td>
+              <td>${l.learningLab === true ? '<span style="color:#7c3aed;font-weight:600;">Yes</span>' : 'No'}</td>
+              <td>${esc(l.studentName || '—')}</td>
+              <td>${esc(l.chattStateANumber || '—')}</td>
+              <td>${esc(l.studentId || '—')}</td>
+            </tr>`;
+          });
+          html += '</tbody></table></div>';
+        }
+
+        resultsEl.innerHTML = html;
+        resultsEl.style.display = 'block';
+        setStatus('lookupStatus', rows.length ? 'ok' : 'warn',
+          rows.length ? `<i class="fas fa-check-circle"></i> ${rows.length} record(s) found.`
+                      : '<i class="fas fa-exclamation-triangle"></i> Roster match found, but no attendance records at all.');
+      } catch (e) {
+        console.error('lookupStudentAttendance', e);
+        setStatus('lookupStatus', 'err', `<i class="fas fa-times-circle"></i> Lookup failed: ${esc(e.message || e)}`);
+      }
+    };
 
     // ── Scan 1: duplicate classSchedules ──
     async function scanScheduleDuplicates() {
