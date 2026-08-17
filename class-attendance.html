@@ -148,7 +148,27 @@
       background: rgba(134,239,172,.4) !important;
       border-color: rgba(134,239,172,1) !important;
       color: white;
+      animation: btnPulse .4s ease-out;
     }
+    .section-btn.btn-saving {
+      background: rgba(255,255,255,.15) !important;
+      border-color: rgba(255,255,255,.5) !important;
+      color: white; opacity: .85; cursor: wait;
+    }
+    .section-btn.btn-error {
+      background: rgba(220,38,38,.55) !important;
+      border-color: #fecaca !important;
+      color: white;
+      animation: btnPulse .4s ease-out;
+    }
+    .section-btn:disabled { pointer-events: none; }
+    @keyframes btnPulse {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.12); }
+      100% { transform: scale(1); }
+    }
+    .section-btn .fa-spinner { animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Cross-section absent summary panel ── */
     #cross-section-summary { display:none; margin-bottom:14px; }
@@ -295,7 +315,7 @@
 
       <!-- Save All bar (shown when sections loaded) -->
       <div id="save-all-bar" class="save-all-bar" style="display:none;">
-        <button onclick="saveAllSections()" class="w3-button btn-primary">
+        <button id="save-all-btn" onclick="saveAllSections()" class="w3-button btn-primary">
           <i class="fas fa-save"></i> Save All Classes
         </button>
         <button onclick="resetCurrentDateAttendance()" class="w3-button w3-red" style="margin-left:8px;" title="Delete all attendance logs for this teacher and date">
@@ -933,7 +953,21 @@
       const saveBtn   = document.getElementById(`save-btn-${idx}`);
       const timeEl    = document.getElementById(`saved-time-${idx}`);
 
-      if (!indicator || !saveBtn) return;
+      // Always clear the button's "Saving…" state and re-enable it, even if
+      // the indicator badge is somehow missing — otherwise a missing badge
+      // would leave the button stuck disabled with no way to save again.
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.classList.remove('btn-saving', 'btn-error');
+        saveBtn.innerHTML = '<i class="fas fa-check-circle"></i> Saved';
+        saveBtn.classList.add('btn-saved');
+        setTimeout(() => {
+          saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+          saveBtn.classList.remove('btn-saved');
+        }, 3000);
+      }
+
+      if (!indicator) return;
 
       // Format current time as H:MM AM/PM
       const now = new Date();
@@ -943,22 +977,12 @@
       const h12  = h % 12 || 12;
       if (timeEl) timeEl.textContent = `Saved ${h12}:${m} ${ampm}`;
 
-      // Show the indicator (stays permanently)
+      // Show the indicator (stays permanently for the rest of the session)
       indicator.classList.add('visible');
 
       // Track as saved and refresh the banner
       savedSections.add(idx);
       updateAttBanner();
-
-      // Flash the save button to "Saved" state briefly
-      const originalHTML = saveBtn.innerHTML;
-      saveBtn.innerHTML  = '<i class="fas fa-check-circle"></i> Saved';
-      saveBtn.classList.add('btn-saved');
-
-      setTimeout(() => {
-        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
-        saveBtn.classList.remove('btn-saved');
-      }, 2500);
     }
 
     // ── Unsaved banner ────────────────────────────────────────────────────────
@@ -1013,6 +1037,19 @@
         return;
       }
 
+      // Immediate feedback the instant the click registers — don't wait on the
+      // network round trip. This is the part that was missing: previously the
+      // button gave no visual response until the whole save (including the
+      // TMI check and a full data reload) had finished, which on a slow
+      // connection could be a couple of seconds of apparent nothing.
+      const saveBtn = document.getElementById(`save-btn-${idx}`);
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.classList.remove('btn-saved', 'btn-error');
+        saveBtn.classList.add('btn-saving');
+        saveBtn.innerHTML = '<i class="fas fa-spinner"></i> Saving…';
+      }
+
       try {
         const savePromises = buildSavePromises([sec]);
         await Promise.all(savePromises);
@@ -1023,6 +1060,16 @@
       } catch (error) {
         console.error('Error saving section:', error);
         showToast('Error saving attendance', 'error');
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.classList.remove('btn-saving');
+          saveBtn.classList.add('btn-error');
+          saveBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Failed — Retry';
+          setTimeout(() => {
+            saveBtn.classList.remove('btn-error');
+            saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
+          }, 4000);
+        }
       }
     }
 
@@ -1080,6 +1127,11 @@
       }
 
       const totalStudents = sections.reduce((sum, s) => sum + s.students.length, 0);
+      const allBtn = document.getElementById('save-all-btn');
+      if (allBtn) {
+        allBtn.disabled = true;
+        allBtn.innerHTML = '<i class="fas fa-spinner"></i> Saving All…';
+      }
 
       try {
         const savePromises = buildSavePromises(sections);
@@ -1100,6 +1152,11 @@
       } catch (error) {
         console.error('Error saving all sections:', error);
         showToast('Error saving attendance', 'error');
+      } finally {
+        if (allBtn) {
+          allBtn.disabled = false;
+          allBtn.innerHTML = '<i class="fas fa-save"></i> Save All Classes';
+        }
       }
     };
 
