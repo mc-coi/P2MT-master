@@ -132,10 +132,18 @@
       </header>
       <div class="page-container">
         <p style="margin:0 0 12px;"><b>To:</b> <span id="email-student-name" style="color:#2563eb;"></span></p>
-        <label style="font-weight:600;display:block;margin-bottom:4px;">Select Template</label>
-        <select id="email-template-select" class="w3-select w3-border w3-margin-bottom" style="max-width:400px;" onchange="previewEmailTemplate()">
-          <option value="">— Choose a template —</option>
-        </select>
+        <div class="w3-row w3-margin-bottom">
+          <div class="w3-col m7" style="padding-right:6px;">
+            <label style="font-weight:600;display:block;margin-bottom:4px;">Select Template</label>
+            <select id="email-template-select" class="w3-select w3-border" onchange="previewEmailTemplate()">
+              <option value="">— Choose a template —</option>
+            </select>
+          </div>
+          <div class="w3-col m5" style="padding-left:6px;">
+            <label style="font-weight:600;display:block;margin-bottom:4px;">TMI Date <span style="font-weight:400;color:#64748b;">({{tmiDate}})</span></label>
+            <input type="date" id="email-tmi-date" class="w3-input w3-border" onchange="previewEmailTemplate()">
+          </div>
+        </div>
         <label style="font-weight:600;display:block;margin-bottom:4px;">Preview</label>
         <div id="email-preview" class="w3-panel w3-white w3-border" style="min-height:120px;white-space:pre-wrap;font-size:13px;color:#334155;border-radius:6px;padding:12px;">
           Select a template above to preview the email.
@@ -159,19 +167,26 @@
       </header>
       <div class="page-container">
         <div class="w3-row w3-margin-bottom">
-          <div class="w3-col m6" style="padding-right:6px;">
+          <div class="w3-col m5" style="padding-right:6px;">
             <label style="font-weight:600;display:block;margin-bottom:4px;">Student Template</label>
             <select id="bulk-student-template" class="w3-select w3-border" onchange="rebuildBulkNotifications()">
               <option value="">— Skip student emails —</option>
             </select>
           </div>
-          <div class="w3-col m6" style="padding-left:6px;">
+          <div class="w3-col m5" style="padding-left:6px;padding-right:6px;">
             <label style="font-weight:600;display:block;margin-bottom:4px;">Parent Template</label>
             <select id="bulk-parent-template" class="w3-select w3-border" onchange="rebuildBulkNotifications()">
               <option value="">— Skip parent emails —</option>
             </select>
           </div>
+          <div class="w3-col m2" style="padding-left:6px;">
+            <label style="font-weight:600;display:block;margin-bottom:4px;">TMI Date</label>
+            <input type="date" id="bulk-tmi-date" class="w3-input w3-border" onchange="rebuildBulkNotifications()">
+          </div>
         </div>
+        <p style="font-size:12px;color:#64748b;margin:-6px 0 10px;">
+          TMI Date applies to every notification in this batch — use it for <code>{{tmiDate}}</code> in your templates.
+        </p>
         <div id="notificationsList" style="max-height:400px;overflow-y:auto;"></div>
         <div class="w3-bar w3-margin-top">
           <button class="w3-bar-item w3-button btn-primary w3-round" id="copyAllNotifBtn">
@@ -223,6 +238,7 @@
     let students = [];
     let parents = [];
     let templates = [];
+    let classAttendanceLogs = [];  // used only to resolve the specific absence date for {{absenceDate}}
     let tmiTable = null;
     let tmiData = [];
     let allNotifications = [];
@@ -312,6 +328,7 @@
         students = await getAll('students');
         parents = await getAll('parents');
         templates = await getAll('p2mtTemplates');
+        classAttendanceLogs = await getAll('classAttendanceLogs');
       } catch (error) {
         console.error('Error loading initial data:', error);
         throw error;
@@ -332,6 +349,40 @@
       $('#sendAllNotifBtn').click(showBulkNotifications);
       $('#copyAllNotifBtn').click(downloadBulkMailMerge);
       $('#copySingleNotifBtn').click(openSingleNotifInOutlook);
+    }
+
+    // Finds the specific date the student was marked absent/tardy in the class
+    // that triggered this TMI record. A TMI record is scoped to a whole period
+    // (usually a week) and can be caused by more than one absence, but it only
+    // stores one className (whichever class last updated it) — so this looks
+    // for the most recent U/T log in that exact class, within that period, and
+    // uses its date. Returns '' when there's no className to match against
+    // (manually-assigned TMI has no specific class) or no matching log is found.
+    function resolveAbsenceDate(intervention) {
+      if (!intervention.className) return '';
+      const periodStart = intervention.startDate || '';
+      // tmiPeriodKey is "start__end" or "week__start__end" — the end date is
+      // always the last '__'-delimited segment regardless of prefix.
+      const keyParts  = (intervention.tmiPeriodKey || '').split('__');
+      const periodEnd = keyParts.length ? keyParts[keyParts.length - 1] : '';
+
+      const matches = classAttendanceLogs.filter(l => {
+        if (l.studentId !== intervention.studentId) {
+          const lA = (l.chattStateANumber || '').trim();
+          const iA = (intervention.chattStateANumber || '').trim();
+          if (!lA || !iA || lA !== iA) return false;
+        }
+        if (l.className !== intervention.className) return false;
+        if (!['U', 'T'].includes(l.attendanceCode)) return false;
+        const d = (l.date || l.classDate || '').substring(0, 10);
+        if (!d) return false;
+        if (periodStart && d < periodStart) return false;
+        if (periodEnd && d > periodEnd) return false;
+        return true;
+      });
+      if (!matches.length) return '';
+      matches.sort((a, b) => (a.date || a.classDate || '').localeCompare(b.date || b.classDate || ''));
+      return (matches[matches.length - 1].date || matches[matches.length - 1].classDate || '').substring(0, 10);
     }
 
     async function loadTMIData() {
@@ -401,7 +452,8 @@
               // the {{className}} merge fallback aren't silently blank.
               reason: intervention.comment || intervention.reason || '',
               className: intervention.className || '',
-              teacherLastName: intervention.teacherLastName || ''
+              teacherLastName: intervention.teacherLastName || '',
+              absenceDate: resolveAbsenceDate(intervention)
             });
           }
         });
@@ -671,6 +723,7 @@
         ? lastBulkStudentTemplateId : (templates[0]?.id || '');
       parentSel.value = templates.some(t => t.id === lastBulkParentTemplateId)
         ? lastBulkParentTemplateId : '';
+      document.getElementById('bulk-tmi-date').value = lastBulkTmiDate;
 
       document.getElementById('bulkNotificationModal').style.display = 'block';
       window.rebuildBulkNotifications();
@@ -686,8 +739,10 @@
 
       const studentTemplateId = document.getElementById('bulk-student-template').value;
       const parentTemplateId  = document.getElementById('bulk-parent-template').value;
+      const tmiDate           = document.getElementById('bulk-tmi-date').value;
       lastBulkStudentTemplateId = studentTemplateId;
       lastBulkParentTemplateId  = parentTemplateId;
+      lastBulkTmiDate           = tmiDate;
 
       const studentTemplate = templates.find(t => t.id === studentTemplateId);
       const parentTemplate  = templates.find(t => t.id === parentTemplateId);
@@ -702,8 +757,8 @@
         if (studentTemplate) {
           const studentRec = students.find(s => s.id === student.studentId);
           const studentEmail = studentRec?.email || studentRec?.studentEmail || '';
-          const subject = mergeTmiFields(studentTemplate.subject || studentTemplate.emailSubject || '', student);
-          const content = mergeTmiFields(studentTemplate.body    || studentTemplate.templateContent || '', student);
+          const subject = mergeTmiFields(studentTemplate.subject || studentTemplate.emailSubject || '', student, tmiDate);
+          const content = mergeTmiFields(studentTemplate.body    || studentTemplate.templateContent || '', student, tmiDate);
 
           $('#notificationsList').append(`
             <div class="filter-bar">
@@ -729,8 +784,8 @@
           const parentName  = parent
             ? (parent.motherName || parent.fatherName || 'Parent/Guardian')
             : 'Parent/Guardian';
-          const subject = mergeTmiFields(parentTemplate.subject || parentTemplate.emailSubject || '', student);
-          const content = mergeTmiFields(parentTemplate.body    || parentTemplate.templateContent || '', student);
+          const subject = mergeTmiFields(parentTemplate.subject || parentTemplate.emailSubject || '', student, tmiDate);
+          const content = mergeTmiFields(parentTemplate.body    || parentTemplate.templateContent || '', student, tmiDate);
 
           $('#notificationsList').append(`
             <div class="filter-bar">
@@ -798,11 +853,17 @@
     // ── Email Student modal ───────────────────────────────────────
     let emailModalStudent = null; // the tmiData entry currently being emailed
 
+    // Remembers the last TMI date picked, so notifying several students about
+    // the same upcoming session doesn't require re-entering it every time.
+    let lastEmailTmiDate = '';
+    let lastBulkTmiDate  = '';
+
     window.openEmailModal = function(id, name, isComplete) {
       emailModalStudent = tmiData.find(s => s.id === id) || { id, studentName: name };
 
       document.getElementById('email-student-name').textContent = name;
       document.getElementById('email-preview').textContent = 'Select a template above to preview the email.';
+      document.getElementById('email-tmi-date').value = lastEmailTmiDate;
 
       // Populate template dropdown
       const sel = document.getElementById('email-template-select');
@@ -820,7 +881,11 @@
     // Shared merge helper — fills {{placeholders}} in a template string using
     // one tmiData row. Used by both the single "Email Student" modal and the
     // bulk mail-merge flow so the two never drift out of sync with each other.
-    function mergeTmiFields(text, row) {
+    //
+    // tmiDate is passed in separately (not part of the row) because it isn't
+    // stored data — it's the date staff pick in the modal for when the
+    // student is expected to report and serve TMI, chosen per-send.
+    function mergeTmiFields(text, row, tmiDate) {
       const studentName    = row?.studentName    || '';
       const tmiMinutes     = row?.tmiMinutes     ?? '';
       const tmiServed      = row?.tmiServed      ?? '';
@@ -832,13 +897,19 @@
       // fall back to the reason text so the email isn't left with a gap.
       const className       = row?.className || row?.reason || '';
       const teacherLastName = row?.teacherLastName || '';
+      // absenceDate is the specific date matched against className within the
+      // TMI period (see resolveAbsenceDate) — blank when no class is on record.
+      const absenceDate     = formatDate(row?.absenceDate || '');
+      const tmiDateFmt      = formatDate(tmiDate || '');
       return (text || '')
         .replace(/\{\{studentName\}\}/gi, studentName)
         .replace(/\{\{tmiMinutes\}\}/gi, tmiMinutes)
         .replace(/\{\{tmiServed\}\}/gi, tmiServed)
         .replace(/\{\{tmiRemaining\}\}/gi, tmiRemaining)
         .replace(/\{\{className\}\}/gi, className)
-        .replace(/\{\{teacherLastName\}\}/gi, teacherLastName);
+        .replace(/\{\{teacherLastName\}\}/gi, teacherLastName)
+        .replace(/\{\{absenceDate\}\}/gi, absenceDate)
+        .replace(/\{\{tmiDate\}\}/gi, tmiDateFmt);
     }
 
     window.previewEmailTemplate = function() {
@@ -848,7 +919,9 @@
         document.getElementById('email-preview').textContent = 'Select a template above to preview the email.';
         return;
       }
-      const body = mergeTmiFields(tmpl.body || tmpl.templateContent || '', emailModalStudent);
+      const tmiDate = document.getElementById('email-tmi-date').value;
+      lastEmailTmiDate = tmiDate;
+      const body = mergeTmiFields(tmpl.body || tmpl.templateContent || '', emailModalStudent, tmiDate);
       document.getElementById('email-preview').textContent = body;
     };
 
