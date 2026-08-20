@@ -145,7 +145,7 @@
           </div>
         </div>
         <label style="font-weight:600;display:block;margin-bottom:4px;">Preview</label>
-        <div id="email-preview" class="w3-panel w3-white w3-border" style="min-height:120px;white-space:pre-wrap;font-size:13px;color:#334155;border-radius:6px;padding:12px;">
+        <div id="email-preview" class="w3-panel w3-border" style="min-height:120px;white-space:pre-wrap;font-size:13px;background:#f8fafc;color:#1e293b;border-radius:6px;padding:12px;">
           Select a template above to preview the email.
         </div>
         <div class="w3-bar w3-margin-top">
@@ -428,6 +428,40 @@
       }));
     }
 
+    // A TMI record created from Class Attendance (i.e. one with a
+    // tmiPeriodKey) is only supposed to exist because of real U/T (or
+    // manual-override) logs in that period. checkAndCreateTMIForSection
+    // recomputes and cleans these up whenever that class's attendance is
+    // re-saved — but if the underlying logs were edited or removed some
+    // other way (attendance corrected on a different date, logs cleared via
+    // Schedule Admin, etc.), nothing re-triggers that recompute, and the
+    // record is orphaned: it lingers on this list with no current U/T
+    // behind it. This checks whether a record's basis still exists.
+    //
+    // Manually-assigned TMI (Students page) has no tmiPeriodKey and isn't
+    // tied to logs at all, so it's never considered orphaned here.
+    function hasTriggeringLogs(intervention) {
+      if (!intervention.tmiPeriodKey) return true;
+      const periodStart = intervention.startDate || '';
+      const keyParts  = (intervention.tmiPeriodKey || '').split('__');
+      const periodEnd = keyParts.length ? keyParts[keyParts.length - 1] : '';
+
+      return classAttendanceLogs.some(l => {
+        if (l.studentId !== intervention.studentId) {
+          const lA = (l.chattStateANumber || '').trim();
+          const iA = (intervention.chattStateANumber || '').trim();
+          if (!lA || !iA || lA !== iA) return false;
+        }
+        const d = (l.date || l.classDate || '').substring(0, 10);
+        if (!d) return false;
+        if (periodStart && d < periodStart) return false;
+        if (periodEnd && d > periodEnd) return false;
+        const isUT = ['U', 'T'].includes(l.attendanceCode);
+        const isOverride = l.assignTmi && l.attendanceCode !== 'U';
+        return isUT || isOverride;
+      });
+    }
+
     async function loadTMIData() {
       try {
         $('#loadingSpinner').show();
@@ -449,6 +483,12 @@
           // Only show TMI-type interventions that are pending or reviewed (not closed/non-TMI)
           if (intervention.interventionType !== 'TMI') return;
           if (intervention.interventionStatus === 'Closed') return;
+
+          // Skip orphaned auto-created records: nothing served yet, and the
+          // U/T logs that would have earned this TMI are no longer on file.
+          // Records where time has already been served are kept — that's a
+          // real history, not a zombie — see hasTriggeringLogs() above.
+          if (!(intervention.tmiMinutesServed > 0) && !hasTriggeringLogs(intervention)) return;
 
           // Timezone-safe date comparison using string comparison (YYYY-MM-DD).
           // Fall back through the date fields used by the different write paths
@@ -805,11 +845,11 @@
           const content = mergeTmiFields(studentTemplate.body    || studentTemplate.templateContent || '', student, tmiDate);
 
           $('#notificationsList').append(`
-            <div class="filter-bar">
-              <h3>${student.studentName} (Student)</h3>
-              <p><b>To:</b> ${studentEmail || '<em style="color:#dc2626">no email on file</em>'}</p>
-              <p><b>Subject:</b> ${subject}</p>
-              <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${content}</p>
+            <div class="filter-bar" style="background:#f8fafc;color:#1e293b;display:block;">
+              <h3 style="color:#1e293b;">${student.studentName} (Student)</h3>
+              <p style="color:#1e293b;"><b>To:</b> ${studentEmail || '<em style="color:#dc2626">no email on file</em>'}</p>
+              <p style="color:#1e293b;"><b>Subject:</b> ${subject}</p>
+              <p style="white-space:pre-wrap;background:#ffffff;color:#1e293b;padding:8px;border-radius:4px;border:1px solid #e2e8f0;">${content}</p>
             </div>
           `);
           allNotifications.push({ email: studentEmail, to: student.studentName, subject, content });
@@ -832,11 +872,11 @@
           const content = mergeTmiFields(parentTemplate.body    || parentTemplate.templateContent || '', student, tmiDate);
 
           $('#notificationsList').append(`
-            <div class="filter-bar">
-              <h3>${parentName} (Parent of ${student.studentName})</h3>
-              <p><b>To:</b> ${parentEmail || '<em style="color:#dc2626">no parent email on file</em>'}</p>
-              <p><b>Subject:</b> ${subject}</p>
-              <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${content}</p>
+            <div class="filter-bar" style="background:#f8fafc;color:#1e293b;display:block;">
+              <h3 style="color:#1e293b;">${parentName} (Parent of ${student.studentName})</h3>
+              <p style="color:#1e293b;"><b>To:</b> ${parentEmail || '<em style="color:#dc2626">no parent email on file</em>'}</p>
+              <p style="color:#1e293b;"><b>Subject:</b> ${subject}</p>
+              <p style="white-space:pre-wrap;background:#ffffff;color:#1e293b;padding:8px;border-radius:4px;border:1px solid #e2e8f0;">${content}</p>
             </div>
           `);
           allNotifications.push({ email: parentEmail, to: parentName, subject, content });

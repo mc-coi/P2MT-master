@@ -1289,6 +1289,7 @@
 
       const tmiCreated = [];
       const tmiUpdated = [];
+      const tmiRemoved = [];
 
       for (const student of sec.students) {
         // ── Gather all logs for this student within the period ────────────────
@@ -1336,7 +1337,20 @@
         if (existingTMI) {
           // SET (not increment) — safe to re-run on every save
           const newRemaining = Math.max(0, totalMinutes - (existingTMI.tmiMinutesServed || 0));
-          if (existingTMI.tmiMinutes !== totalMinutes) {
+          const alreadyServed = (existingTMI.tmiMinutesServed || 0) > 0;
+
+          if (totalMinutes === 0 && !alreadyServed) {
+            // Whatever U/T/override originally earned this record has since
+            // been corrected or removed (e.g. attendance code changed, or
+            // logs cleared) — and nothing has been served against it yet, so
+            // there's no history to preserve. Delete it rather than leaving
+            // a zero-minute record that would otherwise sit in TMI Final
+            // Approval forever with no current U/T behind it.
+            if (existingTMI.tmiMinutes !== 0) {
+              await deleteDoc('interventionLogs', existingTMI.id);
+              tmiRemoved.push(`${student.firstName} ${student.lastName}`);
+            }
+          } else if (existingTMI.tmiMinutes !== totalMinutes) {
             await updateDoc('interventionLogs', existingTMI.id, {
               tmiMinutes:          totalMinutes,
               tmiMinutesRemaining: newRemaining,
@@ -1372,6 +1386,7 @@
 
       if (tmiCreated.length > 0) showToast(`TMI assigned: ${tmiCreated.join(', ')}`, 'warning');
       if (tmiUpdated.length > 0) showToast(`TMI updated: ${tmiUpdated.join(', ')}`, 'warning');
+      if (tmiRemoved.length > 0) showToast(`TMI cleared (no longer qualifies): ${tmiRemoved.join(', ')}`, 'info');
 
       try { allInterventions = await getAll('interventionLogs'); } catch(e) {}
     }

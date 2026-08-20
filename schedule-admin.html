@@ -1606,6 +1606,10 @@
       if (!confirmed) return;
 
       try {
+        // Students affected by this deletion — used below to sweep up any
+        // TMI records that were only earned by the logs we're about to remove.
+        const affectedStudentIds = [...new Set(_mlScannedLogs.map(l => l.studentId).filter(Boolean))];
+
         const chunkSize = 20;
         for (let i = 0; i < _mlScannedLogs.length; i += chunkSize) {
           const chunk = _mlScannedLogs.slice(i, i + chunkSize);
@@ -1618,11 +1622,69 @@
         if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
         if (clearBtn)  clearBtn.style.display = 'none';
         populateManageLogsTeachers();
+
+        await sweepOrphanedTMI(affectedStudentIds);
       } catch (err) {
         console.error('Error clearing logs:', err);
         showToast('Error deleting logs — see console', 'error');
       }
     };
+
+    // Deleting attendance logs here doesn't touch interventionLogs, so any
+    // TMI record that was only earned by the logs just removed would
+    // otherwise linger on the TMI Final Approval list with no U/T behind it.
+    // For each affected student, recheck their TMI records against what's
+    // left and delete any that are now unserved and have no basis — mirrors
+    // the same cleanup checkAndCreateTMIForSection does on a normal save.
+    async function sweepOrphanedTMI(studentIds) {
+      if (!studentIds.length) return;
+      try {
+        const [allInterventions, remainingLogs] = await Promise.all([
+          getAll('interventionLogs'),
+          getAll('classAttendanceLogs')
+        ]);
+
+        const candidates = allInterventions.filter(iv =>
+          iv.interventionType === 'TMI' &&
+          iv.tmiPeriodKey &&
+          !(iv.tmiMinutesServed > 0) &&
+          studentIds.includes(iv.studentId)
+        );
+        if (!candidates.length) return;
+
+        const hasBasis = (iv) => {
+          const periodStart = iv.startDate || '';
+          const keyParts  = (iv.tmiPeriodKey || '').split('__');
+          const periodEnd = keyParts.length ? keyParts[keyParts.length - 1] : '';
+          return remainingLogs.some(l => {
+            if (l.studentId !== iv.studentId) {
+              const lA = (l.chattStateANumber || '').trim();
+              const iA = (iv.chattStateANumber || '').trim();
+              if (!lA || !iA || lA !== iA) return false;
+            }
+            const d = (l.date || l.classDate || '').substring(0, 10);
+            if (!d) return false;
+            if (periodStart && d < periodStart) return false;
+            if (periodEnd && d > periodEnd) return false;
+            const isUT = ['U', 'T'].includes(l.attendanceCode);
+            const isOverride = l.assignTmi && l.attendanceCode !== 'U';
+            return isUT || isOverride;
+          });
+        };
+
+        const orphaned = candidates.filter(iv => !hasBasis(iv));
+        if (!orphaned.length) return;
+
+        await Promise.all(orphaned.map(iv => deleteDoc('interventionLogs', iv.id)));
+        showToast(
+          `Also cleared ${orphaned.length} TMI record${orphaned.length !== 1 ? 's' : ''} that no longer had any basis`,
+          'info'
+        );
+      } catch (err) {
+        // Non-fatal — the log deletion itself already succeeded; just log it.
+        console.error('Error sweeping orphaned TMI records:', err);
+      }
+    }
 
     // ── Delete tab helpers ──────────────────────────────────────────────────────
     function populateDeleteDropdown() {
