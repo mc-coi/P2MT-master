@@ -158,6 +158,20 @@
         <h2>Bulk Notifications</h2>
       </header>
       <div class="page-container">
+        <div class="w3-row w3-margin-bottom">
+          <div class="w3-col m6" style="padding-right:6px;">
+            <label style="font-weight:600;display:block;margin-bottom:4px;">Student Template</label>
+            <select id="bulk-student-template" class="w3-select w3-border" onchange="rebuildBulkNotifications()">
+              <option value="">— Skip student emails —</option>
+            </select>
+          </div>
+          <div class="w3-col m6" style="padding-left:6px;">
+            <label style="font-weight:600;display:block;margin-bottom:4px;">Parent Template</label>
+            <select id="bulk-parent-template" class="w3-select w3-border" onchange="rebuildBulkNotifications()">
+              <option value="">— Skip parent emails —</option>
+            </select>
+          </div>
+        </div>
         <div id="notificationsList" style="max-height:400px;overflow-y:auto;"></div>
         <div class="w3-bar w3-margin-top">
           <button class="w3-bar-item w3-button btn-primary w3-round" id="copyAllNotifBtn">
@@ -626,86 +640,110 @@
       $('#singleNotificationModal').show();
     }
 
+    // Remembers the last template picked in each dropdown for this session,
+    // so re-opening the modal (or reloading data) doesn't reset your choice.
+    let lastBulkStudentTemplateId = '';
+    let lastBulkParentTemplateId  = '';
+
     async function showBulkNotifications() {
-      try {
-        allNotifications = [];
-        $('#notificationsList').empty();
+      if (!tmiData.length) {
+        showToast('No TMI data loaded — click Load Data first', 'warning');
+        return;
+      }
+      if (!templates.length) {
+        showToast('No email templates found — add one in Contact → Email', 'warning');
+        return;
+      }
 
-        if (!tmiData.length) {
-          showToast('No TMI data loaded — click Load Data first', 'warning');
-          return;
-        }
+      // Populate both template dropdowns from the template library. There is
+      // no "flag a template for student/parent use" setting — you choose the
+      // template for each audience here, every time.
+      const studentSel = document.getElementById('bulk-student-template');
+      const parentSel  = document.getElementById('bulk-parent-template');
+      const optionsHtml = templates.map(t =>
+        `<option value="${t.id}">${(t.name || t.templateName || '(untitled)').replace(/</g,'&lt;')}</option>`
+      ).join('');
+      studentSel.innerHTML = '<option value="">— Skip student emails —</option>' + optionsHtml;
+      parentSel.innerHTML  = '<option value="">— Skip parent emails —</option>'  + optionsHtml;
 
-        // Pick templates: prefer one flagged for each audience, fall back to first available
-        const studentTemplate = templates.find(t => t.sendToStudent === true) || templates[0];
-        const parentTemplate  = templates.find(t => t.sendToParent  === true) || templates[0];
+      // Restore last pick if it still exists, otherwise default to the first template.
+      studentSel.value = templates.some(t => t.id === lastBulkStudentTemplateId)
+        ? lastBulkStudentTemplateId : (templates[0]?.id || '');
+      parentSel.value = templates.some(t => t.id === lastBulkParentTemplateId)
+        ? lastBulkParentTemplateId : '';
 
-        if (!studentTemplate) {
-          showToast('No email templates found — add one in Contact → Email', 'warning');
-          return;
-        }
+      document.getElementById('bulkNotificationModal').style.display = 'block';
+      window.rebuildBulkNotifications();
+    }
 
-        for (let student of tmiData) {
-          // ── Student row ───────────────────────────────────────────────────
+    // Re-runs whenever either template dropdown changes, and merges each
+    // student's actual TMI fields into the chosen template — the CSV that
+    // comes out of "Download Mail Merge CSV" is fully personalized per row,
+    // not the raw {{placeholder}} text.
+    window.rebuildBulkNotifications = function() {
+      allNotifications = [];
+      $('#notificationsList').empty();
+
+      const studentTemplateId = document.getElementById('bulk-student-template').value;
+      const parentTemplateId  = document.getElementById('bulk-parent-template').value;
+      lastBulkStudentTemplateId = studentTemplateId;
+      lastBulkParentTemplateId  = parentTemplateId;
+
+      const studentTemplate = templates.find(t => t.id === studentTemplateId);
+      const parentTemplate  = templates.find(t => t.id === parentTemplateId);
+
+      if (!studentTemplate && !parentTemplate) {
+        $('#notificationsList').html('<p style="color:#64748b;">Choose a template above for students, parents, or both.</p>');
+        return;
+      }
+
+      for (let student of tmiData) {
+        // ── Student row ───────────────────────────────────────────────────
+        if (studentTemplate) {
           const studentRec = students.find(s => s.id === student.studentId);
           const studentEmail = studentRec?.email || studentRec?.studentEmail || '';
+          const subject = mergeTmiFields(studentTemplate.subject || studentTemplate.emailSubject || '', student);
+          const content = mergeTmiFields(studentTemplate.body    || studentTemplate.templateContent || '', student);
 
           $('#notificationsList').append(`
             <div class="filter-bar">
               <h3>${student.studentName} (Student)</h3>
               <p><b>To:</b> ${studentEmail || '<em style="color:#dc2626">no email on file</em>'}</p>
-              <p><b>Subject:</b> ${studentTemplate.subject || studentTemplate.emailSubject || ''}</p>
-              <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">
-                ${studentTemplate.body || studentTemplate.templateContent || ''}
-              </p>
+              <p><b>Subject:</b> ${subject}</p>
+              <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${content}</p>
             </div>
           `);
-          allNotifications.push({
-            email:   studentEmail,
-            to:      student.studentName,
-            subject: studentTemplate.subject || studentTemplate.emailSubject || '',
-            content: studentTemplate.body    || studentTemplate.templateContent || ''
-          });
-
-          // ── Parent row — match by chattStateANumber (same key Fix A#s uses) ─
-          if (parentTemplate) {
-            const aNum = (student.chattStateA || '').trim().toUpperCase();
-            const parent = parents.find(p => {
-              const pNum = (p.chattStateANumber || '').trim().toUpperCase();
-              return pNum && pNum === aNum;
-            });
-            const parentEmail = parent
-              ? (parent.guardianEmail || parent.motherEmail || parent.fatherEmail || '')
-              : '';
-            const parentName  = parent
-              ? (parent.motherName || parent.fatherName || 'Parent/Guardian')
-              : 'Parent/Guardian';
-
-            $('#notificationsList').append(`
-              <div class="filter-bar">
-                <h3>${parentName} (Parent of ${student.studentName})</h3>
-                <p><b>To:</b> ${parentEmail || '<em style="color:#dc2626">no parent email on file</em>'}</p>
-                <p><b>Subject:</b> ${parentTemplate.subject || parentTemplate.emailSubject || ''}</p>
-                <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">
-                  ${parentTemplate.body || parentTemplate.templateContent || ''}
-                </p>
-              </div>
-            `);
-            allNotifications.push({
-              email:   parentEmail,
-              to:      parentName,
-              subject: parentTemplate.subject || parentTemplate.emailSubject || '',
-              content: parentTemplate.body    || parentTemplate.templateContent || ''
-            });
-          }
+          allNotifications.push({ email: studentEmail, to: student.studentName, subject, content });
         }
 
-        $('#bulkNotificationModal').show();
-      } catch (error) {
-        console.error('Error preparing bulk notifications:', error);
-        showToast('Error preparing notifications', 'error');
+        // ── Parent row — match by chattStateANumber (same key Fix A#s uses) ─
+        if (parentTemplate) {
+          const aNum = (student.chattStateA || '').trim().toUpperCase();
+          const parent = parents.find(p => {
+            const pNum = (p.chattStateANumber || '').trim().toUpperCase();
+            return pNum && pNum === aNum;
+          });
+          const parentEmail = parent
+            ? (parent.guardianEmail || parent.motherEmail || parent.fatherEmail || '')
+            : '';
+          const parentName  = parent
+            ? (parent.motherName || parent.fatherName || 'Parent/Guardian')
+            : 'Parent/Guardian';
+          const subject = mergeTmiFields(parentTemplate.subject || parentTemplate.emailSubject || '', student);
+          const content = mergeTmiFields(parentTemplate.body    || parentTemplate.templateContent || '', student);
+
+          $('#notificationsList').append(`
+            <div class="filter-bar">
+              <h3>${parentName} (Parent of ${student.studentName})</h3>
+              <p><b>To:</b> ${parentEmail || '<em style="color:#dc2626">no parent email on file</em>'}</p>
+              <p><b>Subject:</b> ${subject}</p>
+              <p style="white-space:pre-wrap;background:#f0f0f0;padding:8px;border-radius:4px;">${content}</p>
+            </div>
+          `);
+          allNotifications.push({ email: parentEmail, to: parentName, subject, content });
+        }
       }
-    }
+    };
 
     function openSingleNotifInOutlook() {
       if (!singleNotifEmail) { showToast('No email address found for this recipient', 'warning'); return; }
@@ -779,6 +817,30 @@
       document.getElementById('emailStudentModal').style.display = 'block';
     };
 
+    // Shared merge helper — fills {{placeholders}} in a template string using
+    // one tmiData row. Used by both the single "Email Student" modal and the
+    // bulk mail-merge flow so the two never drift out of sync with each other.
+    function mergeTmiFields(text, row) {
+      const studentName    = row?.studentName    || '';
+      const tmiMinutes     = row?.tmiMinutes     ?? '';
+      const tmiServed      = row?.tmiServed      ?? '';
+      const tmiRemaining   = row?.tmiRemaining   ?? '';
+      // className/teacherLastName come from the interventionLogs record and
+      // are only populated when the TMI was triggered by a specific class
+      // absence (i.e. via Class Attendance). TMI assigned manually or for a
+      // missed check-in has no associated class, so this merges to blank —
+      // fall back to the reason text so the email isn't left with a gap.
+      const className       = row?.className || row?.reason || '';
+      const teacherLastName = row?.teacherLastName || '';
+      return (text || '')
+        .replace(/\{\{studentName\}\}/gi, studentName)
+        .replace(/\{\{tmiMinutes\}\}/gi, tmiMinutes)
+        .replace(/\{\{tmiServed\}\}/gi, tmiServed)
+        .replace(/\{\{tmiRemaining\}\}/gi, tmiRemaining)
+        .replace(/\{\{className\}\}/gi, className)
+        .replace(/\{\{teacherLastName\}\}/gi, teacherLastName);
+    }
+
     window.previewEmailTemplate = function() {
       const sel = document.getElementById('email-template-select');
       const tmpl = templates.find(t => t.id === sel.value);
@@ -786,25 +848,7 @@
         document.getElementById('email-preview').textContent = 'Select a template above to preview the email.';
         return;
       }
-      // Merge student/TMI fields if the template uses them
-      const studentName    = emailModalStudent?.studentName    || '';
-      const tmiMinutes     = emailModalStudent?.tmiMinutes     || '';
-      const tmiServed      = emailModalStudent?.tmiServed      || '';
-      const tmiRemaining   = emailModalStudent?.tmiRemaining   || '';
-      // className/teacherLastName come from the interventionLogs record and
-      // are only populated when the TMI was triggered by a specific class
-      // absence (i.e. via Class Attendance). TMI assigned manually or for a
-      // missed check-in has no associated class, so this merges to blank —
-      // fall back to the reason text so the email isn't left with a gap.
-      const className       = emailModalStudent?.className || emailModalStudent?.reason || '';
-      const teacherLastName = emailModalStudent?.teacherLastName || '';
-      let body = (tmpl.body || tmpl.templateContent || '')
-        .replace(/\{\{studentName\}\}/gi, studentName)
-        .replace(/\{\{tmiMinutes\}\}/gi, tmiMinutes)
-        .replace(/\{\{tmiServed\}\}/gi, tmiServed)
-        .replace(/\{\{tmiRemaining\}\}/gi, tmiRemaining)
-        .replace(/\{\{className\}\}/gi, className)
-        .replace(/\{\{teacherLastName\}\}/gi, teacherLastName);
+      const body = mergeTmiFields(tmpl.body || tmpl.templateContent || '', emailModalStudent);
       document.getElementById('email-preview').textContent = body;
     };
 
