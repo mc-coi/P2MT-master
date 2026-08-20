@@ -385,6 +385,49 @@
       return (matches[matches.length - 1].date || matches[matches.length - 1].classDate || '').substring(0, 10);
     }
 
+    // Like resolveAbsenceDate, but returns EVERY qualifying U/T absence in the
+    // TMI period, across ALL classes — not just the one className stored on
+    // the record. A student can rack up TMI minutes from more than one class
+    // in the same week; this powers the {{#absences}}...{{/absences}} template
+    // loop so every one of those classes/dates can be listed, not just one.
+    //
+    // Requires a real tmiPeriodKey to bound the date range. Manually-assigned
+    // TMI (Students page) has a startDate but no period, so without this guard
+    // the filter would have no upper bound and could pull in unrelated logs —
+    // safer to return nothing for those records.
+    function getAbsenceEvents(intervention) {
+      if (!intervention.tmiPeriodKey) return [];
+      const periodStart = intervention.startDate || '';
+      const keyParts  = (intervention.tmiPeriodKey || '').split('__');
+      const periodEnd = keyParts.length ? keyParts[keyParts.length - 1] : '';
+
+      const matches = classAttendanceLogs.filter(l => {
+        if (l.studentId !== intervention.studentId) {
+          const lA = (l.chattStateANumber || '').trim();
+          const iA = (intervention.chattStateANumber || '').trim();
+          if (!lA || !iA || lA !== iA) return false;
+        }
+        if (!['U', 'T'].includes(l.attendanceCode)) return false;
+        const d = (l.date || l.classDate || '').substring(0, 10);
+        if (!d) return false;
+        if (periodStart && d < periodStart) return false;
+        if (periodEnd && d > periodEnd) return false;
+        return true;
+      });
+
+      matches.sort((a, b) => {
+        const da = (a.date || a.classDate || '').substring(0, 10);
+        const db = (b.date || b.classDate || '').substring(0, 10);
+        return da.localeCompare(db);
+      });
+
+      return matches.map(l => ({
+        date: (l.date || l.classDate || '').substring(0, 10),
+        className: l.className || '',
+        teacherLastName: l.teacherLastName || ''
+      }));
+    }
+
     async function loadTMIData() {
       try {
         $('#loadingSpinner').show();
@@ -453,7 +496,8 @@
               reason: intervention.comment || intervention.reason || '',
               className: intervention.className || '',
               teacherLastName: intervention.teacherLastName || '',
-              absenceDate: resolveAbsenceDate(intervention)
+              absenceDate: resolveAbsenceDate(intervention),
+              absenceEvents: getAbsenceEvents(intervention)
             });
           }
         });
@@ -885,6 +929,22 @@
     // tmiDate is passed in separately (not part of the row) because it isn't
     // stored data — it's the date staff pick in the modal for when the
     // student is expected to report and serve TMI, chosen per-send.
+    // Renders a {{#absences}}...{{/absences}} block once per entry in `events`,
+    // substituting that event's own date/class/teacher inside the block only.
+    // Must run BEFORE the flat single-value replacements below so the repeated
+    // lines aren't double-processed, and so standalone {{className}} etc.
+    // elsewhere in the template (outside the block) are untouched here.
+    function renderAbsenceLoop(text, events) {
+      return (text || '').replace(/\{\{#absences\}\}([\s\S]*?)\{\{\/absences\}\}/gi, (_, inner) => {
+        if (!events || !events.length) return '';
+        return events.map(ev => inner
+          .replace(/\{\{absenceDate\}\}/gi, formatDate(ev.date || ''))
+          .replace(/\{\{className\}\}/gi, ev.className || '')
+          .replace(/\{\{teacherLastName\}\}/gi, ev.teacherLastName || '')
+        ).join('');
+      });
+    }
+
     function mergeTmiFields(text, row, tmiDate) {
       const studentName    = row?.studentName    || '';
       const tmiMinutes     = row?.tmiMinutes     ?? '';
@@ -901,7 +961,10 @@
       // TMI period (see resolveAbsenceDate) — blank when no class is on record.
       const absenceDate     = formatDate(row?.absenceDate || '');
       const tmiDateFmt      = formatDate(tmiDate || '');
-      return (text || '')
+      // Repeating {{#absences}}...{{/absences}} block first (see above), then
+      // the single-value fields for any use outside the block.
+      const looped = renderAbsenceLoop(text, row?.absenceEvents || []);
+      return looped
         .replace(/\{\{studentName\}\}/gi, studentName)
         .replace(/\{\{tmiMinutes\}\}/gi, tmiMinutes)
         .replace(/\{\{tmiServed\}\}/gi, tmiServed)

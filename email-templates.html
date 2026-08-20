@@ -370,6 +370,23 @@
 
 &lt;p&gt;Phase II Team&lt;/p&gt;</pre>
           </details>
+          <details style="margin-top:6px;">
+            <summary style="cursor:pointer;font-weight:600;color:#1e3a8a;">TMI: repeat a line for every absence ▾</summary>
+            <div style="margin-top:6px;">
+              A TMI record can be triggered by more than one absence. The plain
+              <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">{{absenceDate}}</code> /
+              <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">{{className}}</code> /
+              <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">{{teacherLastName}}</code>
+              fields only show one. To list every qualifying absence, wrap a line in
+              <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">{{#absences}} … {{/absences}}</code> —
+              it repeats once per absence, using those same three field names for that specific row:
+            </div>
+            <pre style="margin:8px 0 0;font-size:11px;background:#dbeafe;padding:8px;border-radius:6px;white-space:pre-wrap;font-family:monospace;color:#1e3a8a;">Attendance Intervention Summary
+
+{{#absences}}
+{{absenceDate}} || {{className}} || {{teacherLastName}}
+{{/absences}}</pre>
+          </details>
         </div>
         <!-- Tab bar: Edit / Preview -->
         <div style="display:flex;gap:0;margin-bottom:-1px;position:relative;z-index:1;">
