@@ -479,6 +479,13 @@
       { key: 'eventLocation',  label: 'Location'        },
       { key: 'eventAddress',   label: 'Address'         },
       { key: 'eventCityState', label: 'City, State'     },
+      // TMI Final Approval merges these when a template is used from the
+      // "Email Student" button on that page (tmi-approval.html).
+      { key: 'className',      label: 'Class Missed (TMI)',  group: 'TMI' },
+      { key: 'teacherLastName',label: 'Teacher (TMI)',       group: 'TMI' },
+      { key: 'tmiMinutes',     label: 'TMI Minutes Assigned',group: 'TMI' },
+      { key: 'tmiServed',      label: 'TMI Minutes Served',  group: 'TMI' },
+      { key: 'tmiRemaining',   label: 'TMI Minutes Remaining',group: 'TMI' },
     ];
 
     // ── Boot ─────────────────────────────────────────────────────────────────────
@@ -638,8 +645,18 @@
 
     // ── Variable chips ───────────────────────────────────────────────────────────
     function buildVarChips() {
-      document.getElementById('var-chips').innerHTML =
-        VARS.map(v => `<button type="button" class="var-btn" data-var="{{${v.key}}}" title="${v.label}">{{${v.key}}}</button>`).join('');
+      let html = '';
+      let lastGroup = null;
+      VARS.forEach(v => {
+        if (v.group !== lastGroup) {
+          if (v.group) {
+            html += `<span class="var-group-label" style="flex-basis:100%;font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.03em;margin:6px 0 2px;">${v.group} fields</span>`;
+          }
+          lastGroup = v.group;
+        }
+        html += `<button type="button" class="var-btn" data-var="{{${v.key}}}" title="${v.label}">{{${v.key}}}</button>`;
+      });
+      document.getElementById('var-chips').innerHTML = html;
       document.getElementById('var-chips').addEventListener('click', e => {
         const btn = e.target.closest('.var-btn');
         if (!btn) return;

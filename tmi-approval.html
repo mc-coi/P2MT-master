@@ -382,7 +382,10 @@
               parentNotified: intervention.parentNotification || false,
               studentNotified: intervention.studentNotification || false,
               reviewStatus: intervention.interventionStatus || 'Pending Review',
-              reason: intervention.reason || '',
+              // Manually-assigned TMI (Students page) stores the reason under
+              // `comment`, not `reason` — check both so the Reason column and
+              // the {{className}} merge fallback aren't silently blank.
+              reason: intervention.comment || intervention.reason || '',
               className: intervention.className || '',
               teacherLastName: intervention.teacherLastName || ''
             });
@@ -783,16 +786,25 @@
         document.getElementById('email-preview').textContent = 'Select a template above to preview the email.';
         return;
       }
-      // Merge student name if template uses {{studentName}}
-      const studentName = emailModalStudent?.studentName || '';
-      const tmiMinutes  = emailModalStudent?.tmiMinutes  || '';
-      const tmiServed   = emailModalStudent?.tmiServed   || '';
-      const tmiRemaining = emailModalStudent?.tmiRemaining || '';
+      // Merge student/TMI fields if the template uses them
+      const studentName    = emailModalStudent?.studentName    || '';
+      const tmiMinutes     = emailModalStudent?.tmiMinutes     || '';
+      const tmiServed      = emailModalStudent?.tmiServed      || '';
+      const tmiRemaining   = emailModalStudent?.tmiRemaining   || '';
+      // className/teacherLastName come from the interventionLogs record and
+      // are only populated when the TMI was triggered by a specific class
+      // absence (i.e. via Class Attendance). TMI assigned manually or for a
+      // missed check-in has no associated class, so this merges to blank —
+      // fall back to the reason text so the email isn't left with a gap.
+      const className       = emailModalStudent?.className || emailModalStudent?.reason || '';
+      const teacherLastName = emailModalStudent?.teacherLastName || '';
       let body = (tmpl.body || tmpl.templateContent || '')
         .replace(/\{\{studentName\}\}/gi, studentName)
         .replace(/\{\{tmiMinutes\}\}/gi, tmiMinutes)
         .replace(/\{\{tmiServed\}\}/gi, tmiServed)
-        .replace(/\{\{tmiRemaining\}\}/gi, tmiRemaining);
+        .replace(/\{\{tmiRemaining\}\}/gi, tmiRemaining)
+        .replace(/\{\{className\}\}/gi, className)
+        .replace(/\{\{teacherLastName\}\}/gi, teacherLastName);
       document.getElementById('email-preview').textContent = body;
     };
 
