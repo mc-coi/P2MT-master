@@ -426,6 +426,7 @@
     let allPblTeams            = [];
     let allPbls                = [];
     let allSchoolCalendar      = [];
+    let allDailyAttendanceLogs = [];
 
     // sections[] is the core of the new design:
     // each entry = { idx, className, isLab, schedule, students, state }
@@ -463,6 +464,10 @@
       try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
       // School calendar (for Phase II gate + TMI period window — non-critical)
       try { allSchoolCalendar = await getAll('schoolCalendar'); } catch(e) { allSchoolCalendar = []; }
+      // Manual Daily Attendance notes (Students page "Log Attendance" tool) —
+      // used to surface that note here so teachers see it without having to
+      // cross-check the Daily Attendance page (non-critical).
+      try { allDailyAttendanceLogs = await getAll('dailyAttendanceLogs'); } catch(e) { allDailyAttendanceLogs = []; }
       // PBL data for pre-filling attendance comments (non-critical)
       try {
         [allPblEvents, allPblTeams, allPbls] = await Promise.all([
@@ -679,6 +684,27 @@
                 logId:   log?.id || null
               };
             });
+
+            // Pre-fill with any Daily Attendance note for this student on this
+            // exact date (from the Students page "Log Attendance" tool) —
+            // those notes previously only lived on the Daily Attendance page
+            // and teachers had no way to see them here. Prefixed so it's
+            // clear the note came from Daily Attendance, not this class.
+            if (allDailyAttendanceLogs.length) {
+              students.forEach(s => {
+                if (state[s.id].comment) return; // already has a comment — keep it
+                const daily = allDailyAttendanceLogs.find(l => {
+                  const matchesStudent = l.studentId === s.id ||
+                    (s.chattStateANumber && l.chattStateANumber === s.chattStateANumber);
+                  if (!matchesStudent) return false;
+                  const d = (l.absenceDate || l.date || '').substring(0, 10);
+                  return d === classDate;
+                });
+                if (daily && daily.comment) {
+                  state[s.id].comment = `Daily note: ${daily.comment}`;
+                }
+              });
+            }
 
             // Pre-fill PBL event comment for students with no comment yet
             if (allPblEvents.length && allPblTeams.length) {
