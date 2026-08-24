@@ -130,6 +130,7 @@
             <th>Student</th>
             <th>A#</th>
             <th>Code</th>
+            <th>Source</th>
             <th>Class</th>
             <th>Teacher</th>
             <th>Excuse</th>
@@ -285,17 +286,17 @@
         // Class-based T/U/E records
         const classLogs = classMapped.filter(l => ['T','U','E'].includes(l.attendanceCode));
 
-        // Manually-logged T/U/E records from the Students page that aren't already covered
-        // by a classAttendanceLogs entry for the same student+date
-        const classKeys = new Set(
-          classLogs.map(l => `${l.chattStateANumber}|${l.classDate || l.date || ''}`)
-        );
-        const dailyLogs = dailyMapped.filter(l => {
-          if (!['T','U','E'].includes(l.attendanceCode)) return false;
-          const d   = l.absenceDate || l.date || '';
-          const key = `${l.chattStateANumber}|${d}`;
-          return !classKeys.has(key); // omit if already in classAttendanceLogs for same student+date
-        });
+        // Manually-logged T/U/E records from the Students page (dailyAttendanceLogs).
+        // These previously got silently dropped here whenever the SAME student had
+        // ANY classAttendanceLogs T/U/E entry on the same date — the intent was to
+        // avoid showing the "same" absence twice, but a student can legitimately be
+        // marked absent for one class (e.g. tardy to 3rd period) AND separately
+        // logged as Excused for the whole day via the Students page. That's two real,
+        // different records, not a duplicate — but the old key-match check (student +
+        // date only, ignoring class) treated them as the same thing and hid the manual
+        // one entirely, making it look like it was never saved. Always show both now;
+        // the Class/Teacher columns being blank already identifies a manual entry.
+        const dailyLogs = dailyMapped.filter(l => ['T','U','E'].includes(l.attendanceCode));
 
         // Merge — class records first (they have richer class/teacher info)
         allLogs = [...classLogs, ...dailyLogs];
@@ -445,11 +446,16 @@
                  <i class="fas fa-trash"></i>
                </button>
              </div>`;
+        const isManual = log._collection === 'dailyAttendanceLogs';
+        const sourceBadge = isManual
+          ? `<span class="code-badge" style="background:#f1f5f9;color:#475569;">Manual</span>`
+          : `<span class="code-badge" style="background:#e0f2fe;color:#0369a1;">Class</span>`;
         row.innerHTML = `
           <td>${formatDate(d)}</td>
           <td style="font-weight:600;">${log.studentName || '—'}${isLab ? ' <span class="lab-badge"><i class="fas fa-flask"></i> Lab</span>' : ''}</td>
           <td>${log.chattStateANumber || '—'}</td>
           <td>${codeBadge(log.attendanceCode, isLab)}</td>
+          <td>${sourceBadge}</td>
           <td>${log.className || '—'}</td>
           <td>${log.teacherLastName || '—'}</td>
           <td id="excuse-cell-${log.id}">${excuseBadge(log)}</td>
@@ -465,7 +471,7 @@
         ordering: true,
         searching: true,
         destroy: true,
-        columnDefs: [{ orderable: false, targets: [8] }]
+        columnDefs: [{ orderable: false, targets: [9] }]
       });
     }
 
@@ -736,6 +742,7 @@
         'A#':          l.chattStateANumber || '',
         'Code':        l.attendanceCode,
         'Type':        l.learningLab ? 'Learning Lab' : 'Regular',
+        'Source':      l._collection === 'dailyAttendanceLogs' ? 'Manual' : 'Class',
         'Class':       l.className || '',
         'Teacher':     l.teacherLastName || '',
         'Excuse':      l.excuseType || '',
