@@ -148,6 +148,7 @@
               <th>Tardy (T)</th>
               <th>TMI Minutes</th>
               <th>Status</th>
+              <th>Assigned By</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -413,6 +414,7 @@
             <span style="font-size:11px;color:#64748b;"> min</span>
           </td>
           <td>${statusBadge(item.interventionStatus)}</td>
+          <td>${item.assignedBy || '—'}</td>
           <td onclick="event.stopPropagation()">
             ${item.interventionStatus !== 'Reviewed'
               ? `<button class="w3-button btn-primary action-btn" onclick="confirmOne('${item.id}')">
@@ -438,7 +440,7 @@
         searching: true,
         destroy: true,
         columnDefs: [
-          { orderable: false, targets: [0, 7] }  // expand and actions not sortable
+          { orderable: false, targets: [0, 8] }  // expand and actions not sortable
         ]
       });
 

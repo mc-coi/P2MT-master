@@ -110,6 +110,7 @@
               <th>TMI Remaining</th>
               <th>Status</th>
               <th>Reason</th>
+              <th>Assigned By</th>
               <th>Teacher Review</th>
               <th>Actions</th>
             </tr>
@@ -537,7 +538,12 @@
               className: intervention.className || '',
               teacherLastName: intervention.teacherLastName || '',
               absenceDate: resolveAbsenceDate(intervention),
-              absenceEvents: getAbsenceEvents(intervention)
+              absenceEvents: getAbsenceEvents(intervention),
+              // Staff member who triggered this record's creation — a real name
+              // for TMI assigned manually or from a missed check-in (Students
+              // page), or the teacher/staff logged into Class Attendance when
+              // it was auto-assigned there. Older records predate this field.
+              assignedBy: intervention.assignedBy || '—'
             });
           }
         });
@@ -602,6 +608,7 @@
             </td>
             <td class="status-cell" data-id="${student.id}">${statusBadgeHtml(student.status)}</td>
             <td>${student.reason || '—'}</td>
+            <td>${student.assignedBy || '—'}</td>
             <td>${student.reviewStatus === 'Reviewed'
               ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;"><i class="fas fa-check"></i> Reviewed</span>'
               : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;">Pending</span>'
@@ -919,6 +926,8 @@
           'TMI Served': student.tmiServed,
           'TMI Remaining': student.tmiRemaining,
           'Status': student.status,
+          'Reason': student.reason,
+          'Assigned By': student.assignedBy,
           'Parent Notified': student.parentNotified ? 'Yes' : 'No',
           'Student Notified': student.studentNotified ? 'Yes' : 'No'
         }));

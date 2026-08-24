@@ -1401,6 +1401,7 @@
             tmiMinutesServed:     0,
             tmiMinutesRemaining:  totalMinutes,
             interventionStatus:   'Reviewed',
+            assignedBy:           currentUser?.displayName || currentUser?.email || 'Unknown',
             reason,
             className:            sec.className,
             teacherLastName:      currentTeacher,

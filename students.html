@@ -1095,6 +1095,7 @@
                 // this record is invisible to both.
                 startDate:           date,
                 comment:             comment || 'Missed Check In/Out',
+                assignedBy:          staffName || 'Unknown',
                 createdAt:           new Date().toISOString()
               });
             }
@@ -1329,6 +1330,7 @@
         level:        parseInt(document.getElementById('int-level').value, 10),
         dateTime:     document.getElementById('int-datetime').value,
         comments:     document.getElementById('int-comments').value.trim(),
+        assignedBy:   getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown',
         createdAt:    new Date().toISOString()
       };
 
@@ -1374,6 +1376,7 @@
               <th>Category</th>
               <th>Level</th>
               <th>Comments</th>
+              <th>Assigned By</th>
               <th></th>
             </tr>
           </thead>
@@ -1386,6 +1389,7 @@
                 <td>${r.category}</td>
                 <td><span class="int-level-chip">Level ${r.level}</span></td>
                 <td>${r.comments || '<em style="color:#bbb;">—</em>'}</td>
+                <td>${r.assignedBy || '<em style="color:#bbb;">—</em>'}</td>
                 <td style="white-space:nowrap;">
                   <button onclick="deleteInterventionFromView('${r.id}', '${viewStudentId}')"
                     style="background:none;border:none;cursor:pointer;color:#dc2626;padding:4px 8px;border-radius:4px;font-size:13px;"
@@ -1445,6 +1449,7 @@
       const s = studentsData.find(x => x.id === tmiStudentId);
       const minutes = parseInt(document.getElementById('tmi-minutes').value, 10);
       const reason  = document.getElementById('tmi-reason').value.trim();
+      const staffName = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
 
       const record = {
         interventionType:     'TMI',
@@ -1461,6 +1466,7 @@
         // this record is invisible to both.
         startDate:            new Date().toISOString().substring(0, 10),
         comment:              reason,
+        assignedBy:           staffName,
         createdAt:            new Date().toISOString()
       };
 
