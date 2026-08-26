@@ -60,7 +60,8 @@
             Click any row to see the full T/U breakdown. Dismiss any record that was assigned in error.
             Rows marked <span class="excuse-badge" style="background:#e2e8f0;color:#475569;">Manual</span>
             were assigned directly from the Students page (not calculated from U/T counts), so their
-            U/T columns show — instead of a count.
+            U/T columns show — instead of a count. The date next to that badge is the day the student
+            was marked absent / the record was created.
           </p>
         </div>
       </div>
@@ -458,7 +459,11 @@
         let excuseBadges = '';
         if (hasPE) excuseBadges += `<span class="excuse-badge excuse-badge-PE" title="Parent Excuse on file">PE</span>`;
         if (hasDE) excuseBadges += `<span class="excuse-badge excuse-badge-DE" title="Doctor Excuse on file">DE</span>`;
-        if (manual) excuseBadges += `<span class="excuse-badge" style="background:#e2e8f0;color:#475569;" title="Minutes were assigned directly, not calculated from U/T counts">Manual</span>`;
+        if (manual) {
+          const markedDate = item.startDate ? formatDate(item.startDate) : null;
+          const label = markedDate ? `Manual · ${markedDate}` : 'Manual';
+          excuseBadges += `<span class="excuse-badge" style="background:#e2e8f0;color:#475569;" title="Minutes were assigned directly, not calculated from U/T counts. Date shown is when the student was marked absent / the record was created.">${label}</span>`;
+        }
 
         detailMap[item.id] = buildDetailHtml(tuLogs);
 
