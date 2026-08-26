@@ -389,8 +389,45 @@
         if (t.interventionStatus === 'Closed') return false;
         if (teacher && t.teacherLastName !== teacher) return false;
         if (status  && t.interventionStatus !== status) return false;
-        if (start   && (t.startDate || '') < start) return false;
-        if (end     && (t.startDate || '') > end)   return false;
+
+        if (start || end) {
+          if (isManualRecord(t)) {
+            // No absence events to check — fall back to the record's own date.
+            const d = (t.startDate || '').substring(0, 10);
+            if (start && d < start) return false;
+            if (end   && d > end)   return false;
+          } else {
+            // Filter by whether the record has an ACTUAL qualifying U/T log
+            // inside the selected range — not by t.startDate, which is the
+            // period's start date and can fall inside the range even when
+            // the absence that earned the TMI happened later, if the period
+            // spans more days than the window picked here (e.g. period
+            // 8/19–8/26, filtered to 8/19–8/25: startDate of 8/19 passes,
+            // but the only U was on 8/26, outside what was asked for).
+            const { periodStart, periodEnd } = getPeriodRange(t);
+            const logs = getStudentTULogs(t.studentId, t.chattStateANumber, periodStart, periodEnd);
+            const hasLogInRange = logs.some(l => {
+              const d = (l.date || l.classDate || '').substring(0, 10);
+              if (!d) return false;
+              if (start && d < start) return false;
+              if (end   && d > end)   return false;
+              return true;
+            });
+            if (!hasLogInRange) {
+              // No logs at all for this period (e.g. a served/historical
+              // record whose triggering logs were later corrected or
+              // removed) — fall back to the period start date rather than
+              // just vanishing from every date range.
+              if (!logs.length) {
+                const d = (t.startDate || '').substring(0, 10);
+                if (start && d < start) return false;
+                if (end   && d > end)   return false;
+              } else {
+                return false;
+              }
+            }
+          }
+        }
         return true;
       });
 

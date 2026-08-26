@@ -491,12 +491,34 @@
           // real history, not a zombie — see hasTriggeringLogs() above.
           if (!(intervention.tmiMinutesServed > 0) && !hasTriggeringLogs(intervention)) return;
 
-          // Timezone-safe date comparison using string comparison (YYYY-MM-DD).
-          // Fall back through the date fields used by the different write paths
-          // so TMI assigned from the Students page is not silently skipped.
-          const iDate = (intervention.startDate || intervention.dateTime ||
-                         intervention.createDate || intervention.createdAt || '').substring(0, 10);
-          if (iDate < startDate || iDate > endDate) return;
+          // For auto-created records (tmiPeriodKey set), filter by whether the
+          // record has an ACTUAL qualifying absence inside the selected range —
+          // not by intervention.startDate, which is the period's start date and
+          // can fall inside the range even when the absence that earned the TMI
+          // happened later, if the period spans more days than the window the
+          // user picked (e.g. period 8/19–8/26, user filters to 8/19–8/25: the
+          // record's startDate of 8/19 passes, but the only U was on 8/26).
+          // Manually-assigned records have no absence events, so they still
+          // fall back to their own date fields.
+          let inRange;
+          if (intervention.tmiPeriodKey) {
+            const events = getAbsenceEvents(intervention);
+            if (events.length) {
+              inRange = events.some(e => e.date && e.date >= startDate && e.date <= endDate);
+            } else {
+              // No absence events on file (e.g. a served/historical record
+              // whose triggering logs were later corrected or removed) —
+              // fall back to the period start date so it doesn't disappear
+              // from every date range with no way to find it again.
+              const iDate = (intervention.startDate || '').substring(0, 10);
+              inRange = iDate >= startDate && iDate <= endDate;
+            }
+          } else {
+            const iDate = (intervention.startDate || intervention.dateTime ||
+                           intervention.createDate || intervention.createdAt || '').substring(0, 10);
+            inRange = iDate >= startDate && iDate <= endDate;
+          }
+          if (!inRange) return;
 
           {
             let student = students.find(s => s.id === intervention.studentId);
