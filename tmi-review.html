@@ -58,6 +58,9 @@
             <strong>TMI (Time Management Intervention)</strong> — 1 Unexcused absence = <strong>+120 min</strong>;
             3 Tardies in one week = <strong>+90 min</strong> (max 420 min total). Records are auto-confirmed.
             Click any row to see the full T/U breakdown. Dismiss any record that was assigned in error.
+            Rows marked <span class="excuse-badge" style="background:#e2e8f0;color:#475569;">Manual</span>
+            were assigned directly from the Students page (not calculated from U/T counts), so their
+            U/T columns show — instead of a count.
           </p>
         </div>
       </div>
@@ -200,6 +203,9 @@
     let filteredTMI     = [];
     let classSchedules  = [];
     let allAttendanceLogs = [];
+    let allStudents      = [];
+    let studentsById      = new Map();
+    let studentsByANumber = new Map(); // normalized (trim+uppercase) A# → student
     let tmiTable        = null;
 
     initAuth().then(user => {
@@ -212,15 +218,24 @@
         document.getElementById('loadingSpinner').style.display = 'block';
         document.getElementById('noDataMsg').style.display = 'none';
 
-        const [allInterventions, schedules, attLogs] = await Promise.all([
+        const [allInterventions, schedules, attLogs, students] = await Promise.all([
           getAll('interventionLogs'),
           getAll('classSchedules'),
-          getAll('classAttendanceLogs')
+          getAll('classAttendanceLogs'),
+          getAll('students')
         ]);
 
         allTMI           = allInterventions.filter(i => i.interventionType === 'TMI');
         classSchedules   = schedules;
         allAttendanceLogs = attLogs;
+        allStudents       = students;
+
+        studentsById = new Map(allStudents.map(s => [s.id, s]));
+        studentsByANumber = new Map(
+          allStudents
+            .filter(s => s.chattStateANumber)
+            .map(s => [s.chattStateANumber.trim().toUpperCase(), s])
+        );
 
         populateTeacherDropdown();
         applyFilters();
@@ -230,6 +245,22 @@
         showToast('Error loading TMI data', 'error');
         document.getElementById('loadingSpinner').style.display = 'none';
       }
+    }
+
+    // Resolves a display name from the live student roster instead of trusting
+    // the studentName string frozen on the interventionLogs record. Different
+    // creation paths write that field in different formats — Class Attendance's
+    // auto-assign writes "Lastname, Firstname" while the Students page's manual
+    // and missed-check-in paths write "Firstname Lastname" — so the TMI Review
+    // list ends up with two inconsistent formats mixed together. Falls back to
+    // the stored string only if the student can't be found in the roster.
+    function resolveStudentName(item) {
+      let student = studentsById.get(item.studentId);
+      if (!student && item.chattStateANumber) {
+        student = studentsByANumber.get(item.chattStateANumber.trim().toUpperCase());
+      }
+      if (student) return `${student.lastName || ''}, ${student.firstName || ''}`;
+      return item.studentName || '';
     }
 
     function populateTeacherDropdown() {
@@ -249,17 +280,44 @@
     }
 
     // Returns all T and U attendance logs for a student, sorted by date
-    function getStudentTULogs(studentId, aNum) {
+    function getStudentTULogs(studentId, aNum, periodStart, periodEnd) {
       return allAttendanceLogs
-        .filter(log =>
-          (log.studentId === studentId || log.chattStateANumber === aNum) &&
-          (log.attendanceCode === 'T' || log.attendanceCode === 'U')
-        )
+        .filter(log => {
+          if (!(log.studentId === studentId || log.chattStateANumber === aNum)) return false;
+          if (log.attendanceCode !== 'T' && log.attendanceCode !== 'U') return false;
+          if (periodStart || periodEnd) {
+            const d = (log.date || log.classDate || '').substring(0, 10);
+            if (!d) return false;
+            if (periodStart && d < periodStart) return false;
+            if (periodEnd && d > periodEnd) return false;
+          }
+          return true;
+        })
         .sort((a, b) => {
           const da = a.date || a.classDate || '';
           const db = b.date || b.classDate || '';
           return da.localeCompare(db);
         });
+    }
+
+    // TMI records auto-created from Class Attendance carry a tmiPeriodKey and
+    // are earned strictly by U/T logs in that period — for those, the U/T
+    // columns should reflect just that window, not the student's whole
+    // history. Records with no tmiPeriodKey (manually assigned via the
+    // Students page, or auto-assigned for a missed check-in) aren't derived
+    // from U/T counts at all — the minutes were typed in directly for
+    // whatever reason is in the comment, so counting U/T logs for them isn't
+    // meaningful and showing "0 U / 0 T" next to a nonzero minute count reads
+    // as a bug when it isn't one.
+    function isManualRecord(item) {
+      return !item.tmiPeriodKey;
+    }
+
+    function getPeriodRange(item) {
+      const periodStart = item.startDate || '';
+      const keyParts  = (item.tmiPeriodKey || '').split('__');
+      const periodEnd = keyParts.length ? keyParts[keyParts.length - 1] : '';
+      return { periodStart, periodEnd };
     }
 
     // Look up class time from schedule
@@ -378,7 +436,18 @@
       const detailMap = {};
 
       filteredTMI.forEach(item => {
-        const tuLogs = getStudentTULogs(item.studentId, item.chattStateANumber);
+        const manual = isManualRecord(item);
+        const { periodStart, periodEnd } = getPeriodRange(item);
+        // Manual records (Assign TMI modal, missed check-in) have no period to
+        // scope to and weren't derived from U/T counts in the first place —
+        // show all logs on file in the expandable detail, but don't render a
+        // live count next to the minutes since there's no formula to compare
+        // it against. Auto-created records are scoped to their own period so
+        // the count reflects what actually earned that specific record, not
+        // the student's entire history.
+        const tuLogs = manual
+          ? getStudentTULogs(item.studentId, item.chattStateANumber)
+          : getStudentTULogs(item.studentId, item.chattStateANumber, periodStart, periodEnd);
         const uCount = tuLogs.filter(l => l.attendanceCode === 'U').length;
         const tCount = tuLogs.filter(l => l.attendanceCode === 'T').length;
 
@@ -389,8 +458,16 @@
         let excuseBadges = '';
         if (hasPE) excuseBadges += `<span class="excuse-badge excuse-badge-PE" title="Parent Excuse on file">PE</span>`;
         if (hasDE) excuseBadges += `<span class="excuse-badge excuse-badge-DE" title="Doctor Excuse on file">DE</span>`;
+        if (manual) excuseBadges += `<span class="excuse-badge" style="background:#e2e8f0;color:#475569;" title="Minutes were assigned directly, not calculated from U/T counts">Manual</span>`;
 
         detailMap[item.id] = buildDetailHtml(tuLogs);
+
+        const uCell = manual
+          ? `<span title="Manually assigned — not calculated from U/T counts" style="color:#94a3b8;">—</span>`
+          : `<span class="code-pill-U">${uCount} U</span>`;
+        const tCell = manual
+          ? `<span title="Manually assigned — not calculated from U/T counts" style="color:#94a3b8;">—</span>`
+          : `<span class="code-pill-T">${tCount} T</span>`;
 
         // Main row — green-tinted if any excuse exists
         const tr = document.createElement('tr');
@@ -398,13 +475,13 @@
         tr.dataset.id = item.id;
         tr.innerHTML = `
           <td class="expand-cell"><i class="fas fa-chevron-right"></i></td>
-          <td style="font-weight:600;">${item.studentName || ''}${excuseBadges}</td>
+          <td style="font-weight:600;">${resolveStudentName(item)}${excuseBadges}</td>
           <td>${item.chattStateANumber || ''}</td>
           <td style="text-align:center;">
-            <span class="code-pill-U">${uCount} U</span>
+            ${uCell}
           </td>
           <td style="text-align:center;">
-            <span class="code-pill-T">${tCount} T</span>
+            ${tCell}
           </td>
           <td>
             <input class="tmi-min-input" type="number" min="0" step="5"
