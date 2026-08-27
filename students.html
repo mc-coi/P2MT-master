@@ -1559,13 +1559,15 @@
       try {
         const linkedLogs = await getWhere('classAttendanceLogs', 'sourceInterventionId', '==', interventionId);
         if (!linkedLogs.length) return;
-        const student = studentsData.find(x => x.id === studentId);
+        const student    = studentsData.find(x => x.id === studentId);
+        const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
         for (const log of linkedLogs) {
           await deleteDoc('classAttendanceLogs', log.id);
           await recalcTMIForStudent({
             studentId:         log.studentId || studentId,
             chattStateANumber: log.chattStateANumber || student?.chattStateANumber || '',
             dateStr:           (log.date || log.classDate || '').substring(0, 10),
+            assignedBy,
           });
         }
       } catch (err) {

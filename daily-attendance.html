@@ -656,7 +656,8 @@
       if ((!studentId && !aNumber) || !dateStr) return;
 
       try {
-        const result = await recalcTMIForStudent({ studentId, chattStateANumber: aNumber, studentName: log?.studentName, dateStr });
+        const assignedBy = currentUser?.displayName || currentUser?.email || 'Unknown';
+        const result = await recalcTMIForStudent({ studentId, chattStateANumber: aNumber, studentName: log?.studentName, dateStr, assignedBy });
         if (result.action === 'deleted') {
           showToast(`Removed TMI for ${log.studentName || 'student'} — no unexcused absences remain in that period`, 'info');
         } else if (result.action === 'updated' || result.action === 'created') {

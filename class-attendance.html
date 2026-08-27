@@ -1398,16 +1398,28 @@
               await deleteDoc('interventionLogs', existingTMI.id);
               tmiRemoved.push(`${student.firstName} ${student.lastName}`);
             }
-          } else if (existingTMI.tmiMinutes !== totalMinutes) {
-            await updateDoc('interventionLogs', existingTMI.id, {
-              tmiMinutes:          totalMinutes,
-              tmiMinutesRemaining: newRemaining,
-              reason,
-              updatedAt:           new Date().toISOString()
-            });
-            existingTMI.tmiMinutes          = totalMinutes;
-            existingTMI.tmiMinutesRemaining = newRemaining;
-            tmiUpdated.push(`${student.firstName} ${student.lastName} → ${totalMinutes} min`);
+          } else {
+            const minutesChanged = existingTMI.tmiMinutes !== totalMinutes;
+            // Self-heal records created before "Assigned By" tracking existed:
+            // the first time a blank one gets touched here, stamp whoever's
+            // operating this save. Not necessarily who originally caused it
+            // (that's unrecoverable for older records), but better than an
+            // indefinitely blank field.
+            const needsAssignedBy = !existingTMI.assignedBy;
+            if (minutesChanged || needsAssignedBy) {
+              const updates = {
+                tmiMinutes:          totalMinutes,
+                tmiMinutesRemaining: newRemaining,
+                reason,
+                updatedAt:           new Date().toISOString()
+              };
+              if (needsAssignedBy) updates.assignedBy = currentUser?.displayName || currentUser?.email || 'Unknown';
+              await updateDoc('interventionLogs', existingTMI.id, updates);
+              existingTMI.tmiMinutes          = totalMinutes;
+              existingTMI.tmiMinutesRemaining = newRemaining;
+              if (needsAssignedBy) existingTMI.assignedBy = updates.assignedBy;
+              if (minutesChanged) tmiUpdated.push(`${student.firstName} ${student.lastName} → ${totalMinutes} min`);
+            }
           }
         } else if (totalMinutes > 0) {
           // Create a new record scoped to this period

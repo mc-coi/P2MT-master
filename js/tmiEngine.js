@@ -109,15 +109,28 @@ export async function recalcTMIForStudent(context) {
       await deleteDoc('interventionLogs', existingTMI.id);
       return { action: 'deleted' };
     }
-    if (existingTMI.tmiMinutes !== totalMinutes) {
+
+    const minutesChanged = existingTMI.tmiMinutes !== totalMinutes;
+    // Self-heal records created before "Assigned By" tracking existed (or
+    // created some other way without it): the first time we touch a record
+    // that's missing it, stamp whoever's responsible for this recalculation.
+    // This attributes the record to whoever happened to trigger the next
+    // recalculation, not necessarily who originally caused it — the original
+    // assigner is unrecoverable for those older records — but it's better
+    // than leaving "Assigned By" blank indefinitely.
+    const needsAssignedBy = !existingTMI.assignedBy && !!context.assignedBy;
+
+    if (minutesChanged || needsAssignedBy) {
       const newRemaining = Math.max(0, totalMinutes - (existingTMI.tmiMinutesServed || 0));
-      await updateDoc('interventionLogs', existingTMI.id, {
+      const updates = {
         tmiMinutes: totalMinutes,
         tmiMinutesRemaining: newRemaining,
         reason,
         updatedAt: new Date().toISOString(),
-      });
-      return { action: 'updated', minutes: totalMinutes };
+      };
+      if (needsAssignedBy) updates.assignedBy = context.assignedBy;
+      await updateDoc('interventionLogs', existingTMI.id, updates);
+      return { action: 'updated', minutes: totalMinutes, backfilledAssignedBy: needsAssignedBy };
     }
     return { action: 'none' };
   } else if (totalMinutes > 0) {
