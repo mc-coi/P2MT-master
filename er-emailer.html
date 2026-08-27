@@ -2039,8 +2039,9 @@
       const cc            = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
       const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
 
-      const mailtoUrl = `mailto:${toAddr}?${cc ? cc.slice(1) + '&' : ''}subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
-      window.location.href = mailtoUrl;
+      // Open in Outlook Web compose (avoids Mail.app / no-SMTP-server errors)
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${toAddr}${cc.replace('&cc=','&cc=')}&subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
+      window.open(outlookUrl, '_blank');
     };
 
     window.downloadMailMerge = function() {
@@ -2344,8 +2345,9 @@
       const cc            = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
       const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
 
-      const mailtoUrl = `mailto:${toAddr}?${cc ? cc.slice(1) + '&' : ''}subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
-      window.location.href = mailtoUrl;
+      // Open in Outlook Web compose
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${toAddr}${cc.replace('&cc=','&cc=')}&subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
+      window.open(outlookUrl, '_blank');
     };
 
     window.downloadCheckoutMailMerge = function() {

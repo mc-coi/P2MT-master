@@ -799,8 +799,8 @@
       const subject   = mergeLabFields(tmpl.subject || tmpl.emailSubject || '', schedule, sessions);
       const bodyText  = document.getElementById('lab-email-preview').textContent;
       const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
-      const mailtoUrl = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
-      window.location.href = mailtoUrl;
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      window.open(outlookUrl, '_blank');
     };
 
     window.openViewSchedule = async function(id) {
