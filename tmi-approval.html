@@ -246,7 +246,21 @@
     let singleNotifEmail = '';  // email address for the currently-shown single notification
 
     // ── Shared CSV helpers ────────────────────────────────────────────────────────
-    function tmiCsvCell(v) { return `"${String(v ?? '').replace(/"/g, '""')}"`; }
+    // Word's Mail Merge reads this CSV as a plain line-based text file, not a
+    // real quote-aware CSV parser — a literal line break INSIDE a quoted field
+    // (which the Subject/Body values are full of, since they're multi-paragraph
+    // templates) gets treated as if it ended the record right there, shifting
+    // every field after it out of alignment. That's what was corrupting the
+    // Email column and producing "Record 1 could not be mailed because it
+    // contained a bad mail address" even though the address itself was fine.
+    // Replacing real line breaks with a vertical tab (U+000B) avoids that: it's
+    // not a line/record separator to Word's reader, so the row stays intact,
+    // but Word still renders it as a line break once the merge fields land in
+    // the document, so the email doesn't come out as one giant paragraph.
+    function tmiCsvCell(v) {
+      const normalized = String(v ?? '').replace(/\r\n|\r|\n/g, '\v');
+      return `"${normalized.replace(/"/g, '""')}"`;
+    }
 
     // Convert template body (HTML or plain text) to HTML for the .eml
     function bodyToHtml(raw) {
