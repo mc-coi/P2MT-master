@@ -641,6 +641,93 @@
       if (match) document.getElementById('add-anum').value = match.chattStateANumber || '';
     });
 
+    // ── TMI reconciliation after an attendance-code edit ────────────────────
+    // Mirrors the recalculation class-attendance.html's checkAndCreateTMIForSection
+    // runs after every save, scoped to just the one student/period affected by
+    // this edit. Needed because editing a record's code here (e.g. U -> E)
+    // otherwise leaves any TMI record that 'U' earned untouched — this page
+    // doesn't run the class-attendance save flow that normally catches that.
+    function tmiWeekWindow(dateStr) {
+      const [yr, mo, dy] = dateStr.split('-').map(Number);
+      const dt = new Date(yr, mo - 1, dy);
+      const dow = dt.getDay();
+      const toMon = (dow === 0) ? -6 : 1 - dow;
+      const mon = new Date(dt); mon.setDate(dt.getDate() + toMon);
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      const pad = n => String(n).padStart(2, '0');
+      const toStr = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
+      const windowStart = toStr(mon), windowEnd = toStr(sun);
+      return { windowStart, windowEnd, periodKey: `week__${windowStart}__${windowEnd}` };
+    }
+
+    function tmiWindowFor(dateStr, schoolCalendar) {
+      const sorted = schoolCalendar.filter(c => c.classDate).sort((a, b) => a.classDate.localeCompare(b.classDate));
+      const starts = sorted.filter(c => c.startTmiPeriod && c.classDate <= dateStr);
+      if (starts.length) {
+        const windowStart = starts[starts.length - 1].classDate;
+        const ends = sorted.filter(c => c.tmiDay && c.classDate > windowStart);
+        if (ends.length && dateStr <= ends[0].classDate) {
+          return { windowStart, windowEnd: ends[0].classDate, periodKey: `${windowStart}__${ends[0].classDate}` };
+        }
+      }
+      return tmiWeekWindow(dateStr);
+    }
+
+    async function recalcTMIForRecord(log) {
+      const studentId = log?.studentId || null;
+      const aNumber   = (log?.chattStateANumber || '').trim();
+      const dateStr   = (log?.date || log?.classDate || '').substring(0, 10);
+      if ((!studentId && !aNumber) || !dateStr) return;
+
+      try {
+        const [schoolCalendar, interventions, allCAL] = await Promise.all([
+          getAll('schoolCalendar'),
+          getAll('interventionLogs'),
+          getAll('classAttendanceLogs'),
+        ]);
+
+        const { windowStart, windowEnd, periodKey } = tmiWindowFor(dateStr, schoolCalendar);
+
+        const periodLogs = allCAL.filter(l => {
+          const match = studentId
+            ? (l.studentId === studentId || (aNumber && (l.chattStateANumber || '').trim() === aNumber))
+            : ((l.chattStateANumber || '').trim() === aNumber);
+          if (!match) return false;
+          const d = (l.date || l.classDate || '').substring(0, 10);
+          return d >= windowStart && d <= windowEnd;
+        });
+
+        const uCount        = periodLogs.filter(l => l.attendanceCode === 'U').length;
+        const tCount         = periodLogs.filter(l => l.attendanceCode === 'T').length;
+        const overrideCount  = periodLogs.filter(l => l.assignTmi && l.attendanceCode !== 'U').length;
+        const tardyGroups    = Math.floor(tCount / 3);
+        const totalMinutes   = Math.min((uCount * 120) + (overrideCount * 120) + (tardyGroups * 90), 240);
+
+        const existingTMI = interventions.find(i =>
+          i.interventionType === 'TMI' && i.tmiPeriodKey === periodKey &&
+          (studentId ? i.studentId === studentId : (i.chattStateANumber || '').trim() === aNumber)
+        );
+        if (!existingTMI) return; // nothing to reconcile
+
+        const alreadyServed = (existingTMI.tmiMinutesServed || 0) > 0;
+        if (totalMinutes === 0 && !alreadyServed) {
+          await deleteDoc('interventionLogs', existingTMI.id);
+          showToast(`Removed TMI for ${log.studentName || 'student'} — no unexcused absences remain in that period`, 'info');
+        } else if (existingTMI.tmiMinutes !== totalMinutes) {
+          const newRemaining = Math.max(0, totalMinutes - (existingTMI.tmiMinutesServed || 0));
+          await updateDoc('interventionLogs', existingTMI.id, {
+            tmiMinutes:          totalMinutes,
+            tmiMinutesRemaining: newRemaining,
+            updatedAt:           new Date().toISOString()
+          });
+          showToast(`Updated TMI minutes for ${log.studentName || 'student'} to reflect the correction`, 'info');
+        }
+      } catch (err) {
+        // Non-fatal — the attendance-code edit itself already succeeded.
+        console.error('Error reconciling TMI after attendance edit:', err);
+      }
+    }
+
     window.saveNewRecord = async function() {
       const editId      = document.getElementById('edit-record-id').value;
       const studentName = document.getElementById('add-student-name').value.trim();
@@ -679,6 +766,7 @@
           comment:        comment   || '',
           updatedAt:      new Date().toISOString(),
         };
+        const priorCode = log?.attendanceCode;
         try {
           await updateDoc(coll, editId, changes);
           if (log) Object.assign(log, changes);
@@ -686,6 +774,13 @@
           applyFilters();
           closeAddRecordModal();
           showToast('Record updated', 'success');
+          // If this came from the Class Attendance grid and the code actually
+          // changed, reconcile any TMI record tied to this student/period —
+          // e.g. correcting a 'U' to an 'E' should shrink or clear the TMI
+          // that 'U' had earned, not leave it standing.
+          if (coll === 'classAttendanceLogs' && priorCode !== code) {
+            await recalcTMIForRecord(log || changes);
+          }
         } catch(e) {
           console.error(e);
           showToast('Error updating record', 'error');
