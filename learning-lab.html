@@ -253,6 +253,29 @@
     </div>
   </div>
 
+  <!-- Email Student Modal -->
+  <div id="labEmailModal" class="w3-modal" onclick="if(event.target===this)closeLabEmailModal()">
+    <div class="w3-modal-content w3-card" style="max-width:660px;">
+      <button class="modal-close-btn" onclick="closeLabEmailModal()">×</button>
+      <div class="modal-body">
+        <h2><i class="fas fa-envelope"></i> Email Student</h2>
+        <p style="margin:0 0 12px;"><b>To:</b> <span id="lab-email-student-name" style="color:#2563eb;"></span></p>
+        <label class="form-label">Select Template</label>
+        <select id="lab-email-template-select" class="w3-select w3-border w3-margin-bottom" onchange="previewLabEmailTemplate()">
+          <option value="">— Choose a template —</option>
+        </select>
+        <label class="form-label">Preview</label>
+        <div id="lab-email-preview" class="w3-panel w3-border" style="min-height:120px;white-space:pre-wrap;font-size:13px;background:#f8fafc;color:#1e293b;border-radius:6px;padding:12px;">
+          Select a template above to preview the email.
+        </div>
+        <div class="w3-row w3-margin-top">
+          <button class="w3-button btn-primary w3-half" onclick="openLabEmailInOutlook()"><i class="fas fa-envelope"></i> Open in Outlook</button>
+          <button class="w3-button btn-danger w3-half" onclick="closeLabEmailModal()"><i class="fas fa-times"></i> Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Delete confirmation handled by confirmTypedDelete() in utils.js -->
 
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
@@ -283,10 +306,12 @@
 
     let allSchedules = [];
     let allStudents = [];
+    let templates = [];
     let filteredSchedules = [];
     let currentEditId = null;
     let currentDeleteIds = [];
     let sessionStates = { 1: true, 2: false, 3: false, 4: false, 5: false };
+    let labEmailScheduleId = null; // the row currently open in the Email Student modal
 
     initAuth().then(user => {
       if (!user) window.location.href = 'index.html';
@@ -301,6 +326,7 @@
         
         allSchedules = await getAll('classSchedules');
         allStudents = await getAll('students');
+        try { templates = await getAll('p2mtTemplates'); } catch(e) { templates = []; }
 
         // Populate teacher dropdown from unique teacher names already in classSchedules
         const teachers = [...new Set(allSchedules.map(s => s.teacherLastName).filter(Boolean))].sort();
@@ -338,6 +364,7 @@
             <td>
               <button class="w3-button btn-primary w3-small" onclick="openEditLabModal('${schedule.id}')"><i class="fas fa-edit"></i></button>
               <button class="w3-button btn-primary w3-small" onclick="openViewSchedule('${schedule.id}')"><i class="fas fa-eye"></i></button>
+              <button class="w3-button w3-small" style="background:#0ea5e9;color:white;" onclick="openLabEmailModal('${schedule.id}')" title="Email student"><i class="fas fa-envelope"></i></button>
               <button class="w3-button btn-danger w3-small" onclick="openDeleteLabModal('${schedule.id}')"><i class="fas fa-trash"></i></button>
             </td>
           </tr>
@@ -617,14 +644,163 @@
         }
 
         showToast('Learning lab saved successfully', 'success');
+        const wasNewAssignment = !currentEditId;
         closeLabModal();
         allSchedules = await getAll('classSchedules');
         filteredSchedules = allSchedules.filter(s => s.learningLab);
         renderTable();
+
+        // Offer to notify the student right away — only for a brand-new
+        // assignment (not every edit), and only if we actually created a
+        // session to attach the email to.
+        if (wasNewAssignment && createdSchedules.length && confirm(`Send ${student.firstName} ${student.lastName} an email notifying them of their Learning Lab schedule?`)) {
+          window.openLabEmailModal(createdSchedules[0].id);
+        }
       } catch (error) {
         console.error('Save error:', error);
         showToast('Error saving learning lab', 'error');
       }
+    };
+
+    // ── Email Student (Learning Lab notification) ───────────────────────────────
+
+    // Same grouping used by "View Schedule" / delete — one Learning Lab
+    // assignment can have up to 5 sessions, each saved as its own
+    // classSchedules doc. Group them back together so the notification email
+    // can list every session, not just the one row that was clicked.
+    function getLabSiblingSessions(id) {
+      const base = allSchedules.find(x => x.id === id);
+      if (!base) return [];
+      return allSchedules.filter(s =>
+        s.learningLab &&
+        s.studentId === base.studentId &&
+        s.schoolYear === base.schoolYear &&
+        s.className === base.className
+      );
+    }
+
+    function fmt12(t) {
+      if (!t) return '';
+      const [hStr, mStr] = t.split(':');
+      let h = parseInt(hStr, 10);
+      if (Number.isNaN(h)) return t;
+      const m = mStr || '00';
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return `${h}:${m} ${ampm}`;
+    }
+
+    function bodyToPlainText(raw) {
+      if (!raw) return '';
+      if (!/<[a-z][\s\S]*>/i.test(raw)) return raw;  // already plain text
+      return raw
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>/gi, '\n\n')
+        .replace(/<\/div>/gi, '\n')
+        .replace(/<\/li>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&nbsp;/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+    }
+
+    // Renders a {{#labSessions}}...{{/labSessions}} block once per session,
+    // using that session's own days/start/end time inside the block. Must run
+    // BEFORE the flat single-value replacements in mergeLabFields so the
+    // repeated lines aren't double-processed.
+    function renderLabSessionLoop(text, sessions) {
+      return (text || '').replace(/\{\{#labSessions\}\}([\s\S]*?)\{\{\/labSessions\}\}/gi, (_, inner) => {
+        if (!sessions || !sessions.length) return '';
+        return sessions.map(s => inner
+          .replace(/\{\{labDays\}\}/gi, (s.classDays || []).join(', '))
+          .replace(/\{\{labStartTime\}\}/gi, fmt12(s.startTime))
+          .replace(/\{\{labEndTime\}\}/gi, fmt12(s.endTime))
+        ).join('');
+      });
+    }
+
+    // Fills {{placeholders}} in a template string using one Learning Lab
+    // assignment (the clicked row's `schedule`, plus all of its sibling
+    // `sessions`). Used by both the preview and the actual send so they can
+    // never drift apart.
+    function mergeLabFields(text, schedule, sessions) {
+      const student = allStudents.find(s => s.id === schedule.studentId);
+      const studentName  = schedule.studentName || (student ? `${student.firstName} ${student.lastName}` : '');
+      const studentEmail = student?.email || student?.studentEmail || '';
+      const labSessionSummary = (sessions || [])
+        .map(s => `${(s.classDays || []).join('/')} ${fmt12(s.startTime)}–${fmt12(s.endTime)}`)
+        .join('; ');
+
+      const looped = renderLabSessionLoop(text, sessions);
+      return looped
+        .replace(/\{\{studentName\}\}/gi, studentName)
+        .replace(/\{\{studentEmail\}\}/gi, studentEmail)
+        .replace(/\{\{labClassName\}\}/gi, schedule.className || '')
+        .replace(/\{\{labTeacherLastName\}\}/gi, schedule.teacherLastName || '')
+        .replace(/\{\{labCampus\}\}/gi, schedule.campus || '')
+        .replace(/\{\{labSchoolYear\}\}/gi, schedule.schoolYear || '')
+        .replace(/\{\{labSemester\}\}/gi, schedule.semester || '')
+        .replace(/\{\{labStartDate\}\}/gi, formatDate(schedule.startDate || ''))
+        .replace(/\{\{labEndDate\}\}/gi, formatDate(schedule.endDate || ''))
+        .replace(/\{\{labSessionSummary\}\}/gi, labSessionSummary);
+    }
+
+    window.openLabEmailModal = function(id) {
+      const schedule = allSchedules.find(s => s.id === id);
+      if (!schedule) { showToast('Could not find that learning lab record', 'error'); return; }
+      labEmailScheduleId = id;
+
+      document.getElementById('lab-email-student-name').textContent = schedule.studentName || '';
+      document.getElementById('lab-email-preview').textContent = 'Select a template above to preview the email.';
+
+      const sel = document.getElementById('lab-email-template-select');
+      sel.innerHTML = '<option value="">— Choose a template —</option>';
+      templates.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value = t.id;
+        opt.textContent = t.name || t.templateName || '(untitled)';
+        sel.appendChild(opt);
+      });
+
+      document.getElementById('labEmailModal').style.display = 'block';
+    };
+
+    window.closeLabEmailModal = function() {
+      document.getElementById('labEmailModal').style.display = 'none';
+      labEmailScheduleId = null;
+    };
+
+    window.previewLabEmailTemplate = function() {
+      const sel = document.getElementById('lab-email-template-select');
+      const tmpl = templates.find(t => t.id === sel.value);
+      const preview = document.getElementById('lab-email-preview');
+      if (!tmpl || !labEmailScheduleId) {
+        preview.textContent = 'Select a template above to preview the email.';
+        return;
+      }
+      const schedule = allSchedules.find(s => s.id === labEmailScheduleId);
+      const sessions = getLabSiblingSessions(labEmailScheduleId);
+      preview.textContent = mergeLabFields(tmpl.body || tmpl.templateContent || '', schedule, sessions);
+    };
+
+    window.openLabEmailInOutlook = function() {
+      const sel  = document.getElementById('lab-email-template-select');
+      const tmpl = templates.find(t => t.id === sel.value);
+      if (!tmpl) { showToast('Select a template first', 'warning'); return; }
+      if (!labEmailScheduleId) { showToast('No student selected', 'error'); return; }
+
+      const schedule = allSchedules.find(s => s.id === labEmailScheduleId);
+      const student  = allStudents.find(s => s.id === schedule?.studentId);
+      const toEmail  = student?.email || student?.studentEmail || '';
+      if (!toEmail) { showToast('No email address found for this student', 'warning'); return; }
+
+      const sessions  = getLabSiblingSessions(labEmailScheduleId);
+      const subject   = mergeLabFields(tmpl.subject || tmpl.emailSubject || '', schedule, sessions);
+      const bodyText  = document.getElementById('lab-email-preview').textContent;
+      const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      window.open(outlookUrl, '_blank');
     };
 
     window.openViewSchedule = async function(id) {

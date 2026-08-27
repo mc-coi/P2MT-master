@@ -387,6 +387,23 @@
 {{absenceDate}} || {{className}} || {{teacherLastName}}
 {{/absences}}</pre>
           </details>
+          <details style="margin-top:6px;">
+            <summary style="cursor:pointer;font-weight:600;color:#1e3a8a;">Learning Lab: repeat a line for every session ▾</summary>
+            <div style="margin-top:6px;">
+              A Learning Lab assignment can have up to 5 sessions (e.g. Mon/Wed at
+              one time, Fri at another). <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">{{labSessionSummary}}</code>
+              lists them all on one line, or wrap a line in
+              <code style="background:#dbeafe;padding:1px 4px;border-radius:3px;">{{#labSessions}} … {{/labSessions}}</code> —
+              it repeats once per session, using these field names for that specific session:
+            </div>
+            <pre style="margin:8px 0 0;font-size:11px;background:#dbeafe;padding:8px;border-radius:6px;white-space:pre-wrap;font-family:monospace;color:#1e3a8a;">You have been assigned to Learning Lab.
+
+{{#labSessions}}
+{{labDays}} || {{labStartTime}} - {{labEndTime}}
+{{/labSessions}}
+
+Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
+          </details>
         </div>
         <!-- Tab bar: Edit / Preview -->
         <div style="display:flex;gap:0;margin-bottom:-1px;position:relative;z-index:1;">
@@ -505,6 +522,19 @@
       { key: 'tmiServed',      label: 'TMI Minutes Served',   group: 'TMI' },
       { key: 'tmiRemaining',   label: 'TMI Minutes Remaining',group: 'TMI' },
       { key: 'tmiDate',        label: 'TMI Session Date',     group: 'TMI' },
+      // Learning Lab Manager merges these when a template is used from the
+      // "Email Student" button there (learning-lab.html). A student can have
+      // up to 5 sessions in one assignment — labSessionSummary auto-lists
+      // all of them on one line, or use the {{#labSessions}} loop (see the
+      // syntax help below) to give each session its own line.
+      { key: 'labClassName',       label: 'Class Name (Lab)',      group: 'Learning Lab' },
+      { key: 'labTeacherLastName', label: 'Teacher (Lab)',         group: 'Learning Lab' },
+      { key: 'labCampus',          label: 'Campus (Lab)',          group: 'Learning Lab' },
+      { key: 'labSchoolYear',      label: 'School Year (Lab)',     group: 'Learning Lab' },
+      { key: 'labSemester',        label: 'Semester (Lab)',        group: 'Learning Lab' },
+      { key: 'labStartDate',       label: 'Start Date (Lab)',      group: 'Learning Lab' },
+      { key: 'labEndDate',         label: 'End Date (Lab)',        group: 'Learning Lab' },
+      { key: 'labSessionSummary',  label: 'All Sessions (one line)', group: 'Learning Lab' },
     ];
 
     // ── Boot ─────────────────────────────────────────────────────────────────────
