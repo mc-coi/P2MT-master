@@ -436,6 +436,13 @@
     let currentDate    = null;
     let savedSections  = new Set(); // idx values of sections saved this session
 
+    // In-flight guards — belt-and-suspenders against duplicate attendance logs
+    // if Save is triggered twice before the first save's data reload lands
+    // (the disabled-button state is the primary guard; these back it up in
+    // case a button element is ever missing or a save is triggered another way).
+    let sectionSaveInFlight = new Set(); // idx values currently saving
+    let allSaveInFlight     = false;
+
     let absenceTable = null;
 
     // ── Boot ─────────────────────────────────────────────────────────────────
@@ -1063,6 +1070,14 @@
         return;
       }
 
+      // Guard against duplicate attendance logs if Save is somehow triggered
+      // again (e.g. a stray second click) before this save's data reload has
+      // landed — without this, buildSavePromises() would look up existing
+      // logs against a stale in-memory snapshot, find nothing yet, and create
+      // a second log for the same student/class/day instead of updating.
+      if (sectionSaveInFlight.has(idx)) return;
+      sectionSaveInFlight.add(idx);
+
       // Immediate feedback the instant the click registers — don't wait on the
       // network round trip. This is the part that was missing: previously the
       // button gave no visual response until the whole save (including the
@@ -1096,6 +1111,8 @@
             saveBtn.innerHTML = '<i class="fas fa-save"></i> Save';
           }, 4000);
         }
+      } finally {
+        sectionSaveInFlight.delete(idx);
       }
     }
 
@@ -1152,6 +1169,10 @@
         return;
       }
 
+      // Same duplicate-log guard as saveSection() — see comment there.
+      if (allSaveInFlight) return;
+      allSaveInFlight = true;
+
       const totalStudents = sections.reduce((sum, s) => sum + s.students.length, 0);
       const allBtn = document.getElementById('save-all-btn');
       if (allBtn) {
@@ -1179,6 +1200,7 @@
         console.error('Error saving all sections:', error);
         showToast('Error saving attendance', 'error');
       } finally {
+        allSaveInFlight = false;
         if (allBtn) {
           allBtn.disabled = false;
           allBtn.innerHTML = '<i class="fas fa-save"></i> Save All Classes';

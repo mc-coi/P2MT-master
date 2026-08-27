@@ -262,6 +262,7 @@
     let allLabLogs  = [];   // classAttendanceLogs with learningLab:true
     let filtered    = [];
     let attTable    = null;
+    let recordSaveInFlight = false; // guards against duplicate records from a double-click on Save
 
     initAuth().then(user => {
       currentUser = user;
@@ -655,6 +656,16 @@
         return;
       }
 
+      // Guard against a double-click (or double-tap) creating two records for
+      // the same student/day — unlike the class-attendance grid, this modal's
+      // "add" path has no existing-record lookup, so without this guard a
+      // fast second click would addDoc() twice.
+      if (recordSaveInFlight) return;
+      recordSaveInFlight = true;
+      const saveBtn = document.getElementById('add-record-save-btn');
+      if (saveBtn) saveBtn.disabled = true;
+
+      try {
       if (editId) {
         // ── EDIT existing record ──────────────────────────────────────────────
         const log  = allLogs.find(l => l.id === editId);
@@ -705,6 +716,10 @@
           console.error(e);
           showToast('Error saving record', 'error');
         }
+      }
+      } finally {
+        recordSaveInFlight = false;
+        if (saveBtn) saveBtn.disabled = false;
       }
     };
 
