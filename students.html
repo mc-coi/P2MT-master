@@ -201,8 +201,30 @@
 
     <!-- ===== INTERVENTIONS TAB ===== -->
     <div id="tab-interventions" class="tab-content">
-      <div style="margin-bottom:14px;">
-        <input type="text" id="int-search" class="w3-input w3-border" placeholder="Search student name..." style="max-width:360px;" oninput="renderInterventionList()">
+      <div class="w3-row" style="margin-bottom:14px;">
+        <div class="w3-col m4 w3-padding-small" style="padding-left:0;">
+          <input type="text" id="int-search" class="w3-input w3-border" placeholder="Search student name..." oninput="renderInterventionList()">
+        </div>
+        <div class="w3-col m3 w3-padding-small">
+          <select id="int-filter-category" class="w3-select w3-border" onchange="updateIntFilterLevelOptions(); renderInterventionList();">
+            <option value="">Filter by Intervention — All Categories</option>
+            <option value="Attendance">Attendance</option>
+            <option value="Bullying/Harassment">Bullying/Harassment</option>
+            <option value="Conduct">Conduct</option>
+            <option value="Academic">Academic</option>
+            <option value="Dress Code">Dress Code</option>
+          </select>
+        </div>
+        <div class="w3-col m2 w3-padding-small">
+          <select id="int-filter-level" class="w3-select w3-border" onchange="renderInterventionList()">
+            <option value="">All Levels</option>
+          </select>
+        </div>
+        <div class="w3-col m2 w3-padding-small">
+          <button type="button" class="w3-button btn-ghost" style="width:100%;" onclick="clearInterventionFilters()">
+            <i class="fas fa-times"></i> Clear
+          </button>
+        </div>
       </div>
       <div id="interventionListWrap">
         <div class="int-empty" id="int-loading"><i class="fas fa-spinner fa-spin"></i> Loading…</div>
@@ -571,6 +593,8 @@
     // Intervention globals
     window.switchTab = switchTab;
     window.renderInterventionList = renderInterventionList;
+    window.updateIntFilterLevelOptions = updateIntFilterLevelOptions;
+    window.clearInterventionFilters = clearInterventionFilters;
     window.openAssignModal = openAssignModal;
     window.closeAssignModal = closeAssignModal;
     window.saveIntervention = saveIntervention;
@@ -1245,23 +1269,64 @@
       }
     }
 
+    // Repopulates the Level dropdown in the Interventions filter bar to match
+    // whatever Category is selected (same cascading pattern as the Assign
+    // Intervention modal's updateLevelOptions) — levels aren't numbered the
+    // same across categories, so "All Categories" only ever offers "All Levels".
+    function updateIntFilterLevelOptions() {
+      const cat = document.getElementById('int-filter-category').value;
+      const sel = document.getElementById('int-filter-level');
+      const prevLevel = sel.value;
+      const maxLevel = INTERVENTION_LEVELS[cat] || 0;
+      if (!cat) {
+        sel.innerHTML = '<option value="">All Levels</option>';
+        return;
+      }
+      sel.innerHTML = '<option value="">All Levels</option>' +
+        Array.from({ length: maxLevel }, (_, i) => `<option value="${i + 1}">Level ${i + 1}</option>`).join('');
+      // Keep the previously chosen level selected if it's still valid for the new category
+      if (prevLevel && Number(prevLevel) <= maxLevel) sel.value = prevLevel;
+    }
+
+    function clearInterventionFilters() {
+      document.getElementById('int-search').value = '';
+      document.getElementById('int-filter-category').value = '';
+      updateIntFilterLevelOptions();
+      renderInterventionList();
+    }
+
     function renderInterventionList() {
-      const search = (document.getElementById('int-search')?.value || '').toLowerCase();
+      const search   = (document.getElementById('int-search')?.value || '').toLowerCase();
+      const category = document.getElementById('int-filter-category')?.value || '';
+      const level    = document.getElementById('int-filter-level')?.value || '';
       const wrap = document.getElementById('interventionListWrap');
+
+      // Which of a student's intervention records satisfy the selected
+      // Category/Level filter (both optional — Level only applies within
+      // whichever Category is chosen).
+      const matchesFilter = r => (!category || r.category === category) && (!level || r.level === Number(level));
+      const filterActive  = !!(category || level);
 
       const filtered = studentsData.filter(s => {
         const name = `${s.firstName} ${s.lastName}`.toLowerCase();
-        return !search || name.includes(search);
+        if (search && !name.includes(search)) return false;
+        if (filterActive && !interventionsData.some(r => r.studentId === s.id && matchesFilter(r))) return false;
+        return true;
       }).sort((a, b) => a.lastName.localeCompare(b.lastName));
 
       if (filtered.length === 0) {
-        wrap.innerHTML = '<div class="int-empty">No students found.</div>';
+        wrap.innerHTML = `<div class="int-empty">No students found${filterActive ? ' matching that intervention filter' : ''}.</div>`;
         return;
       }
 
       wrap.innerHTML = filtered.map(s => {
-        const count = interventionsData.filter(r => r.studentId === s.id).length;
-        const badge = count > 0 ? `<span class="int-badge">${count} record${count > 1 ? 's' : ''}</span>` : '';
+        const studentRecords = interventionsData.filter(r => r.studentId === s.id);
+        const count = studentRecords.length;
+        let badge = count > 0 ? `<span class="int-badge">${count} record${count !== 1 ? 's' : ''}</span>` : '';
+        if (filterActive) {
+          const matchCount = studentRecords.filter(matchesFilter).length;
+          badge += ` <span class="int-badge" style="background:#fef3c7;color:#92400e;">${matchCount} matching</span>`;
+        }
         return `
           <div class="int-student-row">
             <div>
