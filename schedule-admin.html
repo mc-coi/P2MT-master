@@ -254,6 +254,21 @@
         </button>
       </div>
       <div id="ml-scan-results" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
+      <h3><i class="fas fa-clock" style="color:#d97706;"></i> Recalculate All TMI</h3>
+      <p class="w3-text-grey">
+        Re-runs the TMI recalculation for every current (not-yet-served) TMI record against today's
+        attendance logs — fixes records left stuck at stale minutes after a U/T/Tardy was deleted or
+        corrected somewhere that didn't trigger a recalculation on its own (e.g. a Dress Code tardy
+        removed directly from Daily Attendance). Also backfills a blank "Assigned By" where possible.
+        Safe to run any time; records with minutes already served are preserved, never deleted.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-primary" onclick="recalculateAllTMI()"><i class="fas fa-sync"></i> Recalculate Now</button>
+      </div>
+      <div id="tmi-recalc-results" style="margin-top:16px;"></div>
     </div>
 
     <!-- TAB 4: Delete Schedule -->
@@ -353,6 +368,7 @@
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
+    import { recalcTMIForStudent } from './js/tmiEngine.js';
 
     window.getAll = getAll;
     window.getById = getById;
@@ -1700,6 +1716,75 @@
         console.error('Error sweeping orphaned TMI records:', err);
       }
     }
+
+    // Re-runs the shared TMI recalculation engine (js/tmiEngine.js) against
+    // every current auto-calculated TMI record (interventionType 'TMI' with
+    // a tmiPeriodKey — flat manually-assigned TMI records have no
+    // tmiPeriodKey and are deliberately left untouched, since they aren't
+    // tied to U/T counts at all).
+    //
+    // Unlike sweepOrphanedTMI above (which only checks whether ANY
+    // qualifying log still exists for a student), this recomputes the exact
+    // minutes owed from scratch — so it correctly shrinks a record from,
+    // say, 90 minutes down to 0 when only 1 of 3 tardies remains, not only
+    // when every bit of basis is completely gone. This is the fix for TMI
+    // getting stuck at stale minutes after a U/T/Tardy was deleted or
+    // corrected somewhere that didn't trigger its own recalculation.
+    // Existing "Assigned By" values are never overwritten; missing ones are
+    // backfilled with whoever runs this tool.
+    window.recalculateAllTMI = async function() {
+      const resultsEl = document.getElementById('tmi-recalc-results');
+      resultsEl.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Recalculating…</div>';
+      try {
+        const allTMI = await getAll('interventionLogs');
+        const candidates = allTMI.filter(iv => iv.interventionType === 'TMI' && iv.tmiPeriodKey);
+        if (!candidates.length) {
+          resultsEl.innerHTML = '<p class="w3-text-grey">No auto-calculated TMI records found.</p>';
+          return;
+        }
+
+        const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
+        let updated = 0, deleted = 0, backfilled = 0, unchanged = 0;
+        const details = [];
+
+        for (const iv of candidates) {
+          // Any date within the record's own period works — startDate (the
+          // period's first day) is always set for these auto-calculated records.
+          const dateStr = iv.startDate || '';
+          if (!dateStr) { unchanged++; continue; }
+
+          const result = await recalcTMIForStudent({
+            studentId:         iv.studentId,
+            chattStateANumber: iv.chattStateANumber || '',
+            studentName:       iv.studentName || '',
+            dateStr,
+            assignedBy,
+          });
+
+          if (result.action === 'deleted') {
+            deleted++;
+            details.push(`${iv.studentName || iv.studentId || iv.chattStateANumber}: cleared — no U/T basis remains`);
+          } else if (result.action === 'updated') {
+            updated++;
+            if (result.backfilledAssignedBy) backfilled++;
+            details.push(`${iv.studentName || iv.studentId || iv.chattStateANumber}: → ${result.minutes} min${result.backfilledAssignedBy ? ' (Assigned By backfilled)' : ''}`);
+          } else {
+            unchanged++;
+          }
+        }
+
+        resultsEl.innerHTML = `
+          <p><strong>${candidates.length}</strong> TMI record${candidates.length !== 1 ? 's' : ''} checked —
+          ${updated} updated, ${deleted} cleared, ${backfilled} "Assigned By" backfilled, ${unchanged} already correct.</p>
+          ${details.length ? `<ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>` : ''}
+        `;
+        showToast(`TMI recalculation complete — ${updated} updated, ${deleted} cleared`, 'success');
+      } catch (err) {
+        console.error('Error recalculating TMI:', err);
+        resultsEl.innerHTML = '<p style="color:#dc2626;">Error recalculating TMI — see console.</p>';
+        showToast('Error recalculating TMI', 'error');
+      }
+    };
 
     // ── Delete tab helpers ──────────────────────────────────────────────────────
     function populateDeleteDropdown() {

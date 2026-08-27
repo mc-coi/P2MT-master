@@ -777,6 +777,16 @@
         allLogs = allLogs.filter(l => l.id !== logId);
         applyFilters();
         showToast('Record deleted', 'success');
+
+        // Deleting a T/U record can remove the basis for a TMI it
+        // contributed to — reconcile it the same way editing a record's
+        // code does, instead of leaving a stale TMI behind. Previously this
+        // was the one place a classAttendanceLogs change didn't trigger the
+        // recalculation, which is how a deleted Dress Code tardy could leave
+        // the student stuck at their old TMI minutes.
+        if (coll === 'classAttendanceLogs' && log) {
+          await recalcTMIForRecord(log);
+        }
       } catch(e) {
         console.error(e);
         showToast('Error deleting record', 'error');

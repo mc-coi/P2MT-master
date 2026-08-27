@@ -1533,13 +1533,17 @@
     window.deleteInterventionFromView = async function(id, studentId) {
       if (!confirm('Delete this intervention record? This cannot be undone.')) return;
       try {
+        // Capture the record before it's removed from the local cache below —
+        // needed as a fallback date if its linked tardy is already gone.
+        const record = interventionsData.find(r => r.id === id);
+
         await deleteDoc('studentInterventions', id);
         interventionsData = interventionsData.filter(r => r.id !== id);
 
         // If this was a Dress Code Level 1 intervention, it auto-created a
         // matching Tardy in Daily Attendance — remove that too and re-run the
         // TMI recalculation so the student's TMI reflects the removal.
-        await removeLinkedDressCodeTardy(id, studentId);
+        await removeLinkedDressCodeTardy(id, studentId, record);
 
         // Re-render the modal content without closing it
         await openViewModal(studentId);
@@ -1555,20 +1559,41 @@
     // Finds and removes any classAttendanceLogs record auto-created by a
     // given intervention (via sourceInterventionId), then reconciles TMI for
     // the student/period that record belonged to.
-    async function removeLinkedDressCodeTardy(interventionId, studentId) {
+    //
+    // If the linked tardy was ALREADY removed some other way (e.g. someone
+    // deleted the 'T' directly from Daily Attendance before coming back here
+    // to delete the intervention), there's nothing left to find via
+    // sourceInterventionId — but the TMI it earned can still be stuck at its
+    // old minutes, since nothing else would have triggered a recalculation
+    // for that removal. So this still runs the recalculation using the
+    // intervention's own date whenever it was a Dress Code Level 1 record,
+    // whether or not a linked log turned up.
+    async function removeLinkedDressCodeTardy(interventionId, studentId, interventionRecord) {
       try {
         const linkedLogs = await getWhere('classAttendanceLogs', 'sourceInterventionId', '==', interventionId);
-        if (!linkedLogs.length) return;
         const student    = studentsData.find(x => x.id === studentId);
         const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
-        for (const log of linkedLogs) {
-          await deleteDoc('classAttendanceLogs', log.id);
-          await recalcTMIForStudent({
-            studentId:         log.studentId || studentId,
-            chattStateANumber: log.chattStateANumber || student?.chattStateANumber || '',
-            dateStr:           (log.date || log.classDate || '').substring(0, 10),
-            assignedBy,
-          });
+
+        if (linkedLogs.length) {
+          for (const log of linkedLogs) {
+            await deleteDoc('classAttendanceLogs', log.id);
+            await recalcTMIForStudent({
+              studentId:         log.studentId || studentId,
+              chattStateANumber: log.chattStateANumber || student?.chattStateANumber || '',
+              dateStr:           (log.date || log.classDate || '').substring(0, 10),
+              assignedBy,
+            });
+          }
+        } else if (interventionRecord?.category === 'Dress Code' && interventionRecord?.level === 1) {
+          const dateStr = (interventionRecord.dateTime || '').split('T')[0];
+          if (dateStr) {
+            await recalcTMIForStudent({
+              studentId,
+              chattStateANumber: student?.chattStateANumber || '',
+              dateStr,
+              assignedBy,
+            });
+          }
         }
       } catch (err) {
         // Non-fatal — the intervention itself already deleted successfully.
