@@ -1338,12 +1338,12 @@
       return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    // ── PBL email via Outlook Web compose ────────────────────────────────────────
+    // ── PBL email via default mail client (mailto:) ──────────────────────────────
     function pblOutlookUrl(msg) {
       const to      = encodeURIComponent(msg.to || '');
       const subject = encodeURIComponent(msg.subject || '');
       const body    = encodeURIComponent(msg.body    || '');
-      return `https://outlook.office.com/mail/deeplink/compose?to=${to}&subject=${subject}&body=${body}`;
+      return `mailto:${to}?subject=${subject}&body=${body}`;
     }
 
     // ── Sequential send state ─────────────────────────────────────────────────
@@ -1390,12 +1390,12 @@
       pblUpdateSeqButton();
     };
 
-    // Open the currently-previewed email in Outlook compose (new tab).
+    // Open the currently-previewed email in the default mail client (mailto:).
     // In sequential mode: opens it then auto-advances to the next unsent message.
     window.pblSendCurrentGmail = function() {
       const msg = pblPreviewMsgs[pblPreviewIdx];
       if (!msg?.to) { showToast('No email address for this student', 'warning'); return; }
-      window.open(pblOutlookUrl(msg), '_blank');
+      window.location.href = pblOutlookUrl(msg);
 
       if (pblSequentialMode) {
         pblSeqSentCount++;

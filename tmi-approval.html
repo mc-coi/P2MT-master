@@ -939,8 +939,13 @@
       const subject   = $('#notifSubject').text();
       const bodyText  = $('#notifContent').text();
       const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
-      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(singleNotifEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
-      window.open(outlookUrl, '_blank');
+      // mailto: hands off to whatever the OS has registered as the default
+      // mail app (desktop Outlook, if that's the default) instead of always
+      // forcing Outlook Web. Very long bodies can get truncated by some
+      // browsers' mailto: URL-length limits — if that becomes a problem,
+      // the bulk mail-merge CSV export is the length-safe alternative.
+      const mailtoUrl = `mailto:${encodeURIComponent(singleNotifEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      window.location.href = mailtoUrl;
     }
 
     function downloadBulkMailMerge() {
@@ -1090,8 +1095,10 @@
       const subject   = tmpl.subject || tmpl.emailSubject || '';
       const bodyText  = document.getElementById('email-preview').textContent;
       const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
-      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
-      window.open(outlookUrl, '_blank');
+      // mailto: hands off to the OS-registered default mail app (desktop
+      // Outlook, if that's the default) instead of always forcing Outlook Web.
+      const mailtoUrl = `mailto:${encodeURIComponent(toEmail)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;
+      window.location.href = mailtoUrl;
     };
 
     // ── Mark time served (close record) ──────────────────────────
