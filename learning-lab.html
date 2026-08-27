@@ -487,9 +487,20 @@
         return;
       }
 
-      dropdown.innerHTML = filtered.map(s => 
-        `<a onclick="selectLabStudent('${s.id}', '${s.firstName} ${s.lastName}', '${s.chattStateANumber}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.firstName} ${s.lastName} (${s.chattStateANumber})</a>`
-      ).join('');
+      dropdown.innerHTML = filtered.map(s => {
+        // Names with an apostrophe (e.g. "La'Taurie") otherwise break out of
+        // the single-quoted JS string in this onclick attribute early —
+        // browser sees selectLabStudent('id','La' + garbage tokens + '...')
+        // as a syntax error, so the click silently does nothing. Escaping
+        // the quote for the JS string, and separately for the HTML
+        // attribute itself (in case a name ever has a literal "), fixes both.
+        const escJs   = v => String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const escAttr = v => String(v ?? '').replace(/"/g, '&quot;');
+        const id   = escAttr(escJs(s.id));
+        const name = escAttr(escJs(`${s.firstName} ${s.lastName}`));
+        const aNum = escAttr(escJs(s.chattStateANumber));
+        return `<a onclick="selectLabStudent('${id}', '${name}', '${aNum}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.firstName} ${s.lastName} (${s.chattStateANumber})</a>`;
+      }).join('');
       dropdown.style.display = 'block';
     };
 

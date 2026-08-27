@@ -698,9 +698,17 @@
         return;
       }
 
-      dropdown.innerHTML = filtered.map(s => 
-        `<a onclick="selectAddStudent('${s.id}', '${s.firstName} ${s.lastName}', '${s.chattStateANumber}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.firstName} ${s.lastName} (${s.chattStateANumber})</a>`
-      ).join('');
+      dropdown.innerHTML = filtered.map(s => {
+        // A raw apostrophe in a name (e.g. "La'Taurie") otherwise breaks out
+        // of this single-quoted JS string early, making the onclick invalid
+        // JS — the click does nothing since the handler never runs.
+        const escJs   = v => String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const escAttr = v => String(v ?? '').replace(/"/g, '&quot;');
+        const id   = escAttr(escJs(s.id));
+        const name = escAttr(escJs(`${s.firstName} ${s.lastName}`));
+        const aNum = escAttr(escJs(s.chattStateANumber));
+        return `<a onclick="selectAddStudent('${id}', '${name}', '${aNum}')" class="w3-dropdown-item" style="cursor:pointer; padding:8px;">${s.firstName} ${s.lastName} (${s.chattStateANumber})</a>`;
+      }).join('');
       dropdown.style.display = 'block';
     };
 
@@ -798,13 +806,20 @@
 
       if (!uniqueTeachers.length) { dd.style.display = 'none'; return; }
 
-      dd.innerHTML = uniqueTeachers.map(t =>
-        `<div onclick="mgmtSelectTeacher('${t.replace(/'/g,"&#39;")}')"
+      dd.innerHTML = uniqueTeachers.map(t => {
+        // Escape for the JS string this sits inside, not as an HTML entity —
+        // encoding the apostrophe as &#39; kept mgmtSelectTeacher() from ever
+        // getting the teacher's REAL name back (it would set the field to
+        // the literal text "O&#39;Brien" instead of "O'Brien"), silently
+        // breaking the class dropdown for any teacher with an apostrophe in
+        // their last name since it would never match the real stored value.
+        const escJs = v => String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        return `<div onclick="mgmtSelectTeacher('${escJs(t)}')"
            style="padding:9px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9;font-size:13px;"
            onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='white'">
            <i class="fas fa-chalkboard-teacher" style="color:#6366f1;margin-right:6px;font-size:11px;"></i>${t}
-        </div>`
-      ).join('');
+        </div>`;
+      }).join('');
       dd.style.display = 'block';
 
       // Close on outside click

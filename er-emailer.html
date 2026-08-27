@@ -2421,8 +2421,17 @@
         );
         const chipClass = ['clr-chip', hasCleared ? 'cleared' : 'pending', 'mine'].join(' ');
         const icon = hasCleared ? 'fa-check-circle' : 'fa-clock';
+        // esc() HTML-escapes for display (apostrophe -> &#39;), which is
+        // correct for the title/text below but wrong for the onclick args:
+        // toggleClearance() does an exact string match against the real
+        // teacherLastName/className on file, so passing it the HTML-escaped
+        // text would make the comparison fail for anyone with an apostrophe
+        // in their name (e.g. "O'Brien") — clearance would never register
+        // as already-set, and could get re-added every click instead of
+        // toggled off. Needs JS-string escaping here instead.
+        const escJs = v => String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         return `<span class="${chipClass}" title="${esc(cs.className || '')} — ${esc(cs.teacherLastName || '')}"
-          onclick="toggleClearance('${student.id}','${esc(cs.teacherLastName)}','${esc(cs.className || '')}')">
+          onclick="toggleClearance('${escJs(student.id)}','${escJs(cs.teacherLastName)}','${escJs(cs.className || '')}')">
           <i class="fas ${icon}"></i> ${esc(cs.teacherLastName || '')}${cs.className ? ` (${esc(cs.className)})` : ''}
         </span>`;
       }).join('');

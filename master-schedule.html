@@ -820,12 +820,20 @@
         (s.chattStateANumber || '').includes(query)
       ).slice(0, 10);
       if (filtered.length === 0) { dropdown.style.display = 'none'; return; }
-      dropdown.innerHTML = filtered.map(s =>
-        `<a onclick="selectStudent('${s.id}','${s.firstName} ${s.lastName}','${s.chattStateANumber}')"
+      dropdown.innerHTML = filtered.map(s => {
+        // A raw apostrophe in a name (e.g. "La'Taurie") otherwise breaks out
+        // of this single-quoted JS string early, making the onclick invalid
+        // JS — the click does nothing since the handler never runs.
+        const escJs   = v => String(v ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+        const escAttr = v => String(v ?? '').replace(/"/g, '&quot;');
+        const id   = escAttr(escJs(s.id));
+        const name = escAttr(escJs(`${s.firstName} ${s.lastName}`));
+        const aNum = escAttr(escJs(s.chattStateANumber));
+        return `<a onclick="selectStudent('${id}','${name}','${aNum}')"
             class="w3-dropdown-item" style="cursor:pointer;padding:8px;">
           ${s.firstName} ${s.lastName} (${s.chattStateANumber})
-        </a>`
-      ).join('');
+        </a>`;
+      }).join('');
       dropdown.style.display = 'block';
     };
 
