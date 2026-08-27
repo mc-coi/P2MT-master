@@ -527,8 +527,9 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, addDoc, updateDoc, deleteDoc } from './js/db.js';
+    import { getAll, getById, getWhere, addDoc, updateDoc, deleteDoc } from './js/db.js';
     import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete } from './js/utils.js';
+    import { recalcTMIForStudent } from './js/tmiEngine.js';
 
     let studentsData = [];
     let dataTable;
@@ -1323,19 +1324,33 @@
     async function saveIntervention(e) {
       e.preventDefault();
       const s = studentsData.find(x => x.id === assignStudentId);
+      const category   = document.getElementById('int-category').value;
+      const level      = parseInt(document.getElementById('int-level').value, 10);
+      const dateTime   = document.getElementById('int-datetime').value;
+      const comments   = document.getElementById('int-comments').value.trim();
+      const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
+
       const record = {
         studentId:    assignStudentId,
         studentName:  `${s.firstName} ${s.lastName}`,
-        category:     document.getElementById('int-category').value,
-        level:        parseInt(document.getElementById('int-level').value, 10),
-        dateTime:     document.getElementById('int-datetime').value,
-        comments:     document.getElementById('int-comments').value.trim(),
-        assignedBy:   getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown',
+        category,
+        level,
+        dateTime,
+        comments,
+        assignedBy,
         createdAt:    new Date().toISOString()
       };
 
       try {
-        await addDoc('studentInterventions', record);
+        const interventionId = await addDoc('studentInterventions', record);
+
+        // Dress Code Level 1 automatically logs a matching Tardy in Daily
+        // Attendance — that's the school's standard consequence for a first
+        // dress-code violation, so it shouldn't require a separate manual entry.
+        if (category === 'Dress Code' && level === 1) {
+          await createDressCodeTardy(interventionId, s, dateTime, comments, assignedBy);
+        }
+
         showToast('Intervention saved', 'success');
         closeAssignModal();
         await loadInterventions();
@@ -1343,6 +1358,48 @@
       } catch (err) {
         console.error('Error saving intervention:', err);
         showToast('Error saving intervention', 'error');
+      }
+    }
+
+    // Creates the linked Daily Attendance Tardy for a Dress Code Level 1
+    // intervention, then re-runs the TMI recalculation for that student/period
+    // (a dress-code tardy counts toward the same 3-tardies-per-period rule as
+    // any other T). The attendance record stores sourceInterventionId so
+    // deleting the intervention later can find and remove it again.
+    async function createDressCodeTardy(interventionId, student, dateTime, comments, assignedBy) {
+      const [datePart, timePart] = (dateTime || '').split('T');
+      if (!datePart) return;
+
+      const attendanceRecord = {
+        studentId:            student.id,
+        chattStateANumber:    student.chattStateANumber || '',
+        studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
+        date:                 datePart,
+        time:                 timePart || '',
+        attendanceCode:       'T',
+        className:            'Manual',
+        teacherLastName:      assignedBy,
+        comment:              `DRESS CODE - ${comments}`.trim(),
+        sourceInterventionId: interventionId,
+        createdBy:            getCurrentUser()?.uid || '',
+        updatedAt:            new Date().toISOString(),
+      };
+
+      try {
+        await addDoc('classAttendanceLogs', attendanceRecord);
+        await recalcTMIForStudent({
+          studentId:         student.id,
+          chattStateANumber: student.chattStateANumber || '',
+          studentName:       `${student.lastName || ''}, ${student.firstName || ''}`,
+          dateStr:           datePart,
+          className:         'Manual',
+          teacherLastName:   assignedBy,
+          assignedBy,
+        });
+      } catch (err) {
+        // Non-fatal — the intervention itself already saved; surface but don't block.
+        console.error('Error auto-logging Dress Code tardy:', err);
+        showToast('Intervention saved, but the automatic tardy record failed — please add it manually', 'warning');
       }
     }
 
@@ -1413,6 +1470,12 @@
       try {
         await deleteDoc('studentInterventions', id);
         interventionsData = interventionsData.filter(r => r.id !== id);
+
+        // If this was a Dress Code Level 1 intervention, it auto-created a
+        // matching Tardy in Daily Attendance — remove that too and re-run the
+        // TMI recalculation so the student's TMI reflects the removal.
+        await removeLinkedDressCodeTardy(id, studentId);
+
         // Re-render the modal content without closing it
         await openViewModal(studentId);
         // Update the count chip in the student list
@@ -1423,6 +1486,28 @@
         showToast('Error deleting intervention', 'error');
       }
     };
+
+    // Finds and removes any classAttendanceLogs record auto-created by a
+    // given intervention (via sourceInterventionId), then reconciles TMI for
+    // the student/period that record belonged to.
+    async function removeLinkedDressCodeTardy(interventionId, studentId) {
+      try {
+        const linkedLogs = await getWhere('classAttendanceLogs', 'sourceInterventionId', '==', interventionId);
+        if (!linkedLogs.length) return;
+        const student = studentsData.find(x => x.id === studentId);
+        for (const log of linkedLogs) {
+          await deleteDoc('classAttendanceLogs', log.id);
+          await recalcTMIForStudent({
+            studentId:         log.studentId || studentId,
+            chattStateANumber: log.chattStateANumber || student?.chattStateANumber || '',
+            dateStr:           (log.date || log.classDate || '').substring(0, 10),
+          });
+        }
+      } catch (err) {
+        // Non-fatal — the intervention itself already deleted successfully.
+        console.error('Error removing linked dress-code tardy:', err);
+      }
+    }
 
     function generateId() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
