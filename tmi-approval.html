@@ -298,7 +298,14 @@
       setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
     }
     function tmiTriggerDownload(filename, content) {
-      const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+      // No UTF-8 BOM here on purpose \u2014 this file is meant to be opened as a
+      // Word Mail Merge data source (see downloadBulkMailMerge below), and
+      // Word's mail merge doesn't strip a BOM before reading the header row.
+      // It ends up corrupting the first field name / first record, which is
+      // exactly what caused "Record 1 could not be mailed because it
+      // contained a bad mail address" even though the email address in the
+      // CSV was perfectly valid.
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
       const url  = URL.createObjectURL(blob);
       const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
       document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
