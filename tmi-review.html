@@ -129,6 +129,10 @@
           <button class="w3-button btn-ghost" onclick="clearFilters()">
             <i class="fas fa-times"></i> Clear
           </button>
+          <button class="w3-button w3-orange" onclick="recalcForSelectedRange()"
+            title="Requires both a Start and End date. Recomputes U/T counts and TMI minutes using this exact date range as the TMI window, instead of the school calendar's period — use this when events or schedule changes have shifted the real period.">
+            <i class="fas fa-sync"></i> Use This Range as TMI Window
+          </button>
           <button class="w3-button btn-primary" onclick="confirmAllVisible()" style="float:right;">
             <i class="fas fa-check-double"></i> Confirm All Visible
           </button>
@@ -195,10 +199,11 @@
   <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script type="module">
-    import { initAuth } from './js/auth.js';
+    import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, updateDoc } from './js/db.js';
     import { formatDate, showToast, confirmTypedDelete } from './js/utils.js';
+    import { recalcTMIForWindow } from './js/tmiEngine.js';
 
     let allTMI          = [];   // interventionLogs where type === 'TMI'
     let filteredTMI     = [];
@@ -441,6 +446,52 @@
       document.getElementById('filterStart').value   = '';
       document.getElementById('filterEnd').value     = '';
       applyFilters();
+    };
+
+    // Recomputes TMI using the selected Start/End dates as the actual TMI
+    // period, instead of the school calendar's startTmiPeriod/tmiDay markers
+    // — for weeks where events or schedule changes have shifted the real
+    // window. This WRITES to interventionLogs (unlike Apply Filters, which
+    // only changes what's displayed), so it's a separate, explicit action
+    // rather than something that happens just by picking dates and filtering.
+    window.recalcForSelectedRange = async function() {
+      const start = document.getElementById('filterStart').value;
+      const end   = document.getElementById('filterEnd').value;
+      if (!start || !end) {
+        showToast('Select both a Start and End date first', 'warning');
+        return;
+      }
+      if (start > end) {
+        showToast('Start date must be before End date', 'warning');
+        return;
+      }
+      if (!confirm(
+        `Recalculate TMI using ${formatDate(start)} – ${formatDate(end)} as the TMI window?\n\n` +
+        `This will create, update, or clear TMI records based on U/T attendance in this exact ` +
+        `date range, for every student — not just what's currently visible in the list. This cannot be undone.`
+      )) return;
+
+      try {
+        const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
+        const results = await recalcTMIForWindow(start, end, assignedBy);
+
+        const created = results.filter(r => r.action === 'created').length;
+        const updated = results.filter(r => r.action === 'updated').length;
+        const deleted = results.filter(r => r.action === 'deleted').length;
+
+        // Reload from Firestore so the list reflects the just-written records
+        const allInterventions = await getAll('interventionLogs');
+        allTMI = allInterventions.filter(i => i.interventionType === 'TMI');
+        applyFilters();
+
+        showToast(
+          `TMI window set to ${formatDate(start)} – ${formatDate(end)}: ${created} created, ${updated} updated, ${deleted} cleared`,
+          'success'
+        );
+      } catch (err) {
+        console.error('Error recalculating TMI for range:', err);
+        showToast('Error recalculating TMI for this range — see console', 'error');
+      }
     };
 
     function updateSummary() {

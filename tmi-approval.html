@@ -64,6 +64,10 @@
       </div>
       <div class="w3-margin-top">
         <button class="w3-button btn-primary w3-round" id="loadDataBtn">Load TMI Data</button>
+        <button class="w3-button w3-orange w3-round" id="recalcRangeBtn"
+          title="Recomputes TMI minutes using this exact date range as the TMI window, instead of the school calendar's period — use this when events or schedule changes have shifted the real period.">
+          <i class="fas fa-sync"></i> Use This Range as TMI Window
+        </button>
       </div>
     </div>
 
@@ -230,10 +234,11 @@
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script type="module">
-    import { initAuth } from './js/auth.js';
+    import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, updateDoc } from './js/db.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
+    import { recalcTMIForWindow } from './js/tmiEngine.js';
 
     let interventions = [];
     let students = [];
@@ -366,11 +371,59 @@
 
     function attachEventListeners() {
       $('#loadDataBtn').click(loadTMIData);
+      $('#recalcRangeBtn').click(recalcForSelectedRange);
       $('#processAllBtn').click(processAllTMI);
       $('#downloadReportBtn').click(downloadReport);
       $('#sendAllNotifBtn').click(showBulkNotifications);
       $('#copyAllNotifBtn').click(downloadBulkMailMerge);
       $('#copySingleNotifBtn').click(openSingleNotifInOutlook);
+    }
+
+    // Recomputes TMI using the selected Start/End dates as the actual TMI
+    // period, instead of the school calendar's startTmiPeriod/tmiDay markers
+    // — for weeks where events or schedule changes have shifted the real
+    // window. This WRITES to interventionLogs (unlike Load TMI Data, which
+    // only reads and filters), so it's a separate, explicit action rather
+    // than something that happens just by picking dates.
+    async function recalcForSelectedRange() {
+      const startDate = $('#tmiStartDate').val();
+      const endDate   = $('#tmiEndDate').val();
+      if (!startDate || !endDate) {
+        showToast('Please select both dates', 'warning');
+        return;
+      }
+      if (startDate > endDate) {
+        showToast('Start date must be before End date', 'warning');
+        return;
+      }
+      if (!confirm(
+        `Recalculate TMI using ${formatDate(startDate)} – ${formatDate(endDate)} as the TMI window?\n\n` +
+        `This will create, update, or clear TMI records based on U/T attendance in this exact ` +
+        `date range, for every student — not just what's currently loaded. This cannot be undone.`
+      )) return;
+
+      try {
+        $('#loadingSpinner').show();
+        const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
+        const results = await recalcTMIForWindow(startDate, endDate, assignedBy);
+
+        const created = results.filter(r => r.action === 'created').length;
+        const updated = results.filter(r => r.action === 'updated').length;
+        const deleted = results.filter(r => r.action === 'deleted').length;
+
+        // Reload everything so the table reflects the just-written records
+        interventions = await getAll('interventionLogs');
+        await loadTMIData();
+
+        showToast(
+          `TMI window set to ${formatDate(startDate)} – ${formatDate(endDate)}: ${created} created, ${updated} updated, ${deleted} cleared`,
+          'success'
+        );
+      } catch (err) {
+        console.error('Error recalculating TMI for range:', err);
+        showToast('Error recalculating TMI for this range — see console', 'error');
+        $('#loadingSpinner').hide();
+      }
     }
 
     // Finds the specific date the student was marked absent/tardy in the class
