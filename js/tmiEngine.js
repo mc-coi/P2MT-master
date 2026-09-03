@@ -307,3 +307,101 @@ export async function recalcTMIForWindow(startDate, endDate, assignedBy) {
 
   return results;
 }
+
+// Finds and merges genuine duplicate TMI records — two or more
+// interventionLogs (TMI, not Closed) for the SAME student with the EXACT
+// SAME tmiPeriodKey. This is different from a student legitimately having
+// several TMI rows for several different periods (e.g. separate weeks),
+// which is normal and expected when no custom school-calendar period is
+// configured. A true duplicate can happen from a race condition: two
+// teachers (or two tabs) each saving Class Attendance for the same student
+// around the same time can each independently see "no existing TMI yet"
+// for that period and both create one, since neither's locally-loaded data
+// reflects the other's just-written record.
+//
+// For each duplicate group, recomputes the correct total minutes from
+// scratch against classAttendanceLogs for that exact period (rather than
+// trusting either duplicate's possibly-stale number), sums any minutes
+// already served across all of them (so served progress is never lost),
+// keeps whichever assignedBy was already set, keeps the oldest record's ID
+// (so anything already referencing it, like a sent notification, stays
+// valid), and deletes the rest.
+//
+// Returns an array of { studentId, chattStateANumber, tmiPeriodKey, merged,
+// keptId, minutes, servedMinutes } — one entry per duplicate group found.
+export async function mergeDuplicateTMI(assignedBy) {
+  const [interventions, allLogs] = await Promise.all([
+    getAll('interventionLogs'),
+    getAll('classAttendanceLogs'),
+  ]);
+
+  const candidates = interventions.filter(iv =>
+    iv.interventionType === 'TMI' && iv.tmiPeriodKey && iv.interventionStatus !== 'Closed'
+  );
+
+  const groups = new Map();
+  candidates.forEach(iv => {
+    const studentKey = iv.studentId || `A#:${(iv.chattStateANumber || '').trim()}`;
+    const key = `${studentKey}::${iv.tmiPeriodKey}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(iv);
+  });
+
+  const results = [];
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+
+    const first = group[0];
+    const periodStart = first.startDate || '';
+    const keyParts = first.tmiPeriodKey.split('__');
+    const periodEnd = keyParts[keyParts.length - 1] || '';
+    const studentId = first.studentId || '';
+    const chattStateANumber = (first.chattStateANumber || '').trim();
+
+    const periodLogs = allLogs.filter(l => {
+      const match = studentId
+        ? (l.studentId === studentId || (chattStateANumber && (l.chattStateANumber || '').trim() === chattStateANumber))
+        : ((l.chattStateANumber || '').trim() === chattStateANumber);
+      if (!match) return false;
+      const d = (l.date || l.classDate || '').substring(0, 10);
+      return d && periodStart && periodEnd && d >= periodStart && d <= periodEnd;
+    });
+
+    const uCount = periodLogs.filter(l => l.attendanceCode === 'U').length;
+    const tCount = periodLogs.filter(l => l.attendanceCode === 'T').length;
+    const overrideCount = periodLogs.filter(l => l.assignTmi && l.attendanceCode !== 'U').length;
+    const tardyGroups = Math.floor(tCount / 3);
+    const recomputedMinutes = Math.min((uCount * 120) + (overrideCount * 120) + (tardyGroups * 90), MAX_TMI);
+
+    const totalServed = group.reduce((sum, iv) => sum + (iv.tmiMinutesServed || 0), 0);
+    const keepAssignedBy = group.map(iv => iv.assignedBy).find(Boolean) || assignedBy || 'Unknown';
+
+    // Never show less than what's already been logged as served, even if
+    // the recomputed total from current logs would otherwise be lower.
+    const finalMinutes = Math.max(recomputedMinutes, totalServed);
+    const remaining = Math.max(0, finalMinutes - totalServed);
+
+    const sorted = [...group].sort((a, b) =>
+      (a.createDate || a.createdAt || '').localeCompare(b.createDate || b.createdAt || '')
+    );
+    const keep = sorted[0];
+    const toDelete = sorted.slice(1);
+
+    await updateDoc('interventionLogs', keep.id, {
+      tmiMinutes: finalMinutes,
+      tmiMinutesServed: totalServed,
+      tmiMinutesRemaining: remaining,
+      assignedBy: keepAssignedBy,
+      updatedAt: new Date().toISOString(),
+    });
+    await Promise.all(toDelete.map(iv => deleteDoc('interventionLogs', iv.id)));
+
+    results.push({
+      studentId, chattStateANumber, tmiPeriodKey: first.tmiPeriodKey,
+      merged: group.length, keptId: keep.id, minutes: finalMinutes, servedMinutes: totalServed,
+    });
+  }
+
+  return results;
+}

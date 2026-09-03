@@ -109,6 +109,7 @@
           <thead>
             <tr class="btn-primary">
               <th>Student Name</th>
+              <th>Period</th>
               <th>TMI Minutes Assigned</th>
               <th>TMI Served</th>
               <th>TMI Remaining</th>
@@ -613,6 +614,23 @@
               status = 'Partial';
             }
 
+            // Period covered by this specific record — shown as its own
+            // column so that two rows for the same student are visibly two
+            // different weeks/periods rather than looking like an accidental
+            // duplicate. Manually-assigned TMI has no tmiPeriodKey, so it
+            // falls back to just the single date it was assigned.
+            let periodLabel;
+            if (intervention.tmiPeriodKey) {
+              const keyParts = intervention.tmiPeriodKey.split('__');
+              const pEnd     = keyParts.length ? keyParts[keyParts.length - 1] : '';
+              const pStart   = intervention.startDate || '';
+              periodLabel = (pStart && pEnd) ? `${formatDate(pStart)} – ${formatDate(pEnd)}` : '—';
+            } else {
+              const d = (intervention.startDate || intervention.dateTime ||
+                         intervention.createDate || intervention.createdAt || '').substring(0, 10);
+              periodLabel = d ? `${formatDate(d)} (Manual)` : 'Manual';
+            }
+
             tmiData.push({
               id: intervention.id,
               studentId: intervention.studentId,
@@ -635,6 +653,7 @@
               teacherLastName: intervention.teacherLastName || '',
               absenceDate: resolveAbsenceDate(intervention),
               absenceEvents: getAbsenceEvents(intervention),
+              periodLabel: periodLabel,
               // Staff member who triggered this record's creation — a real name
               // for TMI assigned manually or from a missed check-in (Students
               // page), or the teacher/staff logged into Class Attendance when
@@ -683,6 +702,7 @@
         let row = `
           <tr class="${rowClass}">
             <td style="font-weight:600;">${student.studentName}</td>
+            <td style="white-space:nowrap;font-size:12px;color:#475569;" title="If the same student shows more than once, each row is a separate TMI period — check this column before assuming it's a duplicate.">${student.periodLabel || '—'}</td>
             <td style="text-align:center;">${student.tmiMinutes} min</td>
             <td>
               <div class="served-cell">
@@ -741,7 +761,7 @@
         ordering: true,
         searching: true,
         destroy: true,
-        columnDefs: [{ orderable: false, targets: [2, 7] }]
+        columnDefs: [{ orderable: false, targets: [3, 8] }]
       });
     }
 

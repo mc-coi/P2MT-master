@@ -152,6 +152,7 @@
               <th></th>
               <th>Student</th>
               <th>A#</th>
+              <th>Period</th>
               <th>Unexcused (U)</th>
               <th>Tardy (T)</th>
               <th>TMI Minutes</th>
@@ -562,6 +563,12 @@
           ? `<span title="Manually assigned — not calculated from U/T counts" style="color:#94a3b8;">—</span>`
           : `<span class="code-pill-T">${tCount} T</span>`;
 
+        // Shown so that two rows for the same student are visibly two
+        // different periods rather than looking like an accidental duplicate.
+        const periodCell = manual
+          ? (item.startDate ? formatDate(item.startDate) : '—')
+          : (periodStart && periodEnd ? `${formatDate(periodStart)} – ${formatDate(periodEnd)}` : '—');
+
         // Main row — green-tinted if any excuse exists
         const tr = document.createElement('tr');
         tr.className = `tmi-main-row${hasExcuse ? ' has-excuse' : ''}`;
@@ -570,6 +577,7 @@
           <td class="expand-cell"><i class="fas fa-chevron-right"></i></td>
           <td style="font-weight:600;">${resolveStudentName(item)}${excuseBadges}</td>
           <td>${item.chattStateANumber || ''}</td>
+          <td style="white-space:nowrap;font-size:12px;color:#475569;" title="If the same student shows more than once, each row is a separate TMI period — check this column before assuming it's a duplicate.">${periodCell}</td>
           <td style="text-align:center;">
             ${uCell}
           </td>
@@ -610,7 +618,7 @@
         searching: true,
         destroy: true,
         columnDefs: [
-          { orderable: false, targets: [0, 8] }  // expand and actions not sortable
+          { orderable: false, targets: [0, 9] }  // expand and actions not sortable
         ]
       });
 

@@ -269,6 +269,23 @@
         <button class="w3-button btn-primary" onclick="recalculateAllTMI()"><i class="fas fa-sync"></i> Recalculate Now</button>
       </div>
       <div id="tmi-recalc-results" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
+      <h3><i class="fas fa-clone" style="color:#dc2626;"></i> Merge Duplicate TMI Records</h3>
+      <p class="w3-text-grey">
+        Finds students with more than one TMI record for the EXACT same period — the same student
+        showing twice (or more) on TMI Review/Final with identical dates, usually from two teachers
+        (or two tabs) saving Class Attendance for that student around the same time, each independently
+        creating a record before either could see the other's. This is different from a student
+        legitimately having several rows for several different periods, which is normal and left alone.
+        For each duplicate found, recomputes the correct total from current attendance logs, sums any
+        minutes already served across the duplicates so nothing is lost, and deletes the extra record(s).
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-danger" onclick="mergeDuplicateTMIRecords()"><i class="fas fa-clone"></i> Find & Merge Duplicates</button>
+      </div>
+      <div id="tmi-merge-results" style="margin-top:16px;"></div>
     </div>
 
     <!-- TAB 4: Delete Schedule -->
@@ -368,7 +385,7 @@
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
-    import { recalcTMIForStudent } from './js/tmiEngine.js';
+    import { recalcTMIForStudent, mergeDuplicateTMI } from './js/tmiEngine.js';
 
     window.getAll = getAll;
     window.getById = getById;
@@ -1783,6 +1800,47 @@
         console.error('Error recalculating TMI:', err);
         resultsEl.innerHTML = '<p style="color:#dc2626;">Error recalculating TMI — see console.</p>';
         showToast('Error recalculating TMI', 'error');
+      }
+    };
+
+    // Finds students with more than one TMI record for the exact same
+    // period (a race-condition duplicate, not a legitimate multi-period
+    // history) and merges each group into a single correct record. See
+    // mergeDuplicateTMI() in js/tmiEngine.js for the merge rules.
+    window.mergeDuplicateTMIRecords = async function() {
+      const resultsEl = document.getElementById('tmi-merge-results');
+      resultsEl.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Scanning for duplicates…</div>';
+      try {
+        const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
+        const results = await mergeDuplicateTMI(assignedBy);
+
+        if (!results.length) {
+          resultsEl.innerHTML = '<p class="w3-text-grey">No duplicate TMI records found.</p>';
+          showToast('No duplicate TMI records found', 'info');
+          return;
+        }
+
+        const nameFor = (r) => {
+          const s = allStudents.find(x => x.id === r.studentId) ||
+                    allStudents.find(x => (x.chattStateANumber || '').trim() === r.chattStateANumber);
+          return s ? `${s.lastName}, ${s.firstName}` : (r.studentId || r.chattStateANumber || 'Unknown student');
+        };
+
+        const details = results.map(r => {
+          const keyParts = (r.tmiPeriodKey || '').split('__');
+          const periodLabel = keyParts.length >= 2 ? `${keyParts[keyParts.length - 2]} – ${keyParts[keyParts.length - 1]}` : r.tmiPeriodKey;
+          return `${nameFor(r)} (${periodLabel}): ${r.merged} records → 1, now ${r.minutes} min${r.servedMinutes ? ` (${r.servedMinutes} min served)` : ''}`;
+        });
+
+        resultsEl.innerHTML = `
+          <p>Merged <strong>${results.length}</strong> duplicate group${results.length !== 1 ? 's' : ''}:</p>
+          <ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>
+        `;
+        showToast(`Merged ${results.length} duplicate TMI group${results.length !== 1 ? 's' : ''}`, 'success');
+      } catch (err) {
+        console.error('Error merging duplicate TMI records:', err);
+        resultsEl.innerHTML = '<p style="color:#dc2626;">Error merging duplicates — see console.</p>';
+        showToast('Error merging duplicate TMI records', 'error');
       }
     };
 
