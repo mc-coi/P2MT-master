@@ -22,6 +22,42 @@ const MAX_TMI = 240;
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
+// Resolves who a TMI record should be "Assigned By", preferring the actual
+// class teacher behind the U/T logs over whoever happens to be running the
+// recalculation. This matters because recalculation can be triggered by
+// someone other than the student's own teacher — an admin running
+// "Recalculate All TMI" or "Merge Duplicate TMI Records" in Schedule Admin,
+// or anyone editing Daily Attendance for a student outside their own
+// classes — and stamping THAT person's name as the assigner produced TMI
+// records that claimed to be assigned by staff who don't even teach the
+// student. classAttendanceLogs already records teacherLastName for every
+// U/T (the real class teacher), so we resolve from there first and only
+// fall back to the caller-supplied name when no log carries a teacher
+// (e.g. a Dress Code auto-tardy, which has no class/teacher of its own —
+// there, the caller-supplied name is already the actual staff member who
+// logged the intervention, which is correct).
+function pickAssignedBy(periodLogs, staffList, fallback) {
+  const qualifying = (periodLogs || []).filter(l =>
+    l.attendanceCode === 'U' || l.attendanceCode === 'T' || (l.assignTmi && l.attendanceCode !== 'U')
+  );
+  const counts = new Map();
+  qualifying.forEach(l => {
+    const t = (l.teacherLastName || '').trim();
+    if (!t) return;
+    counts.set(t, (counts.get(t) || 0) + 1);
+  });
+  if (!counts.size) return fallback || 'Unknown';
+
+  let bestTeacher = null, bestCount = -1;
+  for (const [teacher, count] of counts) {
+    if (count > bestCount) { bestTeacher = teacher; bestCount = count; }
+  }
+  const staffMatch = (staffList || []).find(
+    s => (s.lastName || '').trim().toLowerCase() === bestTeacher.toLowerCase()
+  );
+  return staffMatch ? `${staffMatch.firstName} ${staffMatch.lastName}`.trim() : bestTeacher;
+}
+
 // Falls back to a Mon–Sun calendar week when no TMI period is defined for a
 // given date (e.g. school calendar hasn't been configured for that stretch).
 export function getTmiWeekWindow(dateStr) {
@@ -68,10 +104,11 @@ export async function recalcTMIForStudent(context) {
   const chattStateANumber = (context.chattStateANumber || '').trim();
   if ((!studentId && !chattStateANumber) || !dateStr) return { action: 'none' };
 
-  const [schoolCalendar, interventions, allLogs] = await Promise.all([
+  const [schoolCalendar, interventions, allLogs, staffList] = await Promise.all([
     getAll('schoolCalendar').catch(() => []),
     getAll('interventionLogs'),
     getAll('classAttendanceLogs'),
+    getAll('staff').catch(() => []),
   ]);
 
   const { start: windowStart, end: windowEnd, key: periodKey } = getTmiPeriodWindow(dateStr, schoolCalendar);
@@ -113,12 +150,11 @@ export async function recalcTMIForStudent(context) {
     const minutesChanged = existingTMI.tmiMinutes !== totalMinutes;
     // Self-heal records created before "Assigned By" tracking existed (or
     // created some other way without it): the first time we touch a record
-    // that's missing it, stamp whoever's responsible for this recalculation.
-    // This attributes the record to whoever happened to trigger the next
-    // recalculation, not necessarily who originally caused it — the original
-    // assigner is unrecoverable for those older records — but it's better
-    // than leaving "Assigned By" blank indefinitely.
-    const needsAssignedBy = !existingTMI.assignedBy && !!context.assignedBy;
+    // that's missing it, resolve the actual class teacher from the U/T logs
+    // behind it (see pickAssignedBy) rather than stamping whoever happens to
+    // be triggering this recalculation — that could be an admin running a
+    // bulk tool or editing a different student's attendance entirely.
+    const needsAssignedBy = !existingTMI.assignedBy;
 
     if (minutesChanged || needsAssignedBy) {
       const newRemaining = Math.max(0, totalMinutes - (existingTMI.tmiMinutesServed || 0));
@@ -128,7 +164,7 @@ export async function recalcTMIForStudent(context) {
         reason,
         updatedAt: new Date().toISOString(),
       };
-      if (needsAssignedBy) updates.assignedBy = context.assignedBy;
+      if (needsAssignedBy) updates.assignedBy = pickAssignedBy(periodLogs, staffList, context.assignedBy);
       await updateDoc('interventionLogs', existingTMI.id, updates);
       return { action: 'updated', minutes: totalMinutes, backfilledAssignedBy: needsAssignedBy };
     }
@@ -146,7 +182,7 @@ export async function recalcTMIForStudent(context) {
       tmiMinutesServed: 0,
       tmiMinutesRemaining: totalMinutes,
       interventionStatus: 'Reviewed',
-      assignedBy: context.assignedBy || 'Unknown',
+      assignedBy: pickAssignedBy(periodLogs, staffList, context.assignedBy),
       reason,
       className: context.className || '',
       teacherLastName: context.teacherLastName || '',
@@ -176,9 +212,10 @@ export async function recalcTMIForStudent(context) {
 export async function recalcTMIForWindow(startDate, endDate, assignedBy) {
   if (!startDate || !endDate || startDate > endDate) return [];
 
-  const [interventions, allLogs] = await Promise.all([
+  const [interventions, allLogs, staffList] = await Promise.all([
     getAll('interventionLogs'),
     getAll('classAttendanceLogs'),
+    getAll('staff').catch(() => []),
   ]);
 
   const periodKey = `range__${startDate}__${endDate}`;
@@ -264,7 +301,7 @@ export async function recalcTMIForWindow(startDate, endDate, assignedBy) {
 
       const minutesChanged = existingTMI.tmiMinutes !== totalMinutes;
       const periodChanged  = existingTMI.tmiPeriodKey !== periodKey || existingTMI.startDate !== startDate;
-      const needsAssignedBy = !existingTMI.assignedBy && !!assignedBy;
+      const needsAssignedBy = !existingTMI.assignedBy;
 
       if (minutesChanged || periodChanged || needsAssignedBy) {
         const newRemaining = Math.max(0, totalMinutes - (existingTMI.tmiMinutesServed || 0));
@@ -276,7 +313,7 @@ export async function recalcTMIForWindow(startDate, endDate, assignedBy) {
           reason,
           updatedAt: new Date().toISOString(),
         };
-        if (needsAssignedBy) updates.assignedBy = assignedBy;
+        if (needsAssignedBy) updates.assignedBy = pickAssignedBy(studentLogs, staffList, assignedBy);
         await updateDoc('interventionLogs', existingTMI.id, updates);
         results.push({ ...base, action: 'updated', minutes: totalMinutes });
       } else {
@@ -295,7 +332,7 @@ export async function recalcTMIForWindow(startDate, endDate, assignedBy) {
         tmiMinutesServed: 0,
         tmiMinutesRemaining: totalMinutes,
         interventionStatus: 'Reviewed',
-        assignedBy: assignedBy || 'Unknown',
+        assignedBy: pickAssignedBy(studentLogs, staffList, assignedBy),
         reason,
         createDate: new Date().toISOString(),
       });
@@ -351,9 +388,10 @@ function periodsOverlap(a, b) {
 // Returns an array of { studentId, chattStateANumber, tmiPeriodKey, merged,
 // keptId, minutes, servedMinutes } — one entry per duplicate group found.
 export async function mergeDuplicateTMI(assignedBy) {
-  const [interventions, allLogs] = await Promise.all([
+  const [interventions, allLogs, staffList] = await Promise.all([
     getAll('interventionLogs'),
     getAll('classAttendanceLogs'),
+    getAll('staff').catch(() => []),
   ]);
 
   const candidates = interventions.filter(iv =>
@@ -429,7 +467,8 @@ export async function mergeDuplicateTMI(assignedBy) {
       const tardyGroups = Math.floor(tCount / 3);
       const recomputedMinutes = Math.min((uCount * 120) + (overrideCount * 120) + (tardyGroups * 90), MAX_TMI);
 
-      const keepAssignedBy = keep.assignedBy || group.map(iv => iv.assignedBy).find(Boolean) || assignedBy || 'Unknown';
+      const keepAssignedBy = keep.assignedBy || group.map(iv => iv.assignedBy).find(Boolean) ||
+        pickAssignedBy(periodLogs, staffList, assignedBy);
 
       // Never show less than what's already been logged as served, even if
       // the recomputed total from current logs would otherwise be lower.
@@ -449,6 +488,74 @@ export async function mergeDuplicateTMI(assignedBy) {
       results.push({
         studentId, chattStateANumber, tmiPeriodKey: keep.tmiPeriodKey,
         merged: group.length, keptId: keep.id, minutes: finalMinutes, servedMinutes: totalServed,
+      });
+    }
+  }
+
+  return results;
+}
+
+// One-time repair for TMI records whose "Assigned By" was previously
+// stamped with whoever happened to run a bulk tool (Schedule Admin's
+// "Recalculate All TMI" or "Merge Duplicate TMI Records") or edit a
+// different student's Daily Attendance, rather than the student's actual
+// class teacher — a bug in the self-heal logic that both of those tools
+// used before "Assigned By" was resolved from the underlying attendance
+// logs (see pickAssignedBy above).
+//
+// Re-resolves "Assigned By" from the classAttendanceLogs behind each open
+// TMI record and overwrites the stored value ONLY when a real class
+// teacher can be confidently identified from those logs (via
+// teacherLastName) and it differs from what's currently stored. A record
+// with no teacher-bearing logs — e.g. a Dress Code Level 1 auto-tardy,
+// which has no class/teacher of its own — is left untouched, since there's
+// no better source to correct it with and its "Assigned By" was already
+// set correctly at creation to whoever logged that intervention.
+//
+// Returns an array of { studentId, chattStateANumber, tmiPeriodKey, from,
+// to } — one entry per record whose Assigned By was corrected.
+export async function reconcileAssignedBy() {
+  const [interventions, allLogs, staffList] = await Promise.all([
+    getAll('interventionLogs'),
+    getAll('classAttendanceLogs'),
+    getAll('staff').catch(() => []),
+  ]);
+
+  const candidates = interventions.filter(iv =>
+    iv.interventionType === 'TMI' && iv.tmiPeriodKey && iv.interventionStatus !== 'Closed'
+  );
+
+  const results = [];
+  for (const iv of candidates) {
+    const { start: periodStart, end: periodEnd } = periodBounds(iv);
+    if (!periodStart || !periodEnd) continue;
+
+    const studentId = iv.studentId || '';
+    const chattStateANumber = (iv.chattStateANumber || '').trim();
+    const periodLogs = allLogs.filter(l => {
+      const match = studentId
+        ? (l.studentId === studentId || (chattStateANumber && (l.chattStateANumber || '').trim() === chattStateANumber))
+        : ((l.chattStateANumber || '').trim() === chattStateANumber);
+      if (!match) return false;
+      const d = (l.date || l.classDate || '').substring(0, 10);
+      return d && d >= periodStart && d <= periodEnd;
+    });
+
+    const qualifying = periodLogs.filter(l =>
+      l.attendanceCode === 'U' || l.attendanceCode === 'T' || (l.assignTmi && l.attendanceCode !== 'U')
+    );
+    const hasTeacherEvidence = qualifying.some(l => (l.teacherLastName || '').trim());
+    if (!hasTeacherEvidence) continue;
+
+    const resolved = pickAssignedBy(periodLogs, staffList, iv.assignedBy);
+    if (resolved && resolved !== iv.assignedBy) {
+      await updateDoc('interventionLogs', iv.id, {
+        assignedBy: resolved,
+        updatedAt: new Date().toISOString(),
+      });
+      results.push({
+        studentId, chattStateANumber, tmiPeriodKey: iv.tmiPeriodKey,
+        from: iv.assignedBy || '(blank)', to: resolved,
       });
     }
   }

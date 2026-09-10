@@ -286,6 +286,23 @@
         <button class="w3-button btn-danger" onclick="mergeDuplicateTMIRecords()"><i class="fas fa-clone"></i> Find & Merge Duplicates</button>
       </div>
       <div id="tmi-merge-results" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
+      <h3><i class="fas fa-user-check" style="color:#dc2626;"></i> Fix Misattributed "Assigned By"</h3>
+      <p class="w3-text-grey">
+        One-time repair for a bug where TMI records could get "Assigned By" stamped with whoever
+        happened to run a recalculation or merge tool here — or edit a different student's Daily
+        Attendance — instead of that student's actual class teacher. This re-checks every open TMI
+        record against the real attendance logs behind it and corrects "Assigned By" to the class
+        teacher on record wherever that can be determined. Records with no class/teacher tied to them
+        (like a Dress Code auto-tardy) are left untouched, since those were already correctly
+        attributed to whoever logged the intervention. Safe to run any time.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-danger" onclick="fixAssignedByRecords()"><i class="fas fa-user-check"></i> Fix Assigned By</button>
+      </div>
+      <div id="tmi-assignedby-results" style="margin-top:16px;"></div>
     </div>
 
     <!-- TAB 4: Delete Schedule -->
@@ -385,7 +402,7 @@
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
-    import { recalcTMIForStudent, mergeDuplicateTMI } from './js/tmiEngine.js';
+    import { recalcTMIForStudent, mergeDuplicateTMI, reconcileAssignedBy } from './js/tmiEngine.js';
 
     window.getAll = getAll;
     window.getById = getById;
@@ -1841,6 +1858,43 @@
         console.error('Error merging duplicate TMI records:', err);
         resultsEl.innerHTML = '<p style="color:#dc2626;">Error merging duplicates — see console.</p>';
         showToast('Error merging duplicate TMI records', 'error');
+      }
+    };
+
+    // One-time repair for TMI records whose "Assigned By" got stamped with
+    // whoever ran a bulk tool (or edited an unrelated student's Daily
+    // Attendance) instead of the student's real class teacher. See
+    // reconcileAssignedBy() in js/tmiEngine.js for exactly how each
+    // correction is determined.
+    window.fixAssignedByRecords = async function() {
+      const resultsEl = document.getElementById('tmi-assignedby-results');
+      resultsEl.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Checking Assigned By against attendance records…</div>';
+      try {
+        const results = await reconcileAssignedBy();
+
+        if (!results.length) {
+          resultsEl.innerHTML = '<p class="w3-text-grey">No misattributed "Assigned By" records found.</p>';
+          showToast('No misattributed "Assigned By" records found', 'info');
+          return;
+        }
+
+        const nameFor = (r) => {
+          const s = allStudents.find(x => x.id === r.studentId) ||
+                    allStudents.find(x => (x.chattStateANumber || '').trim() === r.chattStateANumber);
+          return s ? `${s.lastName}, ${s.firstName}` : (r.studentId || r.chattStateANumber || 'Unknown student');
+        };
+
+        const details = results.map(r => `${nameFor(r)}: ${r.from} → ${r.to}`);
+
+        resultsEl.innerHTML = `
+          <p>Corrected <strong>${results.length}</strong> record${results.length !== 1 ? 's' : ''}:</p>
+          <ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>
+        `;
+        showToast(`Fixed Assigned By on ${results.length} record${results.length !== 1 ? 's' : ''}`, 'success');
+      } catch (err) {
+        console.error('Error fixing Assigned By:', err);
+        resultsEl.innerHTML = '<p style="color:#dc2626;">Error fixing Assigned By — see console.</p>';
+        showToast('Error fixing Assigned By', 'error');
       }
     };
 

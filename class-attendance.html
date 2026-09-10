@@ -427,6 +427,7 @@
     let allPbls                = [];
     let allSchoolCalendar      = [];
     let allDailyAttendanceLogs = [];
+    let allStaff               = [];
 
     // sections[] is the core of the new design:
     // each entry = { idx, className, isLab, schedule, students, state }
@@ -469,6 +470,12 @@
       allClassAttendanceLogs = await getAll('classAttendanceLogs');
       allStudents            = await getAll('students');
       try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
+      // Staff directory — used to resolve a section's teacherLastName (e.g.
+      // "Jaynes") into a proper display name (e.g. "Erin Jaynes") for TMI
+      // "Assigned By", so records are attributed to the class's actual
+      // teacher rather than whoever is physically logged in and clicking
+      // Save (an admin taking/covering attendance on a teacher's behalf).
+      try { allStaff = await getAll('staff'); } catch(e) { allStaff = []; }
       // School calendar (for Phase II gate + TMI period window — non-critical)
       try { allSchoolCalendar = await getAll('schoolCalendar'); } catch(e) { allSchoolCalendar = []; }
       // Manual Daily Attendance notes (Students page "Log Attendance" tool) —
@@ -1269,6 +1276,22 @@
       return promises;
     }
 
+    // Resolves a section's teacherLastName (e.g. "Jaynes") to a full staff
+    // display name (e.g. "Erin Jaynes") for TMI "Assigned By", so a record
+    // is attributed to the class's actual teacher — not to currentUser,
+    // who may be an admin taking or covering attendance on that teacher's
+    // behalf. Falls back to the bare last name, then to currentUser, if no
+    // staff match is found.
+    function resolveTeacherAssignedBy(teacherLastName) {
+      const last = (teacherLastName || '').trim();
+      if (last) {
+        const match = allStaff.find(s => (s.lastName || '').trim().toLowerCase() === last.toLowerCase());
+        if (match) return `${match.firstName} ${match.lastName}`.trim();
+        return last;
+      }
+      return currentUser?.displayName || currentUser?.email || 'Unknown';
+    }
+
     // ── TMI period-window helper ──────────────────────────────────────────────
     // A TMI period begins on a calendar day marked 'startTmiPeriod' and ends on
     // the very next calendar day marked 'tmiDay' (inclusive).  Once a tmiDay
@@ -1413,7 +1436,7 @@
                 reason,
                 updatedAt:           new Date().toISOString()
               };
-              if (needsAssignedBy) updates.assignedBy = currentUser?.displayName || currentUser?.email || 'Unknown';
+              if (needsAssignedBy) updates.assignedBy = resolveTeacherAssignedBy(currentTeacher);
               await updateDoc('interventionLogs', existingTMI.id, updates);
               existingTMI.tmiMinutes          = totalMinutes;
               existingTMI.tmiMinutesRemaining = newRemaining;
@@ -1435,7 +1458,7 @@
             tmiMinutesServed:     0,
             tmiMinutesRemaining:  totalMinutes,
             interventionStatus:   'Reviewed',
-            assignedBy:           currentUser?.displayName || currentUser?.email || 'Unknown',
+            assignedBy:           resolveTeacherAssignedBy(currentTeacher),
             reason,
             className:            sec.className,
             teacherLastName:      currentTeacher,
