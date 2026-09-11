@@ -361,6 +361,7 @@
   <script type="module">
     import { initAuth }                     from './js/auth.js';
     import { getAll, getWhere }             from './js/db.js';
+    import { fetchClassLogs, fetchDailyLogs, ABSENCE_CODES } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { initNav }                      from './js/nav.js';
 
@@ -467,9 +468,14 @@
 
       $('rpt-loading').classList.add('active');
       try {
+        // Attendance is read only for the selected school year / semester and
+        // only absence/tardy codes (reports never use Present rows).
+        // interventionLogs and the small ER collections are still read in full
+        // here: they're modest in size, this page runs rarely, and older manual
+        // TMI records don't all carry a queryable date field.
         const [rawClassLogs, rawDailyLogs, tmiLogs, intLogs, erAssign, erWorkshops, erClearance, students] = await Promise.all([
-          getAll('classAttendanceLogs'),
-          getAll('dailyAttendanceLogs'),
+          fetchClassLogs({ start: range.start, end: range.end, codes: ABSENCE_CODES }),
+          fetchDailyLogs({ start: range.start, end: range.end }),
           getAll('interventionLogs'),
           getAll('studentInterventions'),
           getAll('erAssignments'),

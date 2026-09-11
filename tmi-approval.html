@@ -237,10 +237,11 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, getWhere, updateDoc } from './js/db.js';
+    import { getById, getWhere, updateDoc } from './js/db.js';
+    import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
-    import { recalcTMIForWindow } from './js/tmiEngine.js';
+    import { recalcTMIForWindow, fetchTMIRecordsForRange } from './js/tmiEngine.js';
 
     let interventions = [];
     let students = [];
@@ -343,6 +344,8 @@
         await loadInitialData();
         attachEventListeners();
         loadDefaultDates();
+        // Load the default range right away instead of waiting for a click
+        await loadTMIData();
         $('#loadingSpinner').hide();
       } catch (error) {
         console.error('Init error:', error);
@@ -351,24 +354,48 @@
       }
     }
 
+    // Reference data only — TMI records and attendance are read per date
+    // range in loadRecordsForRange(), never in full.
     async function loadInitialData() {
       try {
-        interventions = await getAll('interventionLogs');
-        students = await Data.get('students');
-        parents = await Data.get('parents');
-        templates = await Data.get('p2mtTemplates');
-        classAttendanceLogs = await getAll('classAttendanceLogs');
+        [students, parents, templates] = await Promise.all([
+          Data.get('students'),
+          Data.get('parents'),
+          Data.get('p2mtTemplates'),
+        ]);
       } catch (error) {
         console.error('Error loading initial data:', error);
         throw error;
       }
     }
 
+    // Reads the TMI records whose period can touch [start, end] and the U/T
+    // attendance records inside those periods (needed to place each TMI on
+    // its actual absence date and to fill {{absenceDate}} in emails).
+    let loadedRange = { start: null, end: null };
+    async function loadRecordsForRange(startDate, endDate) {
+      if (startDate === loadedRange.start && endDate === loadedRange.end) return;
+      interventions = await fetchTMIRecordsForRange(startDate, endDate);
+      let spanStart = startDate, spanEnd = endDate;
+      interventions.forEach(iv => {
+        const keyParts = (iv.tmiPeriodKey || '').split('__');
+        const pEnd = keyParts.length ? keyParts[keyParts.length - 1] : '';
+        const pStart = iv.startDate || '';
+        if (pStart && pStart < spanStart) spanStart = pStart;
+        if (pEnd   && pEnd   > spanEnd)   spanEnd   = pEnd;
+      });
+      classAttendanceLogs = interventions.length
+        ? await fetchClassLogs({ start: spanStart, end: spanEnd, codes: ['T', 'U'] })
+        : [];
+      loadedRange = { start: startDate, end: endDate };
+    }
+
     function loadDefaultDates() {
-      let today = new Date();
-      let thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      $('#tmiStartDate').val(thirtyDaysAgo.toISOString().split('T')[0]);
-      $('#tmiEndDate').val(today.toISOString().split('T')[0]);
+      const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      const today = new Date();
+      const twoWeeksAgo = new Date(today); twoWeeksAgo.setDate(today.getDate() - 14);
+      $('#tmiStartDate').val(localISO(twoWeeksAgo));
+      $('#tmiEndDate').val(localISO(today));
     }
 
     function attachEventListeners() {
@@ -413,8 +440,8 @@
         const updated = results.filter(r => r.action === 'updated').length;
         const deleted = results.filter(r => r.action === 'deleted').length;
 
-        // Reload everything so the table reflects the just-written records
-        interventions = await getAll('interventionLogs');
+        // Reload this range so the table reflects the just-written records
+        loadedRange = { start: null, end: null };
         await loadTMIData();
 
         showToast(
@@ -546,10 +573,19 @@
         let endDate = $('#tmiEndDate').val();
 
         if (!startDate || !endDate) {
-          showToast('Please select both dates', 'warning');
+          showToast('Please select both a start and end date', 'warning');
+          if (tmiTable) { tmiTable.destroy(); tmiTable = null; }
+          $('#tmiTableBody').html('<tr><td colspan="12" style="text-align:center;padding:24px;color:#64748b;">Pick a <strong>start</strong> and <strong>end</strong> date, then click Load TMI Data.</td></tr>');
           $('#loadingSpinner').hide();
           return;
         }
+        if (startDate > endDate) {
+          showToast('Start date must be on or before end date', 'warning');
+          $('#loadingSpinner').hide();
+          return;
+        }
+
+        await loadRecordsForRange(startDate, endDate);
 
         tmiData = [];
         let totalAssigned = 0;

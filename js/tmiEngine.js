@@ -16,7 +16,7 @@
 // (daily-attendance.html, students.html) stay consistent with it instead of
 // re-implementing the math themselves.
 
-import { getAll, addDoc, updateDoc, deleteDoc, getWhere } from './db.js';
+import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './db.js';
 import { fetchClassLogs, fetchLogsInWindow } from './attendance.js';
 import * as Data from './data.js';
 
@@ -90,6 +90,38 @@ export function getTmiPeriodWindow(dateStr, schoolCalendar) {
     }
   }
   return getTmiWeekWindow(dateStr);
+}
+
+// Reads the TMI records relevant to a date range, without downloading every
+// intervention ever written. A record is relevant when its period could
+// contain an absence in [start, end]: its startDate is on or before `end`
+// and not more than `lookbackDays` before `start` (periods are at most a
+// few weeks long). Manual records (no tmiPeriodKey) are dated by startDate
+// as well. Needs the interventionType+startDate composite index; if it's
+// missing, falls back to a full read with a one-time warning.
+let tmiRangeWarned = false;
+export async function fetchTMIRecordsForRange(start, end, { lookbackDays = 45 } = {}) {
+  const s = (start || '').substring(0, 10), e = (end || '').substring(0, 10);
+  if (!s || !e) return [];
+  const lb = new Date(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10)));
+  lb.setDate(lb.getDate() - lookbackDays);
+  const lookback = `${lb.getFullYear()}-${pad(lb.getMonth() + 1)}-${pad(lb.getDate())}`;
+
+  try {
+    return await getWhereMultiple('interventionLogs', [
+      ['interventionType', '==', 'TMI'],
+      ['startDate', '>=', lookback],
+      ['startDate', '<=', e],
+    ]);
+  } catch (err) {
+    if (!tmiRangeWarned) {
+      tmiRangeWarned = true;
+      console.warn('tmiEngine: scoped TMI read failed (missing interventionType+startDate index?) — ' +
+                   'falling back to a full interventionLogs read.', err);
+    }
+    const all = await getAll('interventionLogs');
+    return all.filter(i => i.interventionType === 'TMI' && (i.startDate || '') >= lookback && (i.startDate || '') <= e);
+  }
 }
 
 // Recalculates TMI for one student, scoped to the TMI period containing

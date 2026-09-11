@@ -202,10 +202,11 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, updateDoc } from './js/db.js';
+    import { updateDoc } from './js/db.js';
+    import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { formatDate, showToast, confirmTypedDelete } from './js/utils.js';
-    import { recalcTMIForWindow } from './js/tmiEngine.js';
+    import { recalcTMIForWindow, fetchTMIRecordsForRange } from './js/tmiEngine.js';
 
     let allTMI          = [];   // interventionLogs where type === 'TMI'
     let filteredTMI     = [];
@@ -221,23 +222,47 @@
       init();
     });
 
+    // The Start/End dates define what is read from Firestore: only TMI
+    // records whose period can touch that range, and only the U/T attendance
+    // records inside those periods. Nothing is ever read in full.
+    let loadedRange = { start: null, end: null };
+
+    function localISO(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    function defaultRange() {
+      const end = new Date(); const start = new Date(); start.setDate(end.getDate() - 14);
+      return { start: localISO(start), end: localISO(end) };
+    }
+    function requireDates() {
+      const start = document.getElementById('filterStart').value;
+      const end   = document.getElementById('filterEnd').value;
+      const msg   = document.getElementById('noDataMsg');
+      if (!start || !end) {
+        msg.innerHTML = '<i class="fas fa-calendar-alt" style="margin-right:6px;"></i>Pick a <strong>Start</strong> and <strong>End</strong> date, then click Apply Filters. TMI is reviewed one date range at a time.';
+        msg.style.display = 'block';
+        return null;
+      }
+      if (start > end) {
+        msg.innerHTML = 'Start date must be on or before End date.';
+        msg.style.display = 'block';
+        return null;
+      }
+      return { start, end };
+    }
+
     async function init() {
       try {
-        document.getElementById('loadingSpinner').style.display = 'block';
-        document.getElementById('noDataMsg').style.display = 'none';
+        const def = defaultRange();
+        if (!document.getElementById('filterStart').value) document.getElementById('filterStart').value = def.start;
+        if (!document.getElementById('filterEnd').value)   document.getElementById('filterEnd').value   = def.end;
 
-        const [allInterventions, schedules, attLogs, students] = await Promise.all([
-          getAll('interventionLogs'),
+        const [schedules, students] = await Promise.all([
           Data.get('classSchedules'),
-          getAll('classAttendanceLogs'),
           Data.get('students')
         ]);
-
-        allTMI           = allInterventions.filter(i => i.interventionType === 'TMI');
-        classSchedules   = schedules;
-        allAttendanceLogs = attLogs;
-        allStudents       = students;
-
+        classSchedules = schedules;
+        allStudents    = students;
         studentsById = new Map(allStudents.map(s => [s.id, s]));
         studentsByANumber = new Map(
           allStudents
@@ -245,12 +270,38 @@
             .map(s => [s.chattStateANumber.trim().toUpperCase(), s])
         );
 
+        await loadForRange();
         populateTeacherDropdown();
         applyFilters();
-        document.getElementById('loadingSpinner').style.display = 'none';
       } catch (error) {
         console.error('Init error:', error);
         showToast('Error loading TMI data', 'error');
+        document.getElementById('loadingSpinner').style.display = 'none';
+      }
+    }
+
+    // Reads TMI records + their periods' U/T logs for the selected dates.
+    async function loadForRange() {
+      const range = requireDates();
+      if (!range) return false;
+      document.getElementById('loadingSpinner').style.display = 'block';
+      document.getElementById('noDataMsg').style.display = 'none';
+      try {
+        allTMI = await fetchTMIRecordsForRange(range.start, range.end);
+
+        // Attendance records only for the span the loaded periods cover.
+        let spanStart = range.start, spanEnd = range.end;
+        allTMI.forEach(t => {
+          const { periodStart, periodEnd } = getPeriodRange(t);
+          if (periodStart && periodStart < spanStart) spanStart = periodStart;
+          if (periodEnd   && periodEnd   > spanEnd)   spanEnd   = periodEnd;
+        });
+        allAttendanceLogs = allTMI.length
+          ? await fetchClassLogs({ start: spanStart, end: spanEnd, codes: ['T', 'U'] })
+          : [];
+        loadedRange = { ...range };
+        return true;
+      } finally {
         document.getElementById('loadingSpinner').style.display = 'none';
       }
     }
@@ -386,11 +437,17 @@
       return html;
     }
 
-    window.applyFilters = function() {
+    window.applyFilters = async function() {
       const teacher = document.getElementById('filterTeacher').value;
       const status  = document.getElementById('filterStatus').value;
       const start   = document.getElementById('filterStart').value;
       const end     = document.getElementById('filterEnd').value;
+
+      if (!requireDates()) { filteredTMI = []; updateSummary(); renderTable(); return; }
+      if (start !== loadedRange.start || end !== loadedRange.end) {
+        try { if (!(await loadForRange())) return; }
+        catch (e) { console.error(e); showToast('Error loading TMI data', 'error'); return; }
+      }
 
       filteredTMI = allTMI.filter(t => {
         if (t.interventionStatus === 'Closed') return false;
@@ -443,10 +500,11 @@
     };
 
     window.clearFilters = function() {
+      const def = defaultRange();
       document.getElementById('filterTeacher').value = '';
       document.getElementById('filterStatus').value  = '';
-      document.getElementById('filterStart').value   = '';
-      document.getElementById('filterEnd').value     = '';
+      document.getElementById('filterStart').value   = def.start;
+      document.getElementById('filterEnd').value     = def.end;
       applyFilters();
     };
 
@@ -481,10 +539,9 @@
         const updated = results.filter(r => r.action === 'updated').length;
         const deleted = results.filter(r => r.action === 'deleted').length;
 
-        // Reload from Firestore so the list reflects the just-written records
-        const allInterventions = await getAll('interventionLogs');
-        allTMI = allInterventions.filter(i => i.interventionType === 'TMI');
-        applyFilters();
+        // Reload this range so the list reflects the just-written records
+        loadedRange = { start: null, end: null };
+        await applyFilters();
 
         showToast(
           `TMI window set to ${formatDate(start)} – ${formatDate(end)}: ${created} created, ${updated} updated, ${deleted} cleared`,
@@ -518,7 +575,11 @@
       tbody.innerHTML = '';
 
       if (filteredTMI.length === 0) {
-        document.getElementById('noDataMsg').style.display = 'block';
+        const msg = document.getElementById('noDataMsg');
+        if (loadedRange.start) {
+          msg.innerHTML = '<i class="fas fa-info-circle"></i> No TMI records found for the selected filters.';
+        }
+        msg.style.display = 'block';
         return;
       }
       document.getElementById('noDataMsg').style.display = 'none';

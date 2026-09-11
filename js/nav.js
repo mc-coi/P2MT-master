@@ -15,7 +15,14 @@ import { getInitials } from './utils.js';
 // Plain items render as links; group items (group:true) render as dropdowns.
 const navItems = [
   { id: 'home',     label: 'Home',     href: './dashboard.html', icon: 'fa-home' },
-  { id: 'students', label: 'Students', href: './students.html',  icon: 'fa-users' },
+
+  {
+    id: 'students-group', label: 'Students', icon: 'fa-users', group: true,
+    children: [
+      { id: 'students', label: 'Student List',         href: './students.html', icon: 'fa-users' },
+      { id: 'parents',  label: 'Parents & Guardians',  href: './parents.html',  icon: 'fa-user-friends' },
+    ]
+  },
 
   {
     id: 'attendance-group', label: 'Attendance', icon: 'fa-clipboard-list', group: true,

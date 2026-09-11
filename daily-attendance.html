@@ -253,7 +253,8 @@
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
-    import { getAll, updateDoc, addDoc, deleteDoc } from './js/db.js';
+    import { updateDoc, addDoc, deleteDoc } from './js/db.js';
+    import { fetchClassLogs, fetchDailyLogs, ABSENCE_CODES } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { initNav }                  from './js/nav.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
@@ -272,14 +273,50 @@
       init();
     });
 
+    // The date range currently held in allLogs / allLabLogs. Records are only
+    // ever read for a bounded range — never the whole collection — so a filter
+    // outside this range triggers a (small) re-read for the new range.
+    let loadedRange = { start: null, end: null, labs: false };
+
+    function localISO(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    function defaultRange() {
+      const end = new Date(); const start = new Date(); start.setDate(end.getDate() - 14);
+      return { start: localISO(start), end: localISO(end) };
+    }
+    function setDefaultDatesIfBlank() {
+      const s = document.getElementById('filter-start'), e = document.getElementById('filter-end');
+      const def = defaultRange();
+      if (!s.value) s.value = def.start;
+      if (!e.value) e.value = def.end;
+    }
+
     async function init() {
       try {
-        document.getElementById('loading-container').style.display = 'flex';
+        setDefaultDatesIfBlank();
+        await loadRange(document.getElementById('filter-start').value,
+                        document.getElementById('filter-end').value,
+                        document.getElementById('filter-include-labs').checked);
+        populateTeacherFilter();
+        applyFilters();
+        attachEvents();
+      } catch(e) {
+        console.error(e);
+        showToast('Error loading attendance data', 'error');
+        document.getElementById('loading-container').style.display = 'none';
+      }
+    }
 
-        // Load both attendance collections in parallel
-        const [rawClass, rawDaily] = await Promise.all([
-          getAll('classAttendanceLogs'),
-          getAll('dailyAttendanceLogs')
+    // Reads T/U/E class records + all front-office records for [start, end],
+    // and (only when the Learning Lab toggle is on) lab records for the range.
+    async function loadRange(start, end, includeLabs) {
+      document.getElementById('loading-container').style.display = 'flex';
+      try {
+        const [rawClass, rawDaily, rawLabs] = await Promise.all([
+          fetchClassLogs({ start, end, codes: ABSENCE_CODES }),
+          fetchDailyLogs({ start, end }),
+          includeLabs ? fetchClassLogs({ start, end, learningLab: true }) : Promise.resolve([]),
         ]);
 
         // Tag each record with its source collection so excuse saves go to the right place
@@ -304,26 +341,27 @@
         // Merge — class records first (they have richer class/teacher info)
         allLogs = [...classLogs, ...dailyLogs];
 
-        // Learning lab entries
-        allLabLogs = classMapped.filter(l => l.learningLab === true);
+        // Learning lab entries (all codes, so Present lab sessions still show)
+        allLabLogs = rawLabs.map(l => ({ ...l, _collection: 'classAttendanceLogs' }));
 
-        document.getElementById('loading-container').style.display = 'none';
-
-        populateTeacherFilter();
-        applyFilters();
-        attachEvents();
-      } catch(e) {
-        console.error(e);
-        showToast('Error loading attendance data', 'error');
+        loadedRange = { start, end, labs: includeLabs };
+      } finally {
         document.getElementById('loading-container').style.display = 'none';
       }
     }
 
-    function populateTeacherFilter() {
-      const teachers = [...new Set(
-        [...allLogs, ...allLabLogs].map(l => l.teacherLastName).filter(Boolean)
-      )].sort();
+    async function populateTeacherFilter() {
+      // Teacher list comes from the (cached) schedules, not from whichever
+      // records happen to be loaded for the current range.
+      let teachers = [];
+      try {
+        const schedules = await Data.get('classSchedules');
+        teachers = [...new Set(schedules.map(cs => cs.teacherLastName).filter(Boolean))].sort();
+      } catch (_) {
+        teachers = [...new Set([...allLogs, ...allLabLogs].map(l => l.teacherLastName).filter(Boolean))].sort();
+      }
       const sel = document.getElementById('filter-teacher');
+      [...sel.querySelectorAll('option')].slice(1).forEach(o => o.remove());
       teachers.forEach(t => {
         const o = document.createElement('option');
         o.value = t; o.textContent = t;
@@ -335,13 +373,25 @@
       return log.classDate || log.date || log.absenceDate || '';
     }
 
-    function applyFilters() {
+    async function applyFilters() {
       const start      = document.getElementById('filter-start').value;
       const end        = document.getElementById('filter-end').value;
       const student    = document.getElementById('filter-student').value.toLowerCase();
       const teacher    = document.getElementById('filter-teacher').value;
       const code       = document.getElementById('filter-code').value;
       const includeLabs = document.getElementById('filter-include-labs').checked;
+
+      if (!start || !end) {
+        showToast('Pick a start and end date to load attendance', 'warning');
+        return;
+      }
+      // Re-read only when the requested range (or the labs toggle) isn't
+      // already in memory.
+      if (start < (loadedRange.start || '9999') || end > (loadedRange.end || '') ||
+          (includeLabs && !loadedRange.labs)) {
+        try { await loadRange(start, end, includeLabs); }
+        catch (e) { console.error(e); showToast('Error loading attendance data', 'error'); return; }
+      }
 
       // Standard T/U/E records (skip learning labs here to avoid duplicates)
       let base = allLogs.filter(l => {
@@ -362,15 +412,9 @@
       // Learning lab entries (when toggle is on)
       let labEntries = [];
       if (includeLabs) {
-        // Require a date filter when labs are included to avoid thousands of records
-        const effectiveStart = start || new Date().toISOString().split('T')[0];
-        const effectiveEnd   = end   || new Date().toISOString().split('T')[0];
-        if (!start) document.getElementById('filter-start').value = effectiveStart;
-        if (!end)   document.getElementById('filter-end').value   = effectiveEnd;
-
         labEntries = allLabLogs.filter(l => {
           const d = getDate(l);
-          if (d < effectiveStart || d > effectiveEnd) return false;
+          if (d < start || d > end) return false;
           if (teacher && l.teacherLastName !== teacher) return false;
           if (student) {
             const name = (l.studentName || '').toLowerCase();
@@ -482,8 +526,9 @@
       document.getElementById('btn-apply').addEventListener('click', applyFilters);
       document.getElementById('filter-include-labs').addEventListener('change', applyFilters);
       document.getElementById('btn-clear').addEventListener('click', () => {
-        document.getElementById('filter-start').value        = '';
-        document.getElementById('filter-end').value          = '';
+        const def = defaultRange();
+        document.getElementById('filter-start').value        = def.start;
+        document.getElementById('filter-end').value          = def.end;
         document.getElementById('filter-student').value      = '';
         document.getElementById('filter-teacher').value      = '';
         document.getElementById('filter-code').value         = '';

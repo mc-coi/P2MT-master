@@ -116,7 +116,7 @@ async function fetchRange(collectionName, dateFields, dateOf, { start, end, equa
 // ── Public API ─────────────────────────────────────────────────────────────
 
 // Class attendance records in [start, end].
-//   opts: { start, end, teacherLastName?, codes?, studentId?, chattStateANumber? }
+//   opts: { start, end, teacherLastName?, codes?, learningLab?, studentId?, chattStateANumber? }
 // studentId / chattStateANumber, if given, are treated as alternatives (a
 // record matching either is returned) because older records may carry only
 // one of them.
@@ -124,6 +124,7 @@ export async function fetchClassLogs(opts) {
   const { start, end, teacherLastName, codes } = opts;
   const equalsBase = [];
   if (teacherLastName) equalsBase.push(['teacherLastName', teacherLastName]);
+  if (opts.learningLab === true) equalsBase.push(['learningLab', true]);
 
   const identities = [];
   if (opts.studentId)                   identities.push(['studentId', opts.studentId]);
