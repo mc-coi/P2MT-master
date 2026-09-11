@@ -171,6 +171,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, deleteDoc } from './js/db.js';
+    import * as Data from './js/data.js';
     import { showToast, confirmTypedDelete } from './js/utils.js';
 
     // State: last scan results keyed by scan name → { groups: [...], toDelete: [...] }
@@ -215,7 +216,7 @@
 
       try {
         const [students, classLogs, dailyLogs] = await Promise.all([
-          getAll('students'),
+          Data.get('students'),
           getAll('classAttendanceLogs'),
           getAll('dailyAttendanceLogs'),
         ]);
@@ -331,7 +332,7 @@
       setStatus('schedStatus', 'info', '<span class="spinner-inline"></span> Scanning classSchedules…');
       document.getElementById('cleanSchedBtn').disabled = true;
       try {
-        const [all, students] = await Promise.all([getAll('classSchedules'), getAll('students')]);
+        const [all, students] = await Promise.all([Data.get('classSchedules'), Data.get('students')]);
         const studentMap = new Map(students.map(s => [s.id, s]));
         const groups = new Map();
         for (const d of all) {
@@ -403,7 +404,7 @@
       setStatus('erStatus', 'info', '<span class="spinner-inline"></span> Scanning erRoomStudents…');
       document.getElementById('cleanErBtn').disabled = true;
       try {
-        const [all, students] = await Promise.all([getAll('erRoomStudents'), getAll('students')]);
+        const [all, students] = await Promise.all([getAll('erRoomStudents'), Data.get('students')]);
         const studentMap = new Map(students.map(s => [s.id, s]));
         const groups = new Map();
         for (const d of all) {
@@ -465,7 +466,7 @@
       setStatus('attStatus', 'info', '<span class="spinner-inline"></span> Scanning classAttendanceLogs…');
       document.getElementById('cleanAttBtn').disabled = true;
       try {
-        const [all, students] = await Promise.all([getAll('classAttendanceLogs'), getAll('students')]);
+        const [all, students] = await Promise.all([getAll('classAttendanceLogs'), Data.get('students')]);
         const studentMap = new Map(students.map(s => [s.id, s]));
         const groups = new Map();
         for (const d of all) {
@@ -538,8 +539,8 @@
       });
       try {
         const [students, schedules, errooms, logs] = await Promise.all([
-          getAll('students'),
-          getAll('classSchedules'),
+          Data.get('students'),
+          Data.get('classSchedules'),
           getAll('erRoomStudents'),
           getAll('classAttendanceLogs')
         ]);

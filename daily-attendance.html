@@ -254,6 +254,7 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { getAll, updateDoc, addDoc, deleteDoc } from './js/db.js';
+    import * as Data from './js/data.js';
     import { initNav }                  from './js/nav.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
     import { recalcTMIForStudent } from './js/tmiEngine.js';
@@ -547,7 +548,7 @@
       // Lazy-load students for autocomplete
       if (!studentsForAdd) {
         try {
-          studentsForAdd = await getAll('students');
+          studentsForAdd = await Data.get('students');
           const dl = document.getElementById('add-student-datalist');
           dl.innerHTML = '';
           [...studentsForAdd]
@@ -603,7 +604,7 @@
       // Lazy-load students for autocomplete (same as add modal)
       if (!studentsForAdd) {
         try {
-          studentsForAdd = await getAll('students');
+          studentsForAdd = await Data.get('students');
           const dl = document.getElementById('add-student-datalist');
           dl.innerHTML = '';
           [...studentsForAdd]

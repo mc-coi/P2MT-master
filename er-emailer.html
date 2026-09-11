@@ -780,6 +780,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav }    from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, listenWhere } from './js/db.js';
+    import * as Data from './js/data.js';
     import { showToast, confirmTypedDelete }  from './js/utils.js';
 
     // ── Data ─────────────────────────────────────────────────────────────────────
@@ -901,12 +902,12 @@
     async function loadAll() {
       try {
         const [s, w, g, tmplList, cs, parentsList] = await Promise.all([
-          getAll('students'),
-          getAll('erWorkshops'),
-          getAll('guardianEmails'),
-          getAll('p2mtTemplates'),
-          getAll('classSchedules'),
-          getAll('parents'),
+          Data.get('students'),
+          Data.get('erWorkshops'),
+          Data.get('guardianEmails'),
+          Data.get('p2mtTemplates'),
+          Data.get('classSchedules'),
+          Data.get('parents'),
         ]);
 
         students  = s.sort((a, b) => a.lastName.localeCompare(b.lastName));

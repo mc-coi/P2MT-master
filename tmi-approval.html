@@ -238,6 +238,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, updateDoc } from './js/db.js';
+    import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
     import { recalcTMIForWindow } from './js/tmiEngine.js';
 
@@ -353,9 +354,9 @@
     async function loadInitialData() {
       try {
         interventions = await getAll('interventionLogs');
-        students = await getAll('students');
-        parents = await getAll('parents');
-        templates = await getAll('p2mtTemplates');
+        students = await Data.get('students');
+        parents = await Data.get('parents');
+        templates = await Data.get('p2mtTemplates');
         classAttendanceLogs = await getAll('classAttendanceLogs');
       } catch (error) {
         console.error('Error loading initial data:', error);

@@ -7,16 +7,17 @@
 //
 // This module loads each such collection at most once per browser tab and
 // keeps it in memory + sessionStorage. Freshness is decided by ONE document,
-// meta/versions, which holds a stamp per collection. Every page that writes to
-// a cached collection calls Data.bump('<collection>') afterwards, which
-// updates that stamp; the next page load sees the stamp changed and re-fetches
-// only that collection. Net cost of a page load for reference data: 1 read.
+// meta/versions, which holds a stamp per collection. The write helpers in
+// js/db.js update that stamp automatically whenever a versioned collection is
+// written; the next page load sees the stamp changed and re-fetches only that
+// collection. Net cost of a page load for reference data: 1 read.
 //
-// A long TTL is kept purely as a safety net in case a write path forgets to
-// bump — it is NOT the primary freshness mechanism, and must stay long
-// (hours), because a short TTL would silently reintroduce the read storm.
+// A long TTL is kept purely as a safety net (e.g. data edited directly in the
+// Firebase console, which bypasses db.js) — it is NOT the primary freshness
+// mechanism, and must stay long (hours), because a short TTL would silently
+// reintroduce the read storm.
 
-import { getAll, getById, setDocMerge } from './db.js';
+import { getAll, getById, onCollectionWrite, bumpVersion, isVersionedCollection } from './db.js';
 
 const VERSIONS_COLLECTION = 'meta';
 const VERSIONS_DOC        = 'versions';
@@ -26,11 +27,9 @@ const TTL_MS              = 6 * 60 * 60 * 1000;   // 6 hours — safety net only
 // Collections allowed through the cache. Anything that grows with daily use
 // (attendance logs, interventions) is deliberately NOT here — those must be
 // read with scoped queries, never in full.
-const CACHEABLE = new Set([
-  'students', 'staff', 'parents', 'classSchedules', 'p2mtTemplates',
-  'interventionTypes', 'schoolCalendar', 'pbls', 'pblTeams', 'pblEvents',
-  'erWorkshops', 'erRooms', 'guardianEmails',
-]);
+// The list itself lives in db.js (VERSIONED_COLLECTIONS) so the write helpers
+// and this cache can never disagree about what is versioned.
+const CACHEABLE = { has: isVersionedCollection };
 
 const memory = new Map();          // collection -> { stamp, fetchedAt, docs }
 let versionsCache = null;          // { <collection>: <stamp>, ... }
@@ -92,7 +91,9 @@ export async function get(collection, { force = false } = {}) {
     const entry = memory.get(collection) || storageGet(collection);
     if (entry && entry.stamp === stamp && (now - entry.fetchedAt) < TTL_MS) {
       if (!memory.has(collection)) memory.set(collection, entry);
-      return entry.docs;
+      // Fresh array each time so a page sorting or splicing its copy can't
+      // disturb the cached one.
+      return entry.docs.slice();
     }
   }
 
@@ -100,23 +101,24 @@ export async function get(collection, { force = false } = {}) {
   const entry = { stamp, fetchedAt: now, docs };
   memory.set(collection, entry);
   storageSet(collection, entry);
-  return docs;
+  return docs.slice();
 }
 
-// Call after writing to a cached collection so every tab re-fetches it on
-// its next page load. Cost: 1 write. Safe to call for non-cached collections
-// (no-op).
-export async function bump(collection) {
-  if (!CACHEABLE.has(collection)) return;
-  const stamp = new Date().toISOString();
-  try {
-    await setDocMerge(VERSIONS_COLLECTION, VERSIONS_DOC, { [collection]: stamp });
-  } catch (err) {
-    console.warn(`Data: could not bump version for ${collection}`, err);
-  }
-  if (versionsCache) versionsCache[collection] = stamp;
+// Every write helper in db.js already updates meta/versions for versioned
+// collections, and notifies this module so the local copy is dropped at
+// once — a page that writes and immediately re-reads gets fresh data.
+// bump() remains for callers that change data some other way.
+function markStale(collection) {
+  if (versionsCache) versionsCache[collection] = `local-${Date.now()}`;
   memory.delete(collection);
   storageDrop(collection);
+}
+onCollectionWrite(markStale);
+
+export async function bump(collection) {
+  if (!CACHEABLE.has(collection)) return;
+  markStale(collection);
+  bumpVersion(collection);
 }
 
 // Drops the local copy without touching meta/versions — for a page that

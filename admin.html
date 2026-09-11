@@ -505,6 +505,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc, batchWrite } from './js/db.js';
+    import * as Data from './js/data.js';
     import { exportCSV, showToast, generateId } from './js/utils.js';
 
     let studentsData = [];
@@ -553,10 +554,10 @@
 
     async function loadAllData() {
       try {
-        studentsData = await getAll('students');
-        staffData = await getAll('staff');
-        parentsData = await getAll('parents');
-        interventionTypesData = await getAll('interventionTypes');
+        studentsData = await Data.get('students');
+        staffData = await Data.get('staff');
+        parentsData = await Data.get('parents');
+        interventionTypesData = await Data.get('interventionTypes');
         
         document.getElementById('student-count').textContent = studentsData.length;
         document.getElementById('staff-count').textContent = staffData.length;

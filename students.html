@@ -550,6 +550,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, addDoc, updateDoc, deleteDoc } from './js/db.js';
+    import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete } from './js/utils.js';
     import { recalcTMIForStudent } from './js/tmiEngine.js';
 
@@ -626,7 +627,7 @@
     async function loadStudents() {
       try {
         showToast('Loading students...', 'info');
-        studentsData = await getAll('students');
+        studentsData = await Data.get('students');
         document.getElementById('student-count').textContent = studentsData.length;
         populateGradYearFilter();
       } catch (error) {
@@ -943,7 +944,7 @@
       document.getElementById('bulk-delete-menu').style.display = 'none';
       showToast('Scanning for orphaned parent records…', 'info');
       try {
-        const allParents = await getAll('parents');
+        const allParents = await Data.get('parents');
         const enrolledANumbers = new Set(studentsData.map(s => s.chattStateANumber).filter(Boolean));
         const orphans = allParents.filter(p => p.chattStateANumber && !enrolledANumbers.has(p.chattStateANumber));
 

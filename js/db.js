@@ -19,6 +19,60 @@ import {
   limit
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
+// ── Reference-data version stamps ───────────────────────────────────────────
+// js/data.js caches slow-changing collections per browser tab and decides
+// whether a cached copy is still fresh by comparing one document,
+// meta/versions, which holds a stamp per collection. Every write helper below
+// calls noteWrite() so that stamp is updated automatically whenever one of
+// these collections changes — no page has to remember to do it.
+//
+// Bursts (e.g. a CSV upload writing 1,000 schedules) are coalesced: one stamp
+// write at the start of the burst and one after it settles.
+const VERSIONED_COLLECTIONS = new Set([
+  'students', 'staff', 'parents', 'classSchedules', 'p2mtTemplates',
+  'interventionTypes', 'schoolCalendar', 'pbls', 'pblTeams', 'pblEvents',
+  'erWorkshops', 'erRooms', 'guardianEmails',
+]);
+const BUMP_WINDOW_MS = 3000;
+const writeListeners = [];
+const bumpState = new Map();
+
+// data.js registers here to drop its local copy the moment this tab writes.
+export function onCollectionWrite(callback) { writeListeners.push(callback); }
+
+export function isVersionedCollection(collectionName) { return VERSIONED_COLLECTIONS.has(collectionName); }
+
+async function writeVersionStamp(collectionName) {
+  try {
+    await firebaseSetDoc(doc(db, 'meta', 'versions'), { [collectionName]: new Date().toISOString() }, { merge: true });
+  } catch (error) {
+    console.warn(`Could not update version stamp for ${collectionName}:`, error);
+  }
+}
+
+export function bumpVersion(collectionName) {
+  if (!VERSIONED_COLLECTIONS.has(collectionName)) return;
+  const now = Date.now();
+  const st = bumpState.get(collectionName) || { last: 0, timer: null };
+  if (now - st.last > BUMP_WINDOW_MS) {
+    st.last = now;
+    writeVersionStamp(collectionName);
+  } else if (!st.timer) {
+    st.timer = setTimeout(() => {
+      st.timer = null;
+      st.last = Date.now();
+      writeVersionStamp(collectionName);
+    }, BUMP_WINDOW_MS);
+  }
+  bumpState.set(collectionName, st);
+}
+
+function noteWrite(collectionName) {
+  if (!VERSIONED_COLLECTIONS.has(collectionName)) return;
+  writeListeners.forEach(cb => { try { cb(collectionName); } catch (_) {} });
+  bumpVersion(collectionName);
+}
+
 // Get all documents from a collection
 export async function getAll(collectionName) {
   try {
@@ -99,6 +153,7 @@ export async function getWhereMultiple(collectionName, conditions) {
 export async function addDoc(collectionName, data) {
   try {
     const docRef = await firebaseAddDoc(collection(db, collectionName), data);
+    noteWrite(collectionName);
     return docRef.id;
   } catch (error) {
     console.error(`Error adding document to ${collectionName}:`, error);
@@ -110,6 +165,7 @@ export async function addDoc(collectionName, data) {
 export async function setDoc(collectionName, id, data) {
   try {
     await firebaseSetDoc(doc(db, collectionName, id), data);
+    noteWrite(collectionName);
     return id;
   } catch (error) {
     console.error(`Error setting document ${id} in ${collectionName}:`, error);
@@ -121,6 +177,7 @@ export async function setDoc(collectionName, id, data) {
 export async function setDocMerge(collectionName, id, data) {
   try {
     await firebaseSetDoc(doc(db, collectionName, id), data, { merge: true });
+    noteWrite(collectionName);
     return id;
   } catch (error) {
     console.error(`Error merging document ${id} in ${collectionName}:`, error);
@@ -132,6 +189,7 @@ export async function setDocMerge(collectionName, id, data) {
 export async function updateDoc(collectionName, id, data) {
   try {
     await firebaseUpdateDoc(doc(db, collectionName, id), data);
+    noteWrite(collectionName);
     return id;
   } catch (error) {
     console.error(`Error updating document ${id} in ${collectionName}:`, error);
@@ -143,6 +201,7 @@ export async function updateDoc(collectionName, id, data) {
 export async function deleteDoc(collectionName, id) {
   try {
     await firebaseDeleteDoc(doc(db, collectionName, id));
+    noteWrite(collectionName);
     return true;
   } catch (error) {
     console.error(`Error deleting document ${id} from ${collectionName}:`, error);
@@ -176,6 +235,7 @@ export async function batchWrite(operations) {
     });
     
     await batch.commit();
+    new Set(operations.map(op => op.collection)).forEach(noteWrite);
     return true;
   } catch (error) {
     console.error('Error during batch write:', error);

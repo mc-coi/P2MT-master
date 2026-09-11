@@ -361,6 +361,7 @@
   <script type="module">
     import { initAuth }                     from './js/auth.js';
     import { getAll, getWhere }             from './js/db.js';
+    import * as Data from './js/data.js';
     import { initNav }                      from './js/nav.js';
 
     // ── Shared helpers ──────────────────────────────────────────────────────────
@@ -472,9 +473,9 @@
           getAll('interventionLogs'),
           getAll('studentInterventions'),
           getAll('erAssignments'),
-          getAll('erWorkshops'),
+          Data.get('erWorkshops'),
           getAll('erClearance'),
-          getAll('students'),
+          Data.get('students'),
         ]);
 
         const studentMap = {};

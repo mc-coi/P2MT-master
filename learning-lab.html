@@ -286,6 +286,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
+    import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
 
     window.getAll = getAll;
@@ -324,9 +325,9 @@
         document.getElementById('labSchoolYear').value = getCurrentSchoolYear();
         document.getElementById('labSemester').value = getCurrentSemester();
         
-        allSchedules = await getAll('classSchedules');
-        allStudents = await getAll('students');
-        try { templates = await getAll('p2mtTemplates'); } catch(e) { templates = []; }
+        allSchedules = await Data.get('classSchedules');
+        allStudents = await Data.get('students');
+        try { templates = await Data.get('p2mtTemplates'); } catch(e) { templates = []; }
 
         // Populate teacher dropdown from unique teacher names already in classSchedules
         const teachers = [...new Set(allSchedules.map(s => s.teacherLastName).filter(Boolean))].sort();
@@ -646,7 +647,7 @@
         showToast('Learning lab saved successfully', 'success');
         const wasNewAssignment = !currentEditId;
         closeLabModal();
-        allSchedules = await getAll('classSchedules');
+        allSchedules = await Data.get('classSchedules');
         filteredSchedules = allSchedules.filter(s => s.learningLab);
         renderTable();
 
@@ -851,7 +852,7 @@
         }
 
         showToast('Learning lab deleted successfully', 'success');
-        allSchedules = await getAll('classSchedules');
+        allSchedules = await Data.get('classSchedules');
         filteredSchedules = allSchedules.filter(s => s.learningLab);
         renderTable();
       } catch (error) {

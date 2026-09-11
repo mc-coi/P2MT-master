@@ -481,6 +481,7 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     import { initAuth }            from './js/auth.js';
     import { initNav }             from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
+    import * as Data from './js/data.js';
     import { showToast, confirmTypedDelete } from './js/utils.js';
 
     // ── Data ────────────────────────────────────────────────────────────────────
@@ -548,11 +549,11 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     async function loadData() {
       try {
         [templates, pbls, allEvents, teams, students] = await Promise.all([
-          getAll('p2mtTemplates'),
-          getAll('pbls'),
-          getAll('pblEvents'),
-          getAll('pblTeams'),
-          getAll('students'),
+          Data.get('p2mtTemplates'),
+          Data.get('pbls'),
+          Data.get('pblEvents'),
+          Data.get('pblTeams'),
+          Data.get('students'),
         ]);
         renderGrid();
         populateSendDropdowns();

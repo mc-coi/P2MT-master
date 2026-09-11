@@ -354,6 +354,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import * as Data from './js/data.js';
     import { showToast, exportCSV, confirmTypedDelete } from './js/utils.js';
 
     let pbls = [];
@@ -388,13 +389,13 @@
 
     async function loadAllData() {
       try {
-        pbls = await getAll('pbls') || [];
-        events = await getAll('pblEvents') || [];
-        teams = await getAll('pblTeams') || [];
-        students = await getAll('students') || [];
+        pbls = await Data.get('pbls') || [];
+        events = await Data.get('pblEvents') || [];
+        teams = await Data.get('pblTeams') || [];
+        students = await Data.get('students') || [];
 
         // Build set of A#s for students enrolled in STEM III/3 (not IV/4)
-        const allSchedules = await getAll('classSchedules') || [];
+        const allSchedules = await Data.get('classSchedules') || [];
         stem3StudentANums = new Set(
           allSchedules
             .filter(s => isStem3Class(s.className))
@@ -1180,7 +1181,7 @@
       // Load templates if not yet loaded
       if (!pblEmailTemplates.length) {
         try {
-          pblEmailTemplates = await getAll('p2mtTemplates');
+          pblEmailTemplates = await Data.get('p2mtTemplates');
         } catch(e) { showToast('Could not load templates', 'error'); }
       }
 

@@ -401,6 +401,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
+    import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
     import { recalcTMIForStudent, mergeDuplicateTMI, reconcileAssignedBy } from './js/tmiEngine.js';
 
@@ -441,10 +442,10 @@
         document.getElementById('repSchoolYear').value = getCurrentSchoolYear();
         document.getElementById('attSchoolYear').value = getCurrentSchoolYear();
 
-        allSchedules = await getAll('classSchedules');
-        allStudents = await getAll('students');
+        allSchedules = await Data.get('classSchedules');
+        allStudents = await Data.get('students');
         try {
-          allStaff = await getAll('staff');
+          allStaff = await Data.get('staff');
         } catch (e) {
           allStaff = [];
         }
@@ -621,7 +622,7 @@
         // Always refresh students list before importing — catches students uploaded
         // in another tab after this page first loaded.
         try {
-          allStudents = await getAll('students');
+          allStudents = await Data.get('students');
         } catch(e) { console.warn('Could not refresh students:', e); }
 
         progress.innerHTML = '<p>Importing…</p>';
@@ -720,7 +721,7 @@
         html += '</div>';
 
         progress.innerHTML = html;
-        allSchedules = await getAll('classSchedules');
+        allSchedules = await Data.get('classSchedules');
         showToast(errorRows.length === 0 ? 'Import completed successfully' : `Imported ${successful}, skipped ${errorRows.length}`, errorRows.length === 0 ? 'success' : 'warning');
       } catch (error) {
         console.error('Import error:', error);
@@ -827,7 +828,7 @@
         document.getElementById('addStartTime').value = '';
         document.getElementById('addEndTime').value = '';
         
-        allSchedules = await getAll('classSchedules');
+        allSchedules = await Data.get('classSchedules');
       } catch (error) {
         console.error('Add class error:', error);
         showToast('Error adding class', 'error');
@@ -2049,7 +2050,7 @@
             <p style="font-size:13px;color:#475569;">Deleted ${i + 1} of ${toDelete.length} records…</p>`;
         }
 
-        allSchedules = await getAll('classSchedules');
+        allSchedules = await Data.get('classSchedules');
         showToast(`Deleted ${toDelete.length} schedule record${toDelete.length !== 1 ? 's' : ''}`, 'success');
         populateDeleteDropdown(); // refresh dropdown counts
         preview.innerHTML = `
@@ -2080,7 +2081,7 @@
       _scheduleGroupKeys = [];
 
       try {
-        const all = await getAll('classSchedules');
+        const all = await Data.get('classSchedules');
         if (!all.length) {
           resultsEl.innerHTML = '<p style="color:#16a34a;font-size:13px;">✓ No schedule records found in the database.</p>';
           return;
@@ -2176,7 +2177,7 @@
             <p style="font-size:13px;color:#475569;">${deleted} / ${allIds.length} deleted</p>`;
         }
         // Refresh in-memory schedules and dropdown
-        allSchedules = await getAll('classSchedules');
+        allSchedules = await Data.get('classSchedules');
         populateDeleteDropdown();
         _scannedScheduleGroups = {};
         _scheduleGroupKeys = [];

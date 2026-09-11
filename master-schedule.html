@@ -299,6 +299,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
+    import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
 
     // Expose to inline handlers
@@ -361,8 +362,8 @@
     }
 
     async function loadSchedules() {
-      allSchedules  = await getAll('classSchedules');
-      allStudents   = await getAll('students');
+      allSchedules  = await Data.get('classSchedules');
+      allStudents   = await Data.get('students');
       filteredSchedules = allSchedules;
       buildTeacherColors();
       renderTable();

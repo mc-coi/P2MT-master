@@ -203,6 +203,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, updateDoc } from './js/db.js';
+    import * as Data from './js/data.js';
     import { formatDate, showToast, confirmTypedDelete } from './js/utils.js';
     import { recalcTMIForWindow } from './js/tmiEngine.js';
 
@@ -227,9 +228,9 @@
 
         const [allInterventions, schedules, attLogs, students] = await Promise.all([
           getAll('interventionLogs'),
-          getAll('classSchedules'),
+          Data.get('classSchedules'),
           getAll('classAttendanceLogs'),
-          getAll('students')
+          Data.get('students')
         ]);
 
         allTMI           = allInterventions.filter(i => i.interventionType === 'TMI');

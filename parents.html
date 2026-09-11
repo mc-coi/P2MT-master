@@ -163,6 +163,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, updateDoc, batchWrite, deleteDoc } from './js/db.js';
+    import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, generateId, confirmTypedDelete } from './js/utils.js';
 
     let studentsData = [];
@@ -193,8 +194,8 @@
     async function loadData() {
       try {
         showToast('Loading parent information...', 'info');
-        studentsData = await getAll('students');
-        parentsData = await getAll('parents');
+        studentsData = await Data.get('students');
+        parentsData = await Data.get('parents');
       } catch (error) {
         console.error('Error loading data:', error);
         showToast('Error loading parent information', 'error');

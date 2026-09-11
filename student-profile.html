@@ -631,6 +631,7 @@
         import { initAuth, getCurrentUser, signOut } from './js/auth.js';
         import { initNav } from './js/nav.js';
         import { getById, getWhere, getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
+        import * as Data from './js/data.js';
         import { formatDate, showToast } from './js/utils.js';
 
         // ── Tab switching — defined first so it works even if data load is slow ──
@@ -678,12 +679,12 @@
             const results = await Promise.allSettled([
                 getWhere('dailyAttendanceLogs', 'chattStateANumber', '==', aNum),
                 getWhere('classSchedules',      'chattStateANumber', '==', aNum),
-                getAll('parents'),
+                Data.get('parents'),
                 getWhere('parentContactLogs',   'studentId', '==', studentId),
                 getWhere('studentInterventions','studentId', '==', studentId),
                 getWhere('erCleared',           'studentId', '==', studentId),
                 getWhere('erRoomStudents',       'studentId', '==', studentId),
-                getAll('erRooms'),
+                Data.get('erRooms'),
             ]);
 
             const [
