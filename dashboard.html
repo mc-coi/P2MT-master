@@ -140,8 +140,6 @@
     [data-theme="dark"] .alert-badge.critical { background: rgba(239,68,68,.2); color: #FCA5A5; }
     [data-theme="dark"] .alert-badge.warning  { background: rgba(245,158,11,.2); color: #FDE68A; }
     .alert-date  { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
-    .alerts-empty { text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 13px; }
-    .alerts-empty i { font-size: 28px; display: block; margin-bottom: 8px; opacity: .35; color: #10B981; }
 
     @media (max-width: 640px) {
       .quick-access { grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -218,19 +216,6 @@
       </div>
     </div>
 
-    <!-- Attendance Alerts -->
-    <div class="card w3-margin-bottom">
-      <div class="card-header">
-        <div class="card-title">
-          <i class="fas fa-exclamation-triangle" style="margin-right:6px;color:#EF4444;"></i>Attendance Alerts
-        </div>
-        <span id="alert-count-badge" style="display:none;" class="badge badge-danger"></span>
-      </div>
-      <div id="alerts-body" style="padding:0;">
-        <div class="loading-container" style="padding:28px;"><div class="spinner"></div></div>
-      </div>
-    </div>
-
     <!-- Quick-access shortcuts -->
     <div class="quick-access">
       <a href="class-attendance.html" class="quick-btn class-att">
@@ -258,7 +243,7 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll } from './js/db.js';
+    import { fetchClassLogsForDate, fetchDailyLogsForDate, classLogDate, dailyLogDate } from './js/attendance.js';
 
     await initAuth();
     if (!getCurrentUser()) { window.location.href = 'index.html'; }
@@ -428,148 +413,32 @@
     todoRender();
 
     // ══════════════════════════════════════
-    //  ATTENDANCE ALERTS
-    //  Thresholds (rolling 4 weeks across all classes):
-    //    critical  — ≥ 3 unexcused absences
-    //    warning   — ≥ 5 tardies
-    //  Students can appear once; if both thresholds are hit the
-    //  badge shows both counts and severity is critical.
-    // ══════════════════════════════════════
-    (async function loadAlerts() {
-      const body = document.getElementById('alerts-body');
-      try {
-        const [students, logs] = await Promise.all([
-          getAll('students'),
-          getAll('classAttendanceLogs')   // one record per student per class per day
-        ]);
-
-        // Index students by Firestore id and by A-number for fast lookup
-        const studentById   = {};
-        const studentByANum = {};
-        students.forEach(s => {
-          studentById[s.id] = s;
-          if (s.chattStateANumber) studentByANum[s.chattStateANumber] = s;
-        });
-
-        // Rolling 4-week cutoff
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - 28);
-        const cutoffStr = cutoff.toISOString().slice(0, 10); // YYYY-MM-DD for string compare
-
-        // Bucket recent logs by student (prefer studentId, fall back to A-number)
-        const recentByStudent = {}; // { studentId: [log, ...] }
-        logs.forEach(l => {
-          const logDate = l.date || l.absenceDate || '';
-          if (!logDate || logDate < cutoffStr) return;          // outside window
-          const code = l.attendanceCode || l.status || '';
-          if (code !== 'U' && code !== 'T') return;            // only flag U and T
-
-          let sid = l.studentId;
-          if (!sid && l.chattStateANumber) {
-            const s = studentByANum[l.chattStateANumber];
-            sid = s?.id;
-          }
-          if (!sid || !studentById[sid]) return;
-
-          (recentByStudent[sid] = recentByStudent[sid] || []).push(l);
-        });
-
-        const alerts = [];
-
-        for (const [sid, sLogs] of Object.entries(recentByStudent)) {
-          const s      = studentById[sid];
-          const uCount = sLogs.filter(l => (l.attendanceCode || l.status) === 'U').length;
-          const tCount = sLogs.filter(l => (l.attendanceCode || l.status) === 'T').length;
-
-          const hitU = uCount >= 3;
-          const hitT = tCount >= 5;
-          if (!hitU && !hitT) continue;
-
-          // Most recent flagged log date for the "Last:" display
-          const latestDate = sLogs
-            .map(l => l.date || l.absenceDate || '')
-            .sort()
-            .at(-1) || '';
-
-          // Build label — show whichever thresholds are hit
-          const parts = [];
-          if (hitU) parts.push(`${uCount} unexcused`);
-          if (hitT) parts.push(`${tCount} tardies`);
-
-          alerts.push({
-            severity:  hitU ? 'critical' : 'warning',
-            studentId: sid,
-            name:      `${s.lastName}, ${s.firstName}`,
-            label:     parts.join(' · ') + ' (4 wks)',
-            date:      latestDate
-          });
-        }
-
-        // Sort: critical first, then alpha by name
-        alerts.sort((a, b) => {
-          if (a.severity !== b.severity) return a.severity === 'critical' ? -1 : 1;
-          return a.name.localeCompare(b.name);
-        });
-
-        if (alerts.length === 0) {
-          body.innerHTML = `<div class="alerts-empty">
-            <i class="fas fa-check-circle"></i>
-            No attendance concerns right now — all clear!
-          </div>`;
-          return;
-        }
-
-        const badge = document.getElementById('alert-count-badge');
-        badge.textContent = alerts.length;
-        badge.style.display = 'inline-flex';
-
-        body.innerHTML = alerts.map(a => {
-          const dateStr = a.date ? new Date(a.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' }) : '';
-          return `<a href="student-profile.html?id=${a.studentId}" class="alert-row">
-            <span class="alert-dot ${a.severity}"></span>
-            <span class="alert-name">${a.name}</span>
-            <span class="alert-badge ${a.severity}">${a.label}</span>
-            ${dateStr ? `<span class="alert-date">Last: ${dateStr}</span>` : ''}
-            <i class="fas fa-chevron-right" style="font-size:11px;color:var(--text-muted);"></i>
-          </a>`;
-        }).join('');
-
-      } catch(e) {
-        console.error('Alert load error:', e);
-        body.innerHTML = `<div class="alerts-empty"><i class="fas fa-exclamation-circle"></i>Could not load alerts</div>`;
-      }
-    })();
-
-    // ══════════════════════════════════════
     //  TODAY'S ATTENDANCE SUMMARY
     // ══════════════════════════════════════
     (async function loadTodayAttendance() {
       const todayBody = document.getElementById('today-att-body');
-      const todayStr  = new Date().toISOString().slice(0, 10);
+      // Local calendar date (toISOString() is UTC and flips to tomorrow in the evening)
+      const _n = new Date();
+      const todayStr = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
 
       try {
+        // Only today's records — two small scoped queries instead of two
+        // full-collection downloads.
         const [classLogs, dailyLogs] = await Promise.all([
-          getAll('classAttendanceLogs'),
-          getAll('dailyAttendanceLogs'),
+          fetchClassLogsForDate(todayStr),
+          fetchDailyLogsForDate(todayStr).catch(() => []),
         ]);
-        // Merge: daily records that don't already have a class record for the same student+date
+        // Merge: daily records that don't already have a class record for the same student today
         const classAbsKeys = new Set(
           classLogs.filter(l => ['T','U','E'].includes(l.attendanceCode))
-                   .map(l => `${l.chattStateANumber}|${(l.classDate||l.date||'').substring(0,10)}`)
+                   .map(l => `${l.chattStateANumber}|${classLogDate(l)}`)
         );
-        const mergedLogs = [
+        const todayLogs = [
           ...classLogs,
           ...dailyLogs
-            .filter(l => {
-              const d = (l.absenceDate || l.date || '').substring(0,10);
-              return !classAbsKeys.has(`${l.chattStateANumber}|${d}`);
-            })
-            .map(l => ({ ...l, classDate: l.absenceDate || l.date || '' })),
+            .filter(l => !classAbsKeys.has(`${l.chattStateANumber}|${dailyLogDate(l)}`))
+            .map(l => ({ ...l, classDate: dailyLogDate(l) })),
         ];
-        const todayLogs = mergedLogs.filter(l => {
-          const d = (l.classDate || l.date || l.absenceDate || '').substring(0, 10);
-          return d === todayStr;
-        });
 
         if (todayLogs.length === 0) {
           todayBody.innerHTML = `
