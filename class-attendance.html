@@ -1419,6 +1419,12 @@
             // Approval forever with no current U/T behind it.
             if (existingTMI.tmiMinutes !== 0) {
               await deleteDoc('interventionLogs', existingTMI.id);
+              // Patch the in-memory list directly instead of re-fetching the
+              // whole collection — this keeps "Save All Classes" correct
+              // across sections (so a later section's lookup for the same
+              // student doesn't still see this now-deleted record) without
+              // the cost of a full re-download per section.
+              allInterventions = allInterventions.filter(i => i.id !== existingTMI.id);
               tmiRemoved.push(`${student.firstName} ${student.lastName}`);
             }
           } else {
@@ -1446,7 +1452,7 @@
           }
         } else if (totalMinutes > 0) {
           // Create a new record scoped to this period
-          await addDoc('interventionLogs', {
+          const newTMI = {
             studentId:            student.id,
             studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
             chattStateANumber:    student.chattStateANumber || '',
@@ -1463,7 +1469,12 @@
             className:            sec.className,
             teacherLastName:      currentTeacher,
             createDate:           new Date().toISOString()
-          });
+          };
+          const newId = await addDoc('interventionLogs', newTMI);
+          // Patch the in-memory list directly (see delete branch above for
+          // why) so a later section in the same "Save All Classes" batch
+          // sees this record as existing instead of creating a duplicate.
+          allInterventions.push({ id: newId, ...newTMI });
           tmiCreated.push(`${student.firstName} ${student.lastName} (${totalMinutes} min)`);
         }
       }
@@ -1471,8 +1482,6 @@
       if (tmiCreated.length > 0) showToast(`TMI assigned: ${tmiCreated.join(', ')}`, 'warning');
       if (tmiUpdated.length > 0) showToast(`TMI updated: ${tmiUpdated.join(', ')}`, 'warning');
       if (tmiRemoved.length > 0) showToast(`TMI cleared (no longer qualifies): ${tmiRemoved.join(', ')}`, 'info');
-
-      try { allInterventions = await getAll('interventionLogs'); } catch(e) {}
     }
 
     // ── Absence summary tab ───────────────────────────────────────────────────
