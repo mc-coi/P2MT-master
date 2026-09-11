@@ -1,0 +1,37 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "classAttendanceLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "classAttendanceLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "classDate", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "classAttendanceLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "chattStateANumber", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "classAttendanceLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "chattStateANumber", "order": "ASCENDING" },
+        { "fieldPath": "classDate", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

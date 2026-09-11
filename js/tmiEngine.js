@@ -16,9 +16,71 @@
 // (daily-attendance.html, students.html) stay consistent with it instead of
 // re-implementing the math themselves.
 
-import { getAll, addDoc, updateDoc, deleteDoc } from './db.js';
+import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './db.js';
 
 const MAX_TMI = 240;
+
+// classAttendanceLogs is written with two different date field names:
+// learning-lab.html writes only `classDate`, every other writer sets `date`
+// (daily-attendance.html sets both). Any scoped query therefore has to ask
+// for both, or Learning Lab records vanish from TMI silently.
+const DATE_FIELDS = ['date', 'classDate'];
+
+let scopedQueryWarned = false;
+
+// Fetches ONLY the classAttendanceLogs that can fall inside [windowStart,
+// windowEnd], instead of downloading the entire collection and filtering in
+// JS. Optionally narrows further to a single student.
+//
+// Firestore can't OR across fields, so this fans out into one query per
+// (identity, dateField) pair and merges the results by document id.
+//
+// If ANY of those queries fails — most likely a missing composite index —
+// the whole thing falls back to the original getAll() scan, so behaviour is
+// never worse than before and correctness never depends on index setup.
+async function fetchLogsInWindow(windowStart, windowEnd, identity) {
+  const idConds = [];
+  if (identity) {
+    if (identity.studentId) idConds.push(['studentId', '==', identity.studentId]);
+    if (identity.chattStateANumber) idConds.push(['chattStateANumber', '==', identity.chattStateANumber]);
+    if (!idConds.length) return [];
+  } else {
+    idConds.push(null);
+  }
+
+  const jobs = [];
+  for (const cond of idConds) {
+    for (const field of DATE_FIELDS) {
+      const conditions = [
+        [field, '>=', windowStart],
+        [field, '<=', windowEnd],
+      ];
+      if (cond) conditions.unshift(cond);
+      jobs.push(getWhereMultiple('classAttendanceLogs', conditions));
+    }
+  }
+
+  try {
+    const batches = await Promise.all(jobs);
+    const merged = new Map();
+    batches.forEach(batch => batch.forEach(doc => merged.set(doc.id, doc)));
+    return Array.from(merged.values());
+  } catch (err) {
+    if (!scopedQueryWarned) {
+      scopedQueryWarned = true;
+      console.warn(
+        'TMI: scoped classAttendanceLogs query failed, falling back to a full ' +
+        'collection scan. Create the composite indexes Firestore suggests in ' +
+        'the console link below to restore fast queries.', err
+      );
+    }
+    const all = await getAll('classAttendanceLogs');
+    return all.filter(l => {
+      const d = (l.date || l.classDate || '').substring(0, 10);
+      return d && d >= windowStart && d <= windowEnd;
+    });
+  }
+}
 
 function pad(n) { return String(n).padStart(2, '0'); }
 
@@ -104,16 +166,23 @@ export async function recalcTMIForStudent(context) {
   const chattStateANumber = (context.chattStateANumber || '').trim();
   if ((!studentId && !chattStateANumber) || !dateStr) return { action: 'none' };
 
-  const [schoolCalendar, interventions, allLogs, staffList] = await Promise.all([
-    getAll('schoolCalendar').catch(() => []),
-    getAll('interventionLogs'),
-    getAll('classAttendanceLogs'),
+  // The TMI window depends on the school calendar, so that has to land first.
+  const schoolCalendar = await getAll('schoolCalendar').catch(() => []);
+  const { start: windowStart, end: windowEnd, key: periodKey } = getTmiPeriodWindow(dateStr, schoolCalendar);
+
+  const [interventions, candidateLogs, staffList] = await Promise.all([
+    // One equality filter on a single field — no composite index needed, and
+    // it returns just this period's TMI records instead of every one ever.
+    getWhere('interventionLogs', 'tmiPeriodKey', '==', periodKey)
+      .catch(() => getAll('interventionLogs')),
+    fetchLogsInWindow(windowStart, windowEnd, { studentId, chattStateANumber }),
     getAll('staff').catch(() => []),
   ]);
 
-  const { start: windowStart, end: windowEnd, key: periodKey } = getTmiPeriodWindow(dateStr, schoolCalendar);
-
-  const periodLogs = allLogs.filter(l => {
+  // The JS filter stays as a safety net: it costs nothing on an already-small
+  // result set and guarantees identical semantics to the old full scan even
+  // if a query over-returns or the index fallback kicked in.
+  const periodLogs = candidateLogs.filter(l => {
     const match = studentId
       ? (l.studentId === studentId || (chattStateANumber && (l.chattStateANumber || '').trim() === chattStateANumber))
       : ((l.chattStateANumber || '').trim() === chattStateANumber);
@@ -212,15 +281,15 @@ export async function recalcTMIForStudent(context) {
 export async function recalcTMIForWindow(startDate, endDate, assignedBy) {
   if (!startDate || !endDate || startDate > endDate) return [];
 
-  const [interventions, allLogs, staffList] = await Promise.all([
+  const [interventions, inWindowRaw, staffList] = await Promise.all([
     getAll('interventionLogs'),
-    getAll('classAttendanceLogs'),
+    fetchLogsInWindow(startDate, endDate, null),
     getAll('staff').catch(() => []),
   ]);
 
   const periodKey = `range__${startDate}__${endDate}`;
 
-  const inWindow = allLogs.filter(l => {
+  const inWindow = inWindowRaw.filter(l => {
     const d = (l.date || l.classDate || '').substring(0, 10);
     return d && d >= startDate && d <= endDate;
   });
