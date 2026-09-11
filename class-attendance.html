@@ -405,7 +405,10 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
-    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import { addDoc, updateDoc, deleteDoc } from './js/db.js';
+    import * as Data from './js/data.js';
+    import { fetchClassLogs, fetchClassLogsForDate, fetchDailyLogsForDate, ABSENCE_CODES } from './js/attendance.js';
+    import { recalcTMIForStudent } from './js/tmiEngine.js';
     import { initNav } from './js/nav.js';
     import { formatDate, exportCSV, showToast, ATTENDANCE_CODES } from './js/utils.js';
 
@@ -418,16 +421,17 @@
 
     // ── Module-level state ───────────────────────────────────────────────────
     let currentUser   = null;
+    // Reference data — served from the session cache (js/data.js), loaded once.
     let allClassSchedules      = [];
-    let allClassAttendanceLogs = [];
     let allStudents            = [];
-    let allInterventions       = [];
     let allPblEvents           = [];
     let allPblTeams            = [];
     let allPbls                = [];
     let allSchoolCalendar      = [];
+    // Attendance records — ONLY the selected teacher + date, fetched with a
+    // scoped query in loadTeacherDay(). Never the whole collection.
+    let allClassAttendanceLogs = [];
     let allDailyAttendanceLogs = [];
-    let allStaff               = [];
 
     // sections[] is the core of the new design:
     // each entry = { idx, className, isLab, schedule, students, state }
@@ -455,7 +459,7 @@
 
     async function init() {
       try {
-        await loadAllData();
+        await loadReferenceData();
         populateTeacherDropdowns();
         attachEventListeners();
         initAbsenceTable();
@@ -465,31 +469,23 @@
       }
     }
 
-    async function loadAllData() {
-      allClassSchedules      = await getAll('classSchedules');
-      allClassAttendanceLogs = await getAll('classAttendanceLogs');
-      allStudents            = await getAll('students');
-      try { allInterventions = await getAll('interventionLogs'); } catch(e) { allInterventions = []; }
-      // Staff directory — used to resolve a section's teacherLastName (e.g.
-      // "Jaynes") into a proper display name (e.g. "Erin Jaynes") for TMI
-      // "Assigned By", so records are attributed to the class's actual
-      // teacher rather than whoever is physically logged in and clicking
-      // Save (an admin taking/covering attendance on a teacher's behalf).
-      try { allStaff = await getAll('staff'); } catch(e) { allStaff = []; }
-      // School calendar (for Phase II gate + TMI period window — non-critical)
-      try { allSchoolCalendar = await getAll('schoolCalendar'); } catch(e) { allSchoolCalendar = []; }
-      // Manual Daily Attendance notes (Students page "Log Attendance" tool) —
-      // used to surface that note here so teachers see it without having to
-      // cross-check the Daily Attendance page (non-critical).
-      try { allDailyAttendanceLogs = await getAll('dailyAttendanceLogs'); } catch(e) { allDailyAttendanceLogs = []; }
-      // PBL data for pre-filling attendance comments (non-critical)
+    // Loads the slow-changing collections this page needs. Each comes from
+    // the session cache (1 read to check freshness, re-fetched only when a
+    // writer has bumped its version). Attendance records are NOT loaded here
+    // — they are read per teacher + date in loadTeacherDay().
+    async function loadReferenceData() {
+      [allClassSchedules, allStudents] = await Promise.all([
+        Data.classSchedules(),
+        Data.students(),
+      ]);
+      // School calendar (Phase II gate — non-critical)
+      try { allSchoolCalendar = await Data.schoolCalendar(); } catch(e) { allSchoolCalendar = []; }
+      // PBL data for pre-filling attendance comments (small, non-critical)
       try {
         [allPblEvents, allPblTeams, allPbls] = await Promise.all([
-          getAll('pblEvents'),
-          getAll('pblTeams'),
-          getAll('pbls'),
+          Data.pblEvents(), Data.pblTeams(), Data.pbls(),
         ]);
-      } catch(e) { /* non-critical — attendance still works without PBL data */ }
+      } catch(e) { /* attendance still works without PBL data */ }
     }
 
     // ── Teacher dropdowns ────────────────────────────────────────────────────
@@ -522,6 +518,15 @@
       const _now = new Date();
       const today = `${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
       document.getElementById('filter-class-date').value = today;
+
+      // Absence tab defaults to the last two weeks so the first "Apply" is
+      // already a bounded query.
+      const twoWeeksAgo = new Date(_now); twoWeeksAgo.setDate(_now.getDate() - 14);
+      const twoWeeksStr = `${twoWeeksAgo.getFullYear()}-${String(twoWeeksAgo.getMonth()+1).padStart(2,'0')}-${String(twoWeeksAgo.getDate()).padStart(2,'0')}`;
+      const absStart = document.getElementById('absence-filter-start-date');
+      const absEnd   = document.getElementById('absence-filter-end-date');
+      if (absStart && !absStart.value) absStart.value = twoWeeksStr;
+      if (absEnd   && !absEnd.value)   absEnd.value   = today;
     }
 
     // ── Core: load all classes for teacher+date ───────────────────────────────
@@ -549,17 +554,17 @@
         currentTeacher = teacher;
         currentDate    = classDate;
 
-        // Refresh attendance logs for this date from Firestore so the banner
-        // always reflects live data, not a stale page-load cache.
-        // We keep logs from OTHER dates in place — the TMI calculation needs
-        // cross-date records to compute weekly absence totals.
-        try {
-          const freshDateLogs = await getWhere('classAttendanceLogs', 'date', '==', classDate);
-          allClassAttendanceLogs = [
-            ...allClassAttendanceLogs.filter(l => (l.date || l.classDate) !== classDate),
-            ...freshDateLogs,
-          ];
-        } catch(e) { /* non-critical — stale cache is better than no data */ }
+        // Read ONLY this teacher's records for this date (plus any front-office
+        // Daily Attendance notes for the date). TMI totals are no longer
+        // computed from an in-page copy of every log — the shared TMI engine
+        // queries just the affected student's period when a save changes
+        // something — so nothing outside this day is needed here.
+        const [dateLogs, dailyLogs] = await Promise.all([
+          fetchClassLogsForDate(classDate, { teacherLastName: teacher }),
+          fetchDailyLogsForDate(classDate).catch(() => []),
+        ]);
+        allClassAttendanceLogs = dateLogs;
+        allDailyAttendanceLogs = dailyLogs;
 
         // Local Date object for display only (day name in no-classes message)
         const [yr, mo, dy] = classDate.split('-').map(Number);
@@ -1079,7 +1084,7 @@
 
       // Guard against duplicate attendance logs if Save is somehow triggered
       // again (e.g. a stray second click) before this save's data reload has
-      // landed — without this, buildSavePromises() would look up existing
+      // landed — without this, persistSections() would look up existing
       // logs against a stale in-memory snapshot, find nothing yet, and create
       // a second log for the same student/class/day instead of updating.
       if (sectionSaveInFlight.has(idx)) return;
@@ -1099,10 +1104,8 @@
       }
 
       try {
-        const savePromises = buildSavePromises([sec]);
-        await Promise.all(savePromises);
-        await loadAllData();
-        await checkAndCreateTMIForSection(sec);
+        const changed = await persistSections([sec]);
+        await runTMIForChangedStudents(changed);
         markSectionSaved(idx);
         showToast(`Saved ${sec.className}: ${sec.students.length} student${sec.students.length !== 1 ? 's' : ''}`, 'success');
       } catch (error) {
@@ -1157,12 +1160,26 @@
           await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
         }
         showToast(`Deleted ${matching.length} log${matching.length !== 1 ? 's' : ''}`, 'success');
-        // Reset saved state and reload
+        // Drop the deleted records from the in-page copy and bring TMI back in
+        // line for every student who had a record (previously the reload
+        // refreshed the data but never re-ran TMI, so cleared absences could
+        // leave stale minutes behind).
+        const deletedIds = new Set(matching.map(l => l.id));
+        allClassAttendanceLogs = allClassAttendanceLogs.filter(l => !deletedIds.has(l.id));
+        const affected = new Map();
+        matching.forEach(l => {
+          const key = l.studentId || `A#:${(l.chattStateANumber || '').trim()}`;
+          if (affected.has(key)) return;
+          const s = allStudents.find(x => x.id === l.studentId) || {
+            id: l.studentId || '', chattStateANumber: l.chattStateANumber || '',
+            firstName: '', lastName: l.studentName || '',
+          };
+          affected.set(key, { student: s, className: l.className || '' });
+        });
         savedSections.clear();
-        await loadAllData();
+        await runTMIForChangedStudents(affected);
         // Re-render sections so banners and per-section states reflect fresh data
-        if (typeof renderAllSections === 'function') renderAllSections();
-        updateAttBanner();
+        await loadTeacherDay();
       } catch (err) {
         console.error('Error clearing attendance logs:', err);
         showToast('Error clearing logs — see console', 'error');
@@ -1188,13 +1205,8 @@
       }
 
       try {
-        const savePromises = buildSavePromises(sections);
-        await Promise.all(savePromises);
-        await loadAllData();
-
-        for (const sec of sections) {
-          await checkAndCreateTMIForSection(sec);
-        }
+        const changed = await persistSections(sections);
+        await runTMIForChangedStudents(changed);
 
         // Mark every section as saved
         sections.forEach((_, idx) => markSectionSaved(idx));
@@ -1215,20 +1227,24 @@
       }
     };
 
-    // Build an array of Firestore save promises for the given sections
-    function buildSavePromises(secsToSave) {
-      const promises = [];
+    // Writes the attendance records for the given sections, patches the
+    // in-page copy of today's logs with exactly what was written (so nothing
+    // needs to be re-downloaded), and returns the students whose attendance
+    // code or TMI-override flag actually changed — the only ones whose TMI
+    // needs recomputing.
+    //
+    // Returns Map<key, { student, className }>.
+    async function persistSections(secsToSave) {
+      const writes = [];
 
       secsToSave.forEach(sec => {
         sec.students.forEach(student => {
           const rawState = sec.state[student.id] || {};
           const state = { code: resolveAttCode(rawState.code), comment: rawState.comment || '', tmi: rawState.tmi || false };
-
-          // Find existing log — respect lab/regular type so they never overwrite each other
           const secStartTime = sec.schedule?.startTime || sec.startTime || '';
 
+          // Find existing log — respect lab/regular type so they never overwrite each other
           const existingLog = allClassAttendanceLogs.find(l => {
-            // Must match student
             if (l.studentId !== student.id) {
               // Fall back to A# match only when both are non-empty
               const lA = (l.chattStateANumber || '').trim();
@@ -1244,13 +1260,11 @@
             return true;
           });
 
+          const updatedAt = new Date().toISOString();
           if (existingLog) {
-            promises.push(updateDoc('classAttendanceLogs', existingLog.id, {
-              attendanceCode: state.code,
-              comment:        state.comment,
-              assignTmi:      state.tmi,
-              updatedAt:      new Date().toISOString()
-            }));
+            const patch = { attendanceCode: state.code, comment: state.comment, assignTmi: state.tmi, updatedAt };
+            writes.push({ sec, student, state, existingLog, patch,
+                          promise: updateDoc('classAttendanceLogs', existingLog.id, patch) });
           } else {
             const newLog = {
               studentId:         student.id,
@@ -1259,223 +1273,74 @@
               teacherLastName:   currentTeacher,
               className:         sec.className,
               classScheduleId:   sec.schedule.id,
-              startTime:         secStartTime,   // ← now stored so future lookups can filter by period
+              startTime:         secStartTime,
               date:              currentDate,
               attendanceCode:    state.code,
               comment:           state.comment,
               assignTmi:         state.tmi,
               createdBy:         currentUser?.uid || '',
-              updatedAt:         new Date().toISOString()
+              updatedAt
             };
             if (sec.isLab) newLog.learningLab = true;
-            promises.push(addDoc('classAttendanceLogs', newLog));
+            writes.push({ sec, student, state, newLog,
+                          promise: addDoc('classAttendanceLogs', newLog) });
           }
         });
       });
 
-      return promises;
-    }
+      await Promise.all(writes.map(w => w.promise));
 
-    // Resolves a section's teacherLastName (e.g. "Jaynes") to a full staff
-    // display name (e.g. "Erin Jaynes") for TMI "Assigned By", so a record
-    // is attributed to the class's actual teacher — not to currentUser,
-    // who may be an admin taking or covering attendance on that teacher's
-    // behalf. Falls back to the bare last name, then to currentUser, if no
-    // staff match is found.
-    function resolveTeacherAssignedBy(teacherLastName) {
-      const last = (teacherLastName || '').trim();
-      if (last) {
-        const match = allStaff.find(s => (s.lastName || '').trim().toLowerCase() === last.toLowerCase());
-        if (match) return `${match.firstName} ${match.lastName}`.trim();
-        return last;
+      const changed = new Map();
+      const note = (w) => {
+        const key = w.student.id || `A#:${(w.student.chattStateANumber || '').trim()}`;
+        if (!changed.has(key)) changed.set(key, { student: w.student, className: w.sec.className });
+      };
+
+      for (const w of writes) {
+        if (w.existingLog) {
+          const beforeCode = resolveAttCode(w.existingLog.attendanceCode);
+          const beforeTmi  = !!w.existingLog.assignTmi;
+          Object.assign(w.existingLog, w.patch);
+          if (beforeCode !== w.state.code || beforeTmi !== w.state.tmi) note(w);
+        } else {
+          const id = await w.promise;     // already resolved
+          allClassAttendanceLogs.push({ id, ...w.newLog });
+          if (w.state.code !== 'P' || w.state.tmi) note(w);
+        }
       }
-      return currentUser?.displayName || currentUser?.email || 'Unknown';
+      return changed;
     }
 
-    // ── TMI period-window helper ──────────────────────────────────────────────
-    // A TMI period begins on a calendar day marked 'startTmiPeriod' and ends on
-    // the very next calendar day marked 'tmiDay' (inclusive).  Once a tmiDay
-    // passes, its absences are isolated from the next period.
-    // Returns { start, end, key } or null if dateStr falls outside any period.
-    function getTmiPeriodWindow(dateStr) {
-      if (!allSchoolCalendar.length) return null;
-      const sorted = allSchoolCalendar
-        .filter(c => c.classDate)
-        .sort((a, b) => a.classDate.localeCompare(b.classDate));
+    // Runs the shared TMI engine for each changed student. The engine reads
+    // only that student's records for the current TMI period (a handful of
+    // documents) and creates / updates / clears their TMI record; the
+    // per-period intervention list, calendar and staff lookups are shared
+    // across the batch via `cache`.
+    async function runTMIForChangedStudents(changed) {
+      if (!changed || !changed.size || !currentDate) return;
+      const cache = {};
+      const assignedBy = currentUser?.displayName || currentUser?.email || 'Unknown';
+      const tmiCreated = [], tmiUpdated = [], tmiRemoved = [];
 
-      // Most recent 'startTmiPeriod' on or before dateStr
-      const starts = sorted.filter(c => c.startTmiPeriod && c.classDate <= dateStr);
-      if (!starts.length) return null;
-      const periodStart = starts[starts.length - 1].classDate;
-
-      // Next 'tmiDay' STRICTLY AFTER periodStart (the closing day of that period)
-      const ends = sorted.filter(c => c.tmiDay && c.classDate > periodStart);
-      if (!ends.length) return null;
-      const periodEnd = ends[0].classDate;
-
-      // dateStr must fall within [periodStart, periodEnd] — dates after the
-      // tmiDay are outside this period and belong to the next one.
-      if (dateStr > periodEnd) return null;
-
-      return { start: periodStart, end: periodEnd, key: `${periodStart}__${periodEnd}` };
-    }
-
-    // ── Auto-TMI (per section) ────────────────────────────────────────────────
-    // Recalculates the TOTAL TMI minutes from scratch on every save — idempotent.
-    //
-    // Rules (all scoped to the current TMI period):
-    //   • Each U across any class  = +120 min
-    //   • Manual TMI checkbox (non-U log) = +120 min per occurrence
-    //   • 3 or more T's across all classes = +90 min (once per period)
-    //   • Hard cap: 420 min total
-    //
-    // Each period gets its own interventionLog record (keyed by tmiPeriodKey),
-    // so absences from a closed period never bleed into the next one.
-    async function checkAndCreateTMIForSection(sec) {
-      if (!currentDate || !sec.students.length) return;
-      const MAX_TMI = 240;
-
-      // ── Determine the window ─────────────────────────────────────────────────
-      const tmiPeriod = getTmiPeriodWindow(currentDate);
-      let windowStart, windowEnd, periodKey;
-
-      if (tmiPeriod) {
-        windowStart = tmiPeriod.start;
-        windowEnd   = tmiPeriod.end;
-        periodKey   = tmiPeriod.key;
-      } else {
-        // No TMI period defined in the calendar — fall back to Mon–Sun week
-        const [yr, mo, dy] = currentDate.split('-').map(Number);
-        const dt    = new Date(yr, mo - 1, dy);
-        const dow   = dt.getDay();
-        const toMon = (dow === 0) ? -6 : 1 - dow;
-        const mon   = new Date(dt); mon.setDate(dt.getDate() + toMon);
-        const sun   = new Date(mon); sun.setDate(mon.getDate() + 6);
-        const pad   = n => String(n).padStart(2, '0');
-        const toStr = x => `${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
-        windowStart = toStr(mon);
-        windowEnd   = toStr(sun);
-        periodKey   = `week__${windowStart}__${windowEnd}`;
-      }
-
-      const tmiCreated = [];
-      const tmiUpdated = [];
-      const tmiRemoved = [];
-
-      for (const student of sec.students) {
-        // ── Gather all logs for this student within the period ────────────────
-        // allClassAttendanceLogs was just refreshed by loadAllData() before
-        // this function runs, so it includes the logs that were just saved.
-        const periodLogs = allClassAttendanceLogs.filter(log => {
-          const logDate = log.date || log.classDate || '';
-          return (log.studentId === student.id ||
-                  log.chattStateANumber === student.chattStateANumber) &&
-                 logDate >= windowStart &&
-                 logDate <= windowEnd;
-        });
-
-        const uCount  = periodLogs.filter(l => l.attendanceCode === 'U').length;
-        const tCount  = periodLogs.filter(l => l.attendanceCode === 'T').length;
-        // Manual override only counts for logs that are NOT already a U
-        // (a U log with the checkbox set doesn't double-bill)
-        const overrideCount = periodLogs.filter(
-          l => l.assignTmi && l.attendanceCode !== 'U'
-        ).length;
-
-        const tardyGroups  = Math.floor(tCount / 3);
-        const tardyMinutes = tardyGroups * 90;
-        const totalMinutes = Math.min(
-          (uCount * 120) + (overrideCount * 120) + tardyMinutes,
-          MAX_TMI
-        );
-
-        // ── Build human-readable reason ───────────────────────────────────────
-        const parts = [];
-        if (uCount > 0)       parts.push(`${uCount}× unexcused (${uCount * 120} min)`);
-        if (overrideCount > 0) parts.push(`${overrideCount}× manual override (${overrideCount * 120} min)`);
-        if (tardyGroups > 0)  parts.push(`${tCount} tardies → ${tardyGroups}× group of 3 (+${tardyMinutes} min)`);
-        const reason = parts.length ? parts.join('; ') : 'No triggering events';
-
-        // ── Find the record for THIS specific period (by periodKey) ───────────
-        // Using periodKey prevents old open records from other periods being
-        // modified — each period is fully isolated.
-        const existingTMI = allInterventions.find(i =>
-          i.studentId        === student.id &&
-          i.interventionType === 'TMI'      &&
-          i.tmiPeriodKey     === periodKey
-        );
-
-        if (existingTMI) {
-          // SET (not increment) — safe to re-run on every save
-          const newRemaining = Math.max(0, totalMinutes - (existingTMI.tmiMinutesServed || 0));
-          const alreadyServed = (existingTMI.tmiMinutesServed || 0) > 0;
-
-          if (totalMinutes === 0 && !alreadyServed) {
-            // Whatever U/T/override originally earned this record has since
-            // been corrected or removed (e.g. attendance code changed, or
-            // logs cleared) — and nothing has been served against it yet, so
-            // there's no history to preserve. Delete it rather than leaving
-            // a zero-minute record that would otherwise sit in TMI Final
-            // Approval forever with no current U/T behind it.
-            if (existingTMI.tmiMinutes !== 0) {
-              await deleteDoc('interventionLogs', existingTMI.id);
-              // Patch the in-memory list directly instead of re-fetching the
-              // whole collection — this keeps "Save All Classes" correct
-              // across sections (so a later section's lookup for the same
-              // student doesn't still see this now-deleted record) without
-              // the cost of a full re-download per section.
-              allInterventions = allInterventions.filter(i => i.id !== existingTMI.id);
-              tmiRemoved.push(`${student.firstName} ${student.lastName}`);
-            }
-          } else {
-            const minutesChanged = existingTMI.tmiMinutes !== totalMinutes;
-            // Self-heal records created before "Assigned By" tracking existed:
-            // the first time a blank one gets touched here, stamp whoever's
-            // operating this save. Not necessarily who originally caused it
-            // (that's unrecoverable for older records), but better than an
-            // indefinitely blank field.
-            const needsAssignedBy = !existingTMI.assignedBy;
-            if (minutesChanged || needsAssignedBy) {
-              const updates = {
-                tmiMinutes:          totalMinutes,
-                tmiMinutesRemaining: newRemaining,
-                reason,
-                updatedAt:           new Date().toISOString()
-              };
-              if (needsAssignedBy) updates.assignedBy = resolveTeacherAssignedBy(currentTeacher);
-              await updateDoc('interventionLogs', existingTMI.id, updates);
-              existingTMI.tmiMinutes          = totalMinutes;
-              existingTMI.tmiMinutesRemaining = newRemaining;
-              if (needsAssignedBy) existingTMI.assignedBy = updates.assignedBy;
-              if (minutesChanged) tmiUpdated.push(`${student.firstName} ${student.lastName} → ${totalMinutes} min`);
-            }
-          }
-        } else if (totalMinutes > 0) {
-          // Create a new record scoped to this period
-          const newTMI = {
-            studentId:            student.id,
-            studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
-            chattStateANumber:    student.chattStateANumber || '',
-            interventionType:     'TMI',
-            interventionLevel:    1,
-            startDate:            windowStart,
-            tmiPeriodKey:         periodKey,
-            tmiMinutes:           totalMinutes,
-            tmiMinutesServed:     0,
-            tmiMinutesRemaining:  totalMinutes,
-            interventionStatus:   'Reviewed',
-            assignedBy:           resolveTeacherAssignedBy(currentTeacher),
-            reason,
-            className:            sec.className,
-            teacherLastName:      currentTeacher,
-            createDate:           new Date().toISOString()
-          };
-          const newId = await addDoc('interventionLogs', newTMI);
-          // Patch the in-memory list directly (see delete branch above for
-          // why) so a later section in the same "Save All Classes" batch
-          // sees this record as existing instead of creating a duplicate.
-          allInterventions.push({ id: newId, ...newTMI });
-          tmiCreated.push(`${student.firstName} ${student.lastName} (${totalMinutes} min)`);
+      for (const { student, className } of changed.values()) {
+        const name = `${student.firstName || ''} ${student.lastName || ''}`.trim() || student.chattStateANumber || student.id;
+        try {
+          const r = await recalcTMIForStudent({
+            studentId:         student.id || '',
+            chattStateANumber: student.chattStateANumber || '',
+            studentName:       `${student.lastName || ''}, ${student.firstName || ''}`,
+            dateStr:           currentDate,
+            className,
+            teacherLastName:   currentTeacher,
+            assignedBy,
+            cache,
+          });
+          if (r.action === 'created')      tmiCreated.push(`${name} (${r.minutes} min)`);
+          else if (r.action === 'updated') tmiUpdated.push(`${name} → ${r.minutes} min`);
+          else if (r.action === 'deleted') tmiRemoved.push(name);
+        } catch (err) {
+          console.error('TMI recalculation failed for', name, err);
+          showToast(`TMI could not be updated for ${name} — see console`, 'error');
         }
       }
 
@@ -1493,17 +1358,22 @@
         const startDate = document.getElementById('absence-filter-start-date').value;
         const endDate   = document.getElementById('absence-filter-end-date').value;
 
-        let filtered = [...allClassAttendanceLogs];
-
-        if (teacher) {
-          const teacherClassIds = allClassSchedules
-            .filter(cs => cs.teacherLastName === teacher)
-            .map(cs => cs.id);
-          filtered = filtered.filter(log => teacherClassIds.includes(log.classScheduleId));
+        if (!startDate || !endDate) {
+          showToast('Pick a start and end date to load absences', 'warning');
+          document.getElementById('absence-loading').style.display = 'none';
+          return;
         }
-        if (startDate) filtered = filtered.filter(log => (log.date || log.classDate || '') >= startDate);
-        if (endDate)   filtered = filtered.filter(log => (log.date || log.classDate || '') <= endDate);
-        filtered = filtered.filter(log => log.attendanceCode !== 'P' && log.attendanceCode !== '?');
+
+        // One scoped query: this date range, absence/tardy codes only, and
+        // (when chosen) just this teacher. Never the whole collection.
+        const logs = await fetchClassLogs({
+          start: startDate, end: endDate,
+          teacherLastName: teacher || undefined,
+          codes: ABSENCE_CODES,
+        });
+        const filtered = logs
+          .filter(log => log.attendanceCode !== 'P' && log.attendanceCode !== '?')
+          .sort((a, b) => (b.date || b.classDate || '').localeCompare(a.date || a.classDate || ''));
 
         if (absenceTable) absenceTable.destroy();
 

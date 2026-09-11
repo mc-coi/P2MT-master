@@ -117,6 +117,17 @@ export async function setDoc(collectionName, id, data) {
   }
 }
 
+// Set a document, merging into any existing fields (creates it if missing)
+export async function setDocMerge(collectionName, id, data) {
+  try {
+    await firebaseSetDoc(doc(db, collectionName, id), data, { merge: true });
+    return id;
+  } catch (error) {
+    console.error(`Error merging document ${id} in ${collectionName}:`, error);
+    throw error;
+  }
+}
+
 // Update a document (partial update)
 export async function updateDoc(collectionName, id, data) {
   try {
