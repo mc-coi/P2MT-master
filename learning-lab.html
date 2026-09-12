@@ -609,40 +609,9 @@
           }
         }
 
-        // Propagate attendance logs — use timezone-safe date parsing
-        if (startDate && endDate && startDate <= endDate) {
-          const parseLocal = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
-          const localDateStr = dt => `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
-          const DAY_MAP = { 0: '', 1: 'M', 2: 'T', 3: 'W', 4: 'Th', 5: 'F', 6: '' };
-
-          let current = parseLocal(startDate);
-          const end = parseLocal(endDate);
-
-          while (current <= end) {
-            const dayAbbr = DAY_MAP[current.getDay()];
-            const dateStr = localDateStr(current);
-
-            for (const sched of createdSchedules) {
-              if (dayAbbr && (sched.classDays || []).includes(dayAbbr)) {
-                await addDoc('classAttendanceLogs', {
-                  studentId: studentId,
-                  studentName: student.firstName + ' ' + student.lastName,
-                  chattStateANumber: student.chattStateANumber,
-                  classScheduleId: sched.id,
-                  className: className,
-                  teacherLastName: teacherLastName,
-                  classDate: dateStr,
-                  schoolYear: schoolYear,
-                  semester: semester,
-                  attendanceCode: '?',
-                  learningLab: true
-                });
-              }
-            }
-
-            current.setDate(current.getDate() + 1);
-          }
-        }
+        // No attendance rows are pre-created: the schedule itself (classDays +
+        // start/end date) defines which days the lab meets, and Class
+        // Attendance builds the roster from it. Only absences are stored.
 
         showToast('Learning lab saved successfully', 'success');
         const wasNewAssignment = !currentEditId;

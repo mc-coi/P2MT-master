@@ -354,6 +354,7 @@
     import { initAuth } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere } from './js/db.js';
+    import { fetchClassLogsForDate, patchEvent } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { showToast, exportCSV, confirmTypedDelete } from './js/utils.js';
 
@@ -711,7 +712,7 @@
           const startStr   = fmt12h(event.startTime);
           const comment    = [pbl.pblName, event.eventCategory, startStr].filter(Boolean).join(' - ');
           const pblEntries = teams.filter(t => t.pblId === event.pblId);
-          const attLogs    = await getAll('classAttendanceLogs');
+          const attLogs    = await fetchClassLogsForDate(event.eventDate);
           const ops = [];
 
           for (const entry of pblEntries) {
@@ -725,7 +726,7 @@
                 (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
                 (l.date === event.eventDate || l.classDate === event.eventDate)
               )
-              .forEach(log => ops.push(updateDoc('classAttendanceLogs', log.id, { comment })));
+              .forEach(log => ops.push(patchEvent(log.id, { comment })));
           }
 
           count = ops.length;
@@ -744,7 +745,7 @@
         btn.style.background = success ? '#059669' : '#dc2626';
       }
       if (icon) { icon.className = success ? 'fas fa-check' : 'fas fa-times'; }
-      if (txt)  { txt.textContent = success ? (count ? `${count} updated` : 'No logs yet') : 'Error'; }
+      if (txt)  { txt.textContent = success ? (count ? `${count} updated` : 'No absences that day') : 'Error'; }
 
       if (success && count)       showToast(`Updated ${count} attendance comment${count !== 1 ? 's' : ''}`, 'success');
       else if (success && !count) showToast(`No saved logs for ${event.eventDate} — comments will auto-fill when teachers open attendance`, 'info');
@@ -854,7 +855,7 @@
         const pblEntries = teams.filter(t => t.pblId === eventData.pblId);
         if (!pblEntries.length) return;
 
-        const attLogs = await getAll('classAttendanceLogs');
+        const attLogs = await fetchClassLogsForDate(eventDate);
         const ops = [];
 
         for (const entry of pblEntries) {
@@ -869,7 +870,7 @@
               (l.studentId === student.id || l.chattStateANumber === student.chattStateANumber) &&
               (l.date === eventDate || l.classDate === eventDate)
             )
-            .forEach(log => ops.push(updateDoc('classAttendanceLogs', log.id, { comment })));
+            .forEach(log => ops.push(patchEvent(log.id, { comment })));
         }
 
         if (ops.length) {
@@ -877,7 +878,7 @@
           if (!silent)
             showToast(`Updated ${ops.length} attendance comment${ops.length !== 1 ? 's' : ''} for ${pbl.pblName}`, 'success');
         } else if (!silent) {
-          showToast(`No saved attendance logs found for ${eventDate} — comments will auto-fill when teachers open attendance`, 'info');
+          showToast(`No absence records exist for ${eventDate} — the PBL comment auto-fills when teachers open attendance`, 'info');
         }
       } catch(e) {
         console.warn('autoSyncEventComments failed:', e);

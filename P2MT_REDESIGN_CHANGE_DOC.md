@@ -1,6 +1,6 @@
 # P2MT Efficiency Redesign — Change Doc
 
-**Status:** Phase 1 shipped (Sept 11, 2026) · Phase 2 next
+**Status:** Phase 1 shipped (Sept 11, 2026) · Phase 2 shipped (Sept 12, 2026) · Phase 3 next
 **Author:** Claude (with Zach), September 11, 2026
 **Constraints confirmed:** Firebase Spark (free) plan only — no Cloud Functions · ~150–200 students · 6–15 staff taking attendance daily · only absences/tardies matter (Present rows not needed) · everyone sees the same menu · desktop primary, phones used occasionally for Class Attendance only · start fresh each school year
 
@@ -336,7 +336,7 @@ Phase 1 alone gets under the daily limit at current data size. Phase 2 is what k
 3. **Learning Lab attendance:** counts toward TMI exactly like class attendance. *Confirmed; already true.*
 4. **Historical data:** take a full CSV export of `classAttendanceLogs` (incl. Present rows) before the Phase 2 migration. *Confirmed.*
 5. **Reports / Home:** no Present history is needed anywhere — absences only. The Home "Attendance Alerts" card is removed. *Done in Phase 1.*
-6. **Order:** Phase 1 now (shipped); Phase 2 to start the following weekend.
+6. **Order:** Phase 1 now (shipped); Phase 2 the following weekend (shipped Sept 12).
 
 ## 9. Phase 1 — what shipped
 
@@ -353,6 +353,86 @@ Phase 1 alone gets under the daily limit at current data size. Phase 2 is what k
 **Still reading growing collections in full (deliberately deferred — rare, admin-only actions):** Schedule Admin's log/TMI repair tools, Diagnostics scans, ER Selector's two log-based tools, PBL Planner's two attendance syncs, Admin → Clear All TMI, Reports' `interventionLogs` read. These go away or get scoped in Phase 2/3.
 
 **Indexes to create now** (Firestore → Indexes → Composite; all on `classAttendanceLogs` unless noted; all Ascending): `teacherLastName+date`, `teacherLastName+classDate`, `attendanceCode+date`, `attendanceCode+classDate`, `teacherLastName+attendanceCode+date`, `teacherLastName+attendanceCode+classDate`, `learningLab+date`, `learningLab+classDate`, `studentId+attendanceCode+date`, `studentId+attendanceCode+classDate`, `chattStateANumber+attendanceCode+date`, `chattStateANumber+attendanceCode+classDate`; `dailyAttendanceLogs`: `studentId+absenceDate`, `studentId+date`, `chattStateANumber+absenceDate`, `chattStateANumber+date`; `interventionLogs`: `interventionType+startDate`. (The four `studentId/chattStateANumber × date/classDate` ones already exist.) Until each exists, the browser console shows one warning per query shape and the fallback read is used.
+
+
+## 10. Phase 2 — what shipped (Sept 12, 2026)
+
+### 10.1 Deploy checklist — do these in order
+
+1. **Create the indexes** (Firestore → Indexes → Composite). `firestore.indexes.json` is the source of truth; the new ones are all on `attendanceEvents` (plus one on `attendanceSessions`), all Ascending:
+   `teacherLastName+date`, `attendanceCode+date`, `teacherLastName+attendanceCode+date`, `studentId+date`, `chattStateANumber+date`, `studentId+attendanceCode+date`, `chattStateANumber+attendanceCode+date`, `learningLab+date`; `attendanceSessions`: `teacherLastName+date`.
+   The 16 `classAttendanceLogs` indexes from Phase 1 are no longer used and can be deleted once the migration has run.
+2. **Push the code.**
+3. **Schedule Admin → Attendance & TMI → migration card**, three buttons, in order:
+   1. *Export old logs to CSV* — full backup of `classAttendanceLogs` including Present rows (decision #4). One full read, ~26k.
+   2. *Build attendanceEvents & sessions* — copies every T/U/E/override row into `attendanceEvents` under its new ID and builds an `attendanceSessions` record for every class-day that had attendance saved. One more full read; ~3–4k writes. Learning-Lab `?` placeholders and propagated "P"/"unmarked" rows are dropped.
+   3. *Re-key TMI records* — moves every auto-calculated TMI record to `tmi_{student}_{period}`, merging overlapping duplicates on the way (served minutes summed).
+   Every step is idempotent; re-run any of them if the browser tab is closed mid-way.
+4. Take attendance for a class, check Daily Attendance and TMI Review show it, then watch Firestore usage for two school days.
+
+**Until step 3.2 has run, Class Attendance will show every student as Present for past days** (it reads the new collection). Nothing is lost — the old collection is untouched — but run the migration the same day as the deploy.
+
+### 10.2 Data model as built
+
+Two deliberate departures from §3.2, both to shrink the blast radius:
+
+- **Field names are unchanged.** `attendanceEvents` documents carry the same fields as `classAttendanceLogs` (`attendanceCode`, `teacherLastName`, `className`, `startTime`, `date`, `comment`, `assignTmi`, `learningLab`, `excuseType` …). Every reader that went through `js/attendance.js` in Phase 1 kept working with only the collection name changing. The date always lives in `date`; `classDate` is gone, so the fan-out over two date fields is gone with it (half the queries).
+- **TMI stays in `interventionLogs`** rather than a new `tmi` collection, but every auto-calculated record now has the deterministic ID `tmi_{studentId}_{periodKey}`. Finding a student's record for a period is one `getById`. Manually assigned TMI (Students page) keeps auto IDs and no `tmiPeriodKey`, exactly as before, so TMI Review / Final Approval / Student Profile needed no changes.
+
+What was added:
+
+| Collection | ID | Purpose |
+|---|---|---|
+| `attendanceEvents` | `{date}_{teacher~class~time[~lab]}_{studentId}` | One doc per **exception** (T/U/E or TMI override). Present = no doc. |
+| `attendanceSessions` | `{date}_{teacher~class~time[~lab]}` | "Attendance was taken": `rosterCount`, `exceptionCount`, `savedBy`, `savedAt`. Powers Home's Present count, the "Taken at …" note on each section, and Attendance Coverage. |
+
+Not built: `studentSummary` (nothing needed it once Home's alerts card was removed — decision #5) and write-time counters on the TMI doc. The engine recomputes a student's minutes from their handful of exception docs each time one changes (1 + ~2 reads per changed student), which is self-healing and keeps one code path; the counter design would have been 0 reads but every writer would have had to emit exact deltas.
+
+### 10.3 Class Attendance save path (as built)
+
+`saveSectionAttendance()` in `js/attendance.js`: one batched write per section — a merge for each exception, a delete for each student switched back to Present who previously had a record, and the session doc. **0 reads.** It returns the students whose code or TMI flag actually changed; only those go through `recalcTMIForStudent`, which reads the TMI doc by ID plus that student's exceptions for the period. A typical save with two absences costs ~6 reads and ~5 writes. Two teachers or two tabs saving the same section write the same document IDs, so duplicates are impossible by construction.
+
+### 10.4 Everything that wrote `classAttendanceLogs` now writes through `js/attendance.js`
+
+| Writer | Before | Now |
+|---|---|---|
+| Class Attendance save / Save All / Clear | `addDoc`/`updateDoc` per student, 30 writes per section | `saveSectionAttendance` batch; Clear deletes events + sessions and recalculates TMI |
+| Daily Attendance add / edit / delete / excuse | `addDoc('classAttendanceLogs')` with only an A# | `saveEvent` (resolves `studentId` from the roster when it can; a date/class edit moves the doc), `patchEvent`, `deleteEvent`; TMI recalculated for old and new period |
+| Students → Dress Code L1 auto-tardy | `addDoc` | `saveEvent` (time-of-day in the ID so two in one day stay separate); delete path finds it by `sourceInterventionId` |
+| ER Selector absence sync | `addDoc`/`updateDoc`/`deleteDoc` | `saveEvent` with the stored `classLogId` as `prevId`; purge tools read per student / per date range |
+| PBL Planner comment sync | `getAll` + `updateDoc` | `fetchClassLogsForDate` + `patchEvent` (comments only exist on exceptions; Present rows are pre-filled at display time as before) |
+| Learning Lab "save" | pre-created a `?` placeholder row per lab day (the source of the `classDate` split) | **removed** — the schedule's `classDays` + start/end dates define the roster |
+| Master Schedule "Propagate Attendance Logs" | pre-created a Present row per student per class per day for a semester (was also calling `batchWrite` with the wrong signature) | **removed** |
+| Schedule Admin "Propagate" / "Clear Propagated" / "Propagation Coverage" / "Scan for Unknown Logs" / "Merge Duplicate TMI" / `sweepOrphanedTMI` | full scans | **removed**; replaced by the sessions-based **Attendance Coverage**, a range-scoped **Clear Attendance** (events + sessions, TMI recalculated), range-scoped **Recalculate TMI** and **Fix Assigned By**, and the migration card |
+| Diagnostics | full `classAttendanceLogs` scan for lookup, duplicate-log scan, orphan-log scan | lookup reads per student (by id and A#); duplicate scan removed (impossible now); orphan scan no longer includes attendance |
+
+No page reads `classAttendanceLogs` any more except the migration card.
+
+### 10.5 Read budget check
+
+| Flow | Phase 1 | Phase 2 |
+|---|---|---|
+| Class Attendance load (teacher + day) | ~150 (Present rows) + 2 | ~5–30 exceptions + sessions (~5) |
+| Class Attendance save | 0 + TMI (~4/student) | 0 + TMI (~3/changed student) |
+| Home | ~1,000 (today's Present rows) | ~50 exceptions + ~50 sessions |
+| Daily Attendance, 2 weeks | ~500 exceptions (+ ~10k if labs toggled — lab Present rows) | ~500 (labs toggle now only adds lab absences) |
+| TMI Review / Final, 2 weeks | ~500 | ~500 (and the TMI doc lookup is 1 read instead of a per-period query) |
+
+The collection that used to grow by ~1,000 documents a school day now grows by the number of absences and tardies — roughly 50–100.
+
+### 10.6 Deferred to Phase 3
+
+- TMI calendar UI in Schedule Admin and removal of the silent Mon–Sun fallback (§3.7). The fallback is still in `getTmiPeriodWindow`; "Use This Range as TMI Window" remains the override.
+- "Start New School Year" export-and-purge (§3.8) — nothing to purge until June.
+- Admin → Clear All TMI and Reports' `interventionLogs` read are still full reads of a small collection.
+- Delete the 16 obsolete `classAttendanceLogs` indexes and, once comfortable, the `classAttendanceLogs` collection itself (~26k deletes, metered at 20k/day — two sessions, or just leave it; it costs nothing unread).
+- Code consolidation and CSS (§5), navigation (§6).
+
+### 10.7 Verification
+
+- `tools/sim/phase2_test.mjs` (Firestore-accurate stub): 45 assertions — deterministic IDs normalise spelling/case and distinguish lab sections; save reads 0 and commits one batch; only exceptions are stored; re-save is idempotent; Present deletes the doc; two tabs can't duplicate; `saveEvent` moves a doc when its date changes and deletes it when the code becomes P; engine creates/updates/deletes at the deterministic ID, honours the 240 cap and served minutes, shares nothing but the student's own 3 reads per batch entry; legacy random-ID records are found again after `migrateTMIRecords` and the migration is idempotent and merges overlapping chains; `recalcTMIForWindow` relabels by moving the doc and never scans a growing collection; index-missing fallback still avoids `getAll`; the legacy-log migration keeps the newest duplicate, drops `?` placeholders and propagated rows, counts sessions correctly, and a post-migration save cleans up migrated exceptions.
+- `tools/sim/phase1_test.mjs`: 16/16 still pass against the new modules.
+- `tools/extract.py`: all 26 scripts pass `node --check`; onclick handlers and DOM ids verified for every edited page.
 
 ---
 

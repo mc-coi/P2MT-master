@@ -69,7 +69,7 @@
       </div>
       <div class="stat-card" id="stat-lab-card" style="display:none;">
         <div class="stat-icon" style="background:#f3e8ff;color:#7c3aed;"><i class="fas fa-flask"></i></div>
-        <div><div class="stat-value" id="stat-lab">0</div><div class="stat-label">Learning Lab Sessions</div></div>
+        <div><div class="stat-value" id="stat-lab">0</div><div class="stat-label">Learning Lab Absences</div></div>
       </div>
     </div>
 
@@ -112,7 +112,7 @@
           <button id="btn-clear" class="w3-button btn-ghost"><i class="fas fa-times"></i> Clear</button>
           <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:13px; font-weight:600; color:#6d28d9; user-select:none;">
             <input type="checkbox" id="filter-include-labs" style="width:16px;height:16px;accent-color:#7c3aed;">
-            <i class="fas fa-flask" style="font-size:13px;"></i> Include Learning Lab Sessions
+            <i class="fas fa-flask" style="font-size:13px;"></i> Include Learning Lab Absences
           </label>
         </div>
       </div>
@@ -254,15 +254,15 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { updateDoc, addDoc, deleteDoc } from './js/db.js';
-    import { fetchClassLogs, fetchDailyLogs, ABSENCE_CODES } from './js/attendance.js';
+    import { fetchClassLogs, fetchDailyLogs, saveEvent, patchEvent, deleteEvent, EVENTS_COLLECTION, ABSENCE_CODES } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { initNav }                  from './js/nav.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
     import { recalcTMIForStudent } from './js/tmiEngine.js';
 
     let currentUser = null;
-    let allLogs     = [];   // merged classAttendanceLogs + dailyAttendanceLogs with code T/U/E
-    let allLabLogs  = [];   // classAttendanceLogs with learningLab:true
+    let allLogs     = [];   // merged attendanceEvents + dailyAttendanceLogs with code T/U/E
+    let allLabLogs  = [];   // attendanceEvents with learningLab:true (absences in labs)
     let filtered    = [];
     let attTable    = null;
     let recordSaveInFlight = false; // guards against duplicate records from a double-click on Save
@@ -320,7 +320,7 @@
         ]);
 
         // Tag each record with its source collection so excuse saves go to the right place
-        const classMapped = rawClass.map(l => ({ ...l, _collection: 'classAttendanceLogs' }));
+        const classMapped = rawClass.map(l => ({ ...l, _collection: EVENTS_COLLECTION }));
         const dailyMapped = rawDaily.map(l => ({ ...l, _collection: 'dailyAttendanceLogs' }));
 
         // Class-based T/U/E records
@@ -341,8 +341,8 @@
         // Merge — class records first (they have richer class/teacher info)
         allLogs = [...classLogs, ...dailyLogs];
 
-        // Learning lab entries (all codes, so Present lab sessions still show)
-        allLabLogs = rawLabs.map(l => ({ ...l, _collection: 'classAttendanceLogs' }));
+        // Learning lab absences (Present is no longer stored as a record)
+        allLabLogs = rawLabs.map(l => ({ ...l, _collection: EVENTS_COLLECTION }));
 
         loadedRange = { start, end, labs: includeLabs };
       } finally {
@@ -564,10 +564,11 @@
       const excuseNotes = document.getElementById('excuse-notes').value.trim();
 
       const log  = allLogs.find(l => l.id === logId);
-      const coll = log?._collection || 'classAttendanceLogs';
+      const coll = log?._collection || EVENTS_COLLECTION;
 
       try {
-        await updateDoc(coll, logId, { excuseType, excuseNotes });
+        if (coll === EVENTS_COLLECTION) await patchEvent(logId, { excuseType, excuseNotes });
+        else await updateDoc(coll, logId, { excuseType, excuseNotes });
 
         // Update local cache (log already found above)
         if (log) { log.excuseType = excuseType; log.excuseNotes = excuseNotes; }
@@ -743,10 +744,9 @@
       if (editId) {
         // ── EDIT existing record ──────────────────────────────────────────────
         const log  = allLogs.find(l => l.id === editId);
-        const coll = log?._collection || 'classAttendanceLogs';
+        const coll = log?._collection || EVENTS_COLLECTION;
         const changes = {
           attendanceCode: code,
-          classDate:      date,
           date,
           className:      className || '',
           teacherLastName: teacher  || '',
@@ -754,19 +754,30 @@
           updatedAt:      new Date().toISOString(),
         };
         const priorCode = log?.attendanceCode;
+        const priorDate = getDate(log || {}).substring(0, 10);
         try {
-          await updateDoc(coll, editId, changes);
-          if (log) Object.assign(log, changes);
+          if (coll === EVENTS_COLLECTION) {
+            // The event's ID is derived from date/class/teacher/student, so an
+            // edit may move it; saveEvent handles that (and removes it if the
+            // code is no longer an absence).
+            const newId = await saveEvent({ ...(log || {}), ...changes }, { prevId: editId });
+            if (newId) {
+              if (log) Object.assign(log, changes, { id: newId });
+            } else {
+              allLogs = allLogs.filter(l => l.id !== editId);
+            }
+          } else {
+            await updateDoc(coll, editId, { ...changes, classDate: date });
+            if (log) Object.assign(log, changes);
+          }
           populateTeacherFilter();
           applyFilters();
           closeAddRecordModal();
           showToast('Record updated', 'success');
-          // If this came from the Class Attendance grid and the code actually
-          // changed, reconcile any TMI record tied to this student/period —
-          // e.g. correcting a 'U' to an 'E' should shrink or clear the TMI
-          // that 'U' had earned, not leave it standing.
-          if (coll === 'classAttendanceLogs' && priorCode !== code) {
-            await recalcTMIForRecord(log || changes);
+          // A code or date change can alter TMI for the period(s) involved.
+          if (coll === EVENTS_COLLECTION && (priorCode !== code || priorDate !== date)) {
+            await recalcTMIForRecord({ ...(log || changes), date: priorDate || date });
+            if (priorDate && priorDate !== date) await recalcTMIForRecord({ ...(log || changes), date });
           }
         } catch(e) {
           console.error(e);
@@ -777,7 +788,7 @@
         const record = {
           studentName,
           chattStateANumber: anum,
-          classDate:         date,
+          studentId:         (studentsForAdd || []).find(s => (s.chattStateANumber || '').trim() === anum)?.id || '',
           date,
           attendanceCode:    code,
           className:         className  || '',
@@ -787,13 +798,17 @@
           createdAt:         new Date().toISOString(),
         };
         try {
-          const id = await addDoc('classAttendanceLogs', record);
-          record.id = id;
-          allLogs.push(record);
-          populateTeacherFilter();
-          applyFilters();
-          closeAddRecordModal();
-          showToast('Attendance record saved', 'success');
+          const id = await saveEvent(record);
+          if (id) {
+            allLogs.push({ ...record, id, _collection: EVENTS_COLLECTION });
+            populateTeacherFilter();
+            applyFilters();
+            closeAddRecordModal();
+            showToast('Attendance record saved', 'success');
+            await recalcTMIForRecord({ ...record, id });
+          } else {
+            showToast('Only T, U or E records are stored', 'warning');
+          }
         } catch(e) {
           console.error(e);
           showToast('Error saving record', 'error');
@@ -817,9 +832,9 @@
 
     async function deleteAbsenceRecord(logId) {
       const log  = allLogs.find(l => l.id === logId);
-      const coll = log?._collection || 'classAttendanceLogs';
+      const coll = log?._collection || EVENTS_COLLECTION;
       try {
-        await deleteDoc(coll, logId);
+        if (coll === EVENTS_COLLECTION) await deleteEvent(logId); else await deleteDoc(coll, logId);
         allLogs = allLogs.filter(l => l.id !== logId);
         applyFilters();
         showToast('Record deleted', 'success');
@@ -827,10 +842,10 @@
         // Deleting a T/U record can remove the basis for a TMI it
         // contributed to — reconcile it the same way editing a record's
         // code does, instead of leaving a stale TMI behind. Previously this
-        // was the one place a classAttendanceLogs change didn't trigger the
+        // was the one place an attendance change didn't trigger the
         // recalculation, which is how a deleted Dress Code tardy could leave
         // the student stuck at their old TMI minutes.
-        if (coll === 'classAttendanceLogs' && log) {
+        if (coll === EVENTS_COLLECTION && log) {
           await recalcTMIForRecord(log);
         }
       } catch(e) {

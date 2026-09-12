@@ -780,6 +780,7 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav }    from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, listenWhere } from './js/db.js';
+    import { saveEvent, deleteEvent, fetchClassLogs, EVENTS_COLLECTION } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { showToast, confirmTypedDelete }  from './js/utils.js';
 
@@ -2591,7 +2592,7 @@
     // ── Purge helpers ──────────────────────────────────────────────────────────
 
     // ER = Extended Remediation.
-    // ER_CLASS_NAME is the canonical value written into classAttendanceLogs.
+    // ER_CLASS_NAME is the canonical value written into attendanceEvents.
     // ER_CLASS_NAMES also lists legacy spellings ('Early Release' was used
     // before the rename) so readers and purge routines still reach older
     // records. Run the ER className migration in Diagnostics to normalize
@@ -2632,17 +2633,19 @@
         } catch(e) { console.error(`purge ${coll}:`, e); }
       }
 
-      // ER (Extended Remediation) entries mirrored into classAttendanceLogs.
-      // Matches every className variant that has been written historically so
-      // nothing is left behind — see ER_CLASS_NAMES.
+      // ER (Extended Remediation) absences mirrored into attendanceEvents —
+      // read per student (by id and by A#), never the whole collection.
       try {
-        const logs = await getAll('classAttendanceLogs');
-        for (const l of logs) {
-          if (l.id && isErClassName(l.className) && isTarget(l)) {
-            await deleteDoc('classAttendanceLogs', l.id); deletedCount++;
-          }
+        const seen = new Set();
+        for (const sid of idSet) {
+          const rows = await getWhere(EVENTS_COLLECTION, 'studentId', '==', sid).catch(() => []);
+          for (const l of rows) if (l.id && !seen.has(l.id) && isErClassName(l.className)) { seen.add(l.id); await deleteEvent(l.id); deletedCount++; }
         }
-      } catch(e) { console.error('purge classAttendanceLogs:', e); }
+        for (const a of anumSet) {
+          const rows = await getWhere(EVENTS_COLLECTION, 'chattStateANumber', '==', a).catch(() => []);
+          for (const l of rows) if (l.id && !seen.has(l.id) && isErClassName(l.className)) { seen.add(l.id); await deleteEvent(l.id); deletedCount++; }
+        }
+      } catch(e) { console.error('purge ER attendance events:', e); }
 
       return deletedCount;
     }
@@ -2799,31 +2802,32 @@
             const d = recDate(r);
             if (!d || d >= cutoff) continue;
             if (r.id) { await deleteDoc('erAttendance', r.id); deleted++; }
-            // Also delete the linked classAttendanceLogs record
+            // Also delete the linked attendance event
             if (r.classLogId && !alreadyDeleted.has(r.classLogId)) {
               try {
-                await deleteDoc('classAttendanceLogs', r.classLogId);
+                await deleteEvent(r.classLogId);
                 alreadyDeleted.add(r.classLogId); deleted++;
               } catch(e) { /* already gone */ }
             }
           }
         } catch(e) { console.error('purge erAttendance:', e); }
 
-        // Independent sweep of ER rows in classAttendanceLogs, to catch entries
-        // with no matching erAttendance row (e.g. logged manually).
+        // Independent sweep of ER absences before the cutoff, to catch entries
+        // with no matching erAttendance row (e.g. logged manually). Bounded
+        // to dates before the cutoff — never the whole collection.
         try {
-          const erLogs = await getAll('classAttendanceLogs');
+          const erLogs = await fetchClassLogs({ start: '2000-01-01', end: cutoff });
           for (const l of erLogs) {
             if (!isErClassName(l.className) || !l.id) continue;
             if (alreadyDeleted.has(l.id)) continue;
             const d = recDate(l);
             if (!d || d >= cutoff) continue;
             try {
-              await deleteDoc('classAttendanceLogs', l.id);
+              await deleteEvent(l.id);
               alreadyDeleted.add(l.id); deleted++;
             } catch(e) { /* already gone */ }
           }
-        } catch(e) { console.error('purge classAttendanceLogs:', e); }
+        } catch(e) { console.error('purge ER attendance events:', e); }
 
         showToast(`Purged ${deleted} attendance records before ${cutoff}`, 'success');
       } catch(err) {
@@ -2883,9 +2887,10 @@
       const st = attState[studentId];
       if (!st || !attCurrentDate) return;
 
-      // ── Sync to classAttendanceLogs so ER absences appear in Daily Attendance ──
-      // T / E / U statuses are written as a classAttendanceLogs record whose
-      // className is ER_CLASS_NAME. P (or null) removes that record if one exists.
+      // ── Sync to attendanceEvents so ER absences appear in Daily Attendance ──
+      // T / E / U statuses are written as an attendance event whose className
+      // is ER_CLASS_NAME (one per student per day, addressed by ID). P (or
+      // null) removes that record if one exists.
       const absenceCode = ['T','E','U'].includes(st.status) ? st.status
                         : st.status === 'A'                 ? 'U'   // legacy A → U
                         : null;
@@ -2904,18 +2909,13 @@
             assignTmi:          false,
             updatedAt:          new Date().toISOString(),
           };
-          if (st.classLogId) {
-            await updateDoc('classAttendanceLogs', st.classLogId, classLogData);
-          } else {
-            const cid = await addDoc('classAttendanceLogs', classLogData);
-            attState[studentId].classLogId = cid;
-          }
+          attState[studentId].classLogId = await saveEvent(classLogData, { prevId: st.classLogId || null });
         } else if (st.classLogId) {
-          // Status cleared back to P / null — remove the daily attendance record
-          await deleteDoc('classAttendanceLogs', st.classLogId);
+          // Status cleared back to P / null — remove the attendance event
+          await deleteEvent(st.classLogId);
           attState[studentId].classLogId = null;
         }
-      } catch (err) { console.error('Error syncing ER absence to classAttendanceLogs:', err); }
+      } catch (err) { console.error('Error syncing ER absence to attendanceEvents:', err); }
 
       // ── Save to erAttendance ──
       const data = {

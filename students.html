@@ -553,6 +553,7 @@
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete } from './js/utils.js';
     import { recalcTMIForStudent } from './js/tmiEngine.js';
+    import { saveEvent, deleteEvent, EVENTS_COLLECTION } from './js/attendance.js';
 
     let studentsData = [];
     let dataTable;
@@ -1452,7 +1453,7 @@
       };
 
       try {
-        await addDoc('classAttendanceLogs', attendanceRecord);
+        await saveEvent(attendanceRecord);
         await recalcTMIForStudent({
           studentId:         student.id,
           chattStateANumber: student.chattStateANumber || '',
@@ -1557,7 +1558,7 @@
       }
     };
 
-    // Finds and removes any classAttendanceLogs record auto-created by a
+    // Finds and removes any attendance event auto-created by a
     // given intervention (via sourceInterventionId), then reconciles TMI for
     // the student/period that record belonged to.
     //
@@ -1571,13 +1572,13 @@
     // whether or not a linked log turned up.
     async function removeLinkedDressCodeTardy(interventionId, studentId, interventionRecord) {
       try {
-        const linkedLogs = await getWhere('classAttendanceLogs', 'sourceInterventionId', '==', interventionId);
+        const linkedLogs = await getWhere(EVENTS_COLLECTION, 'sourceInterventionId', '==', interventionId);
         const student    = studentsData.find(x => x.id === studentId);
         const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
 
         if (linkedLogs.length) {
           for (const log of linkedLogs) {
-            await deleteDoc('classAttendanceLogs', log.id);
+            await deleteEvent(log.id);
             await recalcTMIForStudent({
               studentId:         log.studentId || studentId,
               chattStateANumber: log.chattStateANumber || student?.chattStateANumber || '',

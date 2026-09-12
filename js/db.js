@@ -223,6 +223,9 @@ export async function batchWrite(operations) {
         case 'set':
           batch.set(docRef, operation.data);
           break;
+        case 'merge':
+          batch.set(docRef, operation.data, { merge: true });
+          break;
         case 'update':
           batch.update(docRef, operation.data);
           break;

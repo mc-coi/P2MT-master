@@ -243,7 +243,7 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { fetchClassLogsForDate, fetchDailyLogsForDate, classLogDate, dailyLogDate } from './js/attendance.js';
+    import { fetchClassLogsForDate, fetchDailyLogsForDate, fetchSessions, classLogDate, dailyLogDate } from './js/attendance.js';
 
     await initAuth();
     if (!getCurrentUser()) { window.location.href = 'index.html'; }
@@ -422,13 +422,14 @@
       const todayStr = `${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
 
       try {
-        // Only today's records — two small scoped queries instead of two
-        // full-collection downloads.
-        const [classLogs, dailyLogs] = await Promise.all([
+        // Only today's records: exceptions (T/U/E), front-office notes, and
+        // the sessions that say which classes were taken. Present is not
+        // stored — it is roster − exceptions per saved section.
+        const [classLogs, dailyLogs, sessions] = await Promise.all([
           fetchClassLogsForDate(todayStr),
           fetchDailyLogsForDate(todayStr).catch(() => []),
+          fetchSessions({ start: todayStr, end: todayStr }).catch(() => []),
         ]);
-        // Merge: daily records that don't already have a class record for the same student today
         const classAbsKeys = new Set(
           classLogs.filter(l => ['T','U','E'].includes(l.attendanceCode))
                    .map(l => `${l.chattStateANumber}|${classLogDate(l)}`)
@@ -440,7 +441,7 @@
             .map(l => ({ ...l, classDate: dailyLogDate(l) })),
         ];
 
-        if (todayLogs.length === 0) {
+        if (todayLogs.length === 0 && sessions.length === 0) {
           todayBody.innerHTML = `
             <div style="padding:20px 18px;display:flex;align-items:center;gap:14px;color:var(--text-muted);">
               <i class="fas fa-circle" style="color:#e5e7eb;font-size:22px;"></i>
@@ -454,18 +455,20 @@
           return;
         }
 
-        const pCount  = todayLogs.filter(l => l.attendanceCode === 'P').length;
+        const rosterTotal = sessions.reduce((n, sx) => n + (sx.rosterCount || 0), 0);
+        const exceptions  = sessions.reduce((n, sx) => n + (sx.exceptionCount || 0), 0);
+        const pCount  = Math.max(0, rosterTotal - exceptions);
         const uCount  = todayLogs.filter(l => l.attendanceCode === 'U').length;
         const tCount  = todayLogs.filter(l => l.attendanceCode === 'T').length;
         const eCount  = todayLogs.filter(l => l.attendanceCode === 'E').length;
-        const total   = todayLogs.length;
-        const uniqStu = new Set(todayLogs.map(l => l.chattStateANumber).filter(Boolean)).size;
+        const uniqStu = new Set(todayLogs.map(l => l.chattStateANumber || l.studentId).filter(Boolean)).size;
+        const teachers = new Set(sessions.map(sx => sx.teacherLastName).filter(Boolean)).size;
 
         todayBody.innerHTML = `
           <div style="padding:14px 18px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;">
             <i class="fas fa-check-circle" style="color:#10B981;"></i>
             <span style="font-size:13px;font-weight:600;color:var(--text-secondary);">
-              ${uniqStu} student${uniqStu !== 1 ? 's' : ''} logged across ${total} record${total !== 1 ? 's' : ''}
+              ${sessions.length} class${sessions.length !== 1 ? 'es' : ''} taken by ${teachers} teacher${teachers !== 1 ? 's' : ''} · ${uniqStu} student${uniqStu !== 1 ? 's' : ''} with an absence or tardy
             </span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;">

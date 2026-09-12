@@ -55,7 +55,7 @@
     <div class="sa-tab-bar">
       <button class="sa-tab active" onclick="switchTab('upload', this)"><i class="fas fa-upload"></i> Upload Schedule</button>
       <button class="sa-tab" onclick="switchTab('add', this)"><i class="fas fa-plus"></i> Add Single Class</button>
-      <button class="sa-tab" onclick="switchTab('propagate', this)"><i class="fas fa-clock"></i> Propagate Attendance</button>
+      <button class="sa-tab" onclick="switchTab('attendance', this)"><i class="fas fa-clipboard-check"></i> Attendance &amp; TMI</button>
       <button class="sa-tab" onclick="switchTab('delete', this)"><i class="fas fa-trash"></i> Delete Schedule</button>
       <button class="sa-tab" onclick="switchTab('reports', this)"><i class="fas fa-file-download"></i> Download Reports</button>
     </div>
@@ -169,84 +169,76 @@
       </div>
     </div>
 
-    <!-- TAB 3: Propagate Attendance -->
-    <div id="tab-propagate" class="tab-content">
-      <h2>Propagate Attendance Logs</h2>
-      <p class="w3-text-grey">Create attendance log records for all scheduled classes within a date range.</p>
+    <!-- TAB 3: Attendance & TMI tools -->
+    <div id="tab-attendance" class="tab-content">
+      <h2>Attendance &amp; TMI Tools</h2>
+      <p class="w3-text-grey">
+        Attendance is stored as <strong>exceptions only</strong> (T / U / E and TMI overrides) in
+        <code>attendanceEvents</code>, plus one <code>attendanceSessions</code> record per class per day
+        that says attendance was taken. Present is not stored. Every tool below works on a date range so
+        it reads only what it needs.
+      </p>
 
+      <!-- Phase 2 migration -->
+      <div id="migration-card" style="border:2px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:16px 18px;margin:14px 0 20px;">
+        <h3 style="margin-top:0;color:#92400e;"><i class="fas fa-exchange-alt"></i> One-time migration to the new attendance model</h3>
+        <p style="font-size:13px;color:#78350f;margin:6px 0 12px;">
+          Run these three steps once, in order, right after deploying Phase 2. Each step is safe to re-run.
+          The old <code>classAttendanceLogs</code> collection is left untouched as a backup; nothing reads it any more.
+        </p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="w3-button btn-secondary" onclick="migrationExportOldLogs()"><i class="fas fa-download"></i> 1. Export old logs to CSV</button>
+            <span style="font-size:12px;color:#78350f;">Full backup of <code>classAttendanceLogs</code> including Present rows (one full read — do this once).</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="w3-button btn-primary" onclick="migrationCopyEvents()"><i class="fas fa-forward"></i> 2. Build attendanceEvents &amp; sessions</button>
+            <span style="font-size:12px;color:#78350f;">Copies every T/U/E and override row into <code>attendanceEvents</code> under its new ID and builds a session record for every class-day that had attendance saved.</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+            <button class="w3-button btn-primary" onclick="migrationRekeyTMI()"><i class="fas fa-key"></i> 3. Re-key TMI records</button>
+            <span style="font-size:12px;color:#78350f;">Moves each TMI record to its one-per-student-per-period ID, merging any duplicates on the way.</span>
+          </div>
+        </div>
+        <div id="migration-status" style="margin-top:12px;font-size:13px;"></div>
+      </div>
+
+      <h3><i class="fas fa-calendar-check" style="color:#0891b2;"></i> Attendance Coverage</h3>
+      <p class="w3-text-grey">Which classes have had attendance taken on each school day in a date range, based on the scheduled meeting days. Reads the session records for the range — not the attendance itself.</p>
       <div class="form-row">
-        <div><label>School Year:<input class="w3-input w3-border" type="text" id="propSchoolYear"></label></div>
-        <div><label>Semester:<select class="w3-input w3-border" id="propSemester"><option>Fall</option><option>Spring</option></select></label></div>
+        <div><label>Start Date:<input class="w3-input w3-border" type="date" id="covStartDate"></label></div>
+        <div><label>End Date:<input class="w3-input w3-border" type="date" id="covEndDate"></label></div>
       </div>
-
       <div class="form-row">
-        <div><label>Start Date:<input class="w3-input w3-border" type="date" id="propStartDate"></label></div>
-        <div><label>End Date:<input class="w3-input w3-border" type="date" id="propEndDate"></label></div>
+        <div><label>Teacher (optional):<select class="w3-input w3-border" id="covTeacher"><option value="">All Teachers</option></select></label></div>
+        <div><label>School Year:<input class="w3-input w3-border" type="text" id="covSchoolYear"></label></div>
       </div>
-
-      <button class="w3-button btn-primary w3-margin-top" onclick="propagateAttendance()"><i class="fas fa-play"></i> Propagate</button>
-      <div id="propagateProgress" style="margin-top:20px;"></div>
-
-      <hr style="margin:28px 0;">
-
-      <h3 style="color:#dc2626;"><i class="fas fa-trash-alt"></i> Clear Propagated Logs</h3>
-      <p class="w3-text-grey">Delete all attendance log records for the same school year, semester, and date range. Use this before re-propagating after schedule changes. <strong>This also removes any manual attendance edits for those days.</strong></p>
-
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-        <button class="w3-button btn-danger" onclick="clearPropagatedLogs()"><i class="fas fa-trash-alt"></i> Clear Propagated Logs</button>
-        <span id="clearPropProgress" style="font-size:13px;color:#64748b;"></span>
-      </div>
-
-      <hr style="margin:28px 0;">
-
-      <h3><i class="fas fa-calendar-check" style="color:#0891b2;"></i> Propagation Coverage</h3>
-      <p class="w3-text-grey">Check which school days already have attendance logs and which are still missing, for the school year, semester, and date range entered above.</p>
-
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-        <button class="w3-button btn-primary" onclick="checkPropagationCoverage()"><i class="fas fa-calendar-check"></i> Check Coverage</button>
+        <button class="w3-button btn-primary" onclick="checkCoverage()"><i class="fas fa-calendar-check"></i> Check Coverage</button>
         <button class="w3-button btn-secondary" id="coverageCsvBtn" style="display:none;" onclick="downloadCoverageCSV()"><i class="fas fa-download"></i> Download CSV</button>
       </div>
       <div id="coverageResults" style="margin-top:16px;"></div>
 
       <hr style="margin:28px 0;">
 
-      <h3><i class="fas fa-search" style="color:#7c3aed;"></i> Scan for Unknown Logs</h3>
-      <p class="w3-text-grey">Find all attendance log records in the database for a date range, regardless of school year or how they were created. Useful for discovering leftover propagation runs or unexpected records.</p>
-
-      <div class="form-row">
-        <div><label>From:<input class="w3-input w3-border" type="date" id="scanStartDate"></label></div>
-        <div><label>To:<input class="w3-input w3-border" type="date" id="scanEndDate"></label></div>
-      </div>
-
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-        <button class="w3-button btn-primary" onclick="scanAttendanceLogs()"><i class="fas fa-search"></i> Scan</button>
-        <button class="w3-button btn-danger" id="clearScanBtn" style="display:none;" onclick="clearScannedLogs()"><i class="fas fa-trash-alt"></i> Delete All Found</button>
-      </div>
-      <div id="scanResults" style="margin-top:16px;"></div>
-
-      <hr style="margin:28px 0;">
-
-      <h3><i class="fas fa-trash-alt" style="color:#dc2626;"></i> Clear Attendance Logs by Date Range</h3>
-      <p class="w3-text-grey">Scan and delete attendance logs within a date range, optionally narrowed by teacher and log type. Use the filters to preview the scope before deleting.</p>
-
+      <h3><i class="fas fa-trash-alt" style="color:#dc2626;"></i> Clear Attendance by Date Range</h3>
+      <p class="w3-text-grey">Scan and delete absence records and "attendance taken" sessions within a date range, optionally for one teacher. TMI for every affected student is recalculated afterwards.</p>
       <div class="form-row">
         <div><label>Teacher:
           <select class="w3-input w3-border" id="ml-teacher"><option value="">All Teachers</option></select>
         </label></div>
-        <div><label>Log Type:
+        <div><label>Include:
           <select class="w3-input w3-border" id="ml-log-type">
-            <option value="all">All logs</option>
-            <option value="manual">Manually saved only (have an attendance code)</option>
-            <option value="propagated">Propagated only (status = P, no attendance code)</option>
+            <option value="all">Absence records and sessions</option>
+            <option value="events">Absence records only</option>
+            <option value="sessions">Sessions only (leave absences)</option>
           </select>
         </label></div>
       </div>
-
       <div class="form-row">
         <div><label>Start Date:<input class="w3-input w3-border" type="date" id="ml-start-date"></label></div>
         <div><label>End Date:<input class="w3-input w3-border" type="date" id="ml-end-date"></label></div>
       </div>
-
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
         <button class="w3-button btn-primary" onclick="scanLogsByRange()"><i class="fas fa-search"></i> Scan</button>
         <button class="w3-button btn-danger" id="ml-clear-btn" style="display:none;" onclick="clearScannedRangeLogs()">
@@ -257,51 +249,21 @@
 
       <hr style="margin:28px 0;">
 
-      <h3><i class="fas fa-clock" style="color:#d97706;"></i> Recalculate All TMI</h3>
+      <h3><i class="fas fa-clock" style="color:#d97706;"></i> Recalculate TMI for a Date Range</h3>
       <p class="w3-text-grey">
-        Re-runs the TMI recalculation for every current (not-yet-served) TMI record against today's
-        attendance logs — fixes records left stuck at stale minutes after a U/T/Tardy was deleted or
-        corrected somewhere that didn't trigger a recalculation on its own (e.g. a Dress Code tardy
-        removed directly from Daily Attendance). Also backfills a blank "Assigned By" where possible.
-        Safe to run any time; records with minutes already served are preserved, never deleted.
+        Re-runs the TMI calculation for every TMI record whose period touches the range, from the
+        absence records that exist now. Fixes records stuck at stale minutes and backfills a blank
+        "Assigned By". Records with minutes already served are preserved, never deleted.
       </p>
+      <div class="form-row">
+        <div><label>Start Date:<input class="w3-input w3-border" type="date" id="tmiStartDate"></label></div>
+        <div><label>End Date:<input class="w3-input w3-border" type="date" id="tmiEndDate"></label></div>
+      </div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-        <button class="w3-button btn-primary" onclick="recalculateAllTMI()"><i class="fas fa-sync"></i> Recalculate Now</button>
+        <button class="w3-button btn-primary" onclick="recalculateAllTMI()"><i class="fas fa-sync"></i> Recalculate</button>
+        <button class="w3-button btn-secondary" onclick="fixAssignedByRecords()"><i class="fas fa-user-check"></i> Fix "Assigned By" in range</button>
       </div>
       <div id="tmi-recalc-results" style="margin-top:16px;"></div>
-
-      <hr style="margin:28px 0;">
-
-      <h3><i class="fas fa-clone" style="color:#dc2626;"></i> Merge Duplicate TMI Records</h3>
-      <p class="w3-text-grey">
-        Finds students with more than one TMI record for the EXACT same period — the same student
-        showing twice (or more) on TMI Review/Final with identical dates, usually from two teachers
-        (or two tabs) saving Class Attendance for that student around the same time, each independently
-        creating a record before either could see the other's. This is different from a student
-        legitimately having several rows for several different periods, which is normal and left alone.
-        For each duplicate found, recomputes the correct total from current attendance logs, sums any
-        minutes already served across the duplicates so nothing is lost, and deletes the extra record(s).
-      </p>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-        <button class="w3-button btn-danger" onclick="mergeDuplicateTMIRecords()"><i class="fas fa-clone"></i> Find & Merge Duplicates</button>
-      </div>
-      <div id="tmi-merge-results" style="margin-top:16px;"></div>
-
-      <hr style="margin:28px 0;">
-
-      <h3><i class="fas fa-user-check" style="color:#dc2626;"></i> Fix Misattributed "Assigned By"</h3>
-      <p class="w3-text-grey">
-        One-time repair for a bug where TMI records could get "Assigned By" stamped with whoever
-        happened to run a recalculation or merge tool here — or edit a different student's Daily
-        Attendance — instead of that student's actual class teacher. This re-checks every open TMI
-        record against the real attendance logs behind it and corrects "Assigned By" to the class
-        teacher on record wherever that can be determined. Records with no class/teacher tied to them
-        (like a Dress Code auto-tardy) are left untouched, since those were already correctly
-        attributed to whoever logged the intervention. Safe to run any time.
-      </p>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-        <button class="w3-button btn-danger" onclick="fixAssignedByRecords()"><i class="fas fa-user-check"></i> Fix Assigned By</button>
-      </div>
       <div id="tmi-assignedby-results" style="margin-top:16px;"></div>
     </div>
 
@@ -377,12 +339,8 @@
         <button class="w3-button btn-primary w3-margin-top" onclick="downloadScheduleReport()"><i class="fas fa-download"></i> Download Schedule CSV</button>
       </div>
 
-      <div class="filter-bar"><h3>Download Class Attendance</h3>
-        <p class="w3-text-grey">Export attendance records for a date range and teacher.</p>
-        <div class="form-row">
-          <div><label>School Year:<input class="w3-input w3-border" type="text" id="attSchoolYear"></label></div>
-          <div><label>Semester:<select class="w3-input w3-border" id="attSemester"><option></option><option>Fall</option><option>Spring</option></select></label></div>
-        </div>
+      <div class="filter-bar"><h3>Download Absences</h3>
+        <p class="w3-text-grey">Export every absence / tardy record (T, U, E and TMI overrides) for a date range, optionally one teacher. Present is not stored, so it is not exported.</p>
         <div class="form-row">
           <div><label>Start Date:<input class="w3-input w3-border" type="date" id="attStartDate"></label></div>
           <div><label>End Date:<input class="w3-input w3-border" type="date" id="attEndDate"></label></div>
@@ -400,10 +358,12 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple } from './js/db.js';
+    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester } from './js/utils.js';
-    import { recalcTMIForStudent, mergeDuplicateTMI, reconcileAssignedBy } from './js/tmiEngine.js';
+    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
+    import { recalcTMIForStudent, reconcileAssignedBy, migrateTMIRecords, fetchTMIRecordsForRange } from './js/tmiEngine.js';
+    import { fetchClassLogs, fetchSessions, deleteEvents, sessionId, sectionKey, buildMigrationOps, commitOps,
+             SESSIONS_COLLECTION } from './js/attendance.js';
 
     window.getAll = getAll;
     window.getById = getById;
@@ -437,10 +397,8 @@
         document.getElementById('addSchoolYear').value = getCurrentSchoolYear();
         document.getElementById('addSemester').value = getCurrentSemester();
         document.getElementById('addCampus').value = 'STEM School';
-        document.getElementById('propSchoolYear').value = getCurrentSchoolYear();
-        document.getElementById('propSemester').value = getCurrentSemester();
+        document.getElementById('covSchoolYear').value = getCurrentSchoolYear();
         document.getElementById('repSchoolYear').value = getCurrentSchoolYear();
-        document.getElementById('attSchoolYear').value = getCurrentSchoolYear();
 
         allSchedules = await Data.get('classSchedules');
         allStudents = await Data.get('students');
@@ -450,6 +408,7 @@
           allStaff = [];
         }
         populateDeleteDropdown();
+        populateManageLogsTeachers();
       } catch (error) {
         console.error('Init error:', error);
         showToast('Error loading data', 'error');
@@ -1150,280 +1109,135 @@
       }
     });
 
-    window.propagateAttendance = async function() {
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Phase 2 migration (one-time, idempotent)
+    // ═══════════════════════════════════════════════════════════════════════
+    const migStatus = (html) => { document.getElementById('migration-status').innerHTML = html; };
+    const localDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const parseLocal   = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
+
+    // Step 1 — full CSV backup of the legacy collection (Present rows included).
+    window.migrationExportOldLogs = async function() {
+      migStatus('<i class="fas fa-spinner fa-spin"></i> Reading classAttendanceLogs (this is the one full read)…');
       try {
-        const schoolYear = document.getElementById('propSchoolYear').value;
-        const semester = document.getElementById('propSemester').value;
-        const startVal = document.getElementById('propStartDate').value;
-        const endVal   = document.getElementById('propEndDate').value;
-
-        if (!schoolYear || !semester || !startVal || !endVal) {
-          showToast('Please fill in all fields', 'error');
-          return;
-        }
-
-        // Parse as LOCAL time (not UTC) to avoid day-of-week being off by one
-        const parseLocal = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
-        const localDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-
-        const startDate = parseLocal(startVal);
-        const endDate   = parseLocal(endVal);
-
-        const progress = document.getElementById('propagateProgress');
-        progress.innerHTML = '<p>Processing...</p>';
-
-        const matchingSchedules = allSchedules.filter(s =>
-          s.schoolYear === schoolYear && s.semester === semester
-        );
-
-        const attendanceLogs = [];
-        let current = new Date(startDate);
-
-        while (current <= endDate) {
-          const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][current.getDay()];
-
-          matchingSchedules.forEach(schedule => {
-            if (dayAbbr && (schedule.classDays || []).includes(dayAbbr)) {
-              attendanceLogs.push({
-                studentId: schedule.studentId,
-                studentName: schedule.studentName,
-                chattStateANumber: schedule.chattStateANumber,
-                classScheduleId: schedule.id,
-                className: schedule.className,
-                teacherLastName: schedule.teacherLastName,
-                startTime: schedule.startTime || '',
-                endTime: schedule.endTime   || '',
-                learningLab: schedule.learningLab === true,
-                date: localDateStr(current),
-                schoolYear: schoolYear,
-                semester: semester,
-                status: 'P'
-              });
-            }
-          });
-
-          current.setDate(current.getDate() + 1);
-        }
-
-        if (attendanceLogs.length === 0) {
-          progress.innerHTML = '<p class="w3-text-red">No matching schedules found for the date range.</p>';
-          return;
-        }
-
-        progress.innerHTML = `<p>Creating ${attendanceLogs.length} attendance logs…</p>`;
-        let created = 0;
-        for (let i = 0; i < attendanceLogs.length; i++) {
-          await addDoc('classAttendanceLogs', attendanceLogs[i]);
-          created++;
-          if (created % 10 === 0 || created === attendanceLogs.length) {
-            const pct = Math.round(created / attendanceLogs.length * 100);
-            progress.innerHTML = `
-              <div style="background:#e2e8f0;border-radius:6px;overflow:hidden;height:28px;margin:10px 0;">
-                <div style="width:${pct}%;background:#2196F3;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;">${pct}%</div>
-              </div>
-              <p style="font-size:13px;color:#475569;">${created} / ${attendanceLogs.length} logs created</p>`;
-          }
-        }
-
-        progress.innerHTML = `<div style="border:2px solid #16a34a;background:#f0fdf4;border-radius:8px;padding:14px 18px;color:#1a1a1a;"><strong style="color:#166534;">✅ Propagation Complete!</strong><br><span style="font-size:14px;">Created <strong>${attendanceLogs.length}</strong> attendance logs.</span></div>`;
-        showToast('Attendance logs propagated', 'success');
-      } catch (error) {
-        console.error('Propagate error:', error);
-        showToast('Error propagating attendance logs', 'error');
+        const logs = await getAll('classAttendanceLogs');
+        if (!logs.length) { migStatus('No legacy records found — nothing to export.'); return; }
+        const cols = ['id','date','classDate','studentId','chattStateANumber','studentName','teacherLastName','className','startTime','learningLab','attendanceCode','status','assignTmi','comment','excuseType','excuseNotes','schoolYear','semester','classScheduleId','sourceInterventionId','createdBy','updatedAt','createdAt'];
+        const rows = logs.map(l => { const o = {}; cols.forEach(c => { const v = l[c]; o[c] = v === undefined || v === null ? '' : (typeof v === 'object' ? JSON.stringify(v) : String(v)); }); return o; });
+        exportCSV(rows, `classAttendanceLogs-backup-${localDateStr(new Date())}.csv`);
+        migStatus(`✓ Exported <strong>${logs.length}</strong> legacy records.`);
+      } catch (e) {
+        console.error(e); migStatus('<span style="color:#dc2626;">Export failed — see console.</span>');
       }
     };
 
-    window.clearPropagatedLogs = async function() {
-      const schoolYear = document.getElementById('propSchoolYear').value.trim();
-      const semester   = document.getElementById('propSemester').value;
-      const startVal   = document.getElementById('propStartDate').value;
-      const endVal     = document.getElementById('propEndDate').value;
-
-      if (!schoolYear || !semester || !startVal || !endVal) {
-        showToast('Fill in School Year, Semester, and Date Range first', 'warning');
-        return;
-      }
-
-      const statusEl = document.getElementById('clearPropProgress');
-      statusEl.textContent = 'Scanning…';
-
-      // Fetch all logs for this school year + semester, then filter by date range in memory
-      let matchingLogs = [];
+    // Step 2 — exceptions → attendanceEvents (deterministic IDs) + sessions.
+    window.migrationCopyEvents = async function() {
+      migStatus('<i class="fas fa-spinner fa-spin"></i> Reading classAttendanceLogs…');
       try {
-        const byYear = await getWhere('classAttendanceLogs', 'schoolYear', '==', schoolYear);
-        matchingLogs = byYear.filter(l => {
-          if (l.semester !== semester) return false;
-          const d = l.date || l.classDate || '';
-          return d >= startVal && d <= endVal;
-        });
-      } catch(e) {
-        console.error('clearPropagatedLogs scan error:', e);
-        showToast('Error scanning logs', 'error');
-        statusEl.textContent = '';
-        return;
-      }
-
-      if (matchingLogs.length === 0) {
-        statusEl.textContent = 'No matching logs found for those parameters.';
-        return;
-      }
-
-      statusEl.textContent = `Found ${matchingLogs.length} logs.`;
-
-      const { confirmTypedDelete } = await import('./js/utils.js');
-      const confirmed = await confirmTypedDelete(
-        `This will permanently delete ${matchingLogs.length} attendance log${matchingLogs.length !== 1 ? 's' : ''} for ${schoolYear} ${semester} between ${startVal} and ${endVal}. Any manual edits in that range will also be removed.`
-      );
-      if (!confirmed) { statusEl.textContent = ''; return; }
-
-      statusEl.textContent = 'Deleting…';
-      let deleted = 0;
-      try {
-        const chunkSize = 20;
-        for (let i = 0; i < matchingLogs.length; i += chunkSize) {
-          const chunk = matchingLogs.slice(i, i + chunkSize);
-          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
-          deleted += chunk.length;
-          const pct = Math.round(deleted / matchingLogs.length * 100);
-          statusEl.textContent = `Deleting… ${deleted} / ${matchingLogs.length} (${pct}%)`;
-        }
-        statusEl.textContent = `✓ Deleted ${deleted} log${deleted !== 1 ? 's' : ''}.`;
-        showToast(`Cleared ${deleted} propagated logs`, 'success');
-      } catch(err) {
-        console.error('clearPropagatedLogs delete error:', err);
-        showToast('Error during deletion', 'error');
-        statusEl.textContent = 'Error — some records may not have been deleted.';
+        const logs = await getAll('classAttendanceLogs');
+        const { ops, eventCount, sessionCount, conflicts } = buildMigrationOps(logs);
+        if (!ops.length) { migStatus('Nothing to migrate — no exception rows found.'); return; }
+        await commitOps(ops, (done, total) => migStatus(`<i class="fas fa-spinner fa-spin"></i> Writing… ${done} / ${total}`));
+        migStatus(`✓ Read ${logs.length} legacy rows → wrote <strong>${eventCount}</strong> attendance events and <strong>${sessionCount}</strong> sessions` +
+                  (conflicts ? ` (${conflicts} duplicate legacy rows collapsed)` : '') + '. Re-running is safe.');
+        showToast('Attendance migration complete', 'success');
+      } catch (e) {
+        console.error(e); migStatus('<span style="color:#dc2626;">Migration failed — see console. Safe to re-run.</span>');
       }
     };
 
-    // ── Propagation coverage check ────────────────────────────────────────────
-    // Compares the days schedules SAY classes meet against the attendance logs
-    // that actually exist, so gaps in propagation are visible at a glance.
-
-    let _coverageRows = [];  // holds last coverage result for CSV export
-
-    window.checkPropagationCoverage = async function() {
-      const schoolYear = document.getElementById('propSchoolYear').value.trim();
-      const semester   = document.getElementById('propSemester').value;
-      const startVal   = document.getElementById('propStartDate').value;
-      const endVal     = document.getElementById('propEndDate').value;
-      const resultsEl  = document.getElementById('coverageResults');
-      const csvBtn     = document.getElementById('coverageCsvBtn');
-
-      if (!schoolYear || !semester || !startVal || !endVal) {
-        showToast('Fill in school year, semester, and both dates above', 'warning');
-        return;
+    // Step 3 — TMI records → deterministic IDs (merging duplicates).
+    window.migrationRekeyTMI = async function() {
+      migStatus('<i class="fas fa-spinner fa-spin"></i> Re-keying TMI records…');
+      try {
+        const r = await migrateTMIRecords();
+        migStatus(`✓ ${r.scanned} TMI records checked — ${r.moved} moved to their new ID, ${r.merged} duplicates merged, ${r.untouched} already correct.` +
+                  (r.details.length ? `<ul style="font-size:12px;color:#475569;margin:6px 0 0;">${r.details.map(d => `<li>${d}</li>`).join('')}</ul>` : ''));
+        showToast('TMI records re-keyed', 'success');
+      } catch (e) {
+        console.error(e); migStatus('<span style="color:#dc2626;">TMI re-key failed — see console. Safe to re-run.</span>');
       }
-      if (startVal > endVal) {
-        showToast('Start date must be on or before end date', 'warning');
-        return;
-      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Attendance coverage (sessions vs. scheduled meeting days)
+    // ═══════════════════════════════════════════════════════════════════════
+    let _coverageRows = [];
+
+    window.checkCoverage = async function() {
+      const startVal = document.getElementById('covStartDate').value;
+      const endVal   = document.getElementById('covEndDate').value;
+      const teacher  = document.getElementById('covTeacher').value;
+      const schoolYear = document.getElementById('covSchoolYear').value.trim();
+      const resultsEl = document.getElementById('coverageResults');
+      const csvBtn    = document.getElementById('coverageCsvBtn');
+      if (!startVal || !endVal) { showToast('Pick a start and end date', 'warning'); return; }
+      if (startVal > endVal)   { showToast('Start date must be on or before end date', 'warning'); return; }
 
       resultsEl.innerHTML = '<p>Checking…</p>';
       csvBtn.style.display = 'none';
-
       try {
-        const parseLocal   = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
-        const localDateStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        const sessions = await fetchSessions({ start: startVal, end: endVal, teacherLastName: teacher || undefined });
+        const have = new Set(sessions.map(sx => sx.id));
 
-        // Schedules for this year + semester
-        const matching = allSchedules.filter(s =>
-          s.schoolYear === schoolYear && s.semester === semester
+        const scheds = allSchedules.filter(s =>
+          (!schoolYear || s.schoolYear === schoolYear) && (!teacher || s.teacherLastName === teacher) && s.teacherLastName && s.className
         );
-        if (matching.length === 0) {
-          resultsEl.innerHTML = `<p class="w3-text-red">No schedules found for ${schoolYear} ${semester}.</p>`;
-          return;
-        }
-
-        // All logs in range, indexed by date
-        const allLogs = await getAll('classAttendanceLogs');
-        const logsByDate = {};
-        allLogs.forEach(l => {
-          const d = (l.date || l.classDate || '').substring(0,10);
-          if (!d || d < startVal || d > endVal) return;
-          (logsByDate[d] = logsByDate[d] || []).push(l);
+        // Distinct sections
+        const sections = new Map();
+        scheds.forEach(s => {
+          const shape = { teacherLastName: s.teacherLastName, className: s.className, startTime: s.startTime || '', learningLab: s.learningLab === true };
+          const k = sectionKey(shape);
+          if (!sections.has(k)) sections.set(k, { ...shape, classDays: new Set(), startDate: s.startDate || '', endDate: s.endDate || '' });
+          (s.classDays || []).forEach(d => sections.get(k).classDays.add(d));
         });
 
-        // Walk every day in range; expected = schedules meeting that weekday
         const rows = [];
-        let cur = parseLocal(startVal);
-        const end = parseLocal(endVal);
+        let cur = parseLocal(startVal); const end = parseLocal(endVal);
         while (cur <= end) {
-          const dow     = cur.getDay();
-          const dayAbbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][dow];
+          const abbr = ['', 'M', 'T', 'W', 'Th', 'F', ''][cur.getDay()];
           const dateStr = localDateStr(cur);
-
-          if (dayAbbr) {  // skip weekends
-            const expected = matching.filter(s => (s.classDays || []).includes(dayAbbr)).length;
-            if (expected > 0) {
-              const dayLogs = logsByDate[dateStr] || [];
-              const actual  = dayLogs.length;
-              const taken   = dayLogs.filter(l => ['P','U','T','E'].includes(l.attendanceCode)).length;
-
-              let status, color;
-              if (actual === 0)            { status = 'Missing';    color = '#dc2626'; }
-              else if (actual < expected)  { status = 'Partial';    color = '#f59e0b'; }
-              else                         { status = 'Propagated'; color = '#16a34a'; }
-
-              rows.push({
-                date: dateStr,
-                day: cur.toLocaleDateString('en-US', { weekday: 'short' }),
-                expected, actual, taken, status, color,
-              });
-            }
+          if (abbr) {
+            sections.forEach(sec => {
+              if (sec.classDays.size && !sec.classDays.has(abbr)) return;
+              if (sec.startDate && dateStr < sec.startDate) return;
+              if (sec.endDate && dateStr > sec.endDate) return;
+              const sid = sessionId({ ...sec, date: dateStr });
+              const sx = sessions.find(x => x.id === sid);
+              rows.push({ date: dateStr, day: cur.toLocaleDateString('en-US', { weekday: 'short' }), teacher: sec.teacherLastName,
+                          className: sec.className + (sec.learningLab ? ' [Lab]' : ''), startTime: sec.startTime,
+                          taken: have.has(sid), absences: sx ? (sx.exceptionCount || 0) : '', savedBy: sx ? (sx.savedBy || '') : '' });
+            });
           }
           cur.setDate(cur.getDate() + 1);
         }
 
-        if (rows.length === 0) {
-          resultsEl.innerHTML = '<p class="w3-text-grey">No scheduled class days fall in this date range.</p>';
-          return;
-        }
-
+        if (!rows.length) { resultsEl.innerHTML = '<p class="w3-text-grey">No scheduled class meetings fall in this range.</p>'; return; }
         _coverageRows = rows;
-        const nMissing = rows.filter(r => r.status === 'Missing').length;
-        const nPartial = rows.filter(r => r.status === 'Partial').length;
-        const nDone    = rows.filter(r => r.status === 'Propagated').length;
+        const taken = rows.filter(r => r.taken).length, missing = rows.length - taken;
+        const byTeacher = {};
+        rows.forEach(r => { const t = byTeacher[r.teacher] = byTeacher[r.teacher] || { taken: 0, missing: 0 }; r.taken ? t.taken++ : t.missing++; });
 
         resultsEl.innerHTML = `
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
             <div style="flex:1;min-width:120px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:8px;padding:12px;text-align:center;">
-              <div style="font-size:24px;font-weight:800;color:#16a34a;">${nDone}</div>
-              <div style="font-size:12px;color:#166534;">Propagated</div>
-            </div>
-            <div style="flex:1;min-width:120px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;padding:12px;text-align:center;">
-              <div style="font-size:24px;font-weight:800;color:#f59e0b;">${nPartial}</div>
-              <div style="font-size:12px;color:#92400e;">Partial</div>
-            </div>
+              <div style="font-size:24px;font-weight:800;color:#16a34a;">${taken}</div><div style="font-size:12px;color:#166534;">Taken</div></div>
             <div style="flex:1;min-width:120px;border:1px solid #fecaca;background:#fef2f2;border-radius:8px;padding:12px;text-align:center;">
-              <div style="font-size:24px;font-weight:800;color:#dc2626;">${nMissing}</div>
-              <div style="font-size:12px;color:#991b1b;">Missing</div>
-            </div>
+              <div style="font-size:24px;font-weight:800;color:#dc2626;">${missing}</div><div style="font-size:12px;color:#991b1b;">Not taken</div></div>
           </div>
+          <table class="w3-table w3-striped" style="font-size:13px;margin-bottom:12px;"><thead><tr><th>Teacher</th><th>Taken</th><th>Not taken</th></tr></thead><tbody>
+            ${Object.entries(byTeacher).sort(([a],[b]) => a.localeCompare(b)).map(([t, v]) => `<tr><td>${t}</td><td style="color:#16a34a;">${v.taken}</td><td style="color:${v.missing ? '#dc2626' : '#64748b'};">${v.missing}</td></tr>`).join('')}
+          </tbody></table>
           <div style="max-height:420px;overflow:auto;border:1px solid var(--border,#e2e8f0);border-radius:8px;">
             <table class="w3-table w3-striped" style="width:100%;font-size:13px;">
-              <thead style="position:sticky;top:0;background:#f1f5f9;">
-                <tr>
-                  <th>Date</th><th>Day</th><th>Expected</th><th>Found</th>
-                  <th>Attendance Taken</th><th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${rows.map(r => `
-                  <tr>
-                    <td>${r.date}</td>
-                    <td>${r.day}</td>
-                    <td>${r.expected}</td>
-                    <td>${r.actual}</td>
-                    <td>${r.taken}</td>
-                    <td><strong style="color:${r.color};">${r.status}</strong></td>
-                  </tr>`).join('')}
-              </tbody>
-            </table>
-          </div>`;
+              <thead style="position:sticky;top:0;background:#f1f5f9;"><tr><th>Date</th><th>Day</th><th>Teacher</th><th>Class</th><th>Time</th><th>Status</th><th>Absences</th></tr></thead>
+              <tbody>${rows.filter(r => !r.taken).concat(rows.filter(r => r.taken)).map(r => `
+                <tr><td>${r.date}</td><td>${r.day}</td><td>${r.teacher}</td><td>${r.className}</td><td>${r.startTime}</td>
+                    <td><strong style="color:${r.taken ? '#16a34a' : '#dc2626'};">${r.taken ? 'Taken' : 'Not taken'}</strong></td><td>${r.absences}</td></tr>`).join('')}
+              </tbody></table></div>`;
         csvBtn.style.display = '';
-        showToast(`${nDone} propagated · ${nPartial} partial · ${nMissing} missing`, nMissing ? 'warning' : 'success');
-      } catch(e) {
+      } catch (e) {
         console.error('Coverage check error:', e);
         resultsEl.innerHTML = '<p class="w3-text-red">Error checking coverage — see console.</p>';
       }
@@ -1431,471 +1245,167 @@
 
     window.downloadCoverageCSV = function() {
       if (!_coverageRows.length) { showToast('Run a coverage check first', 'warning'); return; }
-      exportCSV(_coverageRows.map(r => ({
-        Date: r.date, Day: r.day, 'Expected Logs': r.expected,
-        'Found Logs': r.actual, 'Attendance Taken': r.taken, Status: r.status,
-      })), `propagation-coverage-${new Date().toISOString().substring(0,10)}.csv`);
+      exportCSV(_coverageRows.map(r => ({ Date: r.date, Day: r.day, Teacher: r.teacher, Class: r.className, Time: r.startTime,
+        Status: r.taken ? 'Taken' : 'Not taken', Absences: r.absences, 'Saved By': r.savedBy })),
+        `attendance-coverage-${localDateStr(new Date())}.csv`);
     };
 
-    // ── Scan / clear by date range (ignores schoolYear) ───────────────────────
-
-    let _scannedLogs = [];  // holds results of last scan for the delete button
-
-    window.scanAttendanceLogs = async function() {
-      const startVal = document.getElementById('scanStartDate').value;
-      const endVal   = document.getElementById('scanEndDate').value;
-      const resultsEl = document.getElementById('scanResults');
-      const clearBtn  = document.getElementById('clearScanBtn');
-
-      if (!startVal || !endVal) {
-        showToast('Select a date range first', 'warning');
-        return;
-      }
-      if (startVal > endVal) {
-        showToast('"From" date must be on or before "To" date', 'warning');
-        return;
-      }
-
-      resultsEl.innerHTML = '<p style="color:#64748b;font-size:13px;">Scanning…</p>';
-      clearBtn.style.display = 'none';
-      _scannedLogs = [];
-
-      try {
-        // Fetch ALL classAttendanceLogs — no index needed, filter in memory
-        const all = await getAll('classAttendanceLogs');
-        _scannedLogs = all.filter(l => {
-          const d = l.date || l.classDate || '';
-          return d >= startVal && d <= endVal;
-        });
-
-        if (_scannedLogs.length === 0) {
-          resultsEl.innerHTML = '<p style="color:#16a34a;font-size:13px;">✓ No attendance logs found in that date range.</p>';
-          return;
-        }
-
-        // Group by origin (propagated vs manually saved) and by school year
-        const propagated = _scannedLogs.filter(l => l.status === 'P' && !l.attendanceCode);
-        const manual     = _scannedLogs.filter(l => l.attendanceCode);
-        const other      = _scannedLogs.filter(l => !l.status && !l.attendanceCode);
-
-        // Summarise propagated by schoolYear+semester
-        const propByYear = {};
-        propagated.forEach(l => {
-          const key = `${l.schoolYear || '(no year)'} ${l.semester || '(no semester)'}`;
-          propByYear[key] = (propByYear[key] || 0) + 1;
-        });
-
-        // Summarise manual by teacher
-        const manByTeacher = {};
-        manual.forEach(l => {
-          const key = l.teacherLastName || '(no teacher)';
-          manByTeacher[key] = (manByTeacher[key] || 0) + 1;
-        });
-
-        // Date range in the found records
-        const dates = _scannedLogs.map(l => l.date || l.classDate || '').filter(Boolean).sort();
-        const dateRange = dates.length ? `${dates[0]} → ${dates[dates.length - 1]}` : 'unknown';
-
-        let html = `
-          <div style="border:1.5px solid #e2e8f0;border-radius:10px;overflow:hidden;font-size:13px;">
-            <div style="background:#f8fafc;padding:10px 14px;border-bottom:1px solid #e2e8f0;font-weight:700;color:#1e293b;">
-              Found <strong>${_scannedLogs.length}</strong> total records &nbsp;·&nbsp; ${dateRange}
-            </div>`;
-
-        if (propagated.length) {
-          html += `<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
-            <div style="font-weight:600;color:#7c3aed;margin-bottom:4px;"><i class="fas fa-play-circle"></i> Propagated logs — ${propagated.length}</div>`;
-          Object.entries(propByYear).forEach(([k,v]) => {
-            html += `<div style="padding:2px 0 2px 16px;color:#475569;">${k}: ${v}</div>`;
-          });
-          html += `</div>`;
-        }
-
-        if (manual.length) {
-          html += `<div style="padding:10px 14px;border-bottom:1px solid #f1f5f9;">
-            <div style="font-weight:600;color:#0369a1;margin-bottom:4px;"><i class="fas fa-hand-paper"></i> Manually saved — ${manual.length}</div>`;
-          Object.entries(manByTeacher).sort((a,b) => b[1]-a[1]).forEach(([k,v]) => {
-            html += `<div style="padding:2px 0 2px 16px;color:#475569;">${k}: ${v}</div>`;
-          });
-          html += `</div>`;
-        }
-
-        if (other.length) {
-          html += `<div style="padding:10px 14px;">
-            <div style="font-weight:600;color:#92400e;margin-bottom:4px;"><i class="fas fa-question-circle"></i> Other / unknown origin — ${other.length}</div>
-          </div>`;
-        }
-
-        html += `</div>`;
-        resultsEl.innerHTML = html;
-        clearBtn.style.display = '';
-        clearBtn.textContent = '';
-        clearBtn.innerHTML = `<i class="fas fa-trash-alt"></i> Delete All ${_scannedLogs.length} Found`;
-
-      } catch(err) {
-        console.error('scanAttendanceLogs error:', err);
-        resultsEl.innerHTML = '<p style="color:#dc2626;font-size:13px;">Error scanning — see console.</p>';
-      }
-    };
-
-    window.clearScannedLogs = async function() {
-      if (!_scannedLogs.length) { showToast('Run Scan first', 'warning'); return; }
-
-      const { confirmTypedDelete } = await import('./js/utils.js');
-      const confirmed = await confirmTypedDelete(
-        `This will permanently delete all ${_scannedLogs.length} attendance log records found in the scan. This includes both propagated and manually saved records in that date range.`
-      );
-      if (!confirmed) return;
-
-      const resultsEl = document.getElementById('scanResults');
-      const clearBtn  = document.getElementById('clearScanBtn');
-      clearBtn.disabled = true;
-
-      let deleted = 0;
-      const chunkSize = 20;
-      try {
-        for (let i = 0; i < _scannedLogs.length; i += chunkSize) {
-          const chunk = _scannedLogs.slice(i, i + chunkSize);
-          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
-          deleted += chunk.length;
-          const pct = Math.round(deleted / _scannedLogs.length * 100);
-          resultsEl.innerHTML = `
-            <div style="background:#e2e8f0;border-radius:6px;overflow:hidden;height:28px;margin:4px 0;">
-              <div style="width:${pct}%;background:#dc2626;height:100%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700;">${pct}%</div>
-            </div>
-            <p style="font-size:13px;color:#475569;">${deleted} / ${_scannedLogs.length} deleted</p>`;
-        }
-        _scannedLogs = [];
-        clearBtn.style.display = 'none';
-        resultsEl.innerHTML = `<p style="color:#16a34a;font-size:13px;font-weight:600;">✓ Deleted ${deleted} records.</p>`;
-        showToast(`Cleared ${deleted} attendance logs`, 'success');
-      } catch(err) {
-        console.error('clearScannedLogs error:', err);
-        showToast('Error during deletion', 'error');
-      } finally {
-        clearBtn.disabled = false;
-      }
-    };
-
-    // ── Clear attendance logs by date range (teacher + log-type filtered) ─────
-    // Moved here from Class Attendance's "Manage Logs" tab, since it's a
-    // schedule/attendance administration task.
-
-    let _mlScannedLogs = [];
+    // ═══════════════════════════════════════════════════════════════════════
+    //  Clear attendance by date range
+    // ═══════════════════════════════════════════════════════════════════════
+    let _mlScanned = { events: [], sessions: [] };
 
     function populateManageLogsTeachers() {
-      const sel = document.getElementById('ml-teacher');
-      if (!sel) return;
       const teachers = [...new Set(allSchedules.map(s => s.teacherLastName).filter(Boolean))].sort();
-      const prev = sel.value;
-      sel.innerHTML = '<option value="">All Teachers</option>' +
-        teachers.map(t => `<option value="${t}"${t === prev ? ' selected' : ''}>${t}</option>`).join('');
+      ['ml-teacher', 'covTeacher'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">All Teachers</option>' +
+          teachers.map(t => `<option value="${t}"${t === prev ? ' selected' : ''}>${t}</option>`).join('');
+      });
     }
 
     window.scanLogsByRange = async function() {
       const teacher  = document.getElementById('ml-teacher')?.value    || '';
       const startRaw = document.getElementById('ml-start-date')?.value || '';
       const endRaw   = document.getElementById('ml-end-date')?.value   || '';
-      const logType  = document.getElementById('ml-log-type')?.value   || 'all';
-
-      if (!startRaw && !endRaw) {
-        showToast('Please enter at least a start or end date', 'warning');
-        return;
-      }
+      const what     = document.getElementById('ml-log-type')?.value   || 'all';
+      if (!startRaw || !endRaw) { showToast('Pick a start and end date', 'warning'); return; }
+      if (startRaw > endRaw)    { showToast('Start date must be on or before end date', 'warning'); return; }
 
       showToast('Scanning…', 'info');
-      let logs;
       try {
-        logs = await getAll('classAttendanceLogs');
+        const [events, sessions] = await Promise.all([
+          what === 'sessions' ? [] : fetchClassLogs({ start: startRaw, end: endRaw, teacherLastName: teacher || undefined }),
+          what === 'events'   ? [] : fetchSessions({ start: startRaw, end: endRaw, teacherLastName: teacher || undefined }),
+        ]);
+        _mlScanned = { events, sessions };
       } catch (e) {
-        showToast('Error fetching logs', 'error');
-        return;
+        console.error(e); showToast('Error fetching records', 'error'); return;
       }
-
-      _mlScannedLogs = logs.filter(l => {
-        const d = l.date || l.classDate || '';
-        if (startRaw && d < startRaw) return false;
-        if (endRaw   && d > endRaw)   return false;
-        if (teacher  && l.teacherLastName !== teacher) return false;
-        if (logType === 'propagated') {
-          if (l.status !== 'P' || l.attendanceCode) return false;
-        } else if (logType === 'manual') {
-          if (!l.attendanceCode) return false;
-        }
-        return true;
-      });
 
       const resultsEl = document.getElementById('ml-scan-results');
       const clearBtn  = document.getElementById('ml-clear-btn');
       const countEl   = document.getElementById('ml-clear-count');
-      if (!resultsEl || !clearBtn || !countEl) return;
-
       resultsEl.style.display = 'block';
-
-      if (_mlScannedLogs.length === 0) {
-        resultsEl.innerHTML = '<p style="color:#64748b;font-size:13px;margin:0;">No logs matched the selected filters.</p>';
+      const total = _mlScanned.events.length + _mlScanned.sessions.length;
+      if (!total) {
+        resultsEl.innerHTML = '<p style="color:#64748b;font-size:13px;margin:0;">Nothing matched the selected filters.</p>';
         clearBtn.style.display = 'none';
         return;
       }
-
-      // Group by teacher → class for summary
       const grouped = {};
-      _mlScannedLogs.forEach(l => {
-        const t = l.teacherLastName || '(unknown)';
-        const c = l.className || '(no class)';
-        if (!grouped[t]) grouped[t] = {};
-        grouped[t][c] = (grouped[t][c] || 0) + 1;
-      });
-
-      let html = `<p style="font-size:13px;font-weight:600;margin:0 0 10px;">Found <strong>${_mlScannedLogs.length}</strong> log${_mlScannedLogs.length !== 1 ? 's' : ''} matching filters:</p>`;
-      html += '<table class="w3-table w3-striped w3-bordered" style="font-size:12px;">';
-      html += '<tr><th>Teacher</th><th>Class</th><th>Records</th></tr>';
-      Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).forEach(([t, classes]) => {
-        Object.entries(classes).sort(([a],[b]) => a.localeCompare(b)).forEach(([c, count]) => {
-          html += `<tr><td>${t}</td><td>${c}</td><td>${count}</td></tr>`;
+      _mlScanned.events.forEach(l => { const t = l.teacherLastName || '(unknown)', c = l.className || '(no class)'; (grouped[t] = grouped[t] || {})[c] = (grouped[t][c] || 0) + 1; });
+      let html = `<p style="font-size:13px;font-weight:600;margin:0 0 10px;">Found <strong>${_mlScanned.events.length}</strong> absence record${_mlScanned.events.length !== 1 ? 's' : ''} and <strong>${_mlScanned.sessions.length}</strong> session${_mlScanned.sessions.length !== 1 ? 's' : ''}:</p>`;
+      if (_mlScanned.events.length) {
+        html += '<table class="w3-table w3-striped w3-bordered" style="font-size:12px;"><tr><th>Teacher</th><th>Class</th><th>Absence records</th></tr>';
+        Object.entries(grouped).sort(([a],[b]) => a.localeCompare(b)).forEach(([t, classes]) => {
+          Object.entries(classes).sort(([a],[b]) => a.localeCompare(b)).forEach(([c, n]) => { html += `<tr><td>${t}</td><td>${c}</td><td>${n}</td></tr>`; });
         });
-      });
-      html += '</table>';
-
+        html += '</table>';
+      }
       resultsEl.innerHTML = html;
-      countEl.textContent = `${_mlScannedLogs.length} log${_mlScannedLogs.length !== 1 ? 's' : ''}`;
+      countEl.textContent = `${total} record${total !== 1 ? 's' : ''}`;
       clearBtn.style.display = '';
     };
 
     window.clearScannedRangeLogs = async function() {
-      if (!_mlScannedLogs.length) { showToast('Nothing to delete — run Scan first', 'warning'); return; }
-
-      const { confirmTypedDelete } = await import('./js/utils.js');
-      const confirmed = await confirmTypedDelete(
-        `Permanently delete ${_mlScannedLogs.length} attendance log${_mlScannedLogs.length !== 1 ? 's' : ''}? This cannot be undone.`
-      );
+      const { events, sessions } = _mlScanned;
+      const total = events.length + sessions.length;
+      if (!total) { showToast('Nothing to delete — run Scan first', 'warning'); return; }
+      const confirmed = await confirmTypedDelete(`Permanently delete ${events.length} absence record${events.length !== 1 ? 's' : ''} and ${sessions.length} session${sessions.length !== 1 ? 's' : ''}? This cannot be undone.`);
       if (!confirmed) return;
-
       try {
-        // Students affected by this deletion — used below to sweep up any
-        // TMI records that were only earned by the logs we're about to remove.
-        const affectedStudentIds = [...new Set(_mlScannedLogs.map(l => l.studentId).filter(Boolean))];
+        await deleteEvents(events.map(l => l.id));
+        const ops = sessions.map(sx => ({ collection: SESSIONS_COLLECTION, id: sx.id, type: 'delete' }));
+        for (let i = 0; i < ops.length; i += 450) await batchWrite(ops.slice(i, i + 450));
+        showToast(`Deleted ${total} record${total !== 1 ? 's' : ''}`, 'success');
 
-        const chunkSize = 20;
-        for (let i = 0; i < _mlScannedLogs.length; i += chunkSize) {
-          const chunk = _mlScannedLogs.slice(i, i + chunkSize);
-          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
+        // Recalculate TMI for each affected student / period.
+        const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
+        const seen = new Set(); const cache = {}; let tmiChanges = 0;
+        for (const l of events) {
+          const d = (l.date || '').substring(0, 10);
+          const k = `${l.studentId || l.chattStateANumber}|${d}`;
+          if (!d || seen.has(k)) continue; seen.add(k);
+          try {
+            const r = await recalcTMIForStudent({ studentId: l.studentId || '', chattStateANumber: l.chattStateANumber || '', studentName: l.studentName || '', dateStr: d, assignedBy, cache });
+            if (r.action !== 'none') tmiChanges++;
+          } catch (e) { console.error('TMI recalc failed for', l.studentName, e); }
         }
-        showToast(`Deleted ${_mlScannedLogs.length} log${_mlScannedLogs.length !== 1 ? 's' : ''}`, 'success');
-        _mlScannedLogs = [];
+        if (tmiChanges) showToast(`TMI updated for ${tmiChanges} student-period${tmiChanges !== 1 ? 's' : ''}`, 'info');
+
+        _mlScanned = { events: [], sessions: [] };
         const resultsEl = document.getElementById('ml-scan-results');
         const clearBtn  = document.getElementById('ml-clear-btn');
         if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
         if (clearBtn)  clearBtn.style.display = 'none';
-        populateManageLogsTeachers();
-
-        await sweepOrphanedTMI(affectedStudentIds);
       } catch (err) {
-        console.error('Error clearing logs:', err);
-        showToast('Error deleting logs — see console', 'error');
+        console.error('Error clearing records:', err);
+        showToast('Error deleting — see console', 'error');
       }
     };
 
-    // Deleting attendance logs here doesn't touch interventionLogs, so any
-    // TMI record that was only earned by the logs just removed would
-    // otherwise linger on the TMI Final Approval list with no U/T behind it.
-    // For each affected student, recheck their TMI records against what's
-    // left and delete any that are now unserved and have no basis — mirrors
-    // the same cleanup checkAndCreateTMIForSection does on a normal save.
-    async function sweepOrphanedTMI(studentIds) {
-      if (!studentIds.length) return;
-      try {
-        const [allInterventions, remainingLogs] = await Promise.all([
-          getAll('interventionLogs'),
-          getAll('classAttendanceLogs')
-        ]);
-
-        const candidates = allInterventions.filter(iv =>
-          iv.interventionType === 'TMI' &&
-          iv.tmiPeriodKey &&
-          !(iv.tmiMinutesServed > 0) &&
-          studentIds.includes(iv.studentId)
-        );
-        if (!candidates.length) return;
-
-        const hasBasis = (iv) => {
-          const periodStart = iv.startDate || '';
-          const keyParts  = (iv.tmiPeriodKey || '').split('__');
-          const periodEnd = keyParts.length ? keyParts[keyParts.length - 1] : '';
-          return remainingLogs.some(l => {
-            if (l.studentId !== iv.studentId) {
-              const lA = (l.chattStateANumber || '').trim();
-              const iA = (iv.chattStateANumber || '').trim();
-              if (!lA || !iA || lA !== iA) return false;
-            }
-            const d = (l.date || l.classDate || '').substring(0, 10);
-            if (!d) return false;
-            if (periodStart && d < periodStart) return false;
-            if (periodEnd && d > periodEnd) return false;
-            const isUT = ['U', 'T'].includes(l.attendanceCode);
-            const isOverride = l.assignTmi && l.attendanceCode !== 'U';
-            return isUT || isOverride;
-          });
-        };
-
-        const orphaned = candidates.filter(iv => !hasBasis(iv));
-        if (!orphaned.length) return;
-
-        await Promise.all(orphaned.map(iv => deleteDoc('interventionLogs', iv.id)));
-        showToast(
-          `Also cleared ${orphaned.length} TMI record${orphaned.length !== 1 ? 's' : ''} that no longer had any basis`,
-          'info'
-        );
-      } catch (err) {
-        // Non-fatal — the log deletion itself already succeeded; just log it.
-        console.error('Error sweeping orphaned TMI records:', err);
-      }
+    // ═══════════════════════════════════════════════════════════════════════
+    //  TMI recalculation / Assigned-By repair for a date range
+    // ═══════════════════════════════════════════════════════════════════════
+    function tmiRange() {
+      const start = document.getElementById('tmiStartDate').value;
+      const end   = document.getElementById('tmiEndDate').value;
+      if (!start || !end) { showToast('Pick a start and end date', 'warning'); return null; }
+      if (start > end)    { showToast('Start date must be on or before end date', 'warning'); return null; }
+      return { start, end };
     }
 
-    // Re-runs the shared TMI recalculation engine (js/tmiEngine.js) against
-    // every current auto-calculated TMI record (interventionType 'TMI' with
-    // a tmiPeriodKey — flat manually-assigned TMI records have no
-    // tmiPeriodKey and are deliberately left untouched, since they aren't
-    // tied to U/T counts at all).
-    //
-    // Unlike sweepOrphanedTMI above (which only checks whether ANY
-    // qualifying log still exists for a student), this recomputes the exact
-    // minutes owed from scratch — so it correctly shrinks a record from,
-    // say, 90 minutes down to 0 when only 1 of 3 tardies remains, not only
-    // when every bit of basis is completely gone. This is the fix for TMI
-    // getting stuck at stale minutes after a U/T/Tardy was deleted or
-    // corrected somewhere that didn't trigger its own recalculation.
-    // Existing "Assigned By" values are never overwritten; missing ones are
-    // backfilled with whoever runs this tool.
     window.recalculateAllTMI = async function() {
+      const range = tmiRange(); if (!range) return;
       const resultsEl = document.getElementById('tmi-recalc-results');
       resultsEl.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Recalculating…</div>';
       try {
-        const allTMI = await getAll('interventionLogs');
-        const candidates = allTMI.filter(iv => iv.interventionType === 'TMI' && iv.tmiPeriodKey);
-        if (!candidates.length) {
-          resultsEl.innerHTML = '<p class="w3-text-grey">No auto-calculated TMI records found.</p>';
-          return;
-        }
+        const candidates = (await fetchTMIRecordsForRange(range.start, range.end)).filter(iv => iv.tmiPeriodKey);
+        if (!candidates.length) { resultsEl.innerHTML = '<p class="w3-text-grey">No auto-calculated TMI records touch that range.</p>'; return; }
 
         const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
         let updated = 0, deleted = 0, backfilled = 0, unchanged = 0;
-        const details = [];
-
+        const details = []; const cache = {};
         for (const iv of candidates) {
-          // Any date within the record's own period works — startDate (the
-          // period's first day) is always set for these auto-calculated records.
           const dateStr = iv.startDate || '';
           if (!dateStr) { unchanged++; continue; }
-
-          const result = await recalcTMIForStudent({
-            studentId:         iv.studentId,
-            chattStateANumber: iv.chattStateANumber || '',
-            studentName:       iv.studentName || '',
-            dateStr,
-            assignedBy,
-          });
-
-          if (result.action === 'deleted') {
-            deleted++;
-            details.push(`${iv.studentName || iv.studentId || iv.chattStateANumber}: cleared — no U/T basis remains`);
-          } else if (result.action === 'updated') {
-            updated++;
-            if (result.backfilledAssignedBy) backfilled++;
-            details.push(`${iv.studentName || iv.studentId || iv.chattStateANumber}: → ${result.minutes} min${result.backfilledAssignedBy ? ' (Assigned By backfilled)' : ''}`);
-          } else {
-            unchanged++;
-          }
+          const result = await recalcTMIForStudent({ studentId: iv.studentId, chattStateANumber: iv.chattStateANumber || '', studentName: iv.studentName || '', dateStr, assignedBy, cache });
+          const who = iv.studentName || iv.studentId || iv.chattStateANumber;
+          if (result.action === 'deleted') { deleted++; details.push(`${who}: cleared — no U/T basis remains`); }
+          else if (result.action === 'updated') { updated++; if (result.backfilledAssignedBy) backfilled++; details.push(`${who}: → ${result.minutes} min${result.backfilledAssignedBy ? ' (Assigned By backfilled)' : ''}`); }
+          else unchanged++;
         }
-
         resultsEl.innerHTML = `
           <p><strong>${candidates.length}</strong> TMI record${candidates.length !== 1 ? 's' : ''} checked —
           ${updated} updated, ${deleted} cleared, ${backfilled} "Assigned By" backfilled, ${unchanged} already correct.</p>
-          ${details.length ? `<ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>` : ''}
-        `;
+          ${details.length ? `<ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>` : ''}`;
         showToast(`TMI recalculation complete — ${updated} updated, ${deleted} cleared`, 'success');
       } catch (err) {
         console.error('Error recalculating TMI:', err);
         resultsEl.innerHTML = '<p style="color:#dc2626;">Error recalculating TMI — see console.</p>';
-        showToast('Error recalculating TMI', 'error');
       }
     };
 
-    // Finds students with more than one TMI record for the exact same
-    // period (a race-condition duplicate, not a legitimate multi-period
-    // history) and merges each group into a single correct record. See
-    // mergeDuplicateTMI() in js/tmiEngine.js for the merge rules.
-    window.mergeDuplicateTMIRecords = async function() {
-      const resultsEl = document.getElementById('tmi-merge-results');
-      resultsEl.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Scanning for duplicates…</div>';
-      try {
-        const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Unknown';
-        const results = await mergeDuplicateTMI(assignedBy);
-
-        if (!results.length) {
-          resultsEl.innerHTML = '<p class="w3-text-grey">No duplicate TMI records found.</p>';
-          showToast('No duplicate TMI records found', 'info');
-          return;
-        }
-
-        const nameFor = (r) => {
-          const s = allStudents.find(x => x.id === r.studentId) ||
-                    allStudents.find(x => (x.chattStateANumber || '').trim() === r.chattStateANumber);
-          return s ? `${s.lastName}, ${s.firstName}` : (r.studentId || r.chattStateANumber || 'Unknown student');
-        };
-
-        const details = results.map(r => {
-          const keyParts = (r.tmiPeriodKey || '').split('__');
-          const periodLabel = keyParts.length >= 2 ? `${keyParts[keyParts.length - 2]} – ${keyParts[keyParts.length - 1]}` : r.tmiPeriodKey;
-          return `${nameFor(r)} (${periodLabel}): ${r.merged} records → 1, now ${r.minutes} min${r.servedMinutes ? ` (${r.servedMinutes} min served)` : ''}`;
-        });
-
-        resultsEl.innerHTML = `
-          <p>Merged <strong>${results.length}</strong> duplicate group${results.length !== 1 ? 's' : ''}:</p>
-          <ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>
-        `;
-        showToast(`Merged ${results.length} duplicate TMI group${results.length !== 1 ? 's' : ''}`, 'success');
-      } catch (err) {
-        console.error('Error merging duplicate TMI records:', err);
-        resultsEl.innerHTML = '<p style="color:#dc2626;">Error merging duplicates — see console.</p>';
-        showToast('Error merging duplicate TMI records', 'error');
-      }
-    };
-
-    // One-time repair for TMI records whose "Assigned By" got stamped with
-    // whoever ran a bulk tool (or edited an unrelated student's Daily
-    // Attendance) instead of the student's real class teacher. See
-    // reconcileAssignedBy() in js/tmiEngine.js for exactly how each
-    // correction is determined.
     window.fixAssignedByRecords = async function() {
+      const range = tmiRange(); if (!range) return;
       const resultsEl = document.getElementById('tmi-assignedby-results');
       resultsEl.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Checking Assigned By against attendance records…</div>';
       try {
-        const results = await reconcileAssignedBy();
-
-        if (!results.length) {
-          resultsEl.innerHTML = '<p class="w3-text-grey">No misattributed "Assigned By" records found.</p>';
-          showToast('No misattributed "Assigned By" records found', 'info');
-          return;
-        }
-
+        const results = await reconcileAssignedBy(range.start, range.end);
+        if (!results.length) { resultsEl.innerHTML = '<p class="w3-text-grey">No misattributed "Assigned By" records found in that range.</p>'; return; }
         const nameFor = (r) => {
-          const s = allStudents.find(x => x.id === r.studentId) ||
-                    allStudents.find(x => (x.chattStateANumber || '').trim() === r.chattStateANumber);
+          const s = allStudents.find(x => x.id === r.studentId) || allStudents.find(x => (x.chattStateANumber || '').trim() === r.chattStateANumber);
           return s ? `${s.lastName}, ${s.firstName}` : (r.studentId || r.chattStateANumber || 'Unknown student');
         };
-
-        const details = results.map(r => `${nameFor(r)}: ${r.from} → ${r.to}`);
-
-        resultsEl.innerHTML = `
-          <p>Corrected <strong>${results.length}</strong> record${results.length !== 1 ? 's' : ''}:</p>
-          <ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>
-        `;
+        resultsEl.innerHTML = `<p>Corrected <strong>${results.length}</strong> record${results.length !== 1 ? 's' : ''}:</p>
+          <ul style="font-size:13px;color:#475569;">${results.map(r => `<li>${nameFor(r)}: ${r.from} → ${r.to}</li>`).join('')}</ul>`;
         showToast(`Fixed Assigned By on ${results.length} record${results.length !== 1 ? 's' : ''}`, 'success');
       } catch (err) {
         console.error('Error fixing Assigned By:', err);
         resultsEl.innerHTML = '<p style="color:#dc2626;">Error fixing Assigned By — see console.</p>';
-        showToast('Error fixing Assigned By', 'error');
       }
     };
 
@@ -2230,45 +1740,23 @@
 
     window.downloadAttendanceReport = async function() {
       try {
-        const schoolYear = document.getElementById('attSchoolYear').value;
-        const semester = document.getElementById('attSemester').value;
         const startDate = document.getElementById('attStartDate').value;
-        const endDate = document.getElementById('attEndDate').value;
-        const teacher = document.getElementById('attTeacher').value.toLowerCase();
+        const endDate   = document.getElementById('attEndDate').value;
+        const teacher   = document.getElementById('attTeacher').value.trim();
+        if (!startDate || !endDate) { showToast('Pick a start and end date', 'error'); return; }
 
-        if (!schoolYear || !semester || !startDate || !endDate) {
-          showToast('Please fill in all required fields', 'error');
-          return;
-        }
-
-        try {
-          const allLogs = await getAll('classAttendanceLogs');
-          let filtered = allLogs.filter(log =>
-            log.schoolYear === schoolYear && 
-            log.semester === semester &&
-            log.date >= startDate &&
-            log.date <= endDate
-          );
-
-          if (teacher) {
-            filtered = filtered.filter(log => (log.teacherLastName || '').toLowerCase().includes(teacher));
-          }
-
-          const headers = ['Student Name', 'ChattState A#', 'Class Name', 'Teacher', 'Date', 'Status'];
-          const rows = filtered.map(log => [
-            log.studentName || '',
-            log.chattStateANumber || '',
-            log.className || '',
-            log.teacherLastName || '',
-            log.date || '',
-            log.status || 'unmarked'
-          ]);
-
-          exportCSV([headers, ...rows], 'attendance-report.csv');
-          showToast('Attendance report downloaded', 'success');
-        } catch (e) {
-          showToast('Error retrieving attendance logs', 'error');
-        }
+        const logs = await fetchClassLogs({ start: startDate, end: endDate, teacherLastName: teacher || undefined });
+        const rows = logs
+          .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.studentName || '').localeCompare(b.studentName || ''))
+          .map(log => ({
+            'Student Name': log.studentName || '', 'ChattState A#': log.chattStateANumber || '',
+            'Class Name': log.className || '', 'Teacher': log.teacherLastName || '', 'Time': log.startTime || '',
+            'Date': log.date || '', 'Code': log.attendanceCode || '', 'TMI Override': log.assignTmi ? 'Yes' : '',
+            'Learning Lab': log.learningLab ? 'Yes' : '', 'Comment': log.comment || '',
+          }));
+        if (!rows.length) { showToast('No absence records in that range', 'info'); return; }
+        exportCSV(rows, `absences-${startDate}_to_${endDate}.csv`);
+        showToast('Attendance report downloaded', 'success');
       } catch (error) {
         console.error('Report error:', error);
         showToast('Error downloading report', 'error');

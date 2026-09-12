@@ -105,7 +105,6 @@
       <button class="w3-button btn-primary" onclick="openAddModal()"><i class="fas fa-plus"></i> Add Class</button>
       <button class="w3-button btn-primary" onclick="downloadSchedule()"><i class="fas fa-download"></i> Download Schedule</button>
       <button class="w3-button w3-orange" onclick="openUploadModal()"><i class="fas fa-upload"></i> Upload Schedule CSV</button>
-      <button class="w3-button w3-purple" onclick="openPropagateModal()"><i class="fas fa-clock"></i> Propagate Attendance Logs</button>
     </div>
 
     <!-- View Toggle -->
@@ -269,26 +268,7 @@
     </div>
   </div>
 
-  <!-- Propagate Modal -->
-  <div id="propagateModal" class="w3-modal" onclick="if(event.target===this)closePropagateModal()">
-    <div class="w3-modal-content w3-card" style="max-width:500px;">
-      <button class="modal-close-btn" onclick="closePropagateModal()">×</button>
-      <div class="modal-body"><h2>Propagate Attendance Logs</h2>
-        <p class="w3-text-grey">Create attendance log records for all scheduled classes in the selected date range.</p>
-        <label>School Year:<input class="w3-input w3-border" type="text" id="propSchoolYear"></label>
-        <label>Semester:<select class="w3-input w3-border" id="propSemester"><option>Fall</option><option>Spring</option></select></label>
-        <label>Start Date:<input class="w3-input w3-border" type="date" id="propStartDate"></label>
-        <label>End Date:<input class="w3-input w3-border" type="date" id="propEndDate"></label>
-        <div class="w3-row w3-margin-top">
-          <button class="w3-button btn-primary w3-half" onclick="propagateAttendance()"><i class="fas fa-clock"></i> Propagate</button>
-          <button class="w3-button btn-danger w3-half" onclick="closePropagateModal()"><i class="fas fa-times"></i> Cancel</button>
-        </div>
-        <div id="propagateProgress" style="margin-top:15px;"></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Delete confirmation handled by confirmTypedDelete() in utils.js -->
+<!-- Delete confirmation handled by confirmTypedDelete() in utils.js -->
 
   <div id="toast-container" style="position:fixed;bottom:20px;right:20px;z-index:9999;"></div>
 
@@ -350,9 +330,7 @@
     async function init() {
       try {
         document.getElementById('schoolYear').value    = getCurrentSchoolYear();
-        document.getElementById('propSchoolYear').value = getCurrentSchoolYear();
         document.getElementById('semester').value       = getCurrentSemester();
-        document.getElementById('propSemester').value   = getCurrentSemester();
         document.getElementById('campus').value         = 'STEM School';
         await loadSchedules();
       } catch (err) {
@@ -927,65 +905,6 @@
     // ─────────────────────────────────────────────
     //  PROPAGATE ATTENDANCE LOGS
     // ─────────────────────────────────────────────
-    window.openPropagateModal = function() {
-      document.getElementById('propSchoolYear').value = getCurrentSchoolYear();
-      document.getElementById('propSemester').value   = getCurrentSemester();
-      document.getElementById('propStartDate').value  = '';
-      document.getElementById('propEndDate').value    = '';
-      document.getElementById('propagateProgress').innerHTML = '';
-      document.getElementById('propagateModal').style.display = 'block';
-    };
-    window.closePropagateModal = function() {
-      document.getElementById('propagateModal').style.display = 'none';
-    };
-
-    window.propagateAttendance = async function() {
-      const schoolYear = document.getElementById('propSchoolYear').value;
-      const semester   = document.getElementById('propSemester').value;
-      const startDate  = new Date(document.getElementById('propStartDate').value);
-      const endDate    = new Date(document.getElementById('propEndDate').value);
-      if (!schoolYear || !semester || isNaN(startDate) || isNaN(endDate)) {
-        showToast('Please fill in all fields', 'error'); return;
-      }
-      const progress = document.getElementById('propagateProgress');
-      progress.innerHTML = '<p>Processing…</p>';
-      const matching = allSchedules.filter(s => s.schoolYear === schoolYear && s.semester === semester);
-      const logs = [];
-      const DAY_MAP = ['','M','T','W','Th','F',''];
-      let cur = new Date(startDate);
-      while (cur <= endDate) {
-        const abbr = DAY_MAP[cur.getDay()];
-        if (abbr) {
-          matching.forEach(s => {
-            if ((s.classDays || []).includes(abbr)) {
-              logs.push({
-                studentId: s.studentId, studentName: s.studentName,
-                chattStateANumber: s.chattStateANumber, classScheduleId: s.id,
-                className: s.className, teacherLastName: s.teacherLastName,
-                date: cur.toISOString().split('T')[0],
-                schoolYear, semester, status: 'unmarked'
-              });
-            }
-          });
-        }
-        cur.setDate(cur.getDate() + 1);
-      }
-      if (logs.length === 0) {
-        progress.innerHTML = '<p class="w3-text-red">No matching schedules found.</p>'; return;
-      }
-      const batchSize = 500;
-      for (let i = 0; i < logs.length; i += batchSize) {
-        const batch = logs.slice(i, i + batchSize);
-        const bd = {};
-        batch.forEach((l, idx) => { bd[`doc_${i + idx}`] = l; });
-        await batchWrite('classAttendanceLogs', bd);
-        const pct = Math.round((i + batchSize) / logs.length * 100);
-        progress.innerHTML = `<div class="btn-ghost"><div class="btn-primary" style="width:${Math.min(pct,100)}%;text-align:center;color:white;height:25px;line-height:25px;">${Math.min(pct,100)}%</div></div><p>${Math.min(i+batchSize,logs.length)}/${logs.length} logs</p>`;
-      }
-      progress.innerHTML = `<div class="w3-panel w3-light-green w3-border"><strong>Done!</strong> Created ${logs.length} attendance logs</div>`;
-      showToast('Attendance logs propagated', 'success');
-    };
-
     // ─────────────────────────────────────────────
     //  PRINT WEEKLY SCHEDULE
     // ─────────────────────────────────────────────

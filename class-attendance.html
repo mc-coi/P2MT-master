@@ -318,8 +318,8 @@
         <button id="save-all-btn" onclick="saveAllSections()" class="w3-button btn-primary">
           <i class="fas fa-save"></i> Save All Classes
         </button>
-        <button onclick="resetCurrentDateAttendance()" class="w3-button w3-red" style="margin-left:8px;" title="Delete all attendance logs for this teacher and date">
-          <i class="fas fa-trash"></i> Clear This Date's Logs
+        <button onclick="resetCurrentDateAttendance()" class="w3-button w3-red" style="margin-left:8px;" title="Remove every saved class and absence record for this teacher and date">
+          <i class="fas fa-trash"></i> Clear This Date
         </button>
         <span class="save-all-summary" id="save-all-summary"></span>
       </div>
@@ -405,9 +405,9 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
-    import { addDoc, updateDoc, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
-    import { fetchClassLogs, fetchClassLogsForDate, fetchDailyLogsForDate, ABSENCE_CODES } from './js/attendance.js';
+    import { fetchClassLogs, fetchClassLogsForDate, fetchDailyLogsForDate, fetchSessions,
+             saveSectionAttendance, deleteEvents, sessionId, ABSENCE_CODES } from './js/attendance.js';
     import { recalcTMIForStudent } from './js/tmiEngine.js';
     import { initNav } from './js/nav.js';
     import { formatDate, exportCSV, showToast, ATTENDANCE_CODES } from './js/utils.js';
@@ -430,8 +430,11 @@
     let allSchoolCalendar      = [];
     // Attendance records — ONLY the selected teacher + date, fetched with a
     // scoped query in loadTeacherDay(). Never the whole collection.
+    // Exceptions only (T/U/E or a TMI override): a student with no record
+    // is Present. allSessions says which sections were already saved today.
     let allClassAttendanceLogs = [];
     let allDailyAttendanceLogs = [];
+    let allSessions            = [];
 
     // sections[] is the core of the new design:
     // each entry = { idx, className, isLab, schedule, students, state }
@@ -559,12 +562,14 @@
         // computed from an in-page copy of every log — the shared TMI engine
         // queries just the affected student's period when a save changes
         // something — so nothing outside this day is needed here.
-        const [dateLogs, dailyLogs] = await Promise.all([
+        const [dateLogs, dailyLogs, sessionsToday] = await Promise.all([
           fetchClassLogsForDate(classDate, { teacherLastName: teacher }),
           fetchDailyLogsForDate(classDate).catch(() => []),
+          fetchSessions({ start: classDate, end: classDate, teacherLastName: teacher }).catch(() => []),
         ]);
         allClassAttendanceLogs = dateLogs;
         allDailyAttendanceLogs = dailyLogs;
+        allSessions            = sessionsToday;
 
         // Local Date object for display only (day name in no-classes message)
         const [yr, mo, dy] = classDate.split('-').map(Number);
@@ -679,7 +684,7 @@
             const existingLogs = allClassAttendanceLogs.filter(log => {
               if (log.teacherLastName !== teacher)   return false;
               if (log.className       !== grp.className) return false;
-              if (log.date !== classDate && log.classDate !== classDate) return false;
+              if ((log.date || log.classDate) !== classDate) return false;
               if (grp.isLab ? log.learningLab !== true : log.learningLab === true) return false;
               // If BOTH the section and the log have a startTime, they must match.
               if (grp.startTime && log.startTime && log.startTime !== grp.startTime) return false;
@@ -746,7 +751,15 @@
               });
             }
 
-            return { idx, className: grp.className, isLab: grp.isLab, schedule: grp.schedule, students, state };
+            // Was this section already saved today (by anyone)? Drives the
+            // "Taken at …" note in the section header.
+            const sectionShape = { date: classDate, teacherLastName: teacher, className: grp.className,
+                                   startTime: grp.startTime, learningLab: grp.isLab };
+            const sid = sessionId(sectionShape);
+            const session = allSessions.find(x => x.id === sid) || null;
+
+            return { idx, className: grp.className, isLab: grp.isLab, startTime: grp.startTime,
+                     schedule: grp.schedule, students, state, existingLogs, session };
           });
 
         // Reset per-session saved tracking when loading new teacher/date
@@ -829,6 +842,13 @@
       renderCrossSectionSummary();
     }
 
+    function fmtSavedAt(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d)) return '';
+      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+
     function fmt12(t) {
       if (!t) return '';
       const [hStr, mStr] = t.split(':');
@@ -893,6 +913,7 @@
           <div>
             <div class="section-class-name">${sec.className}${sec.isLab ? ' <span style="font-size:14px;">⭐</span>' : ''}</div>
             ${meta ? `<div class="section-meta">${meta}</div>` : ''}
+            ${sec.session ? `<div class="section-meta" style="color:#16a34a;"><i class="fas fa-check"></i> Taken ${fmtSavedAt(sec.session.savedAt)}${sec.session.savedBy ? ' by ' + sec.session.savedBy : ''} · ${sec.session.exceptionCount || 0} absence${(sec.session.exceptionCount || 0) !== 1 ? 's' : ''}</div>` : ''}
           </div>
           <span class="section-badge">${sec.isLab ? 'Learning Lab' : 'Class'}</span>
           <span class="section-badge">${sec.students.length} student${sec.students.length !== 1 ? 's' : ''}</span>
@@ -1132,40 +1153,32 @@
         showToast('Select a teacher and date first', 'warning');
         return;
       }
-      const matching = allClassAttendanceLogs.filter(l => {
-        if (l.teacherLastName !== currentTeacher) return false;
-        return (l.date === currentDate) || (l.classDate === currentDate);
-      });
-      if (matching.length === 0) {
-        showToast('No existing logs found for this teacher and date', 'info');
+      const matching = allClassAttendanceLogs.filter(l => l.teacherLastName === currentTeacher && (l.date || l.classDate) === currentDate);
+      const sessionsToClear = allSessions.filter(sx => sx.teacherLastName === currentTeacher && sx.date === currentDate);
+      if (matching.length === 0 && sessionsToClear.length === 0) {
+        showToast('Nothing has been saved for this teacher and date', 'info');
         return;
       }
-      // Summarize by class for the confirm prompt
       const byClass = {};
       matching.forEach(l => {
         const key = `${l.className || '(no class)'}${l.learningLab ? ' [Lab]' : ''}${l.startTime ? ' @ ' + l.startTime : ''}`;
         byClass[key] = (byClass[key] || 0) + 1;
       });
-      const summary = Object.entries(byClass)
-        .map(([k, v]) => `  • ${k}: ${v} record${v !== 1 ? 's' : ''}`)
-        .join('\n');
-      const msg = `Delete ${matching.length} attendance log${matching.length !== 1 ? 's' : ''} for ${currentTeacher} on ${currentDate}?\n\n${summary}\n\nThis cannot be undone.`;
+      const summary = Object.entries(byClass).map(([k, v]) => `  • ${k}: ${v} absence record${v !== 1 ? 's' : ''}`).join('\n');
+      const msg = `Clear attendance for ${currentTeacher} on ${currentDate}?\n\n` +
+        `${sessionsToClear.length} saved class${sessionsToClear.length !== 1 ? 'es' : ''} and ${matching.length} absence record${matching.length !== 1 ? 's' : ''} will be removed.` +
+        (summary ? `\n\n${summary}` : '') + `\n\nThis cannot be undone.`;
       if (!confirm(msg)) return;
 
       try {
-        // Delete in parallel chunks to stay responsive
-        const chunkSize = 25;
-        for (let i = 0; i < matching.length; i += chunkSize) {
-          const chunk = matching.slice(i, i + chunkSize);
-          await Promise.all(chunk.map(l => deleteDoc('classAttendanceLogs', l.id)));
-        }
-        showToast(`Deleted ${matching.length} log${matching.length !== 1 ? 's' : ''}`, 'success');
-        // Drop the deleted records from the in-page copy and bring TMI back in
-        // line for every student who had a record (previously the reload
-        // refreshed the data but never re-ran TMI, so cleared absences could
-        // leave stale minutes behind).
+        await deleteEvents(matching.map(l => l.id));
+        const { deleteDoc } = await import('./js/db.js');
+        await Promise.all(sessionsToClear.map(sx => deleteDoc('attendanceSessions', sx.id)));
+        showToast(`Cleared ${matching.length} absence record${matching.length !== 1 ? 's' : ''}`, 'success');
+
         const deletedIds = new Set(matching.map(l => l.id));
         allClassAttendanceLogs = allClassAttendanceLogs.filter(l => !deletedIds.has(l.id));
+        allSessions = [];
         const affected = new Map();
         matching.forEach(l => {
           const key = l.studentId || `A#:${(l.chattStateANumber || '').trim()}`;
@@ -1178,11 +1191,10 @@
         });
         savedSections.clear();
         await runTMIForChangedStudents(affected);
-        // Re-render sections so banners and per-section states reflect fresh data
         await loadTeacherDay();
       } catch (err) {
-        console.error('Error clearing attendance logs:', err);
-        showToast('Error clearing logs — see console', 'error');
+        console.error('Error clearing attendance:', err);
+        showToast('Error clearing attendance — see console', 'error');
       }
     };
 
@@ -1227,86 +1239,65 @@
       }
     };
 
-    // Writes the attendance records for the given sections, patches the
-    // in-page copy of today's logs with exactly what was written (so nothing
-    // needs to be re-downloaded), and returns the students whose attendance
-    // code or TMI-override flag actually changed — the only ones whose TMI
-    // needs recomputing.
-    //
-    // Returns Map<key, { student, className }>.
+    // Saves the given sections: one batched write per section containing an
+    // event for every T/U/E (or TMI override), a delete for anyone switched
+    // back to Present, and the section's "attendance taken" session doc.
+    // Reads: 0 — the page already holds this section's existing records.
+    // Returns Map<key, { student, className }> of students whose code or
+    // TMI flag actually changed — the only ones whose TMI needs recomputing.
     async function persistSections(secsToSave) {
-      const writes = [];
-
-      secsToSave.forEach(sec => {
-        sec.students.forEach(student => {
-          const rawState = sec.state[student.id] || {};
-          const state = { code: resolveAttCode(rawState.code), comment: rawState.comment || '', tmi: rawState.tmi || false };
-          const secStartTime = sec.schedule?.startTime || sec.startTime || '';
-
-          // Find existing log — respect lab/regular type so they never overwrite each other
-          const existingLog = allClassAttendanceLogs.find(l => {
-            if (l.studentId !== student.id) {
-              // Fall back to A# match only when both are non-empty
-              const lA = (l.chattStateANumber || '').trim();
-              const sA = (student.chattStateANumber || '').trim();
-              if (!lA || !sA || lA !== sA) return false;
-            }
-            if (l.teacherLastName !== currentTeacher) return false;
-            if (l.className !== sec.className) return false;
-            if (l.date !== currentDate && l.classDate !== currentDate) return false;
-            if (sec.isLab ? l.learningLab !== true : l.learningLab === true) return false;
-            // startTime must match when the section has one — prevents cross-period collisions
-            if (secStartTime && l.startTime && l.startTime !== secStartTime) return false;
-            return true;
-          });
-
-          const updatedAt = new Date().toISOString();
-          if (existingLog) {
-            const patch = { attendanceCode: state.code, comment: state.comment, assignTmi: state.tmi, updatedAt };
-            writes.push({ sec, student, state, existingLog, patch,
-                          promise: updateDoc('classAttendanceLogs', existingLog.id, patch) });
-          } else {
-            const newLog = {
-              studentId:         student.id,
-              chattStateANumber: student.chattStateANumber || '',
-              studentName:       `${student.lastName || ''}, ${student.firstName || ''}`,
-              teacherLastName:   currentTeacher,
-              className:         sec.className,
-              classScheduleId:   sec.schedule.id,
-              startTime:         secStartTime,
-              date:              currentDate,
-              attendanceCode:    state.code,
-              comment:           state.comment,
-              assignTmi:         state.tmi,
-              createdBy:         currentUser?.uid || '',
-              updatedAt
-            };
-            if (sec.isLab) newLog.learningLab = true;
-            writes.push({ sec, student, state, newLog,
-                          promise: addDoc('classAttendanceLogs', newLog) });
-          }
-        });
-      });
-
-      await Promise.all(writes.map(w => w.promise));
-
       const changed = new Map();
-      const note = (w) => {
-        const key = w.student.id || `A#:${(w.student.chattStateANumber || '').trim()}`;
-        if (!changed.has(key)) changed.set(key, { student: w.student, className: w.sec.className });
-      };
+      const savedBy = { uid: currentUser?.uid || '', name: currentUser?.displayName || currentUser?.email || '' };
 
-      for (const w of writes) {
-        if (w.existingLog) {
-          const beforeCode = resolveAttCode(w.existingLog.attendanceCode);
-          const beforeTmi  = !!w.existingLog.assignTmi;
-          Object.assign(w.existingLog, w.patch);
-          if (beforeCode !== w.state.code || beforeTmi !== w.state.tmi) note(w);
-        } else {
-          const id = await w.promise;     // already resolved
-          allClassAttendanceLogs.push({ id, ...w.newLog });
-          if (w.state.code !== 'P' || w.state.tmi) note(w);
-        }
+      for (const sec of secsToSave) {
+        const secStartTime = sec.schedule?.startTime || sec.startTime || '';
+        const section = {
+          date:            currentDate,
+          teacherLastName: currentTeacher,
+          className:       sec.className,
+          startTime:       secStartTime,
+          learningLab:     sec.isLab === true,
+          classScheduleId: sec.schedule?.id || '',
+        };
+
+        // Existing record per student for this section (loaded on init or
+        // written by an earlier save on this page).
+        const previous = new Map();
+        sec.students.forEach(student => {
+          const log = (sec.existingLogs || []).find(l =>
+            l.studentId === student.id ||
+            (student.chattStateANumber && (l.chattStateANumber || '').trim() === student.chattStateANumber.trim())
+          );
+          if (log) previous.set(student.id, log);
+        });
+
+        const roster = sec.students.map(student => {
+          const st = sec.state[student.id] || {};
+          return { student, code: resolveAttCode(st.code), comment: st.comment || '', tmi: !!st.tmi };
+        });
+
+        const result = await saveSectionAttendance({ section, roster, previous, savedBy });
+
+        // Patch the in-page copies with exactly what was written.
+        const deleted = new Set(result.deletedIds);
+        sec.existingLogs = [
+          ...(sec.existingLogs || []).filter(l => !deleted.has(l.id) && !result.events.some(e => e.id === l.id || e.studentId === l.studentId)),
+          ...result.events,
+        ];
+        allClassAttendanceLogs = [
+          ...allClassAttendanceLogs.filter(l => !deleted.has(l.id) && !result.events.some(e => e.id === l.id)),
+          ...result.events,
+        ];
+        sec.session = result.session;
+        sec.students.forEach(student => {
+          const ev = result.events.find(e => e.studentId === student.id);
+          if (sec.state[student.id]) sec.state[student.id].logId = ev ? ev.id : null;
+        });
+
+        result.changed.forEach(({ student }) => {
+          const key = student.id || `A#:${(student.chattStateANumber || '').trim()}`;
+          if (!changed.has(key)) changed.set(key, { student, className: sec.className });
+        });
       }
       return changed;
     }
