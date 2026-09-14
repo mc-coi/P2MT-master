@@ -265,6 +265,22 @@
       </div>
       <div id="tmi-recalc-results" style="margin-top:16px;"></div>
       <div id="tmi-assignedby-results" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
+      <h3><i class="fas fa-sync-alt" style="color:#0891b2;"></i> Refresh Cached Lists</h3>
+      <p class="w3-text-grey">
+        Students, staff, parents, schedules, templates and PBL data are downloaded once per computer and
+        then reused, which is what keeps daily reads low. Changes made <strong>inside P2MT</strong> refresh
+        everyone automatically. Use this only after editing data <strong>directly in the Firebase
+        console</strong>, which P2MT can't see — it tells every browser to re-download those lists on their
+        next page load.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-primary" onclick="refreshCachedLists()"><i class="fas fa-sync-alt"></i> Refresh for Everyone</button>
+        <button class="w3-button btn-secondary" onclick="clearLocalCache()"><i class="fas fa-eraser"></i> Just This Computer</button>
+        <span id="cache-refresh-status" style="font-size:13px;color:#64748b;"></span>
+      </div>
     </div>
 
     <!-- TAB 4: Delete Schedule -->
@@ -1387,6 +1403,24 @@
         console.error('Error recalculating TMI:', err);
         resultsEl.innerHTML = '<p style="color:#dc2626;">Error recalculating TMI — see console.</p>';
       }
+    };
+
+    window.refreshCachedLists = async function() {
+      const el = document.getElementById('cache-refresh-status');
+      try {
+        const n = await Data.refreshAll();
+        el.textContent = `✓ ${n} lists marked stale — every browser re-downloads them on its next page load.`;
+        showToast('Cached lists will refresh everywhere', 'success');
+      } catch (e) {
+        console.error(e);
+        el.textContent = 'Error — see console.';
+      }
+    };
+
+    window.clearLocalCache = function() {
+      Data.clearLocal();
+      document.getElementById('cache-refresh-status').textContent = '✓ This computer will re-download the lists on the next page load.';
+      showToast('Local cache cleared', 'success');
     };
 
     window.fixAssignedByRecords = async function() {

@@ -22,7 +22,7 @@ import { getAll, getById, onCollectionWrite, bumpVersion, isVersionedCollection 
 const VERSIONS_COLLECTION = 'meta';
 const VERSIONS_DOC        = 'versions';
 const STORAGE_PREFIX      = 'p2mt:cache:';
-const TTL_MS              = 6 * 60 * 60 * 1000;   // 6 hours — safety net only
+const TTL_MS              = 24 * 60 * 60 * 1000;  // 24 hours — safety net only
 
 // Collections allowed through the cache. Anything that grows with daily use
 // (attendance logs, interventions) is deliberately NOT here — those must be
@@ -31,24 +31,66 @@ const TTL_MS              = 6 * 60 * 60 * 1000;   // 6 hours — safety net only
 // and this cache can never disagree about what is versioned.
 const CACHEABLE = { has: isVersionedCollection };
 
+// Named list for the bulk helpers below (refreshAll / clearLocal). Membership
+// is still decided by db.js via CACHEABLE — this is only the set to iterate.
+const CACHED_COLLECTIONS = [
+  'students', 'staff', 'parents', 'classSchedules', 'p2mtTemplates',
+  'interventionTypes', 'schoolCalendar', 'pbls', 'pblTeams', 'pblEvents',
+  'erWorkshops', 'erRooms', 'guardianEmails',
+];
+
 const memory = new Map();          // collection -> { stamp, fetchedAt, docs }
 let versionsCache = null;          // { <collection>: <stamp>, ... }
 let versionsPromise = null;
 
+// localStorage, NOT sessionStorage: sessionStorage is scoped to one browser
+// tab, so closing the tab (or opening the app in a second one) threw the
+// cache away and every fresh tab re-downloaded every reference collection —
+// ~800 reads before the user had done anything. Staff open the app several
+// times a day, so that alone was the largest single source of reads in the
+// app. localStorage survives tab closes and browser restarts, and freshness
+// is decided by the meta/versions stamp rather than by the storage lifetime,
+// so keeping a copy longer is safe: a stale copy is detected on the next
+// page load and re-fetched.
+//
+// Falls back to sessionStorage where localStorage is unavailable (private
+// mode, locked-down browser), and to the in-memory Map where neither works.
+function storageArea() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      // Safari in private mode exposes localStorage but throws on write.
+      localStorage.setItem(STORAGE_PREFIX + '__probe', '1');
+      localStorage.removeItem(STORAGE_PREFIX + '__probe');
+      return localStorage;
+    }
+  } catch (_) {}
+  try { if (typeof sessionStorage !== 'undefined') return sessionStorage; } catch (_) {}
+  return null;
+}
+const store = storageArea();
+
 function storageGet(collection) {
   try {
-    const raw = sessionStorage.getItem(STORAGE_PREFIX + collection);
+    const raw = store && store.getItem(STORAGE_PREFIX + collection);
     return raw ? JSON.parse(raw) : null;
   } catch (_) { return null; }
 }
 
 function storageSet(collection, entry) {
-  try { sessionStorage.setItem(STORAGE_PREFIX + collection, JSON.stringify(entry)); }
-  catch (_) { /* quota or private mode — memory cache still works */ }
+  if (!store) return;
+  try { store.setItem(STORAGE_PREFIX + collection, JSON.stringify(entry)); }
+  catch (_) {
+    // Out of quota — drop every cached collection and keep the newest one
+    // rather than silently caching nothing from here on.
+    try {
+      Object.keys(store).filter(k => k.startsWith(STORAGE_PREFIX)).forEach(k => store.removeItem(k));
+      store.setItem(STORAGE_PREFIX + collection, JSON.stringify(entry));
+    } catch (_) { /* memory cache still works */ }
+  }
 }
 
 function storageDrop(collection) {
-  try { sessionStorage.removeItem(STORAGE_PREFIX + collection); } catch (_) {}
+  try { if (store) store.removeItem(STORAGE_PREFIX + collection); } catch (_) {}
 }
 
 // Reads meta/versions once per page load (1 read). Subsequent calls in the
@@ -126,6 +168,23 @@ export async function bump(collection) {
 export function invalidate(collection) {
   memory.delete(collection);
   storageDrop(collection);
+}
+
+// Marks EVERY cached collection stale for every browser, by stamping each one
+// in meta/versions (one write). Needed because a change made outside the app —
+// editing a document directly in the Firebase console — bypasses db.js and so
+// never stamps anything, and cached copies are otherwise kept until the 24h
+// safety-net TTL. Wired to the "Refresh cached lists" button in Schedule Admin.
+export async function refreshAll() {
+  CACHED_COLLECTIONS.forEach(c => { markStale(c); bumpVersion(c); });
+  return CACHED_COLLECTIONS.length;
+}
+
+// Drops this browser's copies only — no writes, no effect on anyone else.
+export function clearLocal() {
+  CACHED_COLLECTIONS.forEach(c => invalidate(c));
+  versionsCache = null;
+  versionsPromise = null;
 }
 
 // Convenience accessors used by pages.
