@@ -73,10 +73,43 @@ function noteWrite(collectionName) {
   bumpVersion(collectionName);
 }
 
+// ── Read meter ──────────────────────────────────────────────────────────────
+// Every read helper reports how many documents it returned. Totals for the
+// day are kept per collection in localStorage and can be printed from any
+// page's console with p2mtReads(); any single call returning more than
+// READ_WARN documents is logged with a stack trace so the caller is obvious.
+// Costs nothing against Firestore.
+const READ_WARN = 300;
+const METER_KEY = () => `p2mt:reads:${new Date().toISOString().slice(0, 10)}`;
+function meter(collectionName, kind, count) {
+  try {
+    const key = METER_KEY();
+    const tally = JSON.parse(localStorage.getItem(key) || '{}');
+    const row = tally[collectionName] || { docs: 0, calls: 0 };
+    row.docs += count; row.calls += 1;
+    tally[collectionName] = row;
+    tally.__total = (tally.__total || 0) + count;
+    localStorage.setItem(key, JSON.stringify(tally));
+  } catch (_) {}
+  if (count > READ_WARN) {
+    console.warn(`[p2mt reads] ${kind} on ${collectionName} returned ${count} documents on ${location.pathname}`, new Error().stack.split('\n').slice(2, 6).join('\n'));
+  }
+}
+if (typeof window !== 'undefined') {
+  window.p2mtReads = function() {
+    const tally = JSON.parse(localStorage.getItem(METER_KEY()) || '{}');
+    const rows = Object.entries(tally).filter(([k]) => k !== '__total').map(([c, v]) => ({ collection: c, documents: v.docs, calls: v.calls })).sort((a, b) => b.documents - a.documents);
+    console.table(rows);
+    console.log(`Total documents read today from this browser: ${tally.__total || 0}`);
+    return rows;
+  };
+}
+
 // Get all documents from a collection
 export async function getAll(collectionName) {
   try {
     const querySnapshot = await getDocs(collection(db, collectionName));
+    meter(collectionName, 'getAll', querySnapshot.size);
     const documents = [];
     querySnapshot.forEach((doc) => {
       documents.push({
@@ -95,6 +128,7 @@ export async function getAll(collectionName) {
 export async function getById(collectionName, id) {
   try {
     const docSnapshot = await getDoc(doc(db, collectionName, id));
+    meter(collectionName, 'getById', 1);
     if (docSnapshot.exists()) {
       return {
         id: docSnapshot.id,
@@ -113,6 +147,7 @@ export async function getWhere(collectionName, field, operator, value) {
   try {
     const q = query(collection(db, collectionName), where(field, operator, value));
     const querySnapshot = await getDocs(q);
+    meter(collectionName, `getWhere(${field})`, querySnapshot.size);
     const documents = [];
     querySnapshot.forEach((doc) => {
       documents.push({
@@ -135,6 +170,7 @@ export async function getWhereMultiple(collectionName, conditions) {
     );
     const q = query(collection(db, collectionName), ...constraints);
     const querySnapshot = await getDocs(q);
+    meter(collectionName, `query(${conditions.map(c => c[0]).join('+')})`, querySnapshot.size);
     const documents = [];
     querySnapshot.forEach((doc) => {
       documents.push({
@@ -250,6 +286,7 @@ export async function batchWrite(operations) {
 export function listenWhere(collectionName, field, operator, value, callback) {
   const q = query(collection(db, collectionName), where(field, operator, value));
   return onSnapshot(q, (snapshot) => {
+    meter(collectionName, `listen(${field})`, snapshot.docChanges().length);
     const documents = [];
     snapshot.forEach((docSnap) => {
       documents.push({ id: docSnap.id, ...docSnap.data() });
