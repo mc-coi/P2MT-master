@@ -762,10 +762,13 @@
                      schedule: grp.schedule, students, state, existingLogs, session };
           });
 
-        // Reset per-session saved tracking when loading new teacher/date
+        // Reset per-session saved tracking when loading new teacher/date,
+        // then restore the "Saved …" badge for every section that already has
+        // an attendance session for this date.
         savedSections = new Set();
         renderAllSections();
-        updateAttBanner();   // show banner based on existing Firebase logs
+        sections.forEach(sec => { if (sec.session) markSectionSaved(sec.idx, sec.session); });
+        updateAttBanner(true);
 
       } catch (error) {
         console.error('Error loading teacher day:', error);
@@ -842,13 +845,6 @@
       renderCrossSectionSummary();
     }
 
-    function fmtSavedAt(iso) {
-      if (!iso) return '';
-      const d = new Date(iso);
-      if (isNaN(d)) return '';
-      return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-    }
-
     function fmt12(t) {
       if (!t) return '';
       const [hStr, mStr] = t.split(':');
@@ -913,7 +909,6 @@
           <div>
             <div class="section-class-name">${sec.className}${sec.isLab ? ' <span style="font-size:14px;">⭐</span>' : ''}</div>
             ${meta ? `<div class="section-meta">${meta}</div>` : ''}
-            ${sec.session ? `<div class="section-meta" style="color:#16a34a;"><i class="fas fa-check"></i> Taken ${fmtSavedAt(sec.session.savedAt)}${sec.session.savedBy ? ' by ' + sec.session.savedBy : ''} · ${sec.session.exceptionCount || 0} absence${(sec.session.exceptionCount || 0) !== 1 ? 's' : ''}</div>` : ''}
           </div>
           <span class="section-badge">${sec.isLab ? 'Learning Lab' : 'Class'}</span>
           <span class="section-badge">${sec.students.length} student${sec.students.length !== 1 ? 's' : ''}</span>
@@ -1014,15 +1009,18 @@
     };
 
     // ── Visual save confirmation ──────────────────────────────────────────────
-    function markSectionSaved(idx) {
+    // Called after a save on this page, or on load for sections whose
+    // attendanceSessions record says they were already taken today (by
+    // anyone). `session` supplies the stored time / name in the latter case,
+    // so the badge survives leaving and returning to the page.
+    function markSectionSaved(idx, session = null) {
       const indicator = document.getElementById(`saved-ind-${idx}`);
       const saveBtn   = document.getElementById(`save-btn-${idx}`);
       const timeEl    = document.getElementById(`saved-time-${idx}`);
 
-      // Always clear the button's "Saving…" state and re-enable it, even if
-      // the indicator badge is somehow missing — otherwise a missing badge
-      // would leave the button stuck disabled with no way to save again.
-      if (saveBtn) {
+      if (saveBtn && !session) {
+        // Always clear the button's "Saving…" state and re-enable it, even if
+        // the indicator badge is somehow missing.
         saveBtn.disabled = false;
         saveBtn.classList.remove('btn-saving', 'btn-error');
         saveBtn.innerHTML = '<i class="fas fa-check-circle"></i> Saved';
@@ -1035,24 +1033,17 @@
 
       if (!indicator) return;
 
-      // Format current time as H:MM AM/PM
-      const now = new Date();
-      const h   = now.getHours();
-      const m   = String(now.getMinutes()).padStart(2, '0');
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12  = h % 12 || 12;
-      if (timeEl) timeEl.textContent = `Saved ${h12}:${m} ${ampm}`;
-
-      // Show the indicator (stays permanently for the rest of the session)
+      const when = session?.savedAt ? new Date(session.savedAt) : new Date();
+      const by   = session?.savedBy ? ` by ${session.savedBy}` : '';
+      if (timeEl) timeEl.textContent = `Saved ${isNaN(when) ? '' : when.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}${by}`;
       indicator.classList.add('visible');
 
-      // Track as saved and refresh the banner
       savedSections.add(idx);
-      updateAttBanner();
+      updateAttBanner(!!session);
     }
 
     // ── Unsaved banner ────────────────────────────────────────────────────────
-    function updateAttBanner() {
+    function updateAttBanner(quiet = false) {
       const banner  = document.getElementById('unsaved-banner');
       const title   = document.getElementById('ub-title');
       const sub     = document.getElementById('ub-sub');
@@ -1062,16 +1053,18 @@
       const total  = sections.length;
       if (total === 0) { banner.classList.remove('visible', 'all-done'); return; }
 
-      // Only count sections explicitly saved this session — pre-existing Firebase logs
-      // do NOT count as "saved" so teachers must always confirm attendance themselves.
+      // A section counts as saved if it was saved on this page or has an
+      // attendanceSessions record for today (attendance was taken, by anyone).
       const alreadySaved = sections.filter((sec, idx) => savedSections.has(idx));
 
       const savedCount   = alreadySaved.length;
       const unsavedCount = total - savedCount;
 
       if (unsavedCount === 0) {
-        // All saved
-        banner.classList.remove('visible');
+        // All saved — on a fresh page load (quiet) just leave the badges; only
+        // celebrate when the teacher actually saved something here.
+        banner.classList.remove('visible', 'all-done');
+        if (quiet) return;
         banner.classList.add('all-done', 'visible');
         iconEl.className    = 'fas fa-check-circle';
         title.textContent   = '✓ All classes saved for today';
