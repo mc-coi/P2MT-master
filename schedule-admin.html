@@ -179,29 +179,40 @@
         it reads only what it needs.
       </p>
 
-      <!-- Phase 2 migration -->
-      <div id="migration-card" style="border:2px solid #f59e0b;background:#fffbeb;border-radius:10px;padding:16px 18px;margin:14px 0 20px;">
-        <h3 style="margin-top:0;color:#92400e;"><i class="fas fa-exchange-alt"></i> One-time migration to the new attendance model</h3>
-        <p style="font-size:13px;color:#78350f;margin:6px 0 12px;">
-          Run these three steps once, in order, right after deploying Phase 2. Each step is safe to re-run.
-          The old <code>classAttendanceLogs</code> collection is left untouched as a backup; nothing reads it any more.
-        </p>
-        <div style="display:flex;flex-direction:column;gap:10px;">
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <button class="w3-button btn-secondary" onclick="migrationExportOldLogs()"><i class="fas fa-download"></i> 1. Export old logs to CSV</button>
-            <span style="font-size:12px;color:#78350f;">Full backup of <code>classAttendanceLogs</code> including Present rows (one full read — do this once).</span>
+      <!-- Phase 2 migration — already run (Sept 2026). Collapsed and
+           confirm-gated because steps 1 and 2 each read the whole legacy
+           classAttendanceLogs collection (~30,000 documents), which is more
+           than half the daily Firestore quota. An accidental click cost a
+           day's headroom once; it shouldn't be one click away again. -->
+      <details id="migration-card" style="border:1px solid var(--border,#e2e8f0);border-radius:8px;padding:10px 14px;margin:14px 0 20px;background:var(--bg-subtle,#f8fafc);">
+        <summary style="cursor:pointer;font-size:13px;color:#64748b;font-weight:600;">
+          <i class="fas fa-lock" style="margin-right:6px;"></i>One-time migration tools — already run, don't use these
+        </summary>
+        <div style="margin-top:12px;">
+          <p style="font-size:13px;color:#92400e;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px 12px;">
+            <strong>These were run once when the new attendance model went live and are finished.</strong>
+            Steps 1 and 2 each read every record in the old <code>classAttendanceLogs</code> collection —
+            about 30,000 documents, over half the daily Firestore limit — so running one by accident can
+            take the app offline for the rest of the day. Only use these if a migration genuinely needs
+            redoing. Each asks for confirmation first.
+          </p>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="w3-button btn-secondary" onclick="migrationExportOldLogs()"><i class="fas fa-download"></i> 1. Export old logs to CSV</button>
+              <span style="font-size:12px;color:#78350f;">Full backup of <code>classAttendanceLogs</code> including Present rows. ~30,000 reads.</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="w3-button btn-primary" onclick="migrationCopyEvents()"><i class="fas fa-forward"></i> 2. Build attendanceEvents &amp; sessions</button>
+              <span style="font-size:12px;color:#78350f;">Copies every T/U/E and override row into <code>attendanceEvents</code> under its new ID and builds a session record for every class-day that had attendance saved. ~30,000 reads.</span>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <button class="w3-button btn-primary" onclick="migrationRekeyTMI()"><i class="fas fa-key"></i> 3. Re-key TMI records</button>
+              <span style="font-size:12px;color:#78350f;">Moves each TMI record to its one-per-student-per-period ID, merging any duplicates. Reads only TMI records.</span>
+            </div>
           </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <button class="w3-button btn-primary" onclick="migrationCopyEvents()"><i class="fas fa-forward"></i> 2. Build attendanceEvents &amp; sessions</button>
-            <span style="font-size:12px;color:#78350f;">Copies every T/U/E and override row into <code>attendanceEvents</code> under its new ID and builds a session record for every class-day that had attendance saved.</span>
-          </div>
-          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <button class="w3-button btn-primary" onclick="migrationRekeyTMI()"><i class="fas fa-key"></i> 3. Re-key TMI records</button>
-            <span style="font-size:12px;color:#78350f;">Moves each TMI record to its one-per-student-per-period ID, merging any duplicates on the way.</span>
-          </div>
+          <div id="migration-status" style="margin-top:12px;font-size:13px;"></div>
         </div>
-        <div id="migration-status" style="margin-top:12px;font-size:13px;"></div>
-      </div>
+      </details>
 
       <h3><i class="fas fa-calendar-check" style="color:#0891b2;"></i> Attendance Coverage</h3>
       <p class="w3-text-grey">Which classes have had attendance taken on each school day in a date range, based on the scheduled meeting days. Reads the session records for the range — not the attendance itself.</p>
@@ -1133,7 +1144,22 @@
     const parseLocal   = str => { const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); };
 
     // Step 1 — full CSV backup of the legacy collection (Present rows included).
+    // Guards the two steps that read the whole legacy collection. Typing the
+    // word is deliberate friction: a plain confirm() is too easy to click past
+    // on a page an admin is already clicking around in.
+    function confirmExpensiveMigration(stepName) {
+      const answer = prompt(
+        `${stepName}\n\n` +
+        'This reads about 30,000 documents — more than half the daily Firestore limit — ' +
+        'and the migration has already been run. Doing this without a reason can take P2MT ' +
+        'offline for the rest of the day.\n\n' +
+        'Type MIGRATE to continue, or Cancel.'
+      );
+      return (answer || '').trim().toUpperCase() === 'MIGRATE';
+    }
+
     window.migrationExportOldLogs = async function() {
+      if (!confirmExpensiveMigration('Export old logs to CSV')) return;
       migStatus('<i class="fas fa-spinner fa-spin"></i> Reading classAttendanceLogs (this is the one full read)…');
       try {
         const logs = await getAll('classAttendanceLogs');
@@ -1149,6 +1175,7 @@
 
     // Step 2 — exceptions → attendanceEvents (deterministic IDs) + sessions.
     window.migrationCopyEvents = async function() {
+      if (!confirmExpensiveMigration('Build attendanceEvents & sessions')) return;
       migStatus('<i class="fas fa-spinner fa-spin"></i> Reading classAttendanceLogs…');
       try {
         const logs = await getAll('classAttendanceLogs');
