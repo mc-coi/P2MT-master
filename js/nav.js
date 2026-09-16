@@ -3,6 +3,7 @@
 
 import { getCurrentUser, signOut } from './auth.js';
 import { getInitials } from './utils.js';
+import { startReadStats } from './readstats.js';
 
 // ── Dark mode ─────────────────────────────────────────────────────────────────
 (function applyThemeEarly() {
@@ -131,6 +132,11 @@ function closeAllGroupMenus() {
 
 // ── Main export ───────────────────────────────────────────────────────────────
 export function initNav(activePage) {
+  // Every page calls initNav after auth resolves, which makes it the one place
+  // to start background read reporting (js/readstats.js) without touching all
+  // 17 pages. It attaches listeners only; it does not read anything.
+  startReadStats();
+
   const navContainer = document.getElementById('nav-container');
   if (!navContainer) { console.error('nav-container element not found'); return; }
 

@@ -58,6 +58,26 @@
       </button>
     </div>
 
+    <!-- READ USAGE: who is spending the Firestore quota -->
+    <div class="diag-card" id="read-usage">
+      <h3><i class="fas fa-gauge-high"></i> Read Usage</h3>
+      <div class="desc">
+        Every browser counts the documents it reads and reports the running daily total here on its own —
+        nobody has to do anything. Use this when the Firestore usage graph spikes: it shows which person,
+        on which machine and which page, spent the reads. The free plan allows <strong>50,000 reads
+        per day</strong> across everyone.
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <label style="font-size:13px;">Date:
+          <input type="date" id="ru-date" class="w3-input w3-border" style="max-width:190px;display:inline-block;">
+        </label>
+        <button class="btn-diag btn-diag-primary" onclick="loadReadUsage()"><i class="fas fa-search"></i> Load</button>
+        <button class="btn-diag" onclick="downloadReadUsage()" id="ru-csv-btn" style="display:none;"><i class="fas fa-download"></i> CSV</button>
+      </div>
+      <div class="diag-status info" id="ruStatus" style="margin-top:10px;">Pick a date and press Load.</div>
+      <div class="diag-results" id="ruResults" style="display:none;"></div>
+    </div>
+
     <!-- LOOKUP: raw attendance records for one student -->
     <div class="diag-card" id="lookup-attendance">
       <h3><i class="fas fa-user-clock"></i> Student Attendance Lookup</h3>
@@ -151,7 +171,7 @@
     import { getAll, getWhere, deleteDoc } from './js/db.js';
     import { EVENTS_COLLECTION } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { showToast, confirmTypedDelete } from './js/utils.js';
+    import { showToast, confirmTypedDelete, exportCSV } from './js/utils.js';
 
     // State: last scan results keyed by scan name → { groups: [...], toDelete: [...] }
     const state = {
@@ -159,6 +179,14 @@
       errooms: null,
       orphans: null
     };
+
+    // Default the Read Usage date box to today (local, not UTC).
+    (function () {
+      const n = new Date();
+      const today = `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+      const el = document.getElementById('ru-date');
+      if (el) el.value = today;
+    })();
 
     function setStatus(id, cls, html) {
       const el = document.getElementById(id);
@@ -513,6 +541,106 @@
       await batchDelete(collection, ids, 'orphanStatus');
       await scanOrphans();
     }
+
+
+    // ── Read Usage ──
+    // Reads the per-person daily tallies written by js/readstats.js. One
+    // document per person per device per day, so this is a handful of reads.
+    let _ruRows = [];
+
+    window.loadReadUsage = async function() {
+      const date = document.getElementById('ru-date').value;
+      if (!date) { showToast('Pick a date first', 'warning'); return; }
+      setStatus('ruStatus', 'info', '<span class="spinner-inline"></span> Loading…');
+      document.getElementById('ruResults').style.display = 'none';
+      document.getElementById('ru-csv-btn').style.display = 'none';
+
+      try {
+        const docs = await getWhere('readStats', 'date', '==', date);
+        if (!docs.length) {
+          setStatus('ruStatus', 'info', `No read data recorded for ${esc(date)}. (Only dates after read reporting was deployed will have data, and a browser reports once it has been used that day.)`);
+          return;
+        }
+
+        const rows = docs.map(d => {
+          const topPage = Object.entries(d.byPage || {}).sort((a, b) => b[1].docs - a[1].docs)[0];
+          const topColl = Object.entries(d.byCollection || {}).sort((a, b) => b[1].docs - a[1].docs)[0];
+          return {
+            name: d.name || d.email || d.uid || 'Unknown',
+            email: d.email || '',
+            device: d.deviceLabel || d.device || '',
+            total: d.total || 0,
+            topPage: topPage ? `${topPage[0]} (${topPage[1].docs})` : '',
+            topCollection: topColl ? `${topColl[0]} (${topColl[1].docs})` : '',
+            updated: (d.updatedAt || '').slice(11, 16),
+            events: (d.events || []),
+            byPage: d.byPage || {},
+            byCollection: d.byCollection || {},
+          };
+        }).sort((a, b) => b.total - a.total);
+
+        _ruRows = rows;
+        const grand = rows.reduce((n, r) => n + r.total, 0);
+        const pct = Math.round(grand / 50000 * 100);
+        const bigEvents = rows.flatMap(r => r.events.map(e => ({ ...e, who: r.name })))
+                              .sort((a, b) => b.count - a.count).slice(0, 15);
+
+        setStatus('ruStatus', pct >= 80 ? 'err' : pct >= 40 ? 'warn' : 'ok',
+          `<strong>${grand.toLocaleString()}</strong> documents read on ${esc(date)} across ${rows.length} browser${rows.length !== 1 ? 's' : ''} — about <strong>${pct}%</strong> of the 50,000/day limit.`);
+
+        const el = document.getElementById('ruResults');
+        el.style.display = 'block';
+        el.innerHTML = `
+          <table class="w3-table w3-striped w3-bordered" style="font-size:13px;margin-bottom:16px;">
+            <thead><tr>
+              <th>Person</th><th>Device</th><th style="text-align:right;">Documents</th>
+              <th>Heaviest page</th><th>Heaviest collection</th><th>Last report</th>
+            </tr></thead>
+            <tbody>
+              ${rows.map(r => `<tr>
+                <td>${esc(r.name)}</td>
+                <td style="color:#64748b;">${esc(r.device)}</td>
+                <td style="text-align:right;font-weight:700;color:${r.total > 10000 ? '#dc2626' : r.total > 3000 ? '#d97706' : '#16a34a'};">${r.total.toLocaleString()}</td>
+                <td>${esc(r.topPage)}</td>
+                <td>${esc(r.topCollection)}</td>
+                <td style="color:#64748b;">${esc(r.updated)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+          ${bigEvents.length ? `
+            <div class="diag-group">
+              <div class="diag-group-header"><span class="diag-group-title">Biggest single reads</span>
+                <span class="diag-group-count">${bigEvents.length}</span></div>
+              <table class="w3-table w3-striped" style="font-size:12px;">
+                <thead><tr><th>Time</th><th>Person</th><th>Page</th><th>Collection</th><th style="text-align:right;">Docs</th><th>From</th></tr></thead>
+                <tbody>
+                  ${bigEvents.map(e => `<tr>
+                    <td>${esc((e.at || '').slice(11, 19))}</td>
+                    <td>${esc(e.who)}</td>
+                    <td>${esc(e.page || '')}</td>
+                    <td>${esc(e.collection || '')}</td>
+                    <td style="text-align:right;font-weight:700;">${(e.count || 0).toLocaleString()}</td>
+                    <td style="color:#64748b;font-family:monospace;font-size:11px;">${esc(e.stack || '')}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>
+            </div>` : '<p style="font-size:13px;color:#16a34a;">No single read returned more than 300 documents — nothing is scanning a whole collection.</p>'}
+        `;
+        document.getElementById('ru-csv-btn').style.display = '';
+      } catch (err) {
+        console.error(err);
+        setStatus('ruStatus', 'err', `<i class="fas fa-times"></i> Could not load read usage: ${esc(err.message || err)}`);
+      }
+    };
+
+    window.downloadReadUsage = function() {
+      if (!_ruRows.length) { showToast('Load a date first', 'warning'); return; }
+      const date = document.getElementById('ru-date').value;
+      exportCSV(_ruRows.map(r => ({
+        Person: r.name, Email: r.email, Device: r.device, Documents: r.total,
+        'Heaviest page': r.topPage, 'Heaviest collection': r.topCollection, 'Last report': r.updated,
+      })), `read-usage-${date}.csv`);
+    };
 
     // ── Batch delete helper ──
     async function batchDelete(collection, ids, statusId) {

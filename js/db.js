@@ -74,34 +74,98 @@ function noteWrite(collectionName) {
 }
 
 // ── Read meter ──────────────────────────────────────────────────────────────
-// Every read helper reports how many documents it returned. Totals for the
-// day are kept per collection in localStorage and can be printed from any
-// page's console with p2mtReads(); any single call returning more than
-// READ_WARN documents is logged with a stack trace so the caller is obvious.
-// Costs nothing against Firestore.
-const READ_WARN = 300;
-const METER_KEY = () => `p2mt:reads:${new Date().toISOString().slice(0, 10)}`;
+// Every read helper reports how many documents it returned. The day's totals
+// are kept in localStorage, broken down by collection AND by page, together
+// with a short list of the biggest single reads (with the calling stack), so
+// a usage spike can be attributed to a person, a page and a function instead
+// of guessed at. Counting costs nothing against Firestore.
+//
+// js/readstats.js flushes this tally to Firestore periodically so an admin can
+// see everyone's numbers in one place (Diagnostics -> Read Usage); p2mtReads()
+// in any page's console prints the local copy.
+const READ_WARN  = 300;   // a single call returning more than this is logged
+const MAX_EVENTS = 25;    // biggest-read records kept per browser per day
+
+export function readMeterDateKey() { return new Date().toISOString().slice(0, 10); }
+const METER_KEY = () => `p2mt:reads:${readMeterDateKey()}`;
+
+let tallyCache = null;
+let tallyDirty = false;
+
+function emptyTally() {
+  return { total: 0, byCollection: {}, byPage: {}, events: [] };
+}
+
+// Kept in memory and mirrored to localStorage, so a page that reads a lot
+// isn't parsing/serialising the whole tally on every single query.
+function loadTally() {
+  if (tallyCache) return tallyCache;
+  try {
+    const raw = localStorage.getItem(METER_KEY());
+    const parsed = raw ? JSON.parse(raw) : null;
+    tallyCache = parsed && parsed.byCollection ? parsed : emptyTally();
+  } catch (_) { tallyCache = emptyTally(); }
+  return tallyCache;
+}
+
+function saveTally() {
+  try { localStorage.setItem(METER_KEY(), JSON.stringify(tallyCache)); } catch (_) {}
+}
+
+function currentPage() {
+  try { return (location.pathname.split('/').pop() || 'index.html'); } catch (_) { return 'unknown'; }
+}
+
 function meter(collectionName, kind, count) {
   try {
-    const key = METER_KEY();
-    const tally = JSON.parse(localStorage.getItem(key) || '{}');
-    const row = tally[collectionName] || { docs: 0, calls: 0 };
-    row.docs += count; row.calls += 1;
-    tally[collectionName] = row;
-    tally.__total = (tally.__total || 0) + count;
-    localStorage.setItem(key, JSON.stringify(tally));
-  } catch (_) {}
-  if (count > READ_WARN) {
-    console.warn(`[p2mt reads] ${kind} on ${collectionName} returned ${count} documents on ${location.pathname}`, new Error().stack.split('\n').slice(2, 6).join('\n'));
-  }
+    const tally = loadTally();
+    const page  = currentPage();
+
+    const col = tally.byCollection[collectionName] || (tally.byCollection[collectionName] = { docs: 0, calls: 0 });
+    col.docs += count; col.calls += 1;
+
+    const pg = tally.byPage[page] || (tally.byPage[page] = { docs: 0, calls: 0 });
+    pg.docs += count; pg.calls += 1;
+
+    tally.total += count;
+
+    if (count > READ_WARN) {
+      // Trim the stack to the frames that identify the caller, and drop the
+      // URL noise — what matters is which function on which page did this.
+      const stack = (new Error().stack || '').split('\n').slice(2, 6)
+        .map(l => l.trim().replace(/https?:\/\/[^ )]+\//g, '').replace(/^at /, ''))
+        .filter(Boolean).join(' <- ');
+      tally.events.unshift({ at: new Date().toISOString(), page, collection: collectionName, kind, count, stack });
+      tally.events = tally.events.slice(0, MAX_EVENTS);
+      console.warn(`[p2mt reads] ${kind} on ${collectionName} returned ${count} documents on ${page}`, stack);
+    }
+
+    tallyDirty = true;
+    saveTally();
+  } catch (_) { /* metering must never break a read */ }
 }
+
+// For js/readstats.js.
+export function getReadTally() { return loadTally(); }
+export function isReadTallyDirty() { return tallyDirty; }
+export function markReadTallyFlushed() { tallyDirty = false; }
+
 if (typeof window !== 'undefined') {
   window.p2mtReads = function() {
-    const tally = JSON.parse(localStorage.getItem(METER_KEY()) || '{}');
-    const rows = Object.entries(tally).filter(([k]) => k !== '__total').map(([c, v]) => ({ collection: c, documents: v.docs, calls: v.calls })).sort((a, b) => b.documents - a.documents);
+    const tally = loadTally();
+    const rows = Object.entries(tally.byCollection)
+      .map(([c, v]) => ({ collection: c, documents: v.docs, calls: v.calls }))
+      .sort((a, b) => b.documents - a.documents);
     console.table(rows);
-    console.log(`Total documents read today from this browser: ${tally.__total || 0}`);
-    return rows;
+    console.table(Object.entries(tally.byPage)
+      .map(([p, v]) => ({ page: p, documents: v.docs, calls: v.calls }))
+      .sort((a, b) => b.documents - a.documents));
+    if (tally.events.length) {
+      console.log('Biggest single reads today:');
+      console.table(tally.events.map(e => ({ time: e.at.slice(11, 19), page: e.page, collection: e.collection, documents: e.count, from: e.stack })));
+    }
+    console.log(`Total documents read today from this browser: ${tally.total}`);
+    return tally;
   };
 }
 
