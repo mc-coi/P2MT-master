@@ -209,6 +209,16 @@
               <button class="w3-button btn-primary" onclick="migrationRekeyTMI()"><i class="fas fa-key"></i> 3. Re-key TMI records</button>
               <span style="font-size:12px;color:#78350f;">Moves each TMI record to its one-per-student-per-period ID, merging any duplicates. Reads only TMI records.</span>
             </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;border-top:1px dashed #fde68a;padding-top:10px;">
+              <label style="font-size:12px;">From:<input type="date" class="w3-input w3-border" id="wtStart" style="max-width:160px;"></label>
+              <label style="font-size:12px;">To:<input type="date" class="w3-input w3-border" id="wtEnd" style="max-width:160px;"></label>
+              <button class="w3-button btn-primary" onclick="migrationWedTue()"><i class="fas fa-calendar-week"></i> 4. Move to Wed–Tue weeks</button>
+              <span style="font-size:12px;color:#78350f;">
+                Regroups TMI created while the week ran Monday–Sunday onto Wednesday–Tuesday weeks, recomputing
+                minutes for the new grouping and carrying across time already served. Hand-picked date ranges and
+                manually assigned TMI are left alone. Reads only TMI records and the absences in the range.
+              </span>
+            </div>
           </div>
           <div id="migration-status" style="margin-top:12px;font-size:13px;"></div>
         </div>
@@ -388,7 +398,8 @@
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
-    import { recalcTMIForStudent, reconcileAssignedBy, migrateTMIRecords, fetchTMIRecordsForRange } from './js/tmiEngine.js';
+    import { recalcTMIForStudent, reconcileAssignedBy, migrateTMIRecords, fetchTMIRecordsForRange,
+             migrateToWedTueWeeks } from './js/tmiEngine.js';
     import { fetchClassLogs, fetchSessions, deleteEvents, sessionId, sectionKey, buildMigrationOps, commitOps,
              SESSIONS_COLLECTION } from './js/attendance.js';
 
@@ -1200,6 +1211,29 @@
         showToast('TMI records re-keyed', 'success');
       } catch (e) {
         console.error(e); migStatus('<span style="color:#dc2626;">TMI re-key failed — see console. Safe to re-run.</span>');
+      }
+    };
+
+    // Step 4 — regroup legacy Monday–Sunday TMI onto Wednesday–Tuesday weeks.
+    window.migrationWedTue = async function() {
+      const start = document.getElementById('wtStart').value;
+      const end   = document.getElementById('wtEnd').value;
+      if (!start || !end) { showToast('Pick the date range to convert', 'warning'); return; }
+      if (start > end)    { showToast('Start date must be on or before end date', 'warning'); return; }
+      migStatus('<i class="fas fa-spinner fa-spin"></i> Regrouping TMI onto Wed–Tue weeks…');
+      try {
+        const r = await migrateToWedTueWeeks({ start, end });
+        if (!r.written && !r.removed) {
+          migStatus(`✓ Nothing to convert — all ${r.scanned} TMI record${r.scanned !== 1 ? 's' : ''} in that range already run Wednesday to Tuesday.`);
+          showToast('Already on Wed–Tue weeks', 'info');
+          return;
+        }
+        migStatus(`✓ ${r.students} student${r.students !== 1 ? 's' : ''}: ${r.removed} old record${r.removed !== 1 ? 's' : ''} replaced by ${r.written} Wed–Tue record${r.written !== 1 ? 's' : ''}` +
+                  (r.minutesCarried ? `, ${r.minutesCarried} minutes already served carried across` : '') + '.' +
+                  (r.details.length ? `<ul style="font-size:12px;color:#475569;margin:6px 0 0;">${r.details.map(d => `<li>${d}</li>`).join('')}</ul>` : ''));
+        showToast('TMI regrouped onto Wed–Tue weeks', 'success');
+      } catch (e) {
+        console.error(e); migStatus('<span style="color:#dc2626;">Conversion failed — see console. Safe to re-run.</span>');
       }
     };
 

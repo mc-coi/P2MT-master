@@ -52,17 +52,39 @@ function sameStudent(a, b) {
 
 // ── Periods ────────────────────────────────────────────────────────────────
 
-// Mon–Sun calendar week, used when no TMI period is defined for a date.
+// The TMI week runs WEDNESDAY to TUESDAY. This is the default grouping for
+// every record: absences from Wednesday through the following Tuesday belong
+// to one TMI period, which is the week staff review and assign against. The
+// only thing that overrides it is an explicit date range chosen in TMI Review
+// or Final ("use this range as the TMI window"), which produces a `range__`
+// period instead.
+//
+// This used to be Monday–Sunday, which split a single review week across two
+// records and applied the 3-tardies rule and the 240-minute cap across the
+// wrong boundary. migrateToWedTueWeeks() below moves older records over.
+export const TMI_WEEK_START_DOW = 3;   // 0=Sun … 3=Wed
+
 export function getTmiWeekWindow(dateStr) {
   const [yr, mo, dy] = dateStr.split('-').map(Number);
   const dt = new Date(yr, mo - 1, dy);
-  const dow = dt.getDay();
-  const toMon = (dow === 0) ? -6 : 1 - dow;
-  const mon = new Date(dt); mon.setDate(dt.getDate() + toMon);
-  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const back = (dt.getDay() - TMI_WEEK_START_DOW + 7) % 7;   // days back to that Wednesday
+  const first = new Date(dt); first.setDate(dt.getDate() - back);
+  const last  = new Date(first); last.setDate(first.getDate() + 6);
   const toStr = x => `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
-  const start = toStr(mon), end = toStr(sun);
+  const start = toStr(first), end = toStr(last);
   return { start, end, key: `week__${start}__${end}` };
+}
+
+// True for an auto-weekly record that predates the Wed–Tue change: its period
+// starts on some other weekday. `range__` records are explicit overrides and
+// are never touched; manual TMI has no period key at all.
+export function isLegacyWeekRecord(rec) {
+  const key = rec && rec.tmiPeriodKey;
+  if (!key || !key.startsWith('week__')) return false;
+  const start = (rec.startDate || key.split('__')[1] || '');
+  if (start.length < 10) return false;
+  const [y, m, d] = start.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay() !== TMI_WEEK_START_DOW;
 }
 
 // A TMI period begins on a calendar day marked 'startTmiPeriod' and ends on
@@ -398,6 +420,148 @@ export async function migrateTMIRecords() {
       await setDoc('interventionLogs', targetId, { ...rest, updatedAt: nowISO() });
       if (oldId !== targetId) await deleteDoc('interventionLogs', oldId);
       out.moved++;
+    }
+  }
+  return out;
+}
+
+// ── Public: move Mon–Sun records onto Wed–Tue weeks ───────────────────────
+
+function eachDate(startStr, endStr) {
+  const out = [];
+  if (!startStr || !endStr) return out;
+  const [y, m, d] = startStr.split('-').map(Number);
+  let cur = new Date(y, m - 1, d);
+  const stop = new Date(Number(endStr.slice(0, 4)), Number(endStr.slice(5, 7)) - 1, Number(endStr.slice(8, 10)));
+  let guard = 0;
+  while (cur <= stop && guard++ < 60) {
+    out.push(`${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`);
+    cur.setDate(cur.getDate() + 1);
+  }
+  return out;
+}
+
+// One-time repair for records created while the weekly period ran Monday to
+// Sunday. Each affected student's old records are replaced by Wednesday-to-
+// Tuesday ones, with minutes RECOMPUTED from the attendance events in the new
+// window — not merely relabelled — because the regrouping changes which
+// absences fall together, and with them the 3-tardies rule and the 240 cap.
+//
+// Time already served is carried across, not lost: each sitting moves to the
+// Wed–Tue week its sign-in date falls in, and any hand-entered credit lands on
+// the earliest of a student's new records. Notification flags and status come
+// from the most recently updated of the old records.
+//
+// `range__` periods (someone chose the dates by hand) and manually assigned
+// TMI (no period key) are deliberately left alone. Safe to re-run: records
+// already starting on a Wednesday are not touched.
+export async function migrateToWedTueWeeks({ start, end, lookbackDays = 120 } = {}) {
+  const out = { scanned: 0, students: 0, written: 0, removed: 0, minutesCarried: 0, details: [] };
+  if (!start || !end) return out;
+
+  const records = await fetchTMIRecordsForRange(start, end, { lookbackDays });
+  out.scanned = records.length;
+  const stale = records.filter(isLegacyWeekRecord);
+  if (!stale.length) return out;
+
+  const staffList = await Data.staff().catch(() => []);
+
+  const byStudent = new Map();
+  stale.forEach(r => {
+    const k = tmiStudentKey(r);
+    if (!byStudent.has(k)) byStudent.set(k, []);
+    byStudent.get(k).push(r);
+  });
+
+  for (const group of byStudent.values()) {
+    out.students++;
+    const newest = [...group].sort((a, b) =>
+      (b.updatedAt || b.createDate || '').localeCompare(a.updatedAt || a.createDate || ''))[0];
+    // Flags are OR'd across the whole group, never taken from one record: if a
+    // parent was told about ANY of the periods being merged, the merged record
+    // must still say so. Same for status — a week that was reviewed stays
+    // reviewed even if it is merged with one that wasn't.
+    const groupParentNotified  = group.some(r => r.parentNotification);
+    const groupStudentNotified = group.some(r => r.studentNotification);
+    const groupStatus = group.some(r => r.interventionStatus === 'Reviewed') ? 'Reviewed'
+                      : (newest.interventionStatus || 'Reviewed');
+    const identity = {
+      studentId: newest.studentId || '',
+      chattStateANumber: (newest.chattStateANumber || '').trim(),
+      studentName: newest.studentName || '',
+    };
+
+    // Everything already served, gathered up before anything is deleted.
+    const carriedSessions = [];
+    let carriedBase = 0;
+    group.forEach(r => {
+      (r.sessions || []).forEach(x => carriedSessions.push(x));
+      carriedBase += Number.isFinite(r.servedBase)
+        ? r.servedBase
+        : ((r.sessions || []).length ? 0 : (r.tmiMinutesServed || 0));
+    });
+
+    // Every Wed–Tue week touched by the old periods.
+    const windows = new Map();
+    group.forEach(r => {
+      const b = periodBounds(r);
+      eachDate(b.start, b.end).forEach(d => {
+        const w = getTmiWeekWindow(d);
+        if (!windows.has(w.key)) windows.set(w.key, w);
+      });
+    });
+    const ordered = [...windows.values()].sort((a, b) => a.start.localeCompare(b.start));
+
+    for (let i = 0; i < ordered.length; i++) {
+      const w = ordered[i];
+      const logs = await fetchLogsInWindow(w.start, w.end, identity);
+      const periodLogs = filterToStudentAndWindow(logs, identity, w.start, w.end);
+      const math = computeTMI(periodLogs);
+
+      const mine = carriedSessions.filter(x => {
+        const d = (x.in || '').substring(0, 10);
+        return d >= w.start && d <= w.end;
+      });
+      const base = i === 0 ? carriedBase : 0;
+      const served = base + mine.reduce((n, x) => n + minutesOfSession(x), 0);
+
+      // Nothing owed and nothing served for this week — don't leave a husk.
+      if (!math.totalMinutes && !served) continue;
+
+      const id = tmiDocId(identity, w.key);
+      const existing = await getById('interventionLogs', id);   // already migrated?
+      const mergedSessions = existing
+        ? [...(existing.sessions || []), ...mine.filter(x => !(existing.sessions || []).some(e => e.id === x.id))]
+        : mine;
+      const mergedBase = (existing && Number.isFinite(existing.servedBase) ? existing.servedBase : 0) + base;
+      const totalServed = mergedBase + mergedSessions.reduce((n, x) => n + minutesOfSession(x), 0);
+
+      const record = buildRecord(identity, w, math,
+        existing?.assignedBy || pickAssignedBy(periodLogs, staffList, newest.assignedBy), {
+          className:       existing?.className       || newest.className       || '',
+          teacherLastName: existing?.teacherLastName || newest.teacherLastName || '',
+        });
+      record.createDate          = existing?.createDate || newest.createDate || nowISO();
+      record.interventionStatus  = existing?.interventionStatus === 'Closed' ? 'Closed' : groupStatus;
+      record.parentNotification  = !!(existing?.parentNotification  || groupParentNotified);
+      record.studentNotification = !!(existing?.studentNotification || groupStudentNotified);
+      record.sessions            = mergedSessions;
+      record.servedBase          = mergedBase;
+      record.tmiMinutesServed    = totalServed;
+      record.tmiMinutesRemaining = Math.max(0, math.totalMinutes - totalServed);
+      record.migratedFrom        = group.map(r => r.tmiPeriodKey).join(',');
+      record.updatedAt           = nowISO();
+
+      await setDoc('interventionLogs', id, record);
+      out.written++;
+      out.minutesCarried += served;
+      out.details.push(`${identity.studentName || identity.studentId}: ${w.start} – ${w.end} → ${math.totalMinutes} min` +
+                       (totalServed ? ` (${totalServed} already served)` : ''));
+    }
+
+    for (const r of group) {
+      await deleteDoc('interventionLogs', r.id);
+      out.removed++;
     }
   }
   return out;

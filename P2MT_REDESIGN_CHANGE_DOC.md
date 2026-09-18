@@ -422,7 +422,7 @@ The collection that used to grow by ~1,000 documents a school day now grows by t
 
 ### 10.6 Deferred to Phase 3
 
-- TMI calendar UI in Schedule Admin and removal of the silent Mon–Sun fallback (§3.7). The fallback is still in `getTmiPeriodWindow`; "Use This Range as TMI Window" remains the override.
+- TMI calendar UI in Schedule Admin (§3.7). The weekly fallback in `getTmiPeriodWindow` is no longer silent guesswork — it is now the school's actual Wednesday-to-Tuesday TMI week (see §11) — but the `startTmiPeriod`/`tmiDay` calendar flags still have no UI to set them, so the calendar branch remains unreachable. "Use This Range as TMI Window" remains the explicit override.
 - "Start New School Year" export-and-purge (§3.8) — nothing to purge until June.
 - Admin → Clear All TMI and Reports' `interventionLogs` read are still full reads of a small collection.
 - Delete the 16 obsolete `classAttendanceLogs` indexes and, once comfortable, the `classAttendanceLogs` collection itself (~26k deletes, metered at 20k/day — two sessions, or just leave it; it costs nothing unread).
@@ -471,3 +471,44 @@ js/tmiEngine.js       recalcTMIForStudent: scoped ✔ · recalcTMIForWindow: int
 - `onSnapshot` listeners cost the initial result set, then 1 read per changed document.
 - `increment()`, `arrayUnion`, `serverTimestamp` are server-side atomic and cost 1 write each — no transactions or functions required.
 - Batched writes: up to 500 operations per commit, one round trip.
+
+---
+
+## 11. TMI weeks run Wednesday–Tuesday (Sept 18, 2026)
+
+The engine grouped TMI into Monday–Sunday weeks, while staff review and assign
+against a Wednesday–Tuesday week. That mismatch was not cosmetic: an unexcused
+absence on Wednesday and another on the following Monday landed in two
+different TMI records, so the 3-tardies rule and the 240-minute cap were being
+applied across the wrong boundary, and one student could appear twice on a
+single week's review with their minutes split between the rows.
+
+`getTmiWeekWindow` now returns the Wednesday-to-Tuesday week containing a date
+(`TMI_WEEK_START_DOW = 3`). An explicit date range chosen in TMI Review or
+Final still overrides it, producing a `range__` period as before, and manually
+assigned TMI is unaffected.
+
+**Migration — Schedule Admin → Attendance & TMI → migration card, step 4.** It
+takes a date range, and for every record whose period starts on a day other
+than Wednesday it:
+
+- recomputes the minutes from the attendance events in the *new* window rather
+  than relabelling the old total, since regrouping changes which absences fall
+  together;
+- moves each clock-in/out sitting to the Wed–Tue week its sign-in date falls
+  in, and puts any hand-entered credit on the earliest of the student's new
+  records, so no served time is lost;
+- OR-s the parent/student notification flags and keeps a Reviewed status
+  across every record being merged, so a parent already told about one of the
+  merged weeks is not told again;
+- leaves `range__` periods and manual TMI completely alone;
+- is safe to re-run — a record already starting on a Wednesday is skipped.
+
+Records whose absences have since been deleted but which have time served are
+kept, not discarded: that is real history.
+
+Verified by `tools/sim/wedtue_test.mjs` (23 assertions), including the exact
+case above — a Wednesday and a Monday absence merging into one 240-minute
+record with the 45 minutes already served carried across — plus splitting one
+Monday–Sunday record across the two Wed–Tue weeks it spanned, idempotence, and
+the engine finding the migrated record afterwards without creating a duplicate.
