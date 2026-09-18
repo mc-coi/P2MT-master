@@ -34,6 +34,63 @@ export function tmiStudentKey(rec) {
   return a ? 'A' + slug(a) : 'N' + slug(rec.studentName);
 }
 
+// tmiStudentKey above is only stable if every writer supplies the same
+// identifier. They don't: Class Attendance has the roster studentId, while
+// records written from Daily Attendance historically carry only an A#. The
+// same student then lands at two different document IDs for the same week —
+// tmi_<studentId>_week__… and tmi_A<anum>_week__… — and both appear on TMI
+// Review as a duplicate row, each computing the same minutes because absence
+// lookup searches by both identifiers.
+//
+// resolveIdentity fills in whichever identifier is missing from the students
+// roster (served from the session cache, so no extra reads) so that every
+// caller addresses the same document. Records for students who have since
+// left the roster keep whatever they were given.
+let studentIndexPromise = null;
+function studentIndex() {
+  if (!studentIndexPromise) {
+    studentIndexPromise = Data.students().then(list => {
+      const byId = new Map(), byANum = new Map();
+      (list || []).forEach(st => {
+        if (st.id) byId.set(String(st.id), st);
+        const a = (st.chattStateANumber || '').trim().toUpperCase();
+        if (a) byANum.set(a, st);
+      });
+      return { byId, byANum };
+    }).catch(() => ({ byId: new Map(), byANum: new Map() }));
+  }
+  return studentIndexPromise;
+}
+
+export async function resolveIdentity(rec) {
+  const idx = await studentIndex();
+  let studentId = rec.studentId ? String(rec.studentId) : '';
+  let aNum      = (rec.chattStateANumber || '').trim();
+
+  if (!studentId && aNum) {
+    const st = idx.byANum.get(aNum.toUpperCase());
+    if (st) studentId = String(st.id);
+  }
+  if (studentId && !aNum) {
+    const st = idx.byId.get(studentId);
+    if (st) aNum = (st.chattStateANumber || '').trim();
+  }
+  const st = studentId ? idx.byId.get(studentId) : null;
+  return {
+    studentId,
+    chattStateANumber: aNum,
+    studentName: rec.studentName || (st ? `${st.lastName || ''}, ${st.firstName || ''}` : ''),
+  };
+}
+
+// Who a record belongs to, for grouping: the roster id when we can get one,
+// otherwise the A#. Independent of which identifier the record happened to
+// store.
+export async function identityKey(rec) {
+  const id = await resolveIdentity(rec);
+  return id.studentId || (id.chattStateANumber ? 'A#' + id.chattStateANumber.toUpperCase() : 'N' + slug(rec.studentName));
+}
+
 // Firestore forbids IDs that both start and end with "__"; ours start with
 // "tmi_" so the period key's "__" separators are safe. Everything else is
 // reduced to [a-z0-9_-].
@@ -267,7 +324,10 @@ export async function recalcTMIForStudent(context) {
   const { studentId, dateStr } = context;
   const chattStateANumber = (context.chattStateANumber || '').trim();
   if ((!studentId && !chattStateANumber) || !dateStr) return { action: 'none' };
-  const identity = { studentId: studentId || '', chattStateANumber, studentName: context.studentName || '' };
+  // Resolve before building the document ID, so a caller that knows only the
+  // A# writes to the same record as one that knows the studentId.
+  const identity = await resolveIdentity({ studentId, chattStateANumber, studentName: context.studentName || '' });
+  if (!identity.studentId && !identity.chattStateANumber) return { action: 'none' };
 
   const cache = context.cache || {};
   const schoolCalendar = cache.schoolCalendar || (cache.schoolCalendar = await Data.schoolCalendar().catch(() => []));
@@ -563,6 +623,103 @@ export async function migrateToWedTueWeeks({ start, end, lookbackDays = 120 } = 
       await deleteDoc('interventionLogs', r.id);
       out.removed++;
     }
+  }
+  return out;
+}
+
+// ── Public: merge duplicate TMI records ───────────────────────────────────
+
+// Two documents for the same student and the same period. The usual cause is
+// the identity split described above — one record written with the roster
+// studentId, another with only an A# — so the pair looks identical on TMI
+// Review, same week and same minutes, because both derive from the same
+// absences. Records whose periods merely overlap (a hand-picked `range__`
+// alongside a weekly one) are deliberately NOT merged: those are two
+// different decisions about the same days, and collapsing them silently would
+// lose one.
+//
+// The surviving document is the one at the canonical ID for the resolved
+// identity. Everything that can only be added up is added up — sittings are
+// unioned by their own ids, hand-entered credit summed, notification flags
+// OR'd — and minutes taken as the largest of the group, since each copy was
+// computed from the same absences and a lower figure means a stale copy.
+//
+// Returns { scanned, groups, merged, removed, details[] }.
+export async function mergeDuplicateTMIRecords({ start, end, lookbackDays = 120 } = {}) {
+  const out = { scanned: 0, groups: 0, merged: 0, removed: 0, details: [] };
+  if (!start || !end) return out;
+
+  const records = (await fetchTMIRecordsForRange(start, end, { lookbackDays }))
+    .filter(r => r.tmiPeriodKey);           // manual TMI has no period and is left alone
+  out.scanned = records.length;
+  if (!records.length) return out;
+
+  // Group by resolved student + exact period.
+  const groups = new Map();
+  for (const r of records) {
+    const who = await identityKey(r);
+    const k = `${who}||${r.tmiPeriodKey}`;
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  }
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    out.groups++;
+
+    const identity = await resolveIdentity(
+      group.find(r => r.studentId) || group[0]
+    );
+    const periodKey = group[0].tmiPeriodKey;
+    const canonicalId = tmiDocId(identity, periodKey);
+    const keep = group.find(r => r.id === canonicalId) || group[0];
+
+    const sessions = [];
+    const seen = new Set();
+    let servedBase = 0, minutes = 0;
+    group.forEach(r => {
+      (r.sessions || []).forEach(x => { if (x.id && !seen.has(x.id)) { seen.add(x.id); sessions.push(x); } });
+      servedBase += Number.isFinite(r.servedBase)
+        ? r.servedBase
+        : ((r.sessions || []).length ? 0 : (r.tmiMinutesServed || 0));
+      minutes = Math.max(minutes, r.tmiMinutes || 0);
+    });
+    const served = servedBase + sessions.reduce((n, x) => n + minutesOfSession(x), 0);
+
+    const merged = {
+      ...keep,
+      studentId:           identity.studentId || keep.studentId || '',
+      chattStateANumber:   identity.chattStateANumber || keep.chattStateANumber || '',
+      studentName:         keep.studentName || identity.studentName || '',
+      tmiPeriodKey:        periodKey,
+      startDate:           keep.startDate || periodBounds(group[0]).start,
+      tmiMinutes:          minutes,
+      sessions,
+      servedBase,
+      tmiMinutesServed:    served,
+      tmiMinutesRemaining: Math.max(0, minutes - served),
+      interventionStatus:  group.every(r => r.interventionStatus === 'Closed') ? 'Closed'
+                          : group.some(r => r.interventionStatus === 'Reviewed') ? 'Reviewed'
+                          : (keep.interventionStatus || 'Reviewed'),
+      parentNotification:  group.some(r => r.parentNotification),
+      studentNotification: group.some(r => r.studentNotification),
+      assignedBy:          keep.assignedBy || group.map(r => r.assignedBy).find(Boolean) || '',
+      mergedFrom:          group.map(r => r.id).join(','),
+      updatedAt:           nowISO(),
+    };
+    delete merged.id;
+
+    await setDoc('interventionLogs', canonicalId, merged);
+    for (const r of group) {
+      if (r.id === canonicalId) continue;
+      await deleteDoc('interventionLogs', r.id);
+      out.removed++;
+    }
+    out.merged++;
+    out.details.push(
+      `${merged.studentName || identity.studentId}: ${group.length} records for ${periodKey.replace(/^(week|range)__/, '')} → 1` +
+      (served ? ` (${served} min served kept)` : '')
+    );
   }
   return out;
 }

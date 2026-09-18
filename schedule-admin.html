@@ -289,6 +289,23 @@
 
       <hr style="margin:28px 0;">
 
+      <h3><i class="fas fa-clone" style="color:#dc2626;"></i> Merge Duplicate TMI Records</h3>
+      <p class="w3-text-grey">
+        Finds a student listed twice for the <strong>same week</strong> on TMI Review or the Roster, and
+        merges the pair into one record — keeping every sitting, adding up the minutes served, and holding
+        on to any parent notification already sent. This happens when one record was written with the
+        student's roster ID and another with only their A#, which used to produce two documents for the
+        same week. Two records for genuinely <em>different</em> periods, or a hand-picked date range
+        alongside a weekly record, are left alone — those are two real decisions, not a duplicate.
+        Uses the date range above.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-danger" onclick="mergeDuplicateTMI()"><i class="fas fa-clone"></i> Find &amp; Merge Duplicates</button>
+      </div>
+      <div id="tmi-merge-results" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
       <h3><i class="fas fa-sync-alt" style="color:#0891b2;"></i> Refresh Cached Lists</h3>
       <p class="w3-text-grey">
         Students, staff, parents, schedules, templates and PBL data are downloaded once per computer and
@@ -399,7 +416,7 @@
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
     import { recalcTMIForStudent, reconcileAssignedBy, migrateTMIRecords, fetchTMIRecordsForRange,
-             migrateToWedTueWeeks } from './js/tmiEngine.js';
+             migrateToWedTueWeeks, mergeDuplicateTMIRecords } from './js/tmiEngine.js';
     import { fetchClassLogs, fetchSessions, deleteEvents, sessionId, sectionKey, buildMigrationOps, commitOps,
              SESSIONS_COLLECTION } from './js/attendance.js';
 
@@ -1482,6 +1499,27 @@
       Data.clearLocal();
       document.getElementById('cache-refresh-status').textContent = '✓ This computer will re-download the lists on the next page load.';
       showToast('Local cache cleared', 'success');
+    };
+
+    window.mergeDuplicateTMI = async function() {
+      const range = tmiRange(); if (!range) return;
+      const resultsEl = document.getElementById('tmi-merge-results');
+      resultsEl.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Looking for duplicates…</div>';
+      try {
+        const r = await mergeDuplicateTMIRecords(range);
+        if (!r.merged) {
+          resultsEl.innerHTML = `<p class="w3-text-grey">No duplicates found — checked ${r.scanned} TMI record${r.scanned !== 1 ? 's' : ''} in that range.</p>`;
+          showToast('No duplicate TMI records found', 'info');
+          return;
+        }
+        resultsEl.innerHTML = `
+          <p>Merged <strong>${r.merged}</strong> duplicate${r.merged !== 1 ? 's' : ''}, removing ${r.removed} extra record${r.removed !== 1 ? 's' : ''}:</p>
+          <ul style="font-size:13px;color:#475569;">${r.details.map(d => `<li>${d}</li>`).join('')}</ul>`;
+        showToast(`Merged ${r.merged} duplicate TMI record${r.merged !== 1 ? 's' : ''}`, 'success');
+      } catch (err) {
+        console.error('Error merging duplicate TMI records:', err);
+        resultsEl.innerHTML = '<p style="color:#dc2626;">Error merging duplicates — see console.</p>';
+      }
     };
 
     window.fixAssignedByRecords = async function() {
