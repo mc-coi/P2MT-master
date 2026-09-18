@@ -43,7 +43,7 @@ const navItems = [
     id: 'ertmi-group', label: 'ER & TMI', icon: 'fa-bolt', group: true,
     children: [
       { id: 'tmi-review',    label: 'TMI Review',    href: './tmi-review.html',   icon: 'fa-search' },
-      { id: 'tmi-approval',  label: 'TMI Final',     href: './tmi-approval.html', icon: 'fa-check-double' },
+      { id: 'tmi-approval',  label: 'TMI Roster',    href: './tmi-approval.html', icon: 'fa-clipboard-user' },
       { id: 'er-emailer',    label: 'ER Selector',   href: './er-emailer.html',   icon: 'fa-bolt' },
       { id: 'er-attendance', label: 'ER Attendance', href: './er-emailer.html?tab=er-attendance', icon: 'fa-clipboard-check' },
     ]

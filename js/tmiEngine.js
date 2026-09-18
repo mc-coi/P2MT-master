@@ -436,3 +436,120 @@ export async function reconcileAssignedBy(start, end) {
   }
   return results;
 }
+
+// ── Clock-in / clock-out sessions ──────────────────────────────────────────
+//
+// TMI is served in sittings: a student turns up, signs in, leaves, and comes
+// back another day until the minutes are worked off. Each sitting is one entry
+// in a `sessions` array on the student's TMI document:
+//
+//   sessions: [ { id, in: ISO, out: ISO|null, by: 'Zach McCoy' }, … ]
+//
+// Minutes served are DERIVED from that array rather than stored independently,
+// so the number on screen can always be explained by the sittings behind it,
+// and correcting a mistyped clock-out fixes the total automatically.
+//
+// Records created before sessions existed carry hand-entered minutes in
+// tmiMinutesServed. That figure is preserved as `servedBase` the first time a
+// session is added, so switching a student over to the new flow never loses
+// time they had already been credited with.
+
+function sessionMinutes(s) {
+  if (!s || !s.in || !s.out) return 0;
+  const ms = new Date(s.out).getTime() - new Date(s.in).getTime();
+  if (!isFinite(ms) || ms <= 0) return 0;
+  return Math.round(ms / 60000);
+}
+
+export function openSessionOf(record) {
+  return (record.sessions || []).find(s => s.in && !s.out) || null;
+}
+
+// The whole derived picture for one record: minutes from every completed
+// sitting, plus any pre-sessions credit, and what that means for status.
+export function servedSummary(record) {
+  const sessions = record.sessions || [];
+  const base = Number.isFinite(record.servedBase) ? record.servedBase
+             : (sessions.length ? 0 : (record.tmiMinutesServed || 0));
+  const fromSessions = sessions.reduce((n, s) => n + sessionMinutes(s), 0);
+  const served = Math.max(0, base + fromSessions);
+  const assigned = record.tmiMinutes || 0;
+  const remaining = Math.max(0, assigned - served);
+  return {
+    served, remaining, assigned,
+    open: openSessionOf(record),
+    status: served >= assigned && assigned > 0 ? 'Complete' : served > 0 ? 'Partial' : 'Not Started',
+  };
+}
+
+function withDerived(record, sessions) {
+  const next = { ...record, sessions };
+  const base = Number.isFinite(record.servedBase) ? record.servedBase : (record.tmiMinutesServed || 0);
+  next.servedBase = base;
+  const { served, remaining } = servedSummary({ ...next, servedBase: base });
+  return {
+    sessions,
+    servedBase: base,
+    tmiMinutesServed: served,
+    tmiMinutesRemaining: remaining,
+    updatedAt: nowISO(),
+  };
+}
+
+function newSessionId() {
+  return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+// Starts a sitting. A record already clocked in is returned unchanged, so a
+// double-click (or two people at the sign-in desk) can't open two sittings.
+export function startSession(record, { by = '', at = null } = {}) {
+  if (openSessionOf(record)) return null;
+  const sessions = [...(record.sessions || []), {
+    id: newSessionId(), in: (at || new Date()).toISOString ? (at || new Date()).toISOString() : String(at), out: null, by,
+  }];
+  return withDerived(record, sessions);
+}
+
+// Ends the open sitting. Returns null when there isn't one.
+export function endSession(record, { at = null } = {}) {
+  const open = openSessionOf(record);
+  if (!open) return null;
+  const out = (at || new Date());
+  const sessions = (record.sessions || []).map(s =>
+    s.id === open.id ? { ...s, out: out.toISOString ? out.toISOString() : String(at) } : s
+  );
+  return withDerived(record, sessions);
+}
+
+// Corrects a sitting's times (for the clock-out nobody remembered to press).
+// Pass null for `out` to reopen it. Times are ISO strings.
+export function editSession(record, sessionId, { in: inAt, out: outAt } = {}) {
+  const sessions = (record.sessions || []).map(s => {
+    if (s.id !== sessionId) return s;
+    const next = { ...s };
+    if (inAt !== undefined) next.in = inAt || s.in;
+    if (outAt !== undefined) next.out = outAt || null;
+    return next;
+  });
+  return withDerived(record, sessions);
+}
+
+export function removeSession(record, sessionId) {
+  return withDerived(record, (record.sessions || []).filter(s => s.id !== sessionId));
+}
+
+// Adjusts the credit a record carries from before sessions were tracked (or
+// for time served somewhere this app doesn't see). Sessions are untouched.
+export function setServedBase(record, minutes) {
+  const base = Math.max(0, Math.round(Number(minutes) || 0));
+  return withDerived({ ...record, servedBase: base, tmiMinutesServed: base }, record.sessions || []);
+}
+
+// Persists whatever one of the helpers above returned.
+export async function saveSessionUpdate(recordId, updates) {
+  if (!recordId || !updates) return null;
+  await updateDoc('interventionLogs', recordId, updates);
+  return updates;
+}
+
+export function minutesOfSession(s) { return sessionMinutes(s); }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <script src="./js/theme-init.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TMI Final Approval - P2MT</title>
+  <title>TMI Roster - P2MT</title>
   <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
@@ -20,8 +20,28 @@
     /* ── Time-served cell ── */
     .served-cell      { min-width: 130px; }
     .served-nums      { display:flex; align-items:center; gap:4px; margin-bottom:4px; }
-    .tmi-served-input { width:64px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; text-align:center; }
-    .tmi-served-input:focus { outline:none; border-color:#2563eb; }
+    .served-total { font-size:15px; }
+    /* Sign in / out */
+    .inout-bar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .inout-btn { border:none; border-radius:6px; font-weight:700; color:#fff; padding:5px 12px; cursor:pointer; }
+    .inout-btn.in  { background:#16a34a; }
+    .inout-btn.out { background:#dc2626; }
+    .in-since   { font-size:12px; color:#b91c1c; font-weight:600; }
+    .sess-count { font-size:12px; color:#64748b; }
+    .sess-toggle { background:none; border:none; color:#64748b; cursor:pointer; padding:2px 4px; }
+    .sess-list  { margin-top:8px; border-top:1px dashed #e2e8f0; padding-top:6px; }
+    .sess-row   { display:flex; align-items:center; gap:6px; font-size:12px; padding:3px 0; }
+    .sess-row.sess-open { background:#fef2f2; border-radius:4px; padding:3px 4px; }
+    .sess-day   { color:#475569; min-width:52px; }
+    .sess-time  { border:1px solid #cbd5e1; border-radius:4px; padding:2px 4px; font-size:12px; }
+    .sess-dash  { color:#94a3b8; }
+    .sess-mins  { color:#0f172a; font-weight:600; min-width:74px; }
+    .sess-del   { background:none; border:none; color:#dc2626; cursor:pointer; padding:0 4px; }
+    .sess-empty { font-size:12px; color:#94a3b8; padding:4px 0; }
+    tr.row-in-room > td { background:#fff7ed !important; }
+    html[data-theme="dark"] .sess-list { border-top-color:#334155; }
+    html[data-theme="dark"] .sess-row.sess-open { background:#3f1d1d; }
+    html[data-theme="dark"] tr.row-in-room > td { background:#3a2c1a !important; }
     .served-denom     { font-size:11px; color:#64748b; white-space:nowrap; }
     .progress-wrap    { height:6px; background:#e2e8f0; border-radius:3px; overflow:hidden; }
     .progress-fill    { height:100%; background:#3b82f6; border-radius:3px; transition:width .3s; }
@@ -36,7 +56,7 @@
   <div class="page-container" style="margin-top:10px;">
     
     <div class="w3-card w3-padding w3-margin-bottom">
-      <h2><i class="fas fa-check-circle"></i> TMI Final Approval</h2>
+      <h2><i class="fas fa-clipboard-user"></i> TMI Roster</h2>
       <p class="w3-text-grey">Complete final TMI assignments and send notifications to students and parents.</p>
       <div class="w3-bar">
         <button class="w3-bar-item w3-button btn-primary w3-round" id="processAllBtn">
@@ -110,13 +130,11 @@
             <tr class="btn-primary">
               <th>Student Name</th>
               <th>Period</th>
-              <th>TMI Minutes Assigned</th>
-              <th>TMI Served</th>
-              <th>TMI Remaining</th>
+              <th>Assigned</th>
+              <th>Served</th>
+              <th>Remaining</th>
               <th>Status</th>
-              <th>Reason</th>
-              <th>Assigned By</th>
-              <th>Teacher Review</th>
+              <th>Sign In / Out</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -124,7 +142,7 @@
         </table>
       </div>
       <div id="noDataMsg" class="w3-panel btn-ghost w3-round w3-center">
-        Select TMI period dates and load data to begin final approval process.
+        Pick the TMI period dates and load the roster.
       </div>
     </div>
   </div>
@@ -241,13 +259,17 @@
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast } from './js/utils.js';
-    import { recalcTMIForWindow, fetchTMIRecordsForRange } from './js/tmiEngine.js';
+    import { recalcTMIForWindow, fetchTMIRecordsForRange,
+             startSession, endSession, editSession, removeSession, setServedBase,
+             servedSummary, openSessionOf, minutesOfSession, saveSessionUpdate } from './js/tmiEngine.js';
 
     let interventions = [];
     let students = [];
     let parents = [];
     let templates = [];
     let classAttendanceLogs = [];  // used only to resolve the specific absence date for {{absenceDate}}
+    let unconfirmedCount = 0;      // records skipped because TMI Review hasn't confirmed them
+    let tickTimer = null;          // refreshes the elapsed time on open sittings
     let tmiTable = null;
     let tmiData = [];
     let allNotifications = [];
@@ -591,11 +613,16 @@
         let totalAssigned = 0;
         let totalServed = 0;
         let totalRemaining = 0;
+        unconfirmedCount = 0;
 
         interventions.forEach(intervention => {
           // Only show TMI-type interventions that are pending or reviewed (not closed/non-TMI)
           if (intervention.interventionType !== 'TMI') return;
           if (intervention.interventionStatus === 'Closed') return;
+          // The roster is the sign-in sheet for TMI that has been confirmed in
+          // TMI Review. Anything still awaiting review is counted separately
+          // and reported under the table rather than silently dropped.
+          if (intervention.interventionStatus !== 'Reviewed') { unconfirmedCount++; return; }
 
           // Skip orphaned auto-created records: nothing served yet, and the
           // U/T logs that would have earned this TMI are no longer on file.
@@ -637,19 +664,17 @@
             if (!student) return;
 
             let tmiMinutes = intervention.tmiMinutes || 0;
-            let tmiServed = intervention.tmiMinutesServed || 0;
-            let tmiRemaining = intervention.tmiMinutesRemaining || tmiMinutes;
+            // Served time is derived from the sign-in/sign-out sittings on the
+            // record (plus any credit predating them), never stored separately,
+            // so the figure on screen is always explained by the rows behind it.
+            const summary = servedSummary(intervention);
+            let tmiServed    = summary.served;
+            let tmiRemaining = summary.remaining;
+            let status       = summary.status;
 
             totalAssigned += tmiMinutes;
             totalServed += tmiServed;
             totalRemaining += tmiRemaining;
-
-            let status = 'Not Started';
-            if (tmiServed >= tmiMinutes) {
-              status = 'Complete';
-            } else if (tmiServed > 0) {
-              status = 'Partial';
-            }
 
             // Period covered by this specific record — shown as its own
             // column so that two rows for the same student are visibly two
@@ -679,6 +704,8 @@
               tmiServed: tmiServed,
               tmiRemaining: tmiRemaining,
               status: status,
+              sessions: intervention.sessions || [],
+              servedBase: Number.isFinite(intervention.servedBase) ? intervention.servedBase : null,
               parentNotified: intervention.parentNotification || false,
               studentNotified: intervention.studentNotification || false,
               reviewStatus: intervention.interventionStatus || 'Pending Review',
@@ -719,36 +746,89 @@
       return '<span class="status-notstarted"><i class="fas fa-clock"></i> Not Started</span>';
     }
 
+    // ── Roster rendering ──────────────────────────────────────────────────
+    // This page is the sign-in sheet for TMI: who owes time, who is in the
+    // room right now, and how much each sitting was worth.
+
+    function fmtClock(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      return isNaN(d) ? '' : d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    }
+    function fmtDayShort(iso) {
+      const d = new Date(iso);
+      return isNaN(d) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    // value for <input type="time"> in the browser's own timezone
+    function timeValue(iso) {
+      if (!iso) return '';
+      const d = new Date(iso);
+      if (isNaN(d)) return '';
+      return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    // puts hh:mm back onto the date the sitting started
+    function withTime(iso, hhmm) {
+      const base = iso ? new Date(iso) : new Date();
+      const [h, m] = (hhmm || '').split(':').map(Number);
+      if (!isFinite(h) || !isFinite(m)) return null;
+      const d = new Date(base); d.setHours(h, m, 0, 0);
+      return d.toISOString();
+    }
+    function elapsedLabel(openSession) {
+      const mins = Math.max(0, Math.round((Date.now() - new Date(openSession.in).getTime()) / 60000));
+      return `${mins} min so far`;
+    }
+
+    function sessionRowsHtml(student) {
+      if (!student.sessions.length) return '<div class="sess-empty">No sittings recorded yet.</div>';
+      return student.sessions.map(sess => {
+        const mins = minutesOfSession(sess);
+        const open = !sess.out;
+        return `
+          <div class="sess-row${open ? ' sess-open' : ''}">
+            <span class="sess-day">${fmtDayShort(sess.in)}</span>
+            <input type="time" class="sess-time" value="${timeValue(sess.in)}"
+                   onchange="editSessionTime('${student.id}','${sess.id}','in',this.value)" title="Signed in">
+            <span class="sess-dash">–</span>
+            <input type="time" class="sess-time" value="${timeValue(sess.out)}"
+                   onchange="editSessionTime('${student.id}','${sess.id}','out',this.value)" title="Signed out">
+            <span class="sess-mins">${open ? 'in the room' : mins + ' min'}</span>
+            <button class="sess-del" title="Remove this sitting"
+                    onclick="dropSession('${student.id}','${sess.id}')"><i class="fas fa-times"></i></button>
+          </div>`;
+      }).join('');
+    }
+
     function renderTMITable() {
       if (tmiTable) { tmiTable.destroy(); tmiTable = null; }
+      if (tickTimer) { clearInterval(tickTimer); tickTimer = null; }
       $('#tmiTableBody').empty();
 
       if (tmiData.length === 0) {
         $('#tmiTableContainer').hide();
-        $('#noDataMsg').text('No active TMI records found for the selected period.').show();
+        $('#noDataMsg').html(unconfirmedCount
+          ? `No confirmed TMI for this period. ${unconfirmedCount} record${unconfirmedCount !== 1 ? 's are' : ' is'} still awaiting confirmation in <a href="./tmi-review.html">TMI Review</a>.`
+          : 'No active TMI records found for the selected period.').show();
         return;
       }
       $('#tmiTableContainer').show();
       $('#noDataMsg').hide();
 
       tmiData.forEach(student => {
-        const pct      = student.tmiMinutes > 0 ? Math.min(100, Math.round(student.tmiServed / student.tmiMinutes * 100)) : 0;
+        const pct        = student.tmiMinutes > 0 ? Math.min(100, Math.round(student.tmiServed / student.tmiMinutes * 100)) : 0;
         const isComplete = student.status === 'Complete';
-        const rowClass = isComplete ? 'row-complete' : '';
+        const open       = openSessionOf(student);
+        const safeName   = student.studentName.replace(/'/g, "\\'");
 
-        let row = `
-          <tr class="${rowClass}">
+        $('#tmiTableBody').append(`
+          <tr class="${isComplete ? 'row-complete' : ''}${open ? ' row-in-room' : ''}">
             <td style="font-weight:600;">${student.studentName}</td>
-            <td style="white-space:nowrap;font-size:12px;color:#475569;" title="If the same student shows more than once, each row is a separate TMI period — check this column before assuming it's a duplicate.">${student.periodLabel || '—'}</td>
+            <td style="white-space:nowrap;font-size:12px;color:#475569;" title="If the same student shows more than once, each row is a separate TMI period.">${student.periodLabel || '—'}</td>
             <td style="text-align:center;">${student.tmiMinutes} min</td>
             <td>
               <div class="served-cell">
                 <div class="served-nums">
-                  <input class="tmi-served-input" type="number" min="0" step="5"
-                    value="${student.tmiServed}"
-                    data-id="${student.id}"
-                    data-assigned="${student.tmiMinutes}"
-                    onclick="event.stopPropagation()">
+                  <strong class="served-total" data-id="${student.id}">${student.tmiServed}</strong>
                   <span class="served-denom">/ ${student.tmiMinutes} min</span>
                 </div>
                 <div class="progress-wrap">
@@ -756,50 +836,148 @@
                 </div>
               </div>
             </td>
-            <td style="text-align:center;" class="remaining-cell" data-id="${student.id}">
-              ${student.tmiRemaining} min
-            </td>
+            <td style="text-align:center;" class="remaining-cell" data-id="${student.id}">${student.tmiRemaining} min</td>
             <td class="status-cell" data-id="${student.id}">${statusBadgeHtml(student.status)}</td>
-            <td>${student.reason || '—'}</td>
-            <td>${student.assignedBy || '—'}</td>
-            <td>${student.reviewStatus === 'Reviewed'
-              ? '<span style="background:#D1FAE5;color:#065F46;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;"><i class="fas fa-check"></i> Reviewed</span>'
-              : '<span style="background:#FEF3C7;color:#92400E;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;">Pending</span>'
-            }</td>
+            <td onclick="event.stopPropagation()" style="min-width:260px;">
+              <div class="inout-bar">
+                ${open
+                  ? `<button class="w3-button w3-small inout-btn out" onclick="clockOut('${student.id}')">
+                       <i class="fas fa-right-from-bracket"></i> Out
+                     </button>
+                     <span class="in-since" data-id="${student.id}">In since ${fmtClock(open.in)} · ${elapsedLabel(open)}</span>`
+                  : `<button class="w3-button w3-small inout-btn in" onclick="clockIn('${student.id}')">
+                       <i class="fas fa-right-to-bracket"></i> In
+                     </button>
+                     <span class="sess-count">${student.sessions.length} sitting${student.sessions.length !== 1 ? 's' : ''}</span>`}
+                <button class="sess-toggle" onclick="toggleSessions('${student.id}')" title="Show or hide the sittings">
+                  <i class="fas fa-chevron-down"></i>
+                </button>
+              </div>
+              <div class="sess-list" id="sess-${student.id}" style="display:${open ? 'block' : 'none'};">
+                ${sessionRowsHtml(student)}
+              </div>
+            </td>
             <td onclick="event.stopPropagation()" style="white-space:nowrap;">
               <button class="w3-button w3-small btn-primary action-btn"
-                onclick="openEmailModal('${student.id}','${student.studentName.replace(/'/g,"\\'")}',${isComplete})"
-                title="Email student">
-                <i class="fas fa-envelope"></i> Email Student
+                onclick="openEmailModal('${student.id}','${safeName}',${isComplete})" title="Email student">
+                <i class="fas fa-envelope"></i> Email
               </button>
               ${isComplete ? '' : `
               <button class="w3-button w3-small w3-green action-btn"
-                onclick="markTimeServed('${student.id}','${student.studentName.replace(/'/g,"\\'")}')">
+                onclick="markTimeServed('${student.id}','${safeName}')" title="Credit the full amount and close">
                 <i class="fas fa-check-double"></i> Time Served
               </button>`}
             </td>
-          </tr>
-        `;
-        $('#tmiTableBody').append(row);
-      });
-
-      // Served input — save on change, auto-close if fully served
-      $('.tmi-served-input').on('change', async function() {
-        const id       = $(this).data('id');
-        const assigned = parseInt($(this).data('assigned')) || 0;
-        const served   = Math.max(0, parseInt($(this).val()) || 0);
-        $(this).val(served); // clamp display
-        await saveServedMinutes(id, served, assigned);
+          </tr>`);
       });
 
       tmiTable = $('#tmiTable').DataTable({
-        paging: true,
-        pageLength: 25,
-        ordering: true,
-        searching: true,
-        destroy: true,
-        columnDefs: [{ orderable: false, targets: [3, 8] }]
+        paging: true, pageLength: 25, ordering: true, searching: true, destroy: true,
+        columnDefs: [{ orderable: false, targets: [3, 6, 7] }]
       });
+
+      if (unconfirmedCount) {
+        $('#noDataMsg').html(`${unconfirmedCount} more record${unconfirmedCount !== 1 ? 's are' : ' is'} awaiting confirmation in <a href="./tmi-review.html">TMI Review</a> and not shown here.`).show();
+      }
+
+      // Keep "in the room for N minutes" honest without re-rendering the table.
+      tickTimer = setInterval(() => {
+        tmiData.forEach(st => {
+          const o = openSessionOf(st);
+          if (!o) return;
+          const el = document.querySelector(`.in-since[data-id="${st.id}"]`);
+          if (el) el.textContent = `In since ${fmtClock(o.in)} · ${elapsedLabel(o)}`;
+        });
+      }, 30000);
+    }
+
+    // ── Sign in / sign out ────────────────────────────────────────────────
+    // Each action is one write to the student's own TMI document. The row is
+    // patched in memory from exactly what was written, so nothing is re-read.
+
+    function rowById(id) { return tmiData.find(s => s.id === id); }
+
+    function applyUpdate(student, updates) {
+      Object.assign(student, {
+        sessions:     updates.sessions,
+        servedBase:   updates.servedBase,
+        tmiServed:    updates.tmiMinutesServed,
+        tmiRemaining: updates.tmiMinutesRemaining,
+      });
+      const s = servedSummary({ ...student, tmiMinutes: student.tmiMinutes });
+      student.status = s.status;
+    }
+
+    window.clockIn = async function(id) {
+      const student = rowById(id);
+      if (!student) return;
+      const by = getCurrentUser()?.displayName || getCurrentUser()?.email || '';
+      const updates = startSession(student, { by });
+      if (!updates) { showToast(`${student.studentName} is already signed in`, 'warning'); return; }
+      try {
+        await saveSessionUpdate(id, updates);
+        applyUpdate(student, updates);
+        renderTMITable(); refreshSummary();
+        showToast(`${student.studentName} signed in`, 'success');
+      } catch (e) { console.error(e); showToast('Could not sign in — see console', 'error'); }
+    };
+
+    window.clockOut = async function(id) {
+      const student = rowById(id);
+      if (!student) return;
+      const updates = endSession(student);
+      if (!updates) { showToast(`${student.studentName} is not signed in`, 'warning'); return; }
+      try {
+        await saveSessionUpdate(id, updates);
+        const before = student.tmiServed;
+        applyUpdate(student, updates);
+        renderTMITable(); refreshSummary();
+        showToast(`${student.studentName} signed out — ${student.tmiServed - before} min served`, 'success');
+        await offerCompletion(student);
+      } catch (e) { console.error(e); showToast('Could not sign out — see console', 'error'); }
+    };
+
+    window.editSessionTime = async function(id, sessionId, which, value) {
+      const student = rowById(id);
+      if (!student) return;
+      const sess = (student.sessions || []).find(x => x.id === sessionId);
+      if (!sess) return;
+      // A sitting's clock-out belongs to the day it started, so both edits are
+      // applied against the sign-in date.
+      const iso = withTime(sess.in || new Date().toISOString(), value);
+      if (!iso && value) { showToast('Enter a time as HH:MM', 'warning'); return; }
+      const updates = editSession(student, sessionId, which === 'in' ? { in: iso } : { out: value ? iso : null });
+      try {
+        await saveSessionUpdate(id, updates);
+        applyUpdate(student, updates);
+        renderTMITable(); refreshSummary();
+        showToast('Sitting updated', 'success');
+      } catch (e) { console.error(e); showToast('Could not update the sitting — see console', 'error'); }
+    };
+
+    window.dropSession = async function(id, sessionId) {
+      const student = rowById(id);
+      if (!student) return;
+      if (!confirm('Remove this sitting? The minutes it recorded will come off the total.')) return;
+      const updates = removeSession(student, sessionId);
+      try {
+        await saveSessionUpdate(id, updates);
+        applyUpdate(student, updates);
+        renderTMITable(); refreshSummary();
+        showToast('Sitting removed', 'success');
+      } catch (e) { console.error(e); showToast('Could not remove the sitting — see console', 'error'); }
+    };
+
+    window.toggleSessions = function(id) {
+      const el = document.getElementById(`sess-${id}`);
+      if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    };
+
+    // Offers to close a record the moment it is fully served.
+    async function offerCompletion(student) {
+      if (student.tmiServed < student.tmiMinutes || student.tmiMinutes === 0) return;
+      if (!confirm(`✓ ${student.studentName} has now served all ${student.tmiMinutes} required minutes.\n\nMark as complete and remove from the roster?`)) return;
+      await markComplete(student.id);
     }
 
     function updateSummaryStat(totalStudents, totalAssigned, totalServed, totalRemaining) {
@@ -811,37 +989,16 @@
     }
 
     // ── Save served minutes; auto-close if fully served ──
-    async function saveServedMinutes(id, served, assigned) {
-      const remaining = Math.max(0, assigned - served);
-      try {
-        await updateDoc('interventionLogs', id, {
-          tmiMinutesServed:    served,
-          tmiMinutesRemaining: remaining
-        });
-
-        const item = tmiData.find(s => s.id === id);
-        if (item) {
-          item.tmiServed    = served;
-          item.tmiRemaining = remaining;
-          item.status       = served >= assigned ? 'Complete' : (served > 0 ? 'Partial' : 'Not Started');
-        }
-
-        showToast('Time served updated', 'success');
-
-        if (served >= assigned && item) {
-          if (confirm(`✓ ${item.studentName} has served all ${assigned} required minutes.\n\nMark as complete and remove from the list?`)) {
-            await markComplete(id);
-            return;
-          }
-        }
-
-        // Re-render to refresh progress bars, remaining, status badges
-        renderTMITable();
-        refreshSummary();
-      } catch (e) {
-        console.error(e);
-        showToast('Error updating time served', 'error');
-      }
+    // Credits a record up to a given total without inventing a sitting: the
+    // difference is stored as the record's pre-sessions base, so the sittings
+    // that DID happen stay visible and correct underneath it.
+    async function creditTo(id, total) {
+      const student = rowById(id);
+      if (!student) return;
+      const fromSessions = (student.sessions || []).reduce((n, x) => n + minutesOfSession(x), 0);
+      const updates = setServedBase(student, Math.max(0, total - fromSessions));
+      await saveSessionUpdate(id, updates);
+      applyUpdate(student, updates);
     }
 
     // ── Recalculate and update summary cards from current tmiData ──
@@ -885,14 +1042,13 @@
         const item = tmiData.find(s => s.id === id);
         await updateDoc('interventionLogs', id, {
           interventionStatus:  'Closed',
-          tmiMinutesServed:    item ? item.tmiMinutes : undefined,
           tmiMinutesRemaining: 0,
           completedAt: new Date().toISOString()
         });
         tmiData = tmiData.filter(s => s.id !== id);
         renderTMITable();
         refreshSummary();
-        showToast(`${item?.studentName || 'Student'} marked complete — removed from list`, 'success');
+        showToast(`${item?.studentName || 'Student'} marked complete — removed from the roster`, 'success');
       } catch (error) {
         console.error('Error marking complete:', error);
         showToast('Error marking complete', 'error');
@@ -1081,10 +1237,14 @@
           'Status': student.status,
           'Reason': student.reason,
           'Assigned By': student.assignedBy,
+          'Sittings': (student.sessions || []).length,
+          'Sitting Detail': (student.sessions || [])
+            .map(x => `${fmtDayShort(x.in)} ${fmtClock(x.in)}-${x.out ? fmtClock(x.out) : 'open'} (${minutesOfSession(x)}m)`)
+            .join('; '),
           'Parent Notified': student.parentNotified ? 'Yes' : 'No',
           'Student Notified': student.studentNotified ? 'Yes' : 'No'
         }));
-        exportCSV(csvData, 'tmi-approval-report.csv');
+        exportCSV(csvData, 'tmi-roster-report.csv');
         showToast('Report downloaded successfully', 'success');
       } catch (error) {
         console.error('Error downloading report:', error);
@@ -1209,16 +1369,16 @@
       if (!confirm(`Mark ${name} as time served and remove from the list?`)) return;
       try {
         const item = tmiData.find(s => s.id === id);
+        if (item) await creditTo(id, item.tmiMinutes);
         await updateDoc('interventionLogs', id, {
           interventionStatus:  'Closed',
-          tmiMinutesServed:    item ? item.tmiMinutes : undefined,
           tmiMinutesRemaining: 0,
           completedAt: new Date().toISOString()
         });
         tmiData = tmiData.filter(s => s.id !== id);
         renderTMITable();
         refreshSummary();
-        showToast(`${name} marked as time served — removed from list`, 'success');
+        showToast(`${name} marked as time served — removed from the roster`, 'success');
       } catch (err) {
         console.error(err);
         showToast('Error marking time served', 'error');

@@ -230,8 +230,19 @@
     function localISO(d) {
       return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     }
+    // TMI weeks run Wednesday to Tuesday, and review happens on the week that
+    // has finished — so this returns the most recently COMPLETED Wed–Tue
+    // window, never the one still in progress. On a Wednesday (the first day
+    // of a new week) that is the week that ended yesterday; mid-week it is
+    // still the week before the one we're in.
     function defaultRange() {
-      const end = new Date(); const start = new Date(); start.setDate(end.getDate() - 14);
+      const now = new Date();
+      // Days since the Tuesday that ended the last complete week. Tue = 2.
+      // Wed(3)->1, Thu(4)->2, Fri(5)->3, Sat(6)->4, Sun(0)->5, Mon(1)->6, Tue(2)->7.
+      const dow = now.getDay();
+      const daysSinceTue = ((dow - 2) + 7) % 7 || 7;
+      const end = new Date(now); end.setDate(now.getDate() - daysSinceTue);  // that Tuesday
+      const start = new Date(end); start.setDate(end.getDate() - 6);         // the Wednesday before it
       return { start: localISO(start), end: localISO(end) };
     }
     function requireDates() {
