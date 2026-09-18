@@ -32,25 +32,36 @@ const navItems = [
       { id: 'daily-attendance', label: 'Daily',        href: './daily-attendance.html', icon: 'fa-clipboard-list' },
       { id: 'master-schedule',  label: 'Master Schedule', href: './master-schedule.html',  icon: 'fa-calendar-alt' },
       { id: 'learning-lab',     label: 'Learning Lab', href: './learning-lab.html',     icon: 'fa-flask' },
-      { id: 'tmi-review',       label: 'TMI Review',   href: './tmi-review.html',       icon: 'fa-search' },
-      { id: 'tmi-approval',     label: 'TMI Final',    href: './tmi-approval.html',     icon: 'fa-check-double' },
+    ]
+  },
+
+  // ER and TMI are one workflow (a student earns TMI, then serves it in an ER
+  // room), used by different people at different times than daily attendance.
+  // 'ER Selector' and 'ER Attendance' are two tabs of the same page — the
+  // second deep-links via ?tab=er-attendance.
+  {
+    id: 'ertmi-group', label: 'ER & TMI', icon: 'fa-bolt', group: true,
+    children: [
+      { id: 'tmi-review',    label: 'TMI Review',    href: './tmi-review.html',   icon: 'fa-search' },
+      { id: 'tmi-approval',  label: 'TMI Final',     href: './tmi-approval.html', icon: 'fa-check-double' },
+      { id: 'er-emailer',    label: 'ER Selector',   href: './er-emailer.html',   icon: 'fa-bolt' },
+      { id: 'er-attendance', label: 'ER Attendance', href: './er-emailer.html?tab=er-attendance', icon: 'fa-clipboard-check' },
     ]
   },
 
   {
     id: 'pbl-group', label: 'Contact', icon: 'fa-paper-plane', group: true,
     children: [
-      { id: 'pbl-planner',     label: 'PBL Planner', href: './pbl-planner.html',     icon: 'fa-lightbulb' },
-      { id: 'email-templates', label: 'Email',        href: './email-templates.html', icon: 'fa-envelope'  },
-      { id: 'er-emailer',      label: 'ER Selector',  href: './er-emailer.html',      icon: 'fa-bolt'      },
+      { id: 'pbl-planner',     label: 'PBL Planner',     href: './pbl-planner.html',               icon: 'fa-lightbulb' },
+      { id: 'email-templates', label: 'Email Templates', href: './email-templates.html',           icon: 'fa-envelope'  },
+      { id: 'email-send',      label: 'Email Students',  href: './email-templates.html?tab=send',  icon: 'fa-paper-plane' },
     ]
   },
-
-  { id: 'reports', label: 'Reports', href: './reports.html', icon: 'fa-chart-bar' },
 
   {
     id: 'admin-group', label: 'Admin', icon: 'fa-tools', group: true,
     children: [
+      { id: 'reports',         label: 'Reports',        href: './reports.html',         icon: 'fa-chart-bar' },
       { id: 'schedule-admin',  label: 'Schedule Admin', href: './schedule-admin.html',  icon: 'fa-cog' },
       { id: 'admin',           label: 'Admin',          href: './admin.html',           icon: 'fa-tools' },
       { id: 'diagnostics',     label: 'Diagnostics',    href: './diagnostics.html',     icon: 'fa-stethoscope' },

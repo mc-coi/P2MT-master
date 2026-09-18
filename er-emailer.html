@@ -835,7 +835,10 @@
 
     // ── Boot ──────────────────────────────────────────────────────────────────────
     initAuth().then(async (user) => {
-      initNav('er-emailer');
+      // The nav links "ER Selector" and "ER Attendance" both point here; the
+      // second passes ?tab=er-attendance. Highlight whichever one was used.
+      const wantedTab = new URLSearchParams(location.search).get('tab');
+      initNav(wantedTab === 'er-attendance' ? 'er-attendance' : 'er-emailer');
       setDefaultAttDate();
       loadErPeriod();
 
@@ -848,6 +851,11 @@
       }
 
       await loadAll();
+
+      // Open the requested tab once the data it renders from is loaded.
+      if (wantedTab && ['emailer', 'er-attendance', 'er'].includes(wantedTab) && wantedTab !== 'emailer') {
+        window.switchTab(wantedTab);
+      }
     });
 
     function setDefaultAttDate() {

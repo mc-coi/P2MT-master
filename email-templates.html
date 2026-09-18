@@ -540,7 +540,7 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
 
     // ── Boot ─────────────────────────────────────────────────────────────────────
     initAuth().then(() => {
-      initNav('email-templates');
+      initNav(new URLSearchParams(location.search).get('tab') === 'send' ? 'email-send' : 'email-templates');
       buildVarChips();
       setSuggestedRedirect();
       loadData();
