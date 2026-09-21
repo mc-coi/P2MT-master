@@ -352,8 +352,8 @@
                 <div class="stat-icon green">
                     <i class="fas fa-chart-line"></i>
                 </div>
-                <div class="stat-value" id="stat-attendance-rate">0%</div>
-                <div class="stat-label">Attendance Rate</div>
+                <div class="stat-value" id="stat-attendance-rate">0</div>
+                <div class="stat-label">Absences &amp; Tardies</div>
             </div>
             <div class="stat-card">
                 <div class="stat-icon blue">
@@ -416,7 +416,7 @@
                     <div class="stats-row">
                         <div class="stat-small">
                             <div class="stat-small-value" id="attendance-present">0</div>
-                            <div class="stat-small-label">Present</div>
+                            <div class="stat-small-label">Unexcused</div>
                         </div>
                         <div class="stat-small">
                             <div class="stat-small-value" id="attendance-tardy">0</div>
@@ -424,11 +424,11 @@
                         </div>
                         <div class="stat-small">
                             <div class="stat-small-value" id="attendance-absent">0</div>
-                            <div class="stat-small-label">Absent</div>
+                            <div class="stat-small-label">Excused</div>
                         </div>
                         <div class="stat-small">
-                            <div class="stat-small-value" id="attendance-rate-tab">0%</div>
-                            <div class="stat-small-label">Rate</div>
+                            <div class="stat-small-value" id="attendance-rate-tab">0</div>
+                            <div class="stat-small-label">Total</div>
                         </div>
                     </div>
                     <!-- Attendance trend chart -->
@@ -448,7 +448,7 @@
                                     <th>Date</th>
                                     <th>Code</th>
                                     <th>Comment</th>
-                                    <th>Staff</th>
+                                    <th>Class / Recorded by</th>
                                 </tr>
                             </thead>
                             <tbody></tbody>
@@ -631,6 +631,7 @@
         import { initAuth, getCurrentUser, signOut } from './js/auth.js';
         import { initNav } from './js/nav.js';
         import { getById, getWhere, getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
+        import { fetchClassLogs, fetchDailyLogs, classLogDate, dailyLogDate } from './js/attendance.js';
         import * as Data from './js/data.js';
         import { formatDate, showToast } from './js/utils.js';
 
@@ -676,8 +677,30 @@
 
             // Load all related data in parallel — use allSettled so one bad query
             // doesn't block the rest from loading
+            // Class absences live in attendanceEvents; dailyAttendanceLogs holds
+            // only the front-office entries. Reading just the latter is why a
+            // student with a recorded class absence showed no records at all.
+            // Both are scoped to this student, so it stays a handful of reads.
+            const YEAR_START = (() => {
+                const n = new Date();
+                // School year starts in July, so anything before July belongs to
+                // the year that began the previous calendar year.
+                const y = n.getMonth() >= 6 ? n.getFullYear() : n.getFullYear() - 1;
+                return `${y}-07-01`;
+            })();
+            const TODAY = (() => {
+                const n = new Date();
+                return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+            })();
+
             const results = await Promise.allSettled([
-                getWhere('dailyAttendanceLogs', 'chattStateANumber', '==', aNum),
+                Promise.all([
+                    fetchClassLogs({ start: YEAR_START, end: TODAY, studentId, chattStateANumber: aNum }).catch(() => []),
+                    fetchDailyLogs({ start: YEAR_START, end: TODAY, studentId, chattStateANumber: aNum }).catch(() => []),
+                ]).then(([classEvents, dailyEvents]) => [
+                    ...classEvents.map(l => ({ ...l, _date: classLogDate(l), _source: 'Class' })),
+                    ...dailyEvents.map(l => ({ ...l, _date: dailyLogDate(l), _source: 'Front office' })),
+                ]),
                 getWhere('classSchedules',      'chattStateANumber', '==', aNum),
                 Data.get('parents'),
                 getWhere('parentContactLogs',   'studentId', '==', studentId),
@@ -696,7 +719,7 @@
             // Log any individual query failures without stopping other tabs
             results.forEach((r, i) => {
                 if (r.status === 'rejected') {
-                    const names = ['dailyAttendanceLogs','classSchedules','parents','parentContactLogs',
+                    const names = ['attendance','classSchedules','parents','parentContactLogs',
                                    'studentInterventions','erCleared','erRoomStudents','erRooms'];
                     console.warn(`[profile] Failed to load ${names[i]}:`, r.reason);
                 }
@@ -815,21 +838,19 @@
             return true;
         }).length;
 
-        // Calculate attendance rate
-        let attendanceRate = 0;
-        if (attendanceLogs.length > 0) {
-            const presentCount = attendanceLogs.filter(log => log.attendanceCode === 'P').length;
-            attendanceRate = ((presentCount / attendanceLogs.length) * 100).toFixed(1);
-        }
+        // Only exceptions are stored now — there are no Present records to
+        // divide by — so the headline figure is how many absences and tardies
+        // the student has this school year rather than a percentage.
+        const absenceTotal = attendanceLogs.filter(l => ['U','T','E'].includes(l.attendanceCode)).length;
 
         // Render stat cards
-        document.getElementById('stat-attendance-rate').textContent = `${attendanceRate}%`;
+        document.getElementById('stat-attendance-rate').textContent = String(absenceTotal);
         document.getElementById('stat-classes-enrolled').textContent = classesCount;
         document.getElementById('stat-interventions').textContent = studentInterventions.length;
 
         // Update icon color based on attendance rate
         const attendanceIcon = document.querySelector('#stat-attendance-rate').closest('.stat-card').querySelector('.stat-icon');
-        if (attendanceRate < 80) {
+        if (absenceTotal >= 5) {
             attendanceIcon.classList.remove('green');
             attendanceIcon.classList.add('red');
         }
@@ -844,15 +865,14 @@
                 document.getElementById('attendance-table').style.display = 'table';
 
                 // Calculate attendance stats
-                const presentCount = attendanceLogs.filter(log => log.attendanceCode === 'P').length;
-                const tardyCount = attendanceLogs.filter(log => log.attendanceCode === 'T').length;
-                const absentCount = attendanceLogs.filter(log => log.attendanceCode === 'E' || log.attendanceCode === 'U').length;
-                const rate = ((presentCount / attendanceLogs.length) * 100).toFixed(1);
+                const unexcusedCount = attendanceLogs.filter(log => log.attendanceCode === 'U').length;
+                const tardyCount     = attendanceLogs.filter(log => log.attendanceCode === 'T').length;
+                const excusedCount   = attendanceLogs.filter(log => log.attendanceCode === 'E').length;
 
-                document.getElementById('attendance-present').textContent = presentCount;
-                document.getElementById('attendance-tardy').textContent = tardyCount;
-                document.getElementById('attendance-absent').textContent = absentCount;
-                document.getElementById('attendance-rate-tab').textContent = `${rate}%`;
+                document.getElementById('attendance-present').textContent = unexcusedCount;
+                document.getElementById('attendance-tardy').textContent   = tardyCount;
+                document.getElementById('attendance-absent').textContent  = excusedCount;
+                document.getElementById('attendance-rate-tab').textContent = String(unexcusedCount + tardyCount + excusedCount);
 
                 // ── Attendance trend chart ────────────────────────────────
                 const nonPresent = attendanceLogs.filter(l => ['U','T','E'].includes(l.attendanceCode));
@@ -860,7 +880,7 @@
                   // Group by YYYY-MM
                   const monthMap = {};
                   nonPresent.forEach(l => {
-                    const d = l.absenceDate || l.date || '';
+                    const d = l._date || l.absenceDate || l.date || '';
                     const ym = d.slice(0, 7); // "2025-09"
                     if (!ym) return;
                     if (!monthMap[ym]) monthMap[ym] = { U:0, T:0, E:0 };
@@ -897,8 +917,8 @@
                 }
 
                 // Sort by date descending
-                const sortedLogs = attendanceLogs.sort((a, b) =>
-                    new Date(b.absenceDate) - new Date(a.absenceDate)
+                const sortedLogs = [...attendanceLogs].sort((a, b) =>
+                    (b._date || '').localeCompare(a._date || '')
                 );
 
                 sortedLogs.forEach(log => {
@@ -906,10 +926,16 @@
                     const badgeClass = getAttendanceBadgeClass(log.attendanceCode);
 
                     row.innerHTML = `
-                        <td>${formatDate(log.absenceDate)}</td>
+                        <td>${formatDate(log._date || log.absenceDate || log.date)}</td>
                         <td><span class="badge ${badgeClass}">${log.attendanceCode}</span></td>
                         <td>${log.comment || '--'}</td>
-                        <td>${log.staffName || 'N/A'}</td>
+                        <td>${
+                          // Class absences carry a class and teacher; front-office
+                          // entries carry a staff name instead.
+                          log._source === 'Class'
+                            ? [log.className, log.teacherLastName].filter(Boolean).join(' · ') || 'Class'
+                            : `Front office${log.staffName ? ' · ' + log.staffName : ''}`
+                        }</td>
                     `;
                     table.appendChild(row);
                 });

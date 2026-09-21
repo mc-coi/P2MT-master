@@ -308,6 +308,68 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
   return { action: 'updated', minutes: math.totalMinutes, id: targetId, backfilledAssignedBy: needsAssignedBy };
 }
 
+// Looks for a TMI record this student already has whose period CONTAINS the
+// date being recalculated — in practice a `range__` record created by "use
+// this range as the TMI window", which has a different document ID from the
+// weekly one and so is invisible to a direct lookup. Without this, editing
+// attendance after someone set a custom range produced a second record
+// covering the same days.
+//
+// Only called when we are about to create a record, which is rare, and the
+// query is bounded to a month either side. Needs the interventionType +
+// startDate index; if it is missing this returns nothing and the old
+// behaviour applies, rather than failing the save.
+let overlapWarned = false;
+async function findOverlappingRecord(identity, dateStr, cache = {}) {
+  const d = new Date(Number(dateStr.slice(0, 4)), Number(dateStr.slice(5, 7)) - 1, Number(dateStr.slice(8, 10)));
+  const from = new Date(d); from.setDate(d.getDate() - 31);
+  const iso = x => `${x.getFullYear()}-${pad(x.getMonth() + 1)}-${pad(x.getDate())}`;
+  const since = iso(from);
+
+  // One lookup per student per date, reused across a batch save.
+  const key = `${identity.studentId || identity.chattStateANumber}|${dateStr}`;
+  cache.overlapRows = cache.overlapRows || new Map();
+  if (cache.overlapRows.has(key)) return pickCovering(cache.overlapRows.get(key), identity, dateStr);
+
+  let rows = [];
+  try {
+    if (identity.studentId) {
+      // Scoped to this student: a couple of documents, not every student's.
+      // Needs the studentId + startDate index on interventionLogs.
+      rows = await getWhereMultiple('interventionLogs', [
+        ['studentId', '==', identity.studentId],
+        ['startDate', '>=', since],
+        ['startDate', '<=', dateStr],
+      ]);
+    } else {
+      rows = await getWhereMultiple('interventionLogs', [
+        ['chattStateANumber', '==', identity.chattStateANumber],
+        ['startDate', '>=', since],
+        ['startDate', '<=', dateStr],
+      ]);
+    }
+  } catch (err) {
+    if (!overlapWarned) {
+      overlapWarned = true;
+      console.warn('tmiEngine: could not check for an overlapping TMI period (missing studentId+startDate or ' +
+                   'chattStateANumber+startDate index on interventionLogs?) — a custom date range may end up ' +
+                   'duplicated by a weekly record.', err);
+    }
+    rows = [];
+  }
+  cache.overlapRows.set(key, rows);
+  return pickCovering(rows, identity, dateStr);
+}
+
+function pickCovering(rows, identity, dateStr) {
+  return (rows || []).find(r => {
+    if (r.interventionType !== 'TMI' || !r.tmiPeriodKey) return false;
+    if (!sameStudent(identity, r)) return false;
+    const b = periodBounds(r);
+    return b.start && b.end && dateStr >= b.start && dateStr <= b.end;
+  }) || null;
+}
+
 // ── Public: recalc for one student ─────────────────────────────────────────
 
 // Recalculates TMI for one student for the period containing dateStr from
@@ -350,6 +412,21 @@ export async function recalcTMIForStudent(context) {
     return r;
   }
   if (math.totalMinutes > 0) {
+    // Before creating a weekly record, make sure this date isn't already
+    // covered by a record under a different period — a hand-picked range.
+    // If it is, that range is authoritative and gets updated instead.
+    const covering = await findOverlappingRecord(identity, dateStr, cache);
+    if (covering) {
+      const b = periodBounds(covering);
+      const coveringWindow = { start: b.start, end: b.end, key: covering.tmiPeriodKey };
+      const coveringLogs = filterToStudentAndWindow(
+        await fetchLogsInWindow(b.start, b.end, identity), identity, b.start, b.end);
+      const coveringMath = computeTMI(coveringLogs);
+      const r = await applyToExisting(covering, coveringWindow, coveringMath, coveringLogs, staffList, context.assignedBy);
+      cache.tmiById.set(covering.id, r.action === 'deleted' ? null : covering);
+      return r;
+    }
+
     const record = buildRecord(identity, window, math, pickAssignedBy(periodLogs, staffList, context.assignedBy), {
       className: context.className || '',
       teacherLastName: context.teacherLastName || '',
