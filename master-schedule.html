@@ -384,6 +384,12 @@
     //  TABLE VIEW
     // ─────────────────────────────────────────────
     function renderTable() {
+      // Destroy the DataTable BEFORE rewriting the rows. destroy() puts its own
+      // cached row nodes back into the tbody, so destroying afterwards silently
+      // replaces the filtered rows with the full unfiltered set — which is why
+      // the filters on this page appeared to do nothing.
+      if ($.fn.DataTable.isDataTable('#scheduleTable')) $('#scheduleTable').DataTable().destroy();
+
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
       filteredSchedules.forEach(s => {
@@ -410,19 +416,20 @@
           </td>
         </tr>`;
       });
-      if ($.fn.DataTable.isDataTable('#scheduleTable')) $('#scheduleTable').DataTable().destroy();
       $('#scheduleTable').DataTable({ pageLength:25, order:[[0,'asc']] });
     }
 
     window.applyFilters = function() {
-      const year     = document.getElementById('filterSchoolYear').value;
+      const year     = document.getElementById('filterSchoolYear').value.trim().toLowerCase();
       const semester = document.querySelector('input[name="semester"]:checked')?.value || '';
       const teacher  = document.getElementById('filterTeacher').value.toLowerCase();
       const student  = document.getElementById('filterStudent').value.toLowerCase();
       const campus   = document.getElementById('filterCampus').value.toLowerCase();
 
       filteredSchedules = allSchedules.filter(s => {
-        return (!year     || s.schoolYear === year)
+        // School Year is typed, not picked, so match on a substring —
+        // an exact comparison meant "2025" returned nothing.
+        return (!year     || (s.schoolYear || '').toLowerCase().includes(year))
             && (!semester || s.semester   === semester)
             && (!teacher  || (s.teacherLastName || '').toLowerCase().includes(teacher))
             && (!student  || (s.studentName || '').toLowerCase().includes(student) || (s.chattStateANumber || '').includes(student))

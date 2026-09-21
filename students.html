@@ -687,7 +687,12 @@
         paging: true,
         pageLength: 25,
         ordering: true,
-        searching: false
+        // Filtering must stay ON: with `searching: false` DataTables skips its
+        // filter pass entirely and the custom ext.search function above is
+        // never called, so the search box and both dropdowns did nothing.
+        // `dom` drops DataTables' own search box so the page keeps one.
+        searching: true,
+        dom: 'lrtip'
       });
 
       applyFilters();
@@ -1145,18 +1150,36 @@
     }
 
     // Custom DataTables search — registered once, re-evaluated on every draw()
+    // Custom filter for the page's own search box and dropdowns. It only runs
+    // if the DataTable is created with searching enabled — see renderTable(),
+    // where DataTables' built-in search box is hidden via `dom` instead, since
+    // turning searching off entirely stops this from ever being called.
+    //
+    // Columns: 0 Name ("Last, First") · 1 Grad Year · 2 House · 3 Email · 4 A#
     $.fn.dataTable.ext.search.push(function(_settings, data) {
-      const searchValue   = (document.getElementById('search-input')?.value   || '').toLowerCase();
+      const term          = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
       const gradYearValue =  document.getElementById('grad-year-filter')?.value || '';
       const houseValue    =  document.getElementById('house-filter')?.value    || '';
 
-      const fullName = `${(data[0]||'').toLowerCase()} ${(data[3]||'').toLowerCase()}`;
       const gradYear = data[1] || '';
       const house    = data[2] || '';
+      if (gradYearValue && gradYear !== gradYearValue) return false;
+      if (houseValue    && house    !== houseValue)    return false;
+      if (!term) return true;
 
-      return fullName.includes(searchValue)
-          && (!gradYearValue || gradYear === gradYearValue)
-          && (!houseValue    || house    === houseValue);
+      // The Name column holds "Last, First", so a search for "Ann Adams" has to
+      // match as well as "Adams, Ann" — compare against both orders. Email and
+      // A# are searchable too, since staff often have one or the other to hand.
+      const nameCell = (data[0] || '').toLowerCase();
+      const [last, first] = nameCell.split(',').map(x => x.trim());
+      const haystacks = [
+        nameCell,
+        `${first || ''} ${last || ''}`.trim(),
+        (data[3] || '').toLowerCase(),
+        (data[4] || '').toLowerCase(),
+      ];
+      // Every word typed must appear somewhere, so "adams 2027" works too.
+      return term.split(/\s+/).every(word => haystacks.some(h => h.includes(word)));
     });
 
     function applyFilters() {

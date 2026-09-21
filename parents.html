@@ -44,7 +44,7 @@
 
     <!-- Search Bar -->
     <div class="w3-card w3-light-grey w3-padding w3-margin-bottom">
-      <input type="text" id="search-input" class="w3-input w3-border" placeholder="Search by student name or email...">
+      <input type="text" id="search-input" class="w3-input w3-border" placeholder="Search by student, parent or email...">
     </div>
 
     <!-- DataTable -->
@@ -215,6 +215,13 @@
     }
 
     function renderTable() {
+      // Destroy BEFORE rewriting the rows — destroy() restores DataTables'
+      // cached rows into the tbody, undoing whatever we just wrote.
+      if (dataTable) {
+        dataTable.destroy();
+        dataTable = null;
+      }
+
       const tbody = document.getElementById('parents-tbody');
       tbody.innerHTML = '';
 
@@ -238,15 +245,14 @@
         `;
       });
 
-      if (dataTable) {
-        dataTable.destroy();
-      }
-
       dataTable = $('#parentsTable').DataTable({
         paging: true,
         pageLength: 25,
         ordering: true,
-        searching: false
+        // Filtering stays on so the custom ext.search filter below runs;
+        // `dom` hides DataTables' own box so the page keeps a single search.
+        searching: true,
+        dom: 'lrtip'
       });
 
       applyFilters();
@@ -376,22 +382,26 @@
       }
     }
 
+    // Search across student name, both parent names and all three email
+    // addresses. Previously this hid rows with jQuery, which only ever worked
+    // on the page you were looking at: rows on other pages of the table have
+    // no DOM node to hide, so they stayed in the results, and the row counts
+    // and pagination were computed from the unfiltered set.
+    //
+    // Columns: 0 Student · 1 Guardianship · 2 Mother · 3 Mother Email ·
+    //          4 Mother Phone · 5 Father · 6 Father Email · 7 Father Phone ·
+    //          8 Guardian Email
+    $.fn.dataTable.ext.search.push(function(_settings, data) {
+      const term = (document.getElementById('search-input')?.value || '').trim().toLowerCase();
+      if (!term) return true;
+      const haystack = [data[0], data[2], data[3], data[5], data[6], data[8]]
+        .map(x => (x || '').toLowerCase()).join(' ');
+      return term.split(/\s+/).every(word => haystack.includes(word));
+    });
+
     function applyFilters() {
-      const searchValue = document.getElementById('search-input').value.toLowerCase();
-
-      dataTable.rows().every(function() {
-        const data = this.data();
-        const studentName = data[0].toLowerCase();
-        const emails = `${data[3]} ${data[6]} ${data[8]}`.toLowerCase();
-        
-        const match = studentName.includes(searchValue) || emails.includes(searchValue);
-
-        if (match) {
-          $(this.node()).show();
-        } else {
-          $(this.node()).hide();
-        }
-      });
+      if (!dataTable) return;
+      dataTable.page('first').draw();   // re-runs the filter above, back to page 1
     }
 
     async function removeOrphanedParents() {

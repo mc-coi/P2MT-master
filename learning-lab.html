@@ -347,6 +347,14 @@
     }
 
     function renderTable() {
+      // Destroy the DataTable BEFORE rewriting the rows. destroy() puts its own
+      // cached row nodes back into the tbody, so destroying afterwards silently
+      // replaces the filtered rows with the full unfiltered set — which is why
+      // the filters on this page appeared to do nothing.
+      if ($.fn.DataTable.isDataTable('#labTable')) {
+        $('#labTable').DataTable().destroy();
+      }
+
       const tbody = document.getElementById('tableBody');
       tbody.innerHTML = '';
       filteredSchedules.forEach(schedule => {
@@ -371,9 +379,6 @@
           </tr>
         `;
       });
-      if ($.fn.DataTable.isDataTable('#labTable')) {
-        $('#labTable').DataTable().destroy();
-      }
       $('#labTable').DataTable({
         pageLength: 25,
         order: [[0, 'asc']]
@@ -381,14 +386,16 @@
     }
 
     window.applyFilters = function() {
-      const year = document.getElementById('filterSchoolYear').value;
+      const year = document.getElementById('filterSchoolYear').value.trim().toLowerCase();
       const semester = document.getElementById('filterSemester').value;
       const student = document.getElementById('filterStudent').value.toLowerCase();
       const teacher = document.getElementById('filterTeacher').value.toLowerCase();
       
       filteredSchedules = allSchedules.filter(s => {
         if (!s.learningLab) return false;
-        const matchYear = !year || s.schoolYear === year;
+        // Free-text box: match on what was typed rather than demanding the
+        // exact string, so "2025" finds "2025-2026".
+        const matchYear = !year || (s.schoolYear || '').toLowerCase().includes(year);
         const matchSemester = !semester || s.semester === semester;
         const matchStudent = !student || (s.studentName || '').toLowerCase().includes(student) || (s.chattStateANumber || '').includes(student);
         const matchTeacher = !teacher || (s.teacherLastName || '').toLowerCase().includes(teacher);

@@ -625,6 +625,13 @@
         return true;
       });
 
+      // Destroy BEFORE rewriting the rows: destroy() restores DataTables' own
+      // cached rows into the tbody, so destroying afterwards wipes out the
+      // filtered set and puts every row back.
+      if ($.fn.DataTable.isDataTable('#studentsTable')) {
+        $('#studentsTable').DataTable().destroy();
+      }
+
       const tbody = document.getElementById('students-tbody');
       tbody.innerHTML = '';
       filtered.forEach(student => {
@@ -641,13 +648,17 @@
           </td>
         `;
       });
-      if ($.fn.DataTable.isDataTable('#studentsTable')) {
-        $('#studentsTable').DataTable().destroy();
-      }
       $('#studentsTable').DataTable({ paging: true, pageLength: 10, ordering: true });
     }
 
     function renderStaffTable() {
+      // Destroy BEFORE rewriting the rows: destroy() restores DataTables' own
+      // cached rows into the tbody, so destroying afterwards wipes out the
+      // filtered set and puts every row back.
+      if ($.fn.DataTable.isDataTable('#staffTable')) {
+        $('#staffTable').DataTable().destroy();
+      }
+
       const tbody = document.getElementById('staff-tbody');
       tbody.innerHTML = '';
       staffData.forEach(staff => {
@@ -664,13 +675,17 @@
           </td>
         `;
       });
-      if ($.fn.DataTable.isDataTable('#staffTable')) {
-        $('#staffTable').DataTable().destroy();
-      }
       $('#staffTable').DataTable({ paging: true, pageLength: 10, ordering: true });
     }
 
     function renderParentsTable() {
+      // Destroy BEFORE rewriting the rows: destroy() restores DataTables' own
+      // cached rows into the tbody, so destroying afterwards wipes out the
+      // filtered set and puts every row back.
+      if ($.fn.DataTable.isDataTable('#parentsTable')) {
+        $('#parentsTable').DataTable().destroy();
+      }
+
       const tbody = document.getElementById('parents-tbody');
       tbody.innerHTML = '';
 
@@ -712,13 +727,17 @@
       const hasDupes = Object.values(aNumCounts).some(c => c > 1);
       document.getElementById('btn-dedup-parents').style.display = hasDupes ? '' : 'none';
 
-      if ($.fn.DataTable.isDataTable('#parentsTable')) {
-        $('#parentsTable').DataTable().destroy();
-      }
       $('#parentsTable').DataTable({ paging: true, pageLength: 10, ordering: true, searching: true });
     }
 
     function renderInterventionTypesTable() {
+      // Destroy BEFORE rewriting the rows: destroy() restores DataTables' own
+      // cached rows into the tbody, so destroying afterwards wipes out the
+      // filtered set and puts every row back.
+      if ($.fn.DataTable.isDataTable('#interventionTypesTable')) {
+        $('#interventionTypesTable').DataTable().destroy();
+      }
+
       const tbody = document.getElementById('intervention-types-tbody');
       tbody.innerHTML = '';
       interventionTypesData.forEach(type => {
@@ -732,9 +751,6 @@
           </td>
         `;
       });
-      if ($.fn.DataTable.isDataTable('#interventionTypesTable')) {
-        $('#interventionTypesTable').DataTable().destroy();
-      }
       $('#interventionTypesTable').DataTable({ paging: true, pageLength: 10, ordering: true });
     }
 
