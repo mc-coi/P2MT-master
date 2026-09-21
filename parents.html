@@ -162,7 +162,7 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, updateDoc, batchWrite, deleteDoc } from './js/db.js';
+    import { getAll, getById, addDoc, updateDoc, batchWrite, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, generateId, confirmTypedDelete } from './js/utils.js';
 
@@ -367,8 +367,7 @@
         if (existingParent) {
           await updateDoc('parents', existingParent.id, parentData);
         } else {
-          const docId = generateId();
-          await addDoc('parents', docId, parentData);
+          await addDoc('parents', parentData);
         }
         
         showToast('Parent information saved successfully', 'success');

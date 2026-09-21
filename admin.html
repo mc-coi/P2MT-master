@@ -1264,7 +1264,7 @@
         if (existing) {
           await updateDoc('parents', existing.id, parentData);
         } else {
-          await addDoc('parents', generateId(), parentData);
+          await addDoc('parents', parentData);
         }
         showToast('Parent info updated', 'success');
         closeParentModal();
@@ -1318,7 +1318,7 @@
           await updateDoc('interventionTypes', currentEditId, typeData);
           showToast('Intervention type updated', 'success');
         } else {
-          await addDoc('interventionTypes', generateId(), typeData);
+          await addDoc('interventionTypes', typeData);
           showToast('Intervention type added', 'success');
         }
         closeInterventionTypeModal();
