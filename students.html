@@ -552,7 +552,7 @@
     import { getAll, getById, getWhere, addDoc, updateDoc, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete } from './js/utils.js';
-    import { recalcTMIForStudent } from './js/tmiEngine.js';
+    import { recalcTMIForStudent, resolveStaffSurname } from './js/tmiEngine.js';
     import { saveEvent, deleteEvent, EVENTS_COLLECTION } from './js/attendance.js';
 
     let studentsData = [];
@@ -1474,13 +1474,18 @@
     // different people. Resolve the signed-in user to their staff surname;
     // fall back to no teacher at all rather than inventing one, which leaves
     // "Assigned By" to the caller-supplied display name.
+    // The email on the sign-in is the reliable link to the staff record; the
+    // display name is the fallback, and it may use a legal first name the
+    // staff list doesn't carry ("ZACHARY MCCOY" against a record saying
+    // "Zach"), which resolveStaffSurname knows how to get past.
     async function currentStaffLastName() {
-      const email = (getCurrentUser()?.email || '').trim().toLowerCase();
-      if (!email) return '';
+      const user = getCurrentUser();
+      const email = (user?.email || '').trim().toLowerCase();
       try {
         const staff = await Data.staff();
-        const me = (staff || []).find(x => (x.email || '').trim().toLowerCase() === email);
-        return me ? (me.lastName || '').trim() : '';
+        const me = email && (staff || []).find(x => (x.email || '').trim().toLowerCase() === email);
+        if (me) return (me.lastName || '').trim();
+        return resolveStaffSurname(user?.displayName || '', staff || []);
       } catch (_) { return ''; }
     }
 

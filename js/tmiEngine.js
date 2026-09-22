@@ -259,6 +259,41 @@ export function teacherSurnamesFromLogs(periodLogs) {
   return [...seen.values()].sort((a, b) => a.localeCompare(b));
 }
 
+// A person's name in any of the spellings the app has stored over time,
+// mapped back to their staff surname. Returns '' when nobody matches.
+//
+// Exact matches first ("Zachary McCoy", "McCoy, Zachary", an email address).
+// Failing those, the last word is tried on its own: Google display names use
+// a legal first name ("ZACHARY MCCOY") where the staff record has the name
+// the person goes by ("Zach"), so a whole-name match misses and the teacher
+// was being cleared off the record — which is exactly how a dress code ended
+// up filed under no teacher at all.
+export function resolveStaffSurname(name, staffList) {
+  const norm = v => (v || '').trim().toLowerCase();
+  const raw = (name || '').trim();
+  if (!raw) return '';
+  const staff = staffList || [];
+
+  const bySurname = new Map();
+  const byFullName = new Map();
+  staff.forEach(st => {
+    const first = (st.firstName || '').trim(), last = (st.lastName || '').trim();
+    if (!last) return;
+    if (!bySurname.has(norm(last))) bySurname.set(norm(last), last);
+    [`${first} ${last}`, `${last} ${first}`, `${last}, ${first}`].forEach(v => byFullName.set(norm(v), last));
+    if (st.email) byFullName.set(norm(st.email), last);
+  });
+
+  if (bySurname.has(norm(raw))) return bySurname.get(norm(raw));
+  if (byFullName.has(norm(raw))) return byFullName.get(norm(raw));
+
+  const words = raw.replace(/,/g, ' ').split(/\s+/).filter(Boolean);
+  for (const candidate of [words[words.length - 1], words[0]]) {
+    if (candidate && bySurname.has(norm(candidate))) return bySurname.get(norm(candidate));
+  }
+  return '';
+}
+
 // The same teacher, as a person's name for display in "Assigned By".
 export function teacherFromLogs(periodLogs, staffList) {
   const surname = teacherSurnameFromLogs(periodLogs);
@@ -823,30 +858,55 @@ export async function repairEventTeacherNames({ start, end } = {}) {
   const out = { scanned: 0, fixed: 0, cleared: 0, records: 0, recalculated: 0, details: [] };
   if (!start || !end) return out;
 
-  const [events, staffList] = await Promise.all([
+  const [events, staffList, tmiRecords] = await Promise.all([
     fetchClassLogs({ start, end }),
     Data.staff().catch(() => []),
+    fetchTMIRecordsForRange(start, end, { lookbackDays: 60 }),
   ]);
   out.scanned = events.length;
+
+  // An event that carries its own minutes (a dress code) has no class behind
+  // it, so if its teacher was lost there is nothing on the event to rebuild it
+  // from. The TMI record it fed still names who assigned it, so that is used.
+  //
+  // This only ever fills a blank, and only where NOTHING else names a teacher:
+  // once a record has a teacher — including one this repair cleared on an
+  // earlier run and then recovered — it is left alone, so repeated runs settle
+  // instead of clearing and refilling the same field forever.
+  const assignedByFor = new Map();
+  const hasTeacherInfo = new Set();
+  tmiRecords.forEach(rec => {
+    const named = !!(rec.teacherLastName || '').trim() || (rec.teachers || []).some(t => (t || '').trim());
+    [rec.studentId, (rec.chattStateANumber || '').trim()].filter(Boolean).forEach(k => {
+      if (rec.assignedBy && !assignedByFor.has(k)) assignedByFor.set(k, rec.assignedBy);
+      if (named) hasTeacherInfo.add(k);
+    });
+  });
+  const teacherKnownFor = rec =>
+    hasTeacherInfo.has(rec.studentId) || hasTeacherInfo.has((rec.chattStateANumber || '').trim());
   // No early return on an empty event list: the TMI records below carry their
   // own teacher, and a record can outlive the attendance that created it.
 
   const norm = v => (v || '').trim().toLowerCase();
   const bySurname = new Set(staffList.map(st => norm(st.lastName)).filter(Boolean));
-  // "Zachary McCoy", "ZACHARY MCCOY", "zmccoy@…" all point at the same person.
-  const byFullName = new Map();
-  staffList.forEach(st => {
-    const first = (st.firstName || '').trim(), last = (st.lastName || '').trim();
-    if (!last) return;
-    [`${first} ${last}`, `${last} ${first}`, `${last}, ${first}`].forEach(v => byFullName.set(norm(v), last));
-    if (st.email) byFullName.set(norm(st.email), last);
-  });
 
   const touched = new Map();   // studentKey -> { identity, dates:Set }
   for (const ev of events) {
     const current = (ev.teacherLastName || '').trim();
-    if (!current || bySurname.has(norm(current))) continue;   // already a real surname
-    const resolved = byFullName.get(norm(current)) || '';
+    if (current && bySurname.has(norm(current))) continue;    // already a real surname
+
+    let resolved = resolveStaffSurname(current, staffList);
+    if (!current && !resolved && Number(ev.tmiMinutes) > 0 && !teacherKnownFor(ev)) {
+      // A dress code left with NO teacher — by an earlier run of this very
+      // repair, before it knew how to match "ZACHARY MCCOY" to "McCoy". There
+      // is no class behind it to rebuild from, so fall back to whoever
+      // assigned the TMI. A name that is present but unrecognised is still
+      // cleared rather than replaced with a guess.
+      const by = assignedByFor.get(ev.studentId) || assignedByFor.get((ev.chattStateANumber || '').trim());
+      resolved = resolveStaffSurname(by, staffList);
+    }
+    if (!current && !resolved) continue;                      // blank, and nothing to put there
+    if (current === resolved) continue;                       // nothing to change
 
     await updateDoc(EVENTS_COLLECTION_NAME, ev.id, { teacherLastName: resolved, updatedAt: nowISO() });
     if (resolved) out.fixed++; else out.cleared++;
@@ -880,15 +940,25 @@ export async function repairEventTeacherNames({ start, end } = {}) {
   // reaches records whose attendance still exists, so fix the records directly
   // as well — otherwise a record whose absence was since deleted keeps the
   // phantom teacher in the dropdown forever.
-  const tmiRecords = await fetchTMIRecordsForRange(start, end, { lookbackDays: 60 });
-  for (const rec of tmiRecords) {
+  const fresh = await fetchTMIRecordsForRange(start, end, { lookbackDays: 60 });
+  for (const rec of fresh) {
     const current = (rec.teacherLastName || '').trim();
-    if (!current || bySurname.has(norm(current))) continue;
-    const resolved = byFullName.get(norm(current)) || '';
-    const teachers = [...new Set((rec.teachers || [])
-      .map(t => (t || '').trim())
-      .map(t => (bySurname.has(norm(t)) ? t : (byFullName.get(norm(t)) || '')))
-      .filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    let resolved = bySurname.has(norm(current)) ? current : resolveStaffSurname(current, staffList);
+    // A record left with no teacher at all still knows who assigned it.
+    if (!current && !resolved && !(rec.teachers || []).some(t => (t || '').trim())) {
+      resolved = resolveStaffSurname(rec.assignedBy, staffList);
+    }
+
+    const teachers = [...new Set([
+      ...(rec.teachers || []).map(t => (t || '').trim())
+        .map(t => (bySurname.has(norm(t)) ? t : resolveStaffSurname(t, staffList))),
+      resolved,
+    ].filter(Boolean))].sort((a, b) => a.localeCompare(b));
+
+    const sameName = current === resolved;
+    const sameList = teachers.join('|') === (rec.teachers || []).join('|');
+    if (sameName && sameList) continue;
+
     await updateDoc('interventionLogs', rec.id, { teacherLastName: resolved, teachers, updatedAt: nowISO() });
     out.records++;
     out.details.push(`TMI ${rec.studentName || rec.studentId}: "${current}" → ${resolved ? `"${resolved}"` : '(no teacher)'}`);
