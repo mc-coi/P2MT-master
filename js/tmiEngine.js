@@ -229,17 +229,26 @@ export function computeTMI(periodLogs) {
 // Returning null rather than a guess is what lets callers tell the difference
 // between "the logs say Brockelbank" and "the logs say nothing, so keep what
 // you have".
-export function teacherFromLogs(periodLogs, staffList) {
+// The surname the logs name, exactly as stored — what belongs in a record's
+// teacherLastName field, and what the teacher filters are built from.
+export function teacherSurnameFromLogs(periodLogs) {
   const counts = new Map();
   (periodLogs || []).filter(qualifies).forEach(l => {
     const t = (l.teacherLastName || '').trim();
     if (t) counts.set(t, (counts.get(t) || 0) + 1);
   });
   if (!counts.size) return null;
-  let bestTeacher = null, bestCount = -1;
-  for (const [teacher, count] of counts) if (count > bestCount) { bestTeacher = teacher; bestCount = count; }
-  const staffMatch = (staffList || []).find(s => (s.lastName || '').trim().toLowerCase() === bestTeacher.toLowerCase());
-  return staffMatch ? `${staffMatch.firstName} ${staffMatch.lastName}`.trim() : bestTeacher;
+  let best = null, bestCount = -1;
+  for (const [teacher, count] of counts) if (count > bestCount) { best = teacher; bestCount = count; }
+  return best;
+}
+
+// The same teacher, as a person's name for display in "Assigned By".
+export function teacherFromLogs(periodLogs, staffList) {
+  const surname = teacherSurnameFromLogs(periodLogs);
+  if (!surname) return null;
+  const staffMatch = (staffList || []).find(s => (s.lastName || '').trim().toLowerCase() === surname.toLowerCase());
+  return staffMatch ? `${staffMatch.firstName} ${staffMatch.lastName}`.trim() : surname;
 }
 
 export function pickAssignedBy(periodLogs, staffList, fallback) {
@@ -333,7 +342,17 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
   const previousBy      = existing.assignedBy || '';   // captured before the record is mutated below
   const resolvedBy      = teacherOnLogs || previousBy || fallbackAssignedBy || 'Unknown';
   const assignedByWrong = resolvedBy !== previousBy;
-  if (!minutesChanged && !periodChanged && !idChanged && !assignedByWrong) return { action: 'none', id: existing.id };
+
+  // The record's own teacherLastName is re-resolved as well. It is a SURNAME,
+  // and it is one of the things the Teacher filter on TMI Review is built
+  // from, so a record still holding a display name keeps that phantom teacher
+  // in the list no matter how many times the attendance behind it is fixed.
+  const surnameOnLogs   = teacherSurnameFromLogs(periodLogs);
+  const teacherWrong    = !!surnameOnLogs && surnameOnLogs !== (existing.teacherLastName || '');
+
+  if (!minutesChanged && !periodChanged && !idChanged && !assignedByWrong && !teacherWrong) {
+    return { action: 'none', id: existing.id };
+  }
 
   const updates = {
     tmiMinutes:          math.totalMinutes,
@@ -344,6 +363,7 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
     updatedAt:           nowISO(),
   };
   if (assignedByWrong) updates.assignedBy = resolvedBy;
+  if (teacherWrong)    updates.teacherLastName = surnameOnLogs;
 
   if (idChanged) {
     // Move to the deterministic ID: write the full record there, drop the old doc.
@@ -479,7 +499,9 @@ export async function recalcTMIForStudent(context) {
 
     const record = buildRecord(identity, window, math, pickAssignedBy(periodLogs, staffList, context.assignedBy), {
       className: context.className || '',
-      teacherLastName: context.teacherLastName || '',
+      // Prefer the surname the attendance names over whatever the calling page
+      // supplied — pages have handed us display names before now.
+      teacherLastName: teacherSurnameFromLogs(periodLogs) || context.teacherLastName || '',
     });
     await setDoc('interventionLogs', docId, record);
     cache.tmiById.set(docId, { id: docId, ...record });
@@ -772,9 +794,9 @@ export async function migrateToWedTueWeeks({ start, end, lookbackDays = 120 } = 
 // stops it polluting the filters. Affected students are then recalculated so
 // "Assigned By" catches up.
 //
-// Returns { scanned, fixed, cleared, recalculated, details[] }.
+// Returns { scanned, fixed, cleared, records, recalculated, details[] }.
 export async function repairEventTeacherNames({ start, end } = {}) {
-  const out = { scanned: 0, fixed: 0, cleared: 0, recalculated: 0, details: [] };
+  const out = { scanned: 0, fixed: 0, cleared: 0, records: 0, recalculated: 0, details: [] };
   if (!start || !end) return out;
 
   const [events, staffList] = await Promise.all([
@@ -782,7 +804,8 @@ export async function repairEventTeacherNames({ start, end } = {}) {
     Data.staff().catch(() => []),
   ]);
   out.scanned = events.length;
-  if (!events.length) return out;
+  // No early return on an empty event list: the TMI records below carry their
+  // own teacher, and a record can outlive the attendance that created it.
 
   const norm = v => (v || '').trim().toLowerCase();
   const bySurname = new Set(staffList.map(st => norm(st.lastName)).filter(Boolean));
@@ -815,8 +838,8 @@ export async function repairEventTeacherNames({ start, end } = {}) {
     touched.get(key).dates.add((ev.date || '').substring(0, 10));
   }
 
-  // One recalculation per student per affected week, so Assigned By is
-  // re-resolved from the corrected events.
+  // One recalculation per student per affected week, so Assigned By and the
+  // record's own teacher are re-resolved from the corrected events.
   const cache = {};
   for (const { identity, dates } of touched.values()) {
     const weeks = new Set([...dates].filter(Boolean).map(d => getTmiWeekWindow(d).start));
@@ -826,6 +849,21 @@ export async function repairEventTeacherNames({ start, end } = {}) {
         out.recalculated++;
       } catch (err) { console.error('repairEventTeacherNames: recalc failed', identity, err); }
     }
+  }
+
+  // The TMI records themselves carry a teacherLastName, and it is one of the
+  // things the Teacher filter on TMI Review is built from. Recalculating only
+  // reaches records whose attendance still exists, so fix the records directly
+  // as well — otherwise a record whose absence was since deleted keeps the
+  // phantom teacher in the dropdown forever.
+  const tmiRecords = await fetchTMIRecordsForRange(start, end, { lookbackDays: 60 });
+  for (const rec of tmiRecords) {
+    const current = (rec.teacherLastName || '').trim();
+    if (!current || bySurname.has(norm(current))) continue;
+    const resolved = byFullName.get(norm(current)) || '';
+    await updateDoc('interventionLogs', rec.id, { teacherLastName: resolved, updatedAt: nowISO() });
+    out.records++;
+    out.details.push(`TMI ${rec.studentName || rec.studentId}: "${current}" → ${resolved ? `"${resolved}"` : '(no teacher)'}`);
   }
   return out;
 }

@@ -1618,15 +1618,16 @@
       el.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Checking teacher names on attendance records…</div>';
       try {
         const r = await repairEventTeacherNames(range);
-        if (!r.fixed && !r.cleared) {
+        if (!r.fixed && !r.cleared && !r.records) {
           el.innerHTML = `<p class="w3-text-grey">Nothing to fix — all ${r.scanned} attendance record${r.scanned !== 1 ? 's' : ''} in that range already name a teacher from the staff list.</p>`;
           showToast('No teacher names needed fixing', 'info');
           return;
         }
         el.innerHTML = `
-          <p><strong>${r.fixed}</strong> corrected, <strong>${r.cleared}</strong> cleared, ${r.recalculated} TMI record${r.recalculated !== 1 ? 's' : ''} recalculated:</p>
+          <p><strong>${r.fixed}</strong> attendance record${r.fixed !== 1 ? 's' : ''} corrected, <strong>${r.cleared}</strong> cleared,
+             <strong>${r.records}</strong> TMI record${r.records !== 1 ? 's' : ''} corrected, ${r.recalculated} recalculated:</p>
           <ul style="font-size:13px;color:#475569;">${r.details.map(d => `<li>${d}</li>`).join('')}</ul>`;
-        showToast(`Fixed ${r.fixed + r.cleared} teacher name${r.fixed + r.cleared !== 1 ? 's' : ''}`, 'success');
+        showToast(`Fixed ${r.fixed + r.cleared + r.records} teacher name${r.fixed + r.cleared + r.records !== 1 ? 's' : ''}`, 'success');
       } catch (err) {
         console.error('Error fixing teacher names:', err);
         el.innerHTML = '<p style="color:#dc2626;">Error fixing teacher names — see console.</p>';
