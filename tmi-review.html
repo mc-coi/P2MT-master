@@ -17,6 +17,7 @@
     .tmi-min-input   { width:70px; padding:3px 6px; border:1px solid #cbd5e1; border-radius:4px; font-size:13px; text-align:center; }
     .code-pill-U  { background:#FEE2E2; color:#991B1B; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; }
     .code-pill-T  { background:#FEF3C7; color:#92400E; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; }
+    .code-pill-M  { background:#EDE9FE; color:#5B21B6; padding:2px 9px; border-radius:10px; font-size:12px; font-weight:700; text-transform:capitalize; }
     .excuse-pill-PE { background:#DCFCE7; color:#166534; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700; }
     .excuse-pill-DE { background:#DBEAFE; color:#1E40AF; padding:2px 8px; border-radius:10px; font-size:12px; font-weight:700; }
     .expand-cell  { cursor:pointer; text-align:center; width:32px; color:#94a3b8; }
@@ -56,8 +57,9 @@
         <div class="w3-panel w3-light-blue w3-round" style="margin:0;">
           <p style="margin:0;">
             <strong>TMI (Time Management Intervention)</strong> — 1 Unexcused absence = <strong>+120 min</strong>;
-            3 Tardies in one week = <strong>+90 min</strong> (max 240 min total). Records are auto-confirmed.
-            Click any row to see the full T/U breakdown. Dismiss any record that was assigned in error.
+            3 Tardies in one week = <strong>+90 min</strong>; a Dress Code Level 1 = <strong>+30 min</strong>
+            (max 240 min total). Records are auto-confirmed.
+            Click any row to see the full breakdown. Dismiss any record that was assigned in error.
             Rows marked <span class="excuse-badge" style="background:#e2e8f0;color:#475569;">Manual</span>
             were assigned directly from the Students page (not calculated from U/T counts), so their
             U/T columns show — instead of a count. The date next to that badge is the day the student
@@ -308,7 +310,10 @@
           if (periodEnd   && periodEnd   > spanEnd)   spanEnd   = periodEnd;
         });
         allAttendanceLogs = allTMI.length
-          ? await fetchClassLogs({ start: spanStart, end: spanEnd, codes: ['T', 'U'] })
+          // No code filter: a manual TMI override and a Dress Code Level 1 are
+          // recorded against a Present student, so filtering to T/U would leave
+          // their minutes showing with nothing in the breakdown to explain them.
+          ? await fetchClassLogs({ start: spanStart, end: spanEnd })
           : [];
         loadedRange = { ...range };
         return true;
@@ -350,11 +355,16 @@
     }
 
     // Returns all T and U attendance logs for a student, sorted by date
+    // Every event behind a student's TMI for the period: the U's and T's, plus
+    // anything carrying its own minutes (Dress Code Level 1) or a manual
+    // override — those are Present-coded, so a T/U-only filter would hide the
+    // very records that explain the minutes.
     function getStudentTULogs(studentId, aNum, periodStart, periodEnd) {
       return allAttendanceLogs
         .filter(log => {
           if (!(log.studentId === studentId || log.chattStateANumber === aNum)) return false;
-          if (log.attendanceCode !== 'T' && log.attendanceCode !== 'U') return false;
+          const earnsMinutes = Number(log.tmiMinutes) > 0 || log.assignTmi === true;
+          if (log.attendanceCode !== 'T' && log.attendanceCode !== 'U' && !earnsMinutes) return false;
           if (periodStart || periodEnd) {
             const d = (log.date || log.classDate || '').substring(0, 10);
             if (!d) return false;
@@ -402,14 +412,21 @@
     // Build the expandable detail panel HTML for one student's T/U records
     function buildDetailHtml(logs) {
       if (!logs || logs.length === 0) {
-        return `<div class="detail-panel"><p style="color:#64748b;font-style:italic;margin:0;">No T or U attendance records found for this student.</p></div>`;
+        return `<div class="detail-panel"><p style="color:#64748b;font-style:italic;margin:0;">No attendance records found for this student in this period.</p></div>`;
       }
 
       const uLogs = logs.filter(l => l.attendanceCode === 'U');
       const tLogs = logs.filter(l => l.attendanceCode === 'T');
+      // Events carrying their own minutes (Dress Code Level 1) are neither, so
+      // they get their own line in the heading rather than being invisible.
+      const minuteLogs = logs.filter(l => Number(l.tmiMinutes) > 0);
+      const minuteTotal = minuteLogs.reduce((n, l) => n + Number(l.tmiMinutes), 0);
+
+      const summaryBits = [`${uLogs.length} Unexcused`, `${tLogs.length} Tardy`];
+      if (minuteLogs.length) summaryBits.push(`${minuteLogs.length} other (${minuteTotal} min)`);
 
       let html = `<div class="detail-panel">`;
-      html += `<h4><i class="fas fa-list-ul" style="margin-right:6px;"></i>Attendance Breakdown — ${uLogs.length} Unexcused, ${tLogs.length} Tardy</h4>`;
+      html += `<h4><i class="fas fa-list-ul" style="margin-right:6px;"></i>Attendance Breakdown — ${summaryBits.join(', ')}</h4>`;
       html += `<table class="detail-table">
         <thead>
           <tr>
@@ -424,8 +441,11 @@
         <tbody>`;
 
       logs.forEach(log => {
-        const code    = log.attendanceCode;
-        const pillCls = code === 'U' ? 'code-pill-U' : 'code-pill-T';
+        const minutes = Number(log.tmiMinutes) > 0 ? Number(log.tmiMinutes) : 0;
+        // A minute-bearing event shows what it was for and what it cost, rather
+        // than its attendance code, which is Present and would read as noise.
+        const code    = minutes ? (log.tmiReason || 'other') : log.attendanceCode;
+        const pillCls = minutes ? 'code-pill-M' : (code === 'U' ? 'code-pill-U' : 'code-pill-T');
         const dateStr = formatDate(log.date || log.classDate);
         const time    = getClassTime(log);
         let excuseHtml = '—';
@@ -435,7 +455,7 @@
           excuseHtml = `<span class="excuse-pill-DE" title="${log.excuseNotes || ''}">DE</span>`;
         }
         html += `<tr>
-          <td><span class="${pillCls}">${code}</span></td>
+          <td><span class="${pillCls}">${code}${minutes ? ` · ${minutes} min` : ''}</span></td>
           <td>${log.className || '—'}</td>
           <td>${log.teacherLastName || '—'}</td>
           <td>${dateStr}</td>

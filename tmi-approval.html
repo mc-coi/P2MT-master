@@ -407,7 +407,10 @@
         if (pEnd   && pEnd   > spanEnd)   spanEnd   = pEnd;
       });
       classAttendanceLogs = interventions.length
-        ? await fetchClassLogs({ start: spanStart, end: spanEnd, codes: ['T', 'U'] })
+        // No code filter: a manual TMI override and a Dress Code Level 1 are
+          // recorded against a Present student, so filtering to T/U would leave
+          // their minutes showing with nothing in the breakdown to explain them.
+          ? await fetchClassLogs({ start: spanStart, end: spanEnd })
         : [];
       loadedRange = { start: startDate, end: endDate };
     }

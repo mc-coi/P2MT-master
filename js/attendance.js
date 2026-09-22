@@ -39,6 +39,14 @@ export const DAILY_COLLECTION    = 'dailyAttendanceLogs';
 export const ABSENCE_CODES = ['T', 'U', 'E'];
 export function isException(code) { return ABSENCE_CODES.includes(code); }
 
+// Some events are not absences at all but still have to be stored, because
+// they carry a consequence: a manual TMI override, or a Dress Code Level 1
+// which is worth 30 minutes and is deliberately NOT a tardy. `worthKeeping`
+// is the single rule for "does this record need to exist".
+export function worthKeeping(rec) {
+  return isException(rec.attendanceCode) || rec.assignTmi === true || Number(rec.tmiMinutes) > 0;
+}
+
 const DAILY_DATE_FIELDS = ['absenceDate', 'date'];
 const MAX_BATCH = 450;   // Firestore allows 500 ops per batch; leave headroom
 
@@ -108,6 +116,10 @@ export function normalizeEvent(rec) {
   out.attendanceCode    = out.attendanceCode || '';
   out.assignTmi         = out.assignTmi === true;
   out.learningLab       = out.learningLab === true;
+  // Minutes attached directly to this event (Dress Code Level 1 = 30), with a
+  // label so TMI Review can say what they were for.
+  out.tmiMinutes        = Number(out.tmiMinutes) > 0 ? Number(out.tmiMinutes) : 0;
+  out.tmiReason         = out.tmiMinutes > 0 ? (out.tmiReason || 'other') : '';
   out.updatedAt         = new Date().toISOString();
   return out;
 }
@@ -245,7 +257,7 @@ export async function fetchLogsInWindow(windowStart, windowEnd, identity) {
 export async function saveEvent(rec, { prevId = null } = {}) {
   const data = normalizeEvent(rec);
   const id = eventId(data);
-  const keep = isException(data.attendanceCode) || data.assignTmi;
+  const keep = worthKeeping(data);
 
   if (prevId && prevId !== id) {
     try { await deleteDoc(EVENTS_COLLECTION, prevId); } catch (_) { /* already gone */ }
@@ -308,7 +320,10 @@ export async function saveSectionAttendance({ section, roster, previous = new Ma
       date,
     };
     const id = eventId(base);
-    const keep = isException(code) || tmi === true;
+    // The class grid only ever sets a code and the TMI override; minute-bearing
+    // events (Dress Code) are written from the Students page against their own
+    // section key, so they are never part of a class roster save.
+    const keep = worthKeeping({ attendanceCode: code, assignTmi: tmi });
     const beforeCode = prev ? (isException(prev.attendanceCode) ? prev.attendanceCode : 'P') : 'P';
     const beforeTmi  = !!(prev && prev.assignTmi);
     const afterCode  = isException(code) ? code : 'P';

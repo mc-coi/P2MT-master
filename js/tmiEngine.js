@@ -5,6 +5,9 @@
 //   • Each U across any class                            = +120 min
 //   • Manual TMI override (assignTmi:true on a non-U)    = +120 min each
 //   • 3 or more T's across all classes                   = +90 min (once per period)
+//   • Any event carrying explicit tmiMinutes             = that many minutes
+//       (a Dress Code Level 1 writes 30 minutes this way — it is NOT a tardy,
+//        so it never contributes to the 3-tardies rule)
 //   • Hard cap: 240 min total
 //
 // Phase 2: every auto-calculated TMI record lives in interventionLogs under
@@ -177,7 +180,9 @@ function periodsOverlap(a, b) {
 // ── Math ───────────────────────────────────────────────────────────────────
 
 export function qualifies(l) {
-  return l.attendanceCode === 'U' || l.attendanceCode === 'T' || (l.assignTmi && l.attendanceCode !== 'U');
+  return l.attendanceCode === 'U' || l.attendanceCode === 'T'
+      || (l.assignTmi && l.attendanceCode !== 'U')
+      || Number(l.tmiMinutes) > 0;
 }
 
 export function computeTMI(periodLogs) {
@@ -186,12 +191,33 @@ export function computeTMI(periodLogs) {
   const overrideCount = periodLogs.filter(l => l.assignTmi && l.attendanceCode !== 'U').length;
   const tardyGroups = Math.floor(tCount / 3);
   const tardyMinutes = tardyGroups * 90;
-  const totalMinutes = Math.min((uCount * 120) + (overrideCount * 120) + tardyMinutes, MAX_TMI);
+
+  // Events that carry their own minutes — currently Dress Code Level 1, which
+  // is worth 30 minutes and is deliberately NOT recorded as a tardy, so it
+  // must not feed the 3-tardies rule. Grouped by reason so the explanation
+  // reads "2× dress code (60 min)" rather than listing each one.
+  const direct = periodLogs.filter(l => Number(l.tmiMinutes) > 0);
+  const directMinutes = direct.reduce((n, l) => n + Number(l.tmiMinutes), 0);
+  const byReason = new Map();
+  direct.forEach(l => {
+    const label = (l.tmiReason || 'other').toLowerCase();
+    const cur = byReason.get(label) || { count: 0, minutes: 0 };
+    cur.count += 1; cur.minutes += Number(l.tmiMinutes);
+    byReason.set(label, cur);
+  });
+
+  const totalMinutes = Math.min((uCount * 120) + (overrideCount * 120) + tardyMinutes + directMinutes, MAX_TMI);
+
   const parts = [];
   if (uCount > 0) parts.push(`${uCount}× unexcused (${uCount * 120} min)`);
   if (overrideCount > 0) parts.push(`${overrideCount}× manual override (${overrideCount * 120} min)`);
   if (tardyGroups > 0) parts.push(`${tCount} tardies → ${tardyGroups}× group of 3 (+${tardyMinutes} min)`);
-  return { uCount, tCount, overrideCount, totalMinutes, reason: parts.length ? parts.join('; ') : 'No triggering events' };
+  byReason.forEach((v, label) => parts.push(`${v.count}× ${label} (${v.minutes} min)`));
+  const capped = (uCount * 120) + (overrideCount * 120) + tardyMinutes + directMinutes > MAX_TMI;
+  if (capped) parts.push(`capped at ${MAX_TMI} min`);
+
+  return { uCount, tCount, overrideCount, directMinutes, totalMinutes,
+           reason: parts.length ? parts.join('; ') : 'No triggering events' };
 }
 
 // Who a TMI record is "Assigned By": the class teacher behind most of the
@@ -452,7 +478,10 @@ export async function recalcTMIForWindow(startDate, endDate, assignedBy) {
 
   const [candidates, inWindow, staffList] = await Promise.all([
     fetchTMIRecordsForRange(startDate, endDate, { lookbackDays: 60 }),
-    fetchClassLogs({ start: startDate, end: endDate, codes: ['T', 'U', 'E'] }),
+    // No code filter: a manual TMI override and a Dress Code Level 1 are both
+    // recorded against a Present student, so filtering to T/U/E would hide
+    // them from this recalculation and quietly drop their minutes.
+    fetchClassLogs({ start: startDate, end: endDate }),
     Data.staff().catch(() => []),
   ]);
 
@@ -818,7 +847,7 @@ export async function reconcileAssignedBy(start, end) {
 
   const spanStart = candidates.reduce((m, iv) => { const s = periodBounds(iv).start; return (!m || (s && s < m)) ? s : m; }, '');
   const spanEnd   = candidates.reduce((m, iv) => { const e = periodBounds(iv).end;   return (!m || (e && e > m)) ? e : m; }, '');
-  const allLogs = (spanStart && spanEnd) ? await fetchClassLogs({ start: spanStart, end: spanEnd, codes: ['T', 'U', 'E'] }) : [];
+  const allLogs = (spanStart && spanEnd) ? await fetchClassLogs({ start: spanStart, end: spanEnd }) : [];
 
   const results = [];
   for (const iv of candidates) {

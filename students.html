@@ -1434,11 +1434,11 @@
       try {
         const interventionId = await addDoc('studentInterventions', record);
 
-        // Dress Code Level 1 automatically logs a matching Tardy in Daily
-        // Attendance — that's the school's standard consequence for a first
-        // dress-code violation, so it shouldn't require a separate manual entry.
+        // Dress Code Level 1 carries 30 minutes of TMI — the school's standard
+        // consequence for a first dress-code violation — so it is recorded
+        // automatically rather than needing a separate manual entry.
         if (category === 'Dress Code' && level === 1) {
-          await createDressCodeTardy(interventionId, s, dateTime, comments, assignedBy);
+          await createDressCodeTmi(interventionId, s, dateTime, comments, assignedBy);
         }
 
         showToast('Intervention saved', 'success');
@@ -1451,12 +1451,22 @@
       }
     }
 
-    // Creates the linked Daily Attendance Tardy for a Dress Code Level 1
-    // intervention, then re-runs the TMI recalculation for that student/period
-    // (a dress-code tardy counts toward the same 3-tardies-per-period rule as
-    // any other T). The attendance record stores sourceInterventionId so
-    // deleting the intervention later can find and remove it again.
-    async function createDressCodeTardy(interventionId, student, dateTime, comments, assignedBy) {
+    // Records the 30 minutes of TMI a Dress Code Level 1 carries, then re-runs
+    // the TMI recalculation for that student's period so the minutes appear.
+    //
+    // This is deliberately NOT a tardy. It used to be logged as one, which meant
+    // a dress-code violation counted toward the 3-tardies-per-period rule and
+    // was worth either nothing or 90 minutes depending on what else had
+    // happened that week. It now carries its own 30 minutes, labelled so TMI
+    // Review shows what they were for, and it still counts toward the 240
+    // minute cap like everything else.
+    //
+    // The record stores sourceInterventionId so deleting the intervention later
+    // can find and remove it again.
+    // The school's consequence for a first dress-code violation.
+    const DRESS_CODE_TMI_MINUTES = 30;
+
+    async function createDressCodeTmi(interventionId, student, dateTime, comments, assignedBy) {
       const [datePart, timePart] = (dateTime || '').split('T');
       if (!datePart) return;
 
@@ -1466,8 +1476,10 @@
         studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
         date:                 datePart,
         time:                 timePart || '',
-        attendanceCode:       'T',
-        className:            'Manual',
+        attendanceCode:       'P',          // not an absence and not a tardy
+        tmiMinutes:           DRESS_CODE_TMI_MINUTES,
+        tmiReason:            'dress code',
+        className:            'Dress Code',
         teacherLastName:      assignedBy,
         comment:              `DRESS CODE - ${comments}`.trim(),
         sourceInterventionId: interventionId,
@@ -1566,9 +1578,9 @@
         interventionsData = interventionsData.filter(r => r.id !== id);
 
         // If this was a Dress Code Level 1 intervention, it auto-created a
-        // matching Tardy in Daily Attendance — remove that too and re-run the
-        // TMI recalculation so the student's TMI reflects the removal.
-        await removeLinkedDressCodeTardy(id, studentId, record);
+        // 30-minute TMI record — remove that too and re-run the recalculation
+        // so the student's minutes reflect the removal.
+        await removeLinkedDressCodeTmi(id, studentId, record);
 
         // Re-render the modal content without closing it
         await openViewModal(studentId);
@@ -1581,19 +1593,17 @@
       }
     };
 
-    // Finds and removes any attendance event auto-created by a
-    // given intervention (via sourceInterventionId), then reconciles TMI for
-    // the student/period that record belonged to.
+    // Finds and removes the attendance event auto-created by a given
+    // intervention (via sourceInterventionId), then reconciles TMI for the
+    // student/period that record belonged to, so the 30 minutes come back off.
     //
-    // If the linked tardy was ALREADY removed some other way (e.g. someone
-    // deleted the 'T' directly from Daily Attendance before coming back here
-    // to delete the intervention), there's nothing left to find via
-    // sourceInterventionId — but the TMI it earned can still be stuck at its
-    // old minutes, since nothing else would have triggered a recalculation
-    // for that removal. So this still runs the recalculation using the
-    // intervention's own date whenever it was a Dress Code Level 1 record,
-    // whether or not a linked log turned up.
-    async function removeLinkedDressCodeTardy(interventionId, studentId, interventionRecord) {
+    // If the linked record was ALREADY removed some other way, there's nothing
+    // left to find via sourceInterventionId — but the TMI it earned can still
+    // be stuck at its old minutes, since nothing else would have triggered a
+    // recalculation for that removal. So this still runs the recalculation
+    // using the intervention's own date whenever it was a Dress Code Level 1
+    // record, whether or not a linked event turned up.
+    async function removeLinkedDressCodeTmi(interventionId, studentId, interventionRecord) {
       try {
         const linkedLogs = await getWhere(EVENTS_COLLECTION, 'sourceInterventionId', '==', interventionId);
         const student    = studentsData.find(x => x.id === studentId);
