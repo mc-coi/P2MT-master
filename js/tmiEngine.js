@@ -224,17 +224,26 @@ export function computeTMI(periodLogs) {
 // U/T logs (resolved to a display name via staff), falling back to the
 // caller-supplied name only when no log carries a teacher (e.g. a Dress
 // Code auto-tardy, where the caller IS the staff member who logged it).
-export function pickAssignedBy(periodLogs, staffList, fallback) {
+// The teacher the logs actually point to, or null when they carry no teacher
+// at all (a front-office entry, an ER record, a manually logged absence).
+// Returning null rather than a guess is what lets callers tell the difference
+// between "the logs say Brockelbank" and "the logs say nothing, so keep what
+// you have".
+export function teacherFromLogs(periodLogs, staffList) {
   const counts = new Map();
   (periodLogs || []).filter(qualifies).forEach(l => {
     const t = (l.teacherLastName || '').trim();
     if (t) counts.set(t, (counts.get(t) || 0) + 1);
   });
-  if (!counts.size) return fallback || 'Unknown';
+  if (!counts.size) return null;
   let bestTeacher = null, bestCount = -1;
   for (const [teacher, count] of counts) if (count > bestCount) { bestTeacher = teacher; bestCount = count; }
   const staffMatch = (staffList || []).find(s => (s.lastName || '').trim().toLowerCase() === bestTeacher.toLowerCase());
   return staffMatch ? `${staffMatch.firstName} ${staffMatch.lastName}`.trim() : bestTeacher;
+}
+
+export function pickAssignedBy(periodLogs, staffList, fallback) {
+  return teacherFromLogs(periodLogs, staffList) || fallback || 'Unknown';
 }
 
 function filterToStudentAndWindow(logs, identity, start, end) {
@@ -309,8 +318,22 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
   const minutesChanged  = existing.tmiMinutes !== math.totalMinutes;
   const periodChanged   = existing.tmiPeriodKey !== window.key || existing.startDate !== window.start;
   const idChanged       = existing.id !== targetId;
-  const needsAssignedBy = !existing.assignedBy;
-  if (!minutesChanged && !periodChanged && !idChanged && !needsAssignedBy) return { action: 'none', id: existing.id };
+  // "Assigned By" is re-resolved from the attendance behind the record, not
+  // merely filled in when blank. It used to be backfill-only, so a record that
+  // once picked up the wrong name — whoever happened to run a bulk tool —
+  // kept it forever, and TMI Review showed an admin as having assigned a TMI
+  // for a class they don't teach. The logs are the source of truth, so when
+  // they name a teacher that name wins.
+  //
+  // teacherFromLogs returns null when no qualifying log carries a teacher
+  // (a front-office absence, an ER record, a dress-code entry logged by
+  // whoever saw it). In that case whatever is already stored is the best
+  // information available and is left alone.
+  const teacherOnLogs   = teacherFromLogs(periodLogs, staffList);
+  const previousBy      = existing.assignedBy || '';   // captured before the record is mutated below
+  const resolvedBy      = teacherOnLogs || previousBy || fallbackAssignedBy || 'Unknown';
+  const assignedByWrong = resolvedBy !== previousBy;
+  if (!minutesChanged && !periodChanged && !idChanged && !assignedByWrong) return { action: 'none', id: existing.id };
 
   const updates = {
     tmiMinutes:          math.totalMinutes,
@@ -320,7 +343,7 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
     reason:              math.reason,
     updatedAt:           nowISO(),
   };
-  if (needsAssignedBy) updates.assignedBy = pickAssignedBy(periodLogs, staffList, fallbackAssignedBy);
+  if (assignedByWrong) updates.assignedBy = resolvedBy;
 
   if (idChanged) {
     // Move to the deterministic ID: write the full record there, drop the old doc.
@@ -331,7 +354,8 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
     await updateDoc('interventionLogs', existing.id, updates);
   }
   Object.assign(existing, updates, { id: targetId });
-  return { action: 'updated', minutes: math.totalMinutes, id: targetId, backfilledAssignedBy: needsAssignedBy };
+  return { action: 'updated', minutes: math.totalMinutes, id: targetId,
+           assignedByChanged: assignedByWrong ? { from: previousBy || '(blank)', to: resolvedBy } : null };
 }
 
 // Looks for a TMI record this student already has whose period CONTAINS the
@@ -854,8 +878,7 @@ export async function reconcileAssignedBy(start, end) {
     const { start: ps, end: pe } = periodBounds(iv);
     if (!ps || !pe) continue;
     const periodLogs = filterToStudentAndWindow(allLogs, iv, ps, pe);
-    if (!periodLogs.filter(qualifies).some(l => (l.teacherLastName || '').trim())) continue;
-    const resolved = pickAssignedBy(periodLogs, staffList, iv.assignedBy);
+    const resolved = teacherFromLogs(periodLogs, staffList);
     if (resolved && resolved !== iv.assignedBy) {
       await updateDoc('interventionLogs', iv.id, { assignedBy: resolved, updatedAt: nowISO() });
       results.push({ studentId: iv.studentId || '', chattStateANumber: (iv.chattStateANumber || '').trim(), tmiPeriodKey: iv.tmiPeriodKey, from: iv.assignedBy || '(blank)', to: resolved });

@@ -1469,12 +1469,17 @@
           const result = await recalcTMIForStudent({ studentId: iv.studentId, chattStateANumber: iv.chattStateANumber || '', studentName: iv.studentName || '', dateStr, assignedBy, cache });
           const who = iv.studentName || iv.studentId || iv.chattStateANumber;
           if (result.action === 'deleted') { deleted++; details.push(`${who}: cleared — no U/T basis remains`); }
-          else if (result.action === 'updated') { updated++; if (result.backfilledAssignedBy) backfilled++; details.push(`${who}: → ${result.minutes} min${result.backfilledAssignedBy ? ' (Assigned By backfilled)' : ''}`); }
+          else if (result.action === 'updated') {
+            updated++;
+            const ab = result.assignedByChanged;
+            if (ab) backfilled++;
+            details.push(`${who}: → ${result.minutes} min${ab ? ` (Assigned By ${ab.from} → ${ab.to})` : ''}`);
+          }
           else unchanged++;
         }
         resultsEl.innerHTML = `
           <p><strong>${candidates.length}</strong> TMI record${candidates.length !== 1 ? 's' : ''} checked —
-          ${updated} updated, ${deleted} cleared, ${backfilled} "Assigned By" backfilled, ${unchanged} already correct.</p>
+          ${updated} updated, ${deleted} cleared, ${backfilled} "Assigned By" corrected, ${unchanged} already correct.</p>
           ${details.length ? `<ul style="font-size:13px;color:#475569;">${details.map(d => `<li>${d}</li>`).join('')}</ul>` : ''}`;
         showToast(`TMI recalculation complete — ${updated} updated, ${deleted} cleared`, 'success');
       } catch (err) {
