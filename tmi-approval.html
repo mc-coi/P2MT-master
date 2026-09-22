@@ -898,7 +898,10 @@
       });
 
       tmiTable = $('#tmiTable').DataTable({
-        paging: true, pageLength: 25, ordering: true, searching: true, destroy: true,
+        // 100 a page so a normal day's roster is one page — nobody gets missed
+        // at sign-in because they were on page 2.
+        paging: true, pageLength: 100, lengthMenu: [[100, 25, -1], [100, 25, 'All']],
+        ordering: true, searching: true, destroy: true,
         columnDefs: [{ orderable: false, targets: [3, 6, 7] }]
       });
 
