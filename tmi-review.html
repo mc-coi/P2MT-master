@@ -207,7 +207,7 @@
     import { updateDoc } from './js/db.js';
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { formatDate, showToast, confirmTypedDelete } from './js/utils.js';
+    import { formatDate, showToast, confirmTypedDelete, rememberRange, recallRange, forgetRange } from './js/utils.js';
     import { recalcTMIForWindow, fetchTMIRecordsForRange } from './js/tmiEngine.js';
 
     let allTMI          = [];   // interventionLogs where type === 'TMI'
@@ -266,9 +266,24 @@
 
     async function init() {
       try {
-        const def = defaultRange();
+        // Whatever was last picked here wins over the computed default, so
+        // stepping over to the Roster and back doesn't lose the week you were
+        // working on. recallRange returns null once the choice goes stale.
+        const remembered = recallRange('tmi-review');
+        const def = remembered || defaultRange();
         if (!document.getElementById('filterStart').value) document.getElementById('filterStart').value = def.start;
         if (!document.getElementById('filterEnd').value)   document.getElementById('filterEnd').value   = def.end;
+
+        // Remember the dates as soon as they are changed, not only when
+        // Apply Filters is pressed — it is easy to set a range and navigate
+        // away expecting it to stick.
+        ['filterStart', 'filterEnd'].forEach(id => {
+          document.getElementById(id).addEventListener('change', () => {
+            rememberRange('tmi-review',
+              document.getElementById('filterStart').value,
+              document.getElementById('filterEnd').value);
+          });
+        });
 
         const [schedules, students] = await Promise.all([
           Data.get('classSchedules'),
@@ -531,6 +546,8 @@
     };
 
     window.clearFilters = function() {
+      // Clear means "back to the default week", so the remembered choice goes too.
+      forgetRange('tmi-review');
       const def = defaultRange();
       document.getElementById('filterTeacher').value = '';
       document.getElementById('filterStatus').value  = '';

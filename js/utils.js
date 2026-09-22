@@ -379,3 +379,45 @@ export function confirmTypedDelete(message = 'This action cannot be undone.') {
     requestAnimationFrame(() => input.focus());
   });
 }
+
+// ── Remembering a chosen date range ─────────────────────────────────────────
+//
+// Pages that work on a date range compute a sensible default (for TMI, the
+// last completed Wednesday–Tuesday week). That default was applied on every
+// page load, so picking a range, navigating away and coming back threw the
+// choice away — which is maddening when you are moving between TMI Review and
+// the Roster while working through the same week.
+//
+// The chosen range is remembered per page in localStorage. It deliberately
+// expires: a range pinned indefinitely would silently show an old week to
+// someone opening the page days later, who would reasonably assume they were
+// looking at the current one. After MAX_AGE_HOURS the computed default takes
+// over again, so stickiness lasts a working day and no longer.
+
+const RANGE_PREFIX = 'p2mt:range:';
+const RANGE_MAX_AGE_HOURS = 12;
+
+export function rememberRange(key, start, end) {
+  if (!start || !end) return;
+  try {
+    localStorage.setItem(RANGE_PREFIX + key, JSON.stringify({ start, end, at: Date.now() }));
+  } catch (_) { /* private mode — the page still works, it just won't remember */ }
+}
+
+export function recallRange(key, { maxAgeHours = RANGE_MAX_AGE_HOURS } = {}) {
+  try {
+    const raw = localStorage.getItem(RANGE_PREFIX + key);
+    if (!raw) return null;
+    const saved = JSON.parse(raw);
+    if (!saved || !saved.start || !saved.end) return null;
+    if (Date.now() - (saved.at || 0) > maxAgeHours * 3600 * 1000) {
+      localStorage.removeItem(RANGE_PREFIX + key);
+      return null;
+    }
+    return { start: saved.start, end: saved.end };
+  } catch (_) { return null; }
+}
+
+export function forgetRange(key) {
+  try { localStorage.removeItem(RANGE_PREFIX + key); } catch (_) {}
+}

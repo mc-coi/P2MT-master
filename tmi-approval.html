@@ -258,7 +258,7 @@
     import { getById, getWhere, updateDoc } from './js/db.js';
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, showToast } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, rememberRange, recallRange } from './js/utils.js';
     import { recalcTMIForWindow, fetchTMIRecordsForRange,
              startSession, endSession, editSession, removeSession, setServedBase,
              servedSummary, openSessionOf, minutesOfSession, saveSessionUpdate } from './js/tmiEngine.js';
@@ -415,12 +415,33 @@
       loadedRange = { start: startDate, end: endDate };
     }
 
+    // The roster works on the same TMI week as TMI Review, so it defaults to
+    // the same window — the last completed Wednesday–Tuesday — rather than a
+    // rolling fortnight, which made the two pages disagree about which week
+    // you were looking at. A range picked here is remembered so stepping
+    // between the two pages doesn't reset it.
+    function localISO(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function defaultRange() {
+      const now = new Date();
+      const dow = now.getDay();
+      const daysSinceTue = ((dow - 2) + 7) % 7 || 7;      // back to the Tuesday that ended the last full week
+      const end = new Date(now); end.setDate(now.getDate() - daysSinceTue);
+      const start = new Date(end); start.setDate(end.getDate() - 6);
+      return { start: localISO(start), end: localISO(end) };
+    }
+
     function loadDefaultDates() {
-      const localISO = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-      const today = new Date();
-      const twoWeeksAgo = new Date(today); twoWeeksAgo.setDate(today.getDate() - 14);
-      $('#tmiStartDate').val(localISO(twoWeeksAgo));
-      $('#tmiEndDate').val(localISO(today));
+      const range = recallRange('tmi-roster') || defaultRange();
+      $('#tmiStartDate').val(range.start);
+      $('#tmiEndDate').val(range.end);
+
+      // Remember as soon as a date changes, not only when Load is pressed.
+      $('#tmiStartDate, #tmiEndDate').on('change', () => {
+        rememberRange('tmi-roster', $('#tmiStartDate').val(), $('#tmiEndDate').val());
+      });
     }
 
     function attachEventListeners() {
