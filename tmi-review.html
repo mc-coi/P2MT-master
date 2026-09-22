@@ -353,10 +353,20 @@
       return item.studentName || '';
     }
 
+    // Every teacher a record is attributable to. A week's TMI can come from
+    // more than one — a dress code logged by one person and a missed class
+    // from another — and teacherLastName only holds whichever came up most.
+    // Filtering on that field alone hid the record from everyone else.
+    function recordTeachers(t) {
+      const list = Array.isArray(t.teachers) ? t.teachers : [];
+      const all = [...list, t.teacherLastName].map(x => (x || '').trim()).filter(Boolean);
+      return [...new Set(all)];
+    }
+
     function populateTeacherDropdown() {
       // Build from both TMI records and from classSchedules so all teachers are present
       const teachers = [...new Set([
-        ...allTMI.map(t => t.teacherLastName),
+        ...allTMI.flatMap(recordTeachers),
         ...classSchedules.map(cs => cs.teacherLastName)
       ].filter(Boolean))].sort();
 
@@ -472,7 +482,7 @@
         html += `<tr>
           <td><span class="${pillCls}">${code}${minutes ? ` · ${minutes} min` : ''}</span></td>
           <td>${log.className || '—'}</td>
-          <td>${log.teacherLastName || '—'}</td>
+          <td>${recordTeachers(log).join(', ') || '—'}</td>
           <td>${dateStr}</td>
           <td>${time}</td>
           <td>${excuseHtml}</td>
@@ -497,7 +507,7 @@
 
       filteredTMI = allTMI.filter(t => {
         if (t.interventionStatus === 'Closed') return false;
-        if (teacher && t.teacherLastName !== teacher) return false;
+        if (teacher && !recordTeachers(t).includes(teacher)) return false;
         if (status  && t.interventionStatus !== status) return false;
 
         if (start || end) {

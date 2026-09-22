@@ -243,6 +243,22 @@ export function teacherSurnameFromLogs(periodLogs) {
   return best;
 }
 
+// EVERY teacher behind a period's TMI, as surnames, sorted and deduplicated.
+//
+// teacherLastName is a single field, so a week that mixes a dress code logged
+// by one person with an absence from another class can only record one of
+// them — and the Teacher filter on TMI Review would then hide the record from
+// the other teacher entirely, even though the page's own Reason column says
+// they were involved. This list is what the filter matches against.
+export function teacherSurnamesFromLogs(periodLogs) {
+  const seen = new Map();   // lowercase -> first spelling seen
+  (periodLogs || []).filter(qualifies).forEach(l => {
+    const t = (l.teacherLastName || '').trim();
+    if (t && !seen.has(t.toLowerCase())) seen.set(t.toLowerCase(), t);
+  });
+  return [...seen.values()].sort((a, b) => a.localeCompare(b));
+}
+
 // The same teacher, as a person's name for display in "Assigned By".
 export function teacherFromLogs(periodLogs, staffList) {
   const surname = teacherSurnameFromLogs(periodLogs);
@@ -350,7 +366,12 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
   const surnameOnLogs   = teacherSurnameFromLogs(periodLogs);
   const teacherWrong    = !!surnameOnLogs && surnameOnLogs !== (existing.teacherLastName || '');
 
-  if (!minutesChanged && !periodChanged && !idChanged && !assignedByWrong && !teacherWrong) {
+  // And the full list, for the Teacher filter (see teacherSurnamesFromLogs).
+  const surnamesOnLogs  = teacherSurnamesFromLogs(periodLogs);
+  const teachersWrong   = surnamesOnLogs.length > 0 &&
+                          surnamesOnLogs.join('|') !== (existing.teachers || []).join('|');
+
+  if (!minutesChanged && !periodChanged && !idChanged && !assignedByWrong && !teacherWrong && !teachersWrong) {
     return { action: 'none', id: existing.id };
   }
 
@@ -364,6 +385,7 @@ async function applyToExisting(existing, window, math, periodLogs, staffList, fa
   };
   if (assignedByWrong) updates.assignedBy = resolvedBy;
   if (teacherWrong)    updates.teacherLastName = surnameOnLogs;
+  if (teachersWrong)   updates.teachers = surnamesOnLogs;
 
   if (idChanged) {
     // Move to the deterministic ID: write the full record there, drop the old doc.
@@ -502,6 +524,8 @@ export async function recalcTMIForStudent(context) {
       // Prefer the surname the attendance names over whatever the calling page
       // supplied — pages have handed us display names before now.
       teacherLastName: teacherSurnameFromLogs(periodLogs) || context.teacherLastName || '',
+      // Every teacher involved, not just the most frequent one.
+      teachers: teacherSurnamesFromLogs(periodLogs),
     });
     await setDoc('interventionLogs', docId, record);
     cache.tmiById.set(docId, { id: docId, ...record });
@@ -861,7 +885,11 @@ export async function repairEventTeacherNames({ start, end } = {}) {
     const current = (rec.teacherLastName || '').trim();
     if (!current || bySurname.has(norm(current))) continue;
     const resolved = byFullName.get(norm(current)) || '';
-    await updateDoc('interventionLogs', rec.id, { teacherLastName: resolved, updatedAt: nowISO() });
+    const teachers = [...new Set((rec.teachers || [])
+      .map(t => (t || '').trim())
+      .map(t => (bySurname.has(norm(t)) ? t : (byFullName.get(norm(t)) || '')))
+      .filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    await updateDoc('interventionLogs', rec.id, { teacherLastName: resolved, teachers, updatedAt: nowISO() });
     out.records++;
     out.details.push(`TMI ${rec.studentName || rec.studentId}: "${current}" → ${resolved ? `"${resolved}"` : '(no teacher)'}`);
   }
