@@ -21,7 +21,7 @@
 // the period (a handful). Calendar and staff come from the session cache.
 
 import { getAll, getById, setDoc, updateDoc, deleteDoc, getWhereMultiple } from './db.js';
-import { fetchClassLogs, fetchLogsInWindow, slug } from './attendance.js';
+import { fetchClassLogs, fetchLogsInWindow, slug, EVENTS_COLLECTION as EVENTS_COLLECTION_NAME } from './attendance.js';
 import * as Data from './data.js';
 
 export const MAX_TMI = 240;
@@ -752,6 +752,79 @@ export async function migrateToWedTueWeeks({ start, end, lookbackDays = 120 } = 
     for (const r of group) {
       await deleteDoc('interventionLogs', r.id);
       out.removed++;
+    }
+  }
+  return out;
+}
+
+// ── Public: repair attendance events holding a display name as the teacher ──
+
+// teacherLastName is a SURNAME everywhere it is used — the engine matches it
+// against the staff list, and the teacher filters on TMI Review and Daily
+// Attendance are built from it. Dress-code events used to store the signed-in
+// user's Google display name there instead ("ZACHARY MCCOY"), which produced a
+// phantom teacher next to the real one ("McCoy") and split one person's TMI
+// across two apparent teachers.
+//
+// This rewrites those events to the matching staff surname. A value that
+// cannot be matched to anyone is cleared rather than guessed at: an empty
+// teacher means "no class teacher", which is the truth for a dress code, and
+// stops it polluting the filters. Affected students are then recalculated so
+// "Assigned By" catches up.
+//
+// Returns { scanned, fixed, cleared, recalculated, details[] }.
+export async function repairEventTeacherNames({ start, end } = {}) {
+  const out = { scanned: 0, fixed: 0, cleared: 0, recalculated: 0, details: [] };
+  if (!start || !end) return out;
+
+  const [events, staffList] = await Promise.all([
+    fetchClassLogs({ start, end }),
+    Data.staff().catch(() => []),
+  ]);
+  out.scanned = events.length;
+  if (!events.length) return out;
+
+  const norm = v => (v || '').trim().toLowerCase();
+  const bySurname = new Set(staffList.map(st => norm(st.lastName)).filter(Boolean));
+  // "Zachary McCoy", "ZACHARY MCCOY", "zmccoy@…" all point at the same person.
+  const byFullName = new Map();
+  staffList.forEach(st => {
+    const first = (st.firstName || '').trim(), last = (st.lastName || '').trim();
+    if (!last) return;
+    [`${first} ${last}`, `${last} ${first}`, `${last}, ${first}`].forEach(v => byFullName.set(norm(v), last));
+    if (st.email) byFullName.set(norm(st.email), last);
+  });
+
+  const touched = new Map();   // studentKey -> { identity, dates:Set }
+  for (const ev of events) {
+    const current = (ev.teacherLastName || '').trim();
+    if (!current || bySurname.has(norm(current))) continue;   // already a real surname
+    const resolved = byFullName.get(norm(current)) || '';
+
+    await updateDoc(EVENTS_COLLECTION_NAME, ev.id, { teacherLastName: resolved, updatedAt: nowISO() });
+    if (resolved) out.fixed++; else out.cleared++;
+    out.details.push(`${ev.date} ${ev.studentName || ev.studentId}: "${current}" → ${resolved ? `"${resolved}"` : '(no teacher)'}`);
+
+    const key = ev.studentId || ev.chattStateANumber || ev.studentName;
+    if (!touched.has(key)) {
+      touched.set(key, {
+        identity: { studentId: ev.studentId || '', chattStateANumber: ev.chattStateANumber || '', studentName: ev.studentName || '' },
+        dates: new Set(),
+      });
+    }
+    touched.get(key).dates.add((ev.date || '').substring(0, 10));
+  }
+
+  // One recalculation per student per affected week, so Assigned By is
+  // re-resolved from the corrected events.
+  const cache = {};
+  for (const { identity, dates } of touched.values()) {
+    const weeks = new Set([...dates].filter(Boolean).map(d => getTmiWeekWindow(d).start));
+    for (const weekStart of weeks) {
+      try {
+        await recalcTMIForStudent({ ...identity, dateStr: weekStart, assignedBy: identity.studentName || 'Unknown', cache });
+        out.recalculated++;
+      } catch (err) { console.error('repairEventTeacherNames: recalc failed', identity, err); }
     }
   }
   return out;

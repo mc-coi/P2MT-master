@@ -1466,6 +1466,24 @@
     // The school's consequence for a first dress-code violation.
     const DRESS_CODE_TMI_MINUTES = 30;
 
+    // teacherLastName is a SURNAME everywhere else in the app — it is what the
+    // TMI engine matches against the staff list and what the teacher filters
+    // are built from. Storing a Google display name there ("ZACHARY MCCOY")
+    // created a second, phantom teacher alongside the real one ("McCoy"), so
+    // a staff member's class TMI and their dress-code TMI were counted as two
+    // different people. Resolve the signed-in user to their staff surname;
+    // fall back to no teacher at all rather than inventing one, which leaves
+    // "Assigned By" to the caller-supplied display name.
+    async function currentStaffLastName() {
+      const email = (getCurrentUser()?.email || '').trim().toLowerCase();
+      if (!email) return '';
+      try {
+        const staff = await Data.staff();
+        const me = (staff || []).find(x => (x.email || '').trim().toLowerCase() === email);
+        return me ? (me.lastName || '').trim() : '';
+      } catch (_) { return ''; }
+    }
+
     async function createDressCodeTmi(interventionId, student, dateTime, comments, assignedBy) {
       const [datePart, timePart] = (dateTime || '').split('T');
       if (!datePart) return;
@@ -1480,7 +1498,7 @@
         tmiMinutes:           DRESS_CODE_TMI_MINUTES,
         tmiReason:            'dress code',
         className:            'Dress Code',
-        teacherLastName:      assignedBy,
+        teacherLastName:      await currentStaffLastName(),
         comment:              `DRESS CODE - ${comments}`.trim(),
         sourceInterventionId: interventionId,
         createdBy:            getCurrentUser()?.uid || '',
@@ -1494,8 +1512,8 @@
           chattStateANumber: student.chattStateANumber || '',
           studentName:       `${student.lastName || ''}, ${student.firstName || ''}`,
           dateStr:           datePart,
-          className:         'Manual',
-          teacherLastName:   assignedBy,
+          className:         'Dress Code',
+          teacherLastName:   attendanceRecord.teacherLastName,
           assignedBy,
         });
       } catch (err) {

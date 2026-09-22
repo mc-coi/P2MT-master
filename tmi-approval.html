@@ -259,7 +259,7 @@
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, rememberRange, recallRange } from './js/utils.js';
-    import { recalcTMIForWindow, fetchTMIRecordsForRange,
+    import { recalcTMIForWindow, fetchTMIRecordsForRange, qualifies,
              startSession, endSession, editSession, removeSession, setServedBase,
              servedSummary, openSessionOf, minutesOfSession, saveSessionUpdate } from './js/tmiEngine.js';
 
@@ -606,9 +606,11 @@
         if (!d) return false;
         if (periodStart && d < periodStart) return false;
         if (periodEnd && d > periodEnd) return false;
-        const isUT = ['U', 'T'].includes(l.attendanceCode);
-        const isOverride = l.assignTmi && l.attendanceCode !== 'U';
-        return isUT || isOverride;
+        // Whatever the engine counts as earning TMI counts here too — U, T,
+        // a manual override, or an event carrying its own minutes such as a
+        // Dress Code Level 1. Keeping a separate list here is what made
+        // dress-code records vanish from the Roster.
+        return qualifies(l);
       });
     }
 

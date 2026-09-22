@@ -306,6 +306,22 @@
 
       <hr style="margin:28px 0;">
 
+      <h3><i class="fas fa-user-pen" style="color:#d97706;"></i> Fix Teacher Names on Attendance</h3>
+      <p class="w3-text-grey">
+        Corrects attendance records that stored a staff member's full sign-in name where a surname
+        belongs — dress-code entries used to do this, which made one person show up twice in the
+        Teacher dropdown ("McCoy" and "ZACHARY MCCOY") and split their TMI between the two. Matches
+        each one back to the staff list; anything that can't be matched has its teacher cleared, which
+        is correct for a dress code since there is no class teacher. Affected students are
+        recalculated so "Assigned By" catches up. Uses the date range above.
+      </p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-primary" onclick="fixEventTeacherNames()"><i class="fas fa-user-pen"></i> Fix Teacher Names</button>
+      </div>
+      <div id="tmi-teachername-results" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
       <h3><i class="fas fa-sync-alt" style="color:#0891b2;"></i> Refresh Cached Lists</h3>
       <p class="w3-text-grey">
         Students, staff, parents, schedules, templates and PBL data are downloaded once per computer and
@@ -416,7 +432,7 @@
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
     import { recalcTMIForStudent, reconcileAssignedBy, migrateTMIRecords, fetchTMIRecordsForRange,
-             migrateToWedTueWeeks, mergeDuplicateTMIRecords } from './js/tmiEngine.js';
+             migrateToWedTueWeeks, mergeDuplicateTMIRecords, repairEventTeacherNames } from './js/tmiEngine.js';
     import { fetchClassLogs, fetchSessions, deleteEvents, sessionId, sectionKey, buildMigrationOps, commitOps,
              SESSIONS_COLLECTION } from './js/attendance.js';
 
@@ -1504,6 +1520,27 @@
       Data.clearLocal();
       document.getElementById('cache-refresh-status').textContent = '✓ This computer will re-download the lists on the next page load.';
       showToast('Local cache cleared', 'success');
+    };
+
+    window.fixEventTeacherNames = async function() {
+      const range = tmiRange(); if (!range) return;
+      const el = document.getElementById('tmi-teachername-results');
+      el.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Checking teacher names on attendance records…</div>';
+      try {
+        const r = await repairEventTeacherNames(range);
+        if (!r.fixed && !r.cleared) {
+          el.innerHTML = `<p class="w3-text-grey">Nothing to fix — all ${r.scanned} attendance record${r.scanned !== 1 ? 's' : ''} in that range already name a teacher from the staff list.</p>`;
+          showToast('No teacher names needed fixing', 'info');
+          return;
+        }
+        el.innerHTML = `
+          <p><strong>${r.fixed}</strong> corrected, <strong>${r.cleared}</strong> cleared, ${r.recalculated} TMI record${r.recalculated !== 1 ? 's' : ''} recalculated:</p>
+          <ul style="font-size:13px;color:#475569;">${r.details.map(d => `<li>${d}</li>`).join('')}</ul>`;
+        showToast(`Fixed ${r.fixed + r.cleared} teacher name${r.fixed + r.cleared !== 1 ? 's' : ''}`, 'success');
+      } catch (err) {
+        console.error('Error fixing teacher names:', err);
+        el.innerHTML = '<p style="color:#dc2626;">Error fixing teacher names — see console.</p>';
+      }
     };
 
     window.mergeDuplicateTMI = async function() {
