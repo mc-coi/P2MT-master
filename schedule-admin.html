@@ -322,6 +322,26 @@
 
       <hr style="margin:28px 0;">
 
+      <h3><i class="fas fa-spell-check" style="color:#7c3aed;"></i> Rename a Teacher</h3>
+      <p class="w3-text-grey">
+        Corrects a misspelled teacher surname everywhere it is stored. Editing the class records alone
+        is not enough: the teacher's name forms part of every absence and "attendance taken" record's
+        identity, so the old spelling would keep its history while new attendance started under the new
+        one — the same class split across two teachers. This moves all three together. Class records are
+        updated for the whole year; absences and sessions within the date range above.
+      </p>
+      <div class="form-row">
+        <div><label>Current (misspelled):<input class="w3-input w3-border" type="text" id="renameFrom" placeholder="Segle"></label></div>
+        <div><label>Correct spelling:<input class="w3-input w3-border" type="text" id="renameTo" placeholder="Seigle"></label></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+        <button class="w3-button btn-secondary" onclick="previewTeacherRename()"><i class="fas fa-search"></i> Preview</button>
+        <button class="w3-button btn-danger" id="renameGoBtn" style="display:none;" onclick="applyTeacherRename()"><i class="fas fa-spell-check"></i> Rename</button>
+      </div>
+      <div id="rename-results" style="margin-top:16px;"></div>
+
+      <hr style="margin:28px 0;">
+
       <h3><i class="fas fa-sync-alt" style="color:#0891b2;"></i> Refresh Cached Lists</h3>
       <p class="w3-text-grey">
         Students, staff, parents, schedules, templates and PBL data are downloaded once per computer and
@@ -434,7 +454,7 @@
     import { recalcTMIForStudent, reconcileAssignedBy, migrateTMIRecords, fetchTMIRecordsForRange,
              migrateToWedTueWeeks, mergeDuplicateTMIRecords, repairEventTeacherNames } from './js/tmiEngine.js';
     import { fetchClassLogs, fetchSessions, deleteEvents, sessionId, sectionKey, buildMigrationOps, commitOps,
-             SESSIONS_COLLECTION } from './js/attendance.js';
+             SESSIONS_COLLECTION, renameTeacher } from './js/attendance.js';
 
     window.getAll = getAll;
     window.getById = getById;
@@ -1520,6 +1540,76 @@
       Data.clearLocal();
       document.getElementById('cache-refresh-status').textContent = '✓ This computer will re-download the lists on the next page load.';
       showToast('Local cache cleared', 'success');
+    };
+
+    // Shows what a rename would touch before anything is written — a misspelling
+    // is easy to get wrong twice, and this rewrites document identities.
+    window.previewTeacherRename = async function() {
+      const from = document.getElementById('renameFrom').value.trim();
+      const to   = document.getElementById('renameTo').value.trim();
+      const range = tmiRange(); if (!range) return;
+      const el = document.getElementById('rename-results');
+      const goBtn = document.getElementById('renameGoBtn');
+      goBtn.style.display = 'none';
+      if (!from || !to) { showToast('Enter both the current and the correct spelling', 'warning'); return; }
+      if (from.toLowerCase() === to.toLowerCase()) { showToast('Those are the same name', 'warning'); return; }
+
+      el.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Checking…</div>';
+      try {
+        const matches = v => (v || '').trim().toLowerCase() === from.toLowerCase();
+        const [events, sessions] = await Promise.all([
+          fetchClassLogs({ start: range.start, end: range.end }),
+          fetchSessions({ start: range.start, end: range.end }),
+        ]);
+        const schedules = allSchedules.filter(r => matches(r.teacherLastName));
+        const evs = events.filter(e => matches(e.teacherLastName));
+        const sess = sessions.filter(x => matches(x.teacherLastName));
+        const known = [...new Set(allSchedules.map(r => r.teacherLastName).filter(Boolean))];
+
+        if (!schedules.length && !evs.length && !sess.length) {
+          el.innerHTML = `<p class="w3-text-grey">Nothing found under "${from}". Teachers on file: ${known.join(', ')}</p>`;
+          return;
+        }
+        const classes = [...new Set(schedules.map(r => r.className))];
+        el.innerHTML = `
+          <p>Renaming <strong>${from}</strong> → <strong>${to}</strong> would update:</p>
+          <ul style="font-size:13px;color:#475569;">
+            <li><strong>${schedules.length}</strong> class record${schedules.length !== 1 ? 's' : ''}${classes.length ? ` (${classes.join(', ')})` : ''}</li>
+            <li><strong>${evs.length}</strong> absence record${evs.length !== 1 ? 's' : ''} in ${range.start} – ${range.end}</li>
+            <li><strong>${sess.length}</strong> attendance session${sess.length !== 1 ? 's' : ''} in the same range</li>
+          </ul>
+          ${known.includes(to) ? `<p style="color:#92400e;">Note: "${to}" already exists on file, so this will merge the two.</p>` : ''}`;
+        goBtn.style.display = '';
+      } catch (err) {
+        console.error(err);
+        el.innerHTML = '<p style="color:#dc2626;">Error checking — see console.</p>';
+      }
+    };
+
+    window.applyTeacherRename = async function() {
+      const from = document.getElementById('renameFrom').value.trim();
+      const to   = document.getElementById('renameTo').value.trim();
+      const range = tmiRange(); if (!range) return;
+      const el = document.getElementById('rename-results');
+      const { confirmTypedDelete } = await import('./js/utils.js');
+      const ok = await confirmTypedDelete(
+        `Rename "${from}" to "${to}" across class records, absences and attendance sessions. ` +
+        `This rewrites the identity of those attendance records and cannot be undone automatically.`);
+      if (!ok) return;
+
+      el.innerHTML = '<div><i class="fas fa-spinner fa-spin"></i> Renaming…</div>';
+      try {
+        const r = await renameTeacher({ from, to, start: range.start, end: range.end });
+        el.innerHTML = `<p>✓ Renamed <strong>${from}</strong> → <strong>${to}</strong>: ${r.details.join(', ')}.</p>
+          <p style="font-size:13px;color:#475569;">Run <em>Recalculate TMI for a Date Range</em> next so "Assigned By" picks up the corrected name.</p>`;
+        document.getElementById('renameGoBtn').style.display = 'none';
+        allSchedules = await Data.get('classSchedules', { force: true });
+        populateManageLogsTeachers();
+        showToast('Teacher renamed', 'success');
+      } catch (err) {
+        console.error('Rename failed:', err);
+        el.innerHTML = '<p style="color:#dc2626;">Rename failed — see console. It is safe to run again.</p>';
+      }
     };
 
     window.fixEventTeacherNames = async function() {

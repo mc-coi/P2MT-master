@@ -442,3 +442,74 @@ export async function commitOps(ops, onProgress) {
     if (onProgress) onProgress(Math.min(i + MAX_BATCH, ops.length), ops.length);
   }
 }
+
+// ── Renaming a teacher across the data ─────────────────────────────────────
+//
+// A misspelled surname cannot be fixed by editing the schedule rows alone.
+// teacherLastName is part of sectionKey, which is part of every attendanceEvent
+// and attendanceSession document ID, so correcting only classSchedules would
+// leave every past absence and "attendance taken" record filed under the old
+// spelling while new ones appeared under the new one — the class's history
+// split in two, and the teacher still showing twice in the filters.
+//
+// This moves all three together: the enrolment rows are updated in place, and
+// the attendance documents are rewritten at their new IDs and the old ones
+// removed. Matching is case-insensitive and trimmed, so "segle" and " Segle "
+// are caught too.
+//
+// Attendance is bounded by a date range because those collections grow; the
+// schedule rows are not, since the collection is small and a rename should
+// apply to the whole year.
+//
+// Returns { schedules, events, sessions, details[] }.
+export async function renameTeacher({ from, to, start, end } = {}) {
+  const out = { schedules: 0, events: 0, sessions: 0, details: [] };
+  const wanted = (from || '').trim().toLowerCase();
+  const fixed  = (to || '').trim();
+  if (!wanted || !fixed) return out;
+  if (wanted === fixed.toLowerCase()) return out;   // nothing to do but a case change of the same name
+
+  const matches = v => (v || '').trim().toLowerCase() === wanted;
+
+  // 1. Enrolment rows — the source of rosters and teacher dropdowns.
+  const schedules = await getAll('classSchedules');
+  for (const row of schedules.filter(r => matches(r.teacherLastName))) {
+    await updateDoc('classSchedules', row.id, { teacherLastName: fixed });
+    out.schedules++;
+  }
+
+  // 2. Absences — each has to move to the ID its corrected section produces.
+  if (start && end) {
+    const events = await fetchClassLogs({ start, end });
+    for (const ev of events.filter(e => matches(e.teacherLastName))) {
+      const corrected = { ...ev, teacherLastName: fixed };
+      const newId = eventId(corrected);
+      if (newId === ev.id) {
+        await updateDoc(EVENTS_COLLECTION, ev.id, { teacherLastName: fixed, updatedAt: new Date().toISOString() });
+      } else {
+        await saveEvent(corrected, { prevId: ev.id });
+      }
+      out.events++;
+    }
+
+    // 3. "Attendance was taken" records, same treatment.
+    const sessions = await fetchSessions({ start, end });
+    for (const sx of sessions.filter(s => matches(s.teacherLastName))) {
+      const corrected = { ...sx, teacherLastName: fixed };
+      const newId = sessionId(corrected);
+      const { id: _oldId, ...rest } = corrected;
+      if (newId === sx.id) {
+        await updateDoc(SESSIONS_COLLECTION, sx.id, { teacherLastName: fixed });
+      } else {
+        await setDocMerge(SESSIONS_COLLECTION, newId, { ...rest, sectionKey: sectionKey(corrected) });
+        await deleteDoc(SESSIONS_COLLECTION, sx.id);
+      }
+      out.sessions++;
+    }
+  }
+
+  out.details.push(`${out.schedules} class record${out.schedules !== 1 ? 's' : ''}`);
+  out.details.push(`${out.events} absence${out.events !== 1 ? 's' : ''}`);
+  out.details.push(`${out.sessions} attendance session${out.sessions !== 1 ? 's' : ''}`);
+  return out;
+}
