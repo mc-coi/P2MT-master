@@ -421,3 +421,18 @@ export function recallRange(key, { maxAgeHours = RANGE_MAX_AGE_HOURS } = {}) {
 export function forgetRange(key) {
   try { localStorage.removeItem(RANGE_PREFIX + key); } catch (_) {}
 }
+
+// "Last, First" — the app's one spelling of a student's name.
+//
+// Pages wrote it whichever way each was written: the attendance path stored
+// "Bradshaw, Elijah" while the manual-TMI and missed-check-in paths stored
+// "Elijah Bradshaw", so the same student appeared twice on the TMI Roster,
+// filed under two different letters. Anything rendering a name should take
+// it from the student record through here rather than trusting the copy
+// stored on the record it is displaying.
+export function studentDisplayName(student, fallback = '') {
+  const last = (student?.lastName || '').trim();
+  const first = (student?.firstName || '').trim();
+  if (last && first) return `${last}, ${first}`;
+  return last || first || (fallback || '').trim();
+}

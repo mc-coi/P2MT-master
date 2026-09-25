@@ -207,7 +207,7 @@
     import { updateDoc } from './js/db.js';
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { formatDate, showToast, confirmTypedDelete, rememberRange, recallRange, forgetRange } from './js/utils.js';
+    import { formatDate, showToast, confirmTypedDelete, rememberRange, recallRange, forgetRange, studentDisplayName } from './js/utils.js';
     import { recalcTMIForWindow, fetchTMIRecordsForRange } from './js/tmiEngine.js';
 
     let allTMI          = [];   // interventionLogs where type === 'TMI'
@@ -349,8 +349,7 @@
       if (!student && item.chattStateANumber) {
         student = studentsByANumber.get(item.chattStateANumber.trim().toUpperCase());
       }
-      if (student) return `${student.lastName || ''}, ${student.firstName || ''}`;
-      return item.studentName || '';
+      return studentDisplayName(student, item.studentName);
     }
 
     // Every teacher a record is attributable to. A week's TMI can come from

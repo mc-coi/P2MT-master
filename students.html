@@ -551,7 +551,7 @@
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, addDoc, updateDoc, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete, studentDisplayName } from './js/utils.js';
     import { recalcTMIForStudent, resolveStaffSurname } from './js/tmiEngine.js';
     import { saveEvent, deleteEvent, EVENTS_COLLECTION } from './js/attendance.js';
 
@@ -1098,7 +1098,7 @@
           const attendanceData = {
             studentId:         currentAttendanceId,
             chattStateANumber: student?.chattStateANumber || '',
-            studentName:       student ? `${student.firstName} ${student.lastName}` : '',
+            studentName:       studentDisplayName(student),
             absenceDate:       date,
             date,                          // kept for any legacy reads
             attendanceCode:    mapped.attendanceCode,
@@ -1116,7 +1116,7 @@
                 interventionType:    'TMI',
                 interventionStatus:  'Pending Review',
                 studentId:           currentAttendanceId,
-                studentName:         `${student.firstName} ${student.lastName}`,
+                studentName:         studentDisplayName(student),
                 chattStateANumber:   student.chattStateANumber || '',
                 house:               student.house || '',
                 yearOfGraduation:    student.yearOfGraduation || '',
@@ -1422,7 +1422,7 @@
 
       const record = {
         studentId:    assignStudentId,
-        studentName:  `${s.firstName} ${s.lastName}`,
+        studentName:  studentDisplayName(s),
         category,
         level,
         dateTime,
@@ -1496,7 +1496,7 @@
       const attendanceRecord = {
         studentId:            student.id,
         chattStateANumber:    student.chattStateANumber || '',
-        studentName:          `${student.lastName || ''}, ${student.firstName || ''}`,
+        studentName:          studentDisplayName(student),
         date:                 datePart,
         time:                 timePart || '',
         attendanceCode:       'P',          // not an absence and not a tardy
@@ -1515,7 +1515,7 @@
         await recalcTMIForStudent({
           studentId:         student.id,
           chattStateANumber: student.chattStateANumber || '',
-          studentName:       `${student.lastName || ''}, ${student.firstName || ''}`,
+          studentName:       studentDisplayName(student),
           dateStr:           datePart,
           className:         'Dress Code',
           teacherLastName:   attendanceRecord.teacherLastName,
@@ -1690,7 +1690,7 @@
         interventionType:     'TMI',
         interventionStatus:   'Pending',
         studentId:            tmiStudentId,
-        studentName:          `${s.firstName} ${s.lastName}`,
+        studentName:          studentDisplayName(s),
         chattStateANumber:    s.chattStateANumber || '',
         house:                s.house || '',
         yearOfGraduation:     s.yearOfGraduation || '',

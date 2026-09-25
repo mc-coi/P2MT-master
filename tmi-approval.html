@@ -258,7 +258,7 @@
     import { getById, getWhere, updateDoc } from './js/db.js';
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, showToast, rememberRange, recallRange } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, rememberRange, recallRange, studentDisplayName } from './js/utils.js';
     import { recalcTMIForWindow, fetchTMIRecordsForRange, qualifies,
              startSession, endSession, editSession, removeSession, setServedBase,
              servedSummary, openSessionOf, minutesOfSession, saveSessionUpdate } from './js/tmiEngine.js';
@@ -722,7 +722,9 @@
             tmiData.push({
               id: intervention.id,
               studentId: intervention.studentId,
-              studentName: intervention.studentName,
+              // From the student record, so a record written by a page that
+              // stored "First Last" still sorts and reads like the rest.
+              studentName: studentDisplayName(student, intervention.studentName),
               chattStateA: student.chattStateANumber,
               gradYear: student.graduationYear || '',
               house: student.house || '',
