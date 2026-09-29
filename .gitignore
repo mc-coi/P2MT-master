@@ -49,3 +49,10 @@ google_credentials/*
 P2MT_App/*.db
 *.code-workspace
 local.env
+
+# tools/sim copies these in from js/ (see tools/sim/sync.sh)
+tools/sim/attendance.js
+tools/sim/tmiEngine.js
+tools/sim/data.js
+tools/sim/utils.js
+tools/extracted/
