@@ -627,7 +627,7 @@
         </div>
         <button class="btn-sm outline" onclick="attMarkAllPresent()"><i class="fas fa-check-double"></i> All Present</button>
         <button class="btn-sm outline" onclick="attSaveAll()" style="border-color:#a7f3d0;color:#065f46;"><i class="fas fa-save"></i> Save All</button>
-        <button class="btn-sm outline" onclick="printRoomList()" style="border-color:#94a3b8;color:#475569;"><i class="fas fa-print"></i> Print Room List</button>
+        <button class="btn-sm outline" onclick="printRoomPoster()" style="border-color:#94a3b8;color:#475569;"><i class="fas fa-print"></i> Print Room Poster</button>
       </div>
       <div id="att-rooms-wrap">
         <div style="padding:40px;text-align:center;color:#94a3b8;font-size:14px;">
@@ -2974,102 +2974,122 @@
     };
 
     // ── Print Room List ───────────────────────────────────────────────────────────
-    window.printRoomList = function() {
+    // A single-page poster for the hallway wall: one block per room, students
+    // listed under it, type as large as will fit. Replaces the old staff
+    // roster print, which used a small fixed font in landscape columns and
+    // ran onto a second page as soon as the groups got long.
+    //
+    // Nothing here reads Firestore — it works off erRooms / erRoomStudents
+    // already in memory.
+    window.printRoomPoster = function() {
       const pk = periodKey();
       if (!pk) { showToast('Set ER Period dates first', 'warning'); return; }
       if (!erRooms.length) { showToast('No rooms set up yet — add rooms in ER Room Assignment', 'warning'); return; }
 
-      // Build room → sorted student list
-      const cols = erRooms.map(room => {
-        const roomStudents = erRoomStudents
+      const blocks = erRooms.map(room => ({
+        name: room.name || 'Room',
+        teacher: room.teacherName || '',
+        students: erRoomStudents
           .filter(rs => rs.roomId === room.id)
           .map(rs => students.find(s => s.id === rs.studentId))
           .filter(Boolean)
-          .sort((a, b) => a.lastName.localeCompare(b.lastName));
-        return { name: room.name || 'Room', teacher: room.teacherName || '', students: roomStudents };
-      });
+          .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '')),
+      })).filter(b => b.students.length);
 
-      // Unplaced assigned students get their own column
-      const roomStudentIdSet = new Set(erRoomStudents.map(rs => rs.studentId));
+      // Anyone assigned to ER but not yet dropped into a room still needs to
+      // know where to go, so they get a block of their own rather than being
+      // quietly left off the wall.
+      const placed = new Set(erRoomStudents.map(rs => rs.studentId));
       const unplaced = students
-        .filter(s => isAssigned(s.id) && !roomStudentIdSet.has(s.id))
-        .sort((a, b) => a.lastName.localeCompare(b.lastName));
-      if (unplaced.length) cols.push({ name: 'Not Assigned', teacher: '', students: unplaced });
+        .filter(s => isAssigned(s.id) && !placed.has(s.id))
+        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''));
+      if (unplaced.length) blocks.push({ name: 'Room Not Yet Assigned', teacher: '', students: unplaced, warn: true });
 
-      const allCols = cols.filter(c => c.students.length);
-      if (!allCols.length) { showToast('No students placed in rooms yet', 'warning'); return; }
+      if (!blocks.length) { showToast('No students placed in rooms yet', 'warning'); return; }
 
-      const maxRows = Math.max(...allCols.map(c => c.students.length));
-      const dateLabel = attCurrentDate ? fmtDate(attCurrentDate) : fmtDate(erPeriodStart) || 'All Students';
-      const numCols = allCols.length;
+      // ── Fit it on one page ──────────────────────────────────────────────
+      // Letter portrait at 96dpi, 0.4in margins, minus the title block.
+      const PAGE_W = 7.7 * 96, PAGE_H = 10.2 * 96 - 70;
+      const GUTTER = 18;
 
-      // Build table header and rows
-      const thead = allCols.map(c =>
-        `<th><div class="rn">${c.name}</div>${c.teacher ? `<div class="rt">${c.teacher}</div>` : ''}</th>`
-      ).join('');
+      // Height of a block measured in "lines", so the whole layout can be
+      // scaled by one font size at the end.
+      const blockLines = b => 1.7 + (b.teacher ? 0.95 : 0) + b.students.length + 0.9;
+      const longestName = Math.max(...blocks.flatMap(b =>
+        [b.name.length + 4, ...b.students.map(s => `${s.lastName}, ${s.firstName}`.length)]));
 
-      let tbody = '';
-      for (let i = 0; i < maxRows; i++) {
-        tbody += '<tr>' + allCols.map(c => {
-          const s = c.students[i];
-          return s ? `<td>${s.lastName}, ${s.firstName}</td>` : '<td></td>';
-        }).join('') + '</tr>';
+      // Greedy column packing — try each column count, keep whichever allows
+      // the biggest type.
+      function fitFor(cols) {
+        const heights = new Array(cols).fill(0);
+        const sorted = [...blocks].sort((a, b) => blockLines(b) - blockLines(a));
+        for (const b of sorted) {
+          const shortest = heights.indexOf(Math.min(...heights));
+          heights[shortest] += blockLines(b);
+        }
+        const tallest = Math.max(...heights);
+        const byHeight = PAGE_H / (tallest * 1.5);                    // 1.5em line box
+        const colW = (PAGE_W - GUTTER * (cols - 1)) / cols;
+        const byWidth = colW / (longestName * 0.55);                  // rough advance width
+        return Math.min(byHeight, byWidth);
       }
 
-      // Count per room for footer
-      const totals = allCols.map(c =>
-        `<td class="total">${c.students.length} student${c.students.length !== 1 ? 's' : ''}</td>`
-      ).join('');
+      let cols = 1, fontSize = 0;
+      for (let c = 1; c <= Math.min(4, blocks.length); c++) {
+        const fs = fitFor(c);
+        if (fs > fontSize) { fontSize = fs; cols = c; }
+      }
+      fontSize = Math.max(8, Math.min(26, Math.floor(fontSize)));
 
-      // Rough column width — scale font down when many rooms
-      const colPct = Math.floor(100 / numCols);
-      const fontSize = numCols <= 4 ? 13 : numCols <= 6 ? 12 : numCols <= 8 ? 11 : 10;
+      const total = blocks.reduce((n, b) => n + b.students.length, 0);
+      const body = blocks.map(b => `
+        <div class="room${b.warn ? ' warn' : ''}">
+          <div class="rname">${esc(b.name)}</div>
+          ${b.teacher ? `<div class="rteach">${esc(b.teacher)}</div>` : ''}
+          <ul>${b.students.map(s => `<li>${esc(`${s.lastName}, ${s.firstName}`)}</li>`).join('')}</ul>
+        </div>`).join('');
 
       const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>ER Room List</title>
+<title>ER Room Assignments</title>
 <style>
-  @page { size: landscape; margin: 0.45in 0.4in; }
+  @page { size: letter portrait; margin: 0.4in; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: Arial, sans-serif; font-size: ${fontSize}px; color: #111; }
-  .hdr { display: flex; align-items: baseline; gap: 14px; margin-bottom: 8px; }
-  .hdr h2 { font-size: 15px; font-weight: 800; }
-  .hdr span { font-size: 11px; color: #555; }
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-  th { background: #0f766e; color: #fff; padding: 5px 6px; text-align: left;
-       border: 1px solid #0d9488; vertical-align: bottom; }
-  .rn { font-size: ${Math.min(fontSize + 1, 14)}px; font-weight: 700; }
-  .rt { font-size: ${Math.max(fontSize - 2, 8)}px; opacity: .85; font-weight: 400; margin-top: 1px; }
-  td { padding: 3px 6px; border: 1px solid #d1d5db; vertical-align: top;
-       width: ${colPct}%; }
-  tr:nth-child(even) td { background: #f9fafb; }
-  tr.totals td { background: #f0fdf4; font-weight: 700; font-size: ${Math.max(fontSize - 1, 9)}px;
-                 color: #166534; border-top: 2px solid #bbf7d0; }
-  td.total { color: #166534; }
-  .foot { margin-top: 6px; font-size: 9px; color: #888; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: ${fontSize}px; }
+  h1 { font-size: ${Math.round(fontSize * 1.9)}px; letter-spacing: .5px; }
+  .sub { font-size: ${Math.round(fontSize * 0.95)}px; color: #555; margin-top: 2px; }
+  header { border-bottom: 3px solid #0f766e; padding-bottom: 6px; margin-bottom: 10px; }
+  .cols { column-count: ${cols}; column-gap: ${GUTTER}px; }
+  .room { break-inside: avoid; page-break-inside: avoid; margin-bottom: ${Math.round(fontSize * 0.8)}px;
+          border: 2px solid #0f766e; border-radius: 6px; overflow: hidden; }
+  .room.warn { border-color: #b45309; }
+  .rname { background: #0f766e; color: #fff; font-weight: 800; padding: 3px 7px;
+           font-size: ${Math.round(fontSize * 1.25)}px; }
+  .room.warn .rname { background: #b45309; }
+  .rteach { background: #ccfbf1; color: #115e59; padding: 1px 7px;
+            font-size: ${Math.round(fontSize * 0.9)}px; font-weight: 600; }
+  .room.warn .rteach { background: #fef3c7; color: #92400e; }
+  ul { list-style: none; padding: 3px 7px; }
+  li { line-height: 1.5; }
+  li + li { border-top: 1px solid #e5e7eb; }
+  footer { margin-top: 8px; font-size: 9px; color: #999; }
+  @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
 </style>
 </head>
 <body>
-<div class="hdr">
-  <h2>ER Room List</h2>
-  <span>${dateLabel}</span>
-  <span style="margin-left:auto;">${allCols.reduce((n,c)=>n+c.students.length,0)} students total</span>
-</div>
-<table>
-  <thead><tr>${thead}</tr></thead>
-  <tbody>
-    ${tbody}
-    <tr class="totals">${totals}</tr>
-  </tbody>
-</table>
-<div class="foot">Printed ${new Date().toLocaleString()}</div>
+<header>
+  <h1>Extended Remediation — Room Assignments</h1>
+  <div class="sub">Find your name and go to that room · ${total} student${total !== 1 ? 's' : ''}</div>
+</header>
+<div class="cols">${body}</div>
+<footer>Printed ${new Date().toLocaleString()}</footer>
 <script>window.onload=()=>{ window.print(); }<\/script>
 </body>
 </html>`;
 
-      const win = window.open('', '_blank', 'width=900,height=650');
+      const win = window.open('', '_blank', 'width=850,height=1100');
       if (!win) { showToast('Pop-up blocked — allow pop-ups for this page', 'warning'); return; }
       win.document.write(html);
       win.document.close();
