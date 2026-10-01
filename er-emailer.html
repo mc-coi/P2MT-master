@@ -1486,8 +1486,15 @@
       rows[rows.length - 1]?.querySelector('.w-name')?.focus();
     };
 
+    // Removing a row takes the class out of `workshops` immediately, so by the
+    // time Save runs there is nothing left in that array to compare against and
+    // work out what was deleted — the Firestore document survived and the class
+    // came back on the next load. Its ID is remembered here instead.
+    let removedWorkshopIds = [];
+
     window.removeWorkshopRow = function(idx) {
-      workshops.splice(idx, 1);
+      const [removed] = workshops.splice(idx, 1);
+      if (removed?.id) removedWorkshopIds.push(removed.id);
       renderWorkshopList();
     };
 
@@ -1502,12 +1509,14 @@
       });
 
       try {
-        // Delete removed workshops
-        for (const w of workshops) {
-          if (w.id && !updated.find(u => u.id === w.id)) {
-            await deleteDoc('erWorkshops', w.id);
-          }
-        }
+        // Delete removed classes: the ones whose row was deleted, plus any
+        // still on screen whose name was cleared (those are dropped above).
+        const goneIds = [...new Set([
+          ...removedWorkshopIds,
+          ...workshops.filter(w => w.id && !updated.find(u => u.id === w.id)).map(w => w.id),
+        ])];
+        for (const id of goneIds) await deleteDoc('erWorkshops', id);
+        removedWorkshopIds = [];
         // Save each
         const saved = [];
         for (const w of updated) {
@@ -1613,16 +1622,19 @@
     };
 
     window.deleteErRoom = async function(roomId) {
-      // Remove students from this room back to pool
+      // Collect the room's students BEFORE dropping them from the array — this
+      // used to filter first and then search the filtered array for the same
+      // rows, which always came back empty, so their Firestore documents were
+      // orphaned under a room that no longer existed.
+      const toDelete = erRoomStudents.filter(rs => rs.roomId === roomId && rs.id && !rs._isNew);
       erRoomStudents = erRoomStudents.filter(rs => rs.roomId !== roomId);
       erRooms = erRooms.filter(r => r.id !== roomId);
       // Delete from Firestore if it has a real ID
       if (!roomId.startsWith('new_')) {
         try {
           await deleteDoc('erRooms', roomId);
-          const toDelete = erRoomStudents.filter(rs => rs.roomId === roomId);
-          for (const rs of toDelete) if (rs.id) await deleteDoc('erRoomStudents', rs.id);
-        } catch(e) { console.error(e); }
+          for (const rs of toDelete) await deleteDoc('erRoomStudents', rs.id);
+        } catch(e) { console.error(e); showToast('Room removed on screen but the delete failed — reload before saving', 'error'); }
       }
       renderRoomCards();
       renderPoolChips();

@@ -2,7 +2,7 @@
 // with Firestore-accurate semantics that matter for this app: a query
 // condition never matches a document where the field is absent; every
 // returned document is a billed read; index failures can be injected.
-export const store = { schoolCalendar: [], interventionLogs: [], classAttendanceLogs: [], attendanceEvents: [], attendanceSessions: [], dailyAttendanceLogs: [], classSchedules: [], staff: [], students: [], meta: [] };
+export const store = { schoolCalendar: [], interventionLogs: [], classAttendanceLogs: [], attendanceEvents: [], attendanceSessions: [], dailyAttendanceLogs: [], classSchedules: [], staff: [], students: [], meta: [], erWorkshops: [], erRooms: [], erRoomStudents: [] };
 export const stats = { getAll: 0, query: 0, getById: 0, reads: 0, writes: 0, stampWrites: 0 };
 let nextId = 1;
 let failPredicate = null;
