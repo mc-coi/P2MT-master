@@ -1451,6 +1451,14 @@
       showToast(`All assignments${gradeNote} cleared`, 'success');
     };
 
+    // Every export of the same period used to land under the same filename, so
+    // a re-download became "… (1).csv" and it was easy to open the stale one by
+    // mistake and conclude a fix hadn't worked. The time stamps them apart.
+    function exportStamp() {
+      const d = new Date(), p = n => String(n).padStart(2, '0');
+      return `${p(d.getHours())}${p(d.getMinutes())}`;
+    }
+
     // One guardian field can hold more than one address — a household with two
     // parents is usually typed in as "a@x.org; b@y.com". A mail merge treats the
     // whole cell as a single recipient, so that row silently reaches nobody.
@@ -2127,7 +2135,7 @@
         return;
       }
 
-      const filename = `ER-MailMerge-${erPeriodStart || 'export'}.csv`;
+      const filename = `ER-MailMerge-${erPeriodStart || 'export'}-${exportStamp()}.csv`;
       triggerDownload(filename, rows.join('\r\n'));
 
       const exported = rows.length - 1;
@@ -2441,7 +2449,7 @@
         return;
       }
 
-      const filename = `ER-CheckedOut-${attCurrentDate || 'export'}.csv`;
+      const filename = `ER-CheckedOut-${attCurrentDate || 'export'}-${exportStamp()}.csv`;
       triggerDownload(filename, rows.join('\r\n'));
       const exported = rows.length - 1;
       showToast(`✓ Downloaded ${exported} row${exported !== 1 ? 's' : ''}${skipped ? ` (${skipped} skipped — no email)` : ''}`, 'success');
