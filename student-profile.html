@@ -142,6 +142,41 @@
             margin-top: 4px;
         }
 
+        /* ── Week-at-a-glance grid (Schedule tab) ── */
+        .week-grid {
+            display: grid;
+            grid-template-columns: 54px repeat(5, 1fr);
+            border: 1px solid var(--border, #e2e8f0);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--surface, #fff);
+            font-size: 12px;
+        }
+        .wk-head {
+            padding: 7px 4px; text-align: center; font-weight: 700; font-size: 12px;
+            background: #0f766e; color: #fff; border-left: 1px solid rgba(255,255,255,.18);
+        }
+        .wk-head:first-child { border-left: 0; }
+        .wk-gutter, .wk-day { position: relative; }
+        .wk-gutter { border-right: 1px solid var(--border, #e2e8f0); }
+        .wk-day    { border-left: 1px solid var(--border, #e2e8f0); }
+        /* Half-hour rules, drawn as a repeating background so the column stays
+           one element and blocks can be positioned against it absolutely. */
+        .wk-day.rules { background-image: linear-gradient(to bottom, var(--border, #e2e8f0) 1px, transparent 1px); }
+        .wk-hourmark {
+            position: absolute; right: 5px; font-size: 10px; color: var(--text-muted, #94a3b8);
+            transform: translateY(-50%); white-space: nowrap;
+        }
+        .wk-block {
+            position: absolute; left: 2px; right: 2px; border-radius: 4px;
+            padding: 2px 4px; overflow: hidden; color: #fff; line-height: 1.15;
+            border-left: 3px solid rgba(0,0,0,.25);
+        }
+        .wk-block .wb-name { font-weight: 700; font-size: 11px; }
+        .wk-block .wb-meta { font-size: 10px; opacity: .92; }
+        .wk-lab { outline: 2px dashed rgba(255,255,255,.65); outline-offset: -4px; }
+        .wk-note { font-size: 11px; color: var(--text-muted, #94a3b8); margin-top: 6px; }
+
         .class-card {
             border: 1px solid #ecf0f1;
             border-radius: 6px;
@@ -465,6 +500,14 @@
 
         <!-- Tab 3 - Schedule -->
         <div id="schedule" class="tab-content">
+            <div id="week-view" style="display:none;">
+                <div class="week-grid" id="week-grid"><!-- built in renderScheduleTab --></div>
+            </div>
+
+            <!-- Classes that can't be placed on the grid (online, independent
+                 study, or an import with no days or times) still have to show
+                 up somewhere, so the card list stays underneath. -->
+            <div id="schedule-list-title" class="parent-block-title" style="display:none;margin-top:22px;">All Classes</div>
             <div class="grid-2" id="schedule-grid">
                 <!-- Class cards will be inserted here -->
             </div>
@@ -945,6 +988,143 @@
             }
         }
 
+        // Class and teacher names go into the grid's markup and its tooltips.
+        // They come from CSV imports, so they are escaped rather than trusted.
+        function esc(v) {
+            return String(v == null ? '' : v)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // ── Week at a glance ────────────────────────────────────────────────
+        // The school day runs 9:30 to 4:30, so that is the window the grid
+        // covers. Anything outside it is clamped to the edge rather than
+        // dropped, and the card list below still shows the real times.
+        const WK_START_MIN = 9 * 60 + 30;
+        const WK_END_MIN   = 16 * 60 + 30;
+        const WK_PX_PER_MIN = 1.05;
+        // Breathing room at the top and bottom so the 9:30 and 4:30 labels,
+        // which are centred on their line, aren't cut in half by the border.
+        const WK_PAD = 9;
+        const WK_DAYS = [['M','Mon'], ['T','Tue'], ['W','Wed'], ['Th','Thu'], ['F','Fri']];
+
+        // "14:05" → 845. Tolerates "2:05 PM" and a stray stored "9:30:00".
+        function wkMinutes(t) {
+            const raw = String(t || '').trim();
+            if (!raw) return null;
+            const m = raw.match(/^(\d{1,2}):(\d{2})/);
+            if (!m) return null;
+            let h = Number(m[1]);
+            const min = Number(m[2]);
+            if (/pm/i.test(raw) && h < 12) h += 12;
+            if (/am/i.test(raw) && h === 12) h = 0;
+            if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+            return h * 60 + min;
+        }
+
+        function wkLabel(mins) {
+            const h24 = Math.floor(mins / 60), m = mins % 60;
+            const h = h24 % 12 === 0 ? 12 : h24 % 12;
+            return `${h}:${String(m).padStart(2, '0')}`;
+        }
+
+        // A stable colour per class, so the same class keeps its colour between
+        // visits and two classes side by side are easy to tell apart.
+        function wkColour(key) {
+            let h = 0;
+            for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) % 360;
+            return `hsl(${h}, 52%, 42%)`;
+        }
+
+        function renderWeekView(schedules) {
+            const wrap = document.getElementById('week-view');
+            const grid = document.getElementById('week-grid');
+            if (!wrap || !grid) return;
+
+            // Only classes with both a day and a start time can be placed.
+            const placed = [];
+            schedules.forEach(sc => {
+                const start = wkMinutes(sc.startTime);
+                if (start === null) return;
+                const endRaw = wkMinutes(sc.endTime);
+                const end = (endRaw !== null && endRaw > start) ? endRaw : start + 50;
+                const days = Array.isArray(sc.classDays) ? sc.classDays
+                           : String(sc.classDays || '').split(/[,\s]+/).filter(Boolean);
+                days.forEach(d => {
+                    const key = d === 'TH' ? 'Th' : d;
+                    if (WK_DAYS.some(([abbr]) => abbr === key)) placed.push({ sc, day: key, start, end });
+                });
+            });
+
+            if (!placed.length) { wrap.style.display = 'none'; return; }
+            wrap.style.display = 'block';
+
+            const height = (WK_END_MIN - WK_START_MIN) * WK_PX_PER_MIN + WK_PAD * 2;
+            const top = mins => WK_PAD + (Math.max(mins, WK_START_MIN) - WK_START_MIN) * WK_PX_PER_MIN;
+
+            let html = '<div class="wk-head"></div>' +
+                WK_DAYS.map(([, full]) => `<div class="wk-head">${full}</div>`).join('');
+
+            // Time gutter: a label on each half hour.
+            let gutter = '';
+            for (let m = WK_START_MIN; m <= WK_END_MIN; m += 30) {
+                gutter += `<div class="wk-hourmark" style="top:${top(m)}px;">${wkLabel(m)}</div>`;
+            }
+            html += `<div class="wk-gutter" style="height:${height}px;">${gutter}</div>`;
+
+            let clamped = false;
+            WK_DAYS.forEach(([abbr]) => {
+                const items = placed.filter(p => p.day === abbr).sort((a, b) => a.start - b.start || a.end - b.end);
+
+                // Side-by-side columns for classes that overlap in time. Items
+                // are walked in start order; a new cluster begins as soon as one
+                // starts after everything before it has finished.
+                const clusters = [];
+                let cur = [], curEnd = -1;
+                items.forEach(it => {
+                    if (cur.length && it.start >= curEnd) { clusters.push(cur); cur = []; curEnd = -1; }
+                    cur.push(it); curEnd = Math.max(curEnd, it.end);
+                });
+                if (cur.length) clusters.push(cur);
+
+                let blocks = '';
+                clusters.forEach(cluster => {
+                    const n = cluster.length;
+                    cluster.forEach((it, i) => {
+                        if (it.start < WK_START_MIN || it.end > WK_END_MIN) clamped = true;
+                        const t = top(it.start);
+                        const h = Math.max(16, top(Math.min(it.end, WK_END_MIN)) - t);
+                        const w = 100 / n;
+                        const colour = wkColour(`${it.sc.className || ''}|${it.sc.teacherLastName || ''}`);
+                        const timeTxt = `${wkLabel(it.start)}–${wkLabel(it.end)}`;
+                        const title = `${it.sc.className || ''} · ${it.sc.teacherLastName || ''} · ${timeTxt}`;
+                        blocks += `<div class="wk-block${it.sc.learningLab ? ' wk-lab' : ''}"
+                            style="top:${t}px;height:${h}px;left:calc(${i * w}% + 2px);width:calc(${w}% - 4px);background:${colour};"
+                            title="${esc(title)}">
+                            <div class="wb-name">${esc(it.sc.className || 'Class')}</div>
+                            ${h >= 34 ? `<div class="wb-meta">${esc(it.sc.teacherLastName || '')}</div>` : ''}
+                            ${h >= 50 ? `<div class="wb-meta">${esc(timeTxt)}</div>` : ''}
+                        </div>`;
+                    });
+                });
+
+                html += `<div class="wk-day rules" style="height:${height}px;` +
+                        `background-position:0 ${WK_PAD}px;background-size:100% ${30 * WK_PX_PER_MIN}px;">${blocks}</div>`;
+            });
+
+            grid.innerHTML = html;
+
+            const note = [];
+            if (clamped) note.push('A class falls outside 9:30–4:30 and is shown clipped to the edge of the grid.');
+            const existing = document.getElementById('wk-note');
+            if (existing) existing.remove();
+            if (note.length) {
+                const d = document.createElement('div');
+                d.id = 'wk-note'; d.className = 'wk-note'; d.textContent = note.join(' ');
+                wrap.appendChild(d);
+            }
+        }
+
         // Render Schedule Tab
         function renderScheduleTab() {
             const grid = document.getElementById('schedule-grid');
@@ -959,6 +1139,10 @@
                 seenKeys.add(key);
                 return true;
             });
+
+            renderWeekView(uniqueSchedules);
+            document.getElementById('schedule-list-title').style.display =
+                uniqueSchedules.length ? 'block' : 'none';
 
             if (uniqueSchedules.length > 0) {
                 document.getElementById('schedule-empty').style.display = 'none';
