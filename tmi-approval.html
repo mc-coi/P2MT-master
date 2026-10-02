@@ -258,7 +258,7 @@
     import { getById, getWhere, updateDoc } from './js/db.js';
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, showToast, rememberRange, recallRange, studentDisplayName } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, rememberRange, recallRange, studentDisplayName, mailMergeCell as tmiCsvCell } from './js/utils.js';
     import { recalcTMIForWindow, fetchTMIRecordsForRange, qualifies,
              startSession, endSession, editSession, removeSession, setServedBase,
              servedSummary, openSessionOf, minutesOfSession, saveSessionUpdate } from './js/tmiEngine.js';
@@ -287,10 +287,6 @@
     // not a line/record separator to Word's reader, so the row stays intact,
     // but Word still renders it as a line break once the merge fields land in
     // the document, so the email doesn't come out as one giant paragraph.
-    function tmiCsvCell(v) {
-      const normalized = String(v ?? '').replace(/\r\n|\r|\n/g, '\v');
-      return `"${normalized.replace(/"/g, '""')}"`;
-    }
 
     // Convert template body (HTML or plain text) to HTML for the .eml
     function bodyToHtml(raw) {

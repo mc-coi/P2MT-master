@@ -436,3 +436,22 @@ export function studentDisplayName(student, fallback = '') {
   if (last && first) return `${last}, ${first}`;
   return last || first || (fallback || '').trim();
 }
+
+// One cell of a mail-merge CSV, in the shape Word and Outlook can actually read.
+//
+// Word's mail merge reads a CSV through the Jet/ACE text driver, which counts
+// physical lines, not RFC-4180 records. A line break inside a quoted field is
+// legal CSV and opens fine in Excel, but Word sees a 155-row file as 1,395
+// broken records and refuses the merge outright.
+//
+// The vertical tab is the long-standing way round it: Word renders U+000B as a
+// line break inside the paragraph, so the message still has its line breaks,
+// while the file stays strictly one line per recipient.
+//
+// The TMI notification export did this and worked. The ER export did not, and
+// Outlook rejected the file — the difference was invisible in Excel, which
+// parses both correctly, so the ER file looked fine right up until the merge.
+export function mailMergeCell(v) {
+  const oneLine = String(v ?? '').replace(/\r\n|\r|\n/g, '\v');
+  return `"${oneLine.replace(/"/g, '""')}"`;
+}

@@ -70,3 +70,36 @@ t("a half-typed entry is kept as typed rather than wiped",
   normalise('jsmith@') === 'jsmith@', normalise('jsmith@'));
 
 console.log(fails ? `\n${fails} FAILED` : "\nAll guardian-email tests passed.");
+
+// ── The file has to be one physical line per recipient ────────────────────
+// Word's mail merge counts lines, not CSV records, so a line break inside a
+// quoted Body field breaks the merge even though the file is valid CSV and
+// opens correctly in Excel. The ER export hit this; the TMI export already
+// avoided it. They now share one helper.
+{
+  const { mailMergeCell } = await import('./utils.js');
+
+  const body = 'Hadil is required to attend.\n\nThe reason is:\n\nEnglish 3\n\nThank you.';
+  const cell = mailMergeCell(body);
+  t("no line break survives into the file", !/[\r\n]/.test(cell), JSON.stringify(cell.slice(0, 40)));
+  t("they become vertical tabs, which Word draws as line breaks",
+    (cell.match(/\v/g) || []).length === 6, String((cell.match(/\v/g) || []).length));
+  t("the field is quoted", cell.startsWith('"') && cell.endsWith('"'));
+  t("CRLF collapses to one break, not two",
+    (mailMergeCell('a\r\nb').match(/\v/g) || []).length === 1);
+  t("a lone CR counts too", (mailMergeCell('a\rb').match(/\v/g) || []).length === 1);
+  t("quotes are doubled", mailMergeCell('say "hi"') === '"say ""hi"""');
+  t("null and undefined give an empty field",
+    mailMergeCell(null) === '""' && mailMergeCell(undefined) === '""');
+  t("a comma stays inside the quotes", mailMergeCell('a,b') === '"a,b"');
+
+  // A whole file: physical lines must equal rows.
+  const rows = ['Email,Subject,Body'];
+  for (let i = 0; i < 5; i++) {
+    rows.push([mailMergeCell(`p${i}@x.org`), mailMergeCell('Subject – ER'), mailMergeCell(body)].join(','));
+  }
+  const file = rows.join('\r\n');
+  t("155-style file: one physical line per record",
+    file.split('\r\n').length === 6 && !/[^\r]\n/.test(file), String(file.split('\r\n').length));
+}
+console.log(fails ? `\n${fails} FAILED (incl. mail-merge cell)` : "Mail-merge cell tests passed.");

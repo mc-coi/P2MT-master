@@ -782,7 +782,7 @@
     import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, listenWhere } from './js/db.js';
     import { saveEvent, deleteEvent, fetchClassLogs, EVENTS_COLLECTION } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { showToast, confirmTypedDelete }  from './js/utils.js';
+    import { showToast, confirmTypedDelete, mailMergeCell as csvCell }  from './js/utils.js';
 
     // ── Data ─────────────────────────────────────────────────────────────────────
     let students              = [];
@@ -1986,10 +1986,6 @@
     // ── Shared CSV helpers ─────────────────────────────────────────────────────────
 
     // Wrap a cell value for CSV: quote it and escape internal quotes
-    function csvCell(v) {
-      const s = String(v ?? '').replace(/"/g, '""');
-      return `"${s}"`;
-    }
 
     // Trigger a browser download of text content as a named file
     function triggerDownload(filename, content, mime = 'text/csv;charset=utf-8;') {
