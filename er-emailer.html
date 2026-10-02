@@ -1451,10 +1451,27 @@
       showToast(`All assignments${gradeNote} cleared`, 'success');
     };
 
+    // One guardian field can hold more than one address — a household with two
+    // parents is usually typed in as "a@x.org; b@y.com". A mail merge treats the
+    // whole cell as a single recipient, so that row silently reaches nobody.
+    // Every place an address leaves this page goes through here first.
+    function splitEmails(raw) {
+      return String(raw || '')
+        .split(/[;,]+|\s+/)
+        .map(e => e.trim())
+        .filter(e => e.includes('@'));
+    }
+
     // ── Guardian email save ───────────────────────────────────────────────────────
     window.saveGuardianEmail = async function(input) {
       const studentId = input.dataset.student;
-      const email     = input.value.trim();
+      // Several addresses are allowed and are stored in one consistent shape;
+      // anything that isn't an address at all is left as typed so a half-typed
+      // entry isn't silently thrown away.
+      const typed = input.value.trim();
+      const parts = splitEmails(typed);
+      const email = parts.length ? parts.join('; ') : typed;
+      input.value = email;
       guardianEmails[studentId] = email;
       try {
         const existing = await getWhere('guardianEmails', 'studentId', '==', studentId);
@@ -2058,7 +2075,8 @@
       const mergedBody    = merge(tmpl.body, data);
       const toAddr        = encodeURIComponent(student.email || '');
       const gEmail        = guardianEmails[studentId] || '';
-      const cc            = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
+      const ccList        = splitEmails(gEmail).join(',');   // mail clients want commas, not semicolons
+      const cc            = ccList ? `&cc=${encodeURIComponent(ccList)}` : '';
       const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
 
       // Open in Outlook Web compose (avoids Mail.app / no-SMTP-server errors)
@@ -2098,9 +2116,10 @@
           rows.push([csvCell(student.email), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
         } else { skippedStudent++; }
 
-        // Guardian row — always include when an email is available
-        const gEmail = guardianEmails[student.id];
-        if (gEmail) rows.push([csvCell(gEmail), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
+        // Guardian rows — one per address, so a field holding two parents
+        // produces two rows rather than one unreachable recipient.
+        splitEmails(guardianEmails[student.id])
+          .forEach(addr => rows.push([csvCell(addr), csvCell(mergedSubject), csvCell(mergedBody)].join(',')));
       });
 
       if (rows.length === 1) {
@@ -2364,7 +2383,8 @@
       const mergedBody    = merge(tmpl.body, data);
       const toAddr        = encodeURIComponent(student.email || '');
       const gEmail        = guardianEmails[studentId] || '';
-      const cc            = gEmail ? `&cc=${encodeURIComponent(gEmail)}` : '';
+      const ccList        = splitEmails(gEmail).join(',');   // mail clients want commas, not semicolons
+      const cc            = ccList ? `&cc=${encodeURIComponent(ccList)}` : '';
       const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
 
       // Open in Outlook Web compose
@@ -2412,8 +2432,8 @@
           rows.push([csvCell(student.email), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
         } else { skipped++; }
 
-        const gEmail = guardianEmails[student.id];
-        if (gEmail) rows.push([csvCell(gEmail), csvCell(mergedSubject), csvCell(mergedBody)].join(','));
+        splitEmails(guardianEmails[student.id])
+          .forEach(addr => rows.push([csvCell(addr), csvCell(mergedSubject), csvCell(mergedBody)].join(',')));
       });
 
       if (rows.length === 1) {
