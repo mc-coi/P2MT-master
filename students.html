@@ -38,6 +38,20 @@
     .int-view-table th { background: #00796b; color: #fff; padding: 8px 10px; text-align: left; }
     .int-view-table td { padding: 7px 10px; border-bottom: 1px solid #eee; }
     .int-view-table tr:last-child td { border-bottom: none; }
+    /* Prior-intervention warning in the Assign modal. Shown as soon as a
+       category is picked, so the level can be chosen knowing what came before. */
+    .int-prior-note {
+      margin: -8px 0 14px; padding: 9px 11px; border-radius: 6px;
+      background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
+      font-size: 0.85rem; line-height: 1.45;
+    }
+    .int-prior-note .ipn-head { font-weight: 700; }
+    .int-prior-note ul { margin: 5px 0 0; padding-left: 18px; }
+    .int-prior-note li { margin: 1px 0; }
+    .int-prior-note.ipn-clear { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    [data-theme="dark"] .int-prior-note { background: rgba(217,119,6,0.18); border-color: rgba(252,211,77,0.5); color: #FCD34D; }
+    [data-theme="dark"] .int-prior-note.ipn-clear { background: rgba(22,163,74,0.18); border-color: rgba(187,247,208,0.4); color: #86EFAC; }
+
     .int-level-chip { display: inline-block; background: #fff3e0; color: #e65100; border-radius: 10px; padding: 1px 8px; font-size: 0.78rem; font-weight: 600; }
 
     /* Import / Export dropdown (neutral colours, reuses bulk-delete-wrap layout) */
@@ -214,6 +228,7 @@
             <option value="Academic">Academic</option>
             <option value="Dress Code">Dress Code</option>
           </select>
+          <div id="int-prior-note" class="int-prior-note" style="display:none;"></div>
         </div>
         <div class="w3-col m2 w3-padding-small">
           <select id="int-filter-level" class="w3-select w3-border" onchange="renderInterventionList()">
@@ -472,6 +487,7 @@
             <option value="Academic">Academic</option>
             <option value="Dress Code">Dress Code</option>
           </select>
+          <div id="int-prior-note" class="int-prior-note" style="display:none;"></div>
         </div>
 
         <div class="form-group">
@@ -551,7 +567,7 @@
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, addDoc, updateDoc, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete, studentDisplayName } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete, studentDisplayName, escapeHtml } from './js/utils.js';
     import { recalcTMIForStudent, resolveStaffSurname } from './js/tmiEngine.js';
     import { saveEvent, deleteEvent, EVENTS_COLLECTION } from './js/attendance.js';
 
@@ -1382,6 +1398,8 @@
       document.getElementById('assign-student-name-label').textContent = `${s.firstName} ${s.lastName}`;
       document.getElementById('assignInterventionForm').reset();
       document.getElementById('int-level').innerHTML = '<option value="">Select Category First</option>';
+      const priorNote = document.getElementById('int-prior-note');
+      if (priorNote) { priorNote.style.display = 'none'; priorNote.innerHTML = ''; }
 
       // Default datetime to now (local)
       const now = new Date();
@@ -1397,7 +1415,55 @@
       assignStudentId = null;
     }
 
+    // Everything this student already has in one category, newest first.
+    // Reads nothing: interventionsData is loaded when the page opens.
+    function priorInterventionsFor(studentId, category) {
+      if (!studentId || !category) return [];
+      return (interventionsData || [])
+        .filter(r => r.studentId === studentId && r.category === category)
+        .sort((a, b) => String(b.dateTime || '').localeCompare(String(a.dateTime || '')));
+    }
+
+    // Shown the moment a category is picked, before a level is chosen: the
+    // level that's appropriate depends on what the student already has, and
+    // that history was two clicks away in a different modal.
+    function showPriorInterventionNote() {
+      const note = document.getElementById('int-prior-note');
+      if (!note) return;
+      const cat = document.getElementById('int-category').value;
+      if (!cat) { note.style.display = 'none'; note.innerHTML = ''; return; }
+
+      const prior = priorInterventionsFor(assignStudentId, cat);
+      note.style.display = 'block';
+
+      if (!prior.length) {
+        note.className = 'int-prior-note ipn-clear';
+        note.innerHTML = `<span class="ipn-head"><i class="fas fa-check-circle"></i> No prior ${escapeHtml(cat)} interventions</span> for this student.`;
+        return;
+      }
+
+      const fmt = v => {
+        const d = v ? new Date(v) : null;
+        return (d && !isNaN(d)) ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                                : (v || 'unknown date');
+      };
+      const highest = Math.max(...prior.map(r => Number(r.level) || 0));
+      const shown = prior.slice(0, 3);
+      const more = prior.length - shown.length;
+
+      note.className = 'int-prior-note';
+      note.innerHTML =
+        `<span class="ipn-head"><i class="fas fa-triangle-exclamation"></i> ` +
+        `${prior.length} prior ${escapeHtml(cat)} intervention${prior.length !== 1 ? 's' : ''}</span>` +
+        ` — highest so far is Level ${highest}.` +
+        `<ul>${shown.map(r =>
+          `<li>Level ${escapeHtml(r.level)} · ${escapeHtml(fmt(r.dateTime))}` +
+          `${r.comments ? ` · ${escapeHtml(String(r.comments).slice(0, 60))}` : ''}</li>`
+        ).join('')}${more > 0 ? `<li>…and ${more} earlier</li>` : ''}</ul>`;
+    }
+
     function updateLevelOptions() {
+      showPriorInterventionNote();
       const cat = document.getElementById('int-category').value;
       const maxLevel = INTERVENTION_LEVELS[cat] || 0;
       const sel = document.getElementById('int-level');

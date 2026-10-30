@@ -455,3 +455,18 @@ export function mailMergeCell(v) {
   const oneLine = String(v ?? '').replace(/\r\n|\r|\n/g, '\v');
   return `"${oneLine.replace(/"/g, '""')}"`;
 }
+
+// Escape a value for insertion into HTML.
+//
+// Student names, comments and class names all arrive from CSV imports and
+// free-text boxes, so anything interpolated into markup goes through here —
+// an apostrophe or angle bracket in a comment should show up as typed, not
+// break the surrounding element.
+export function escapeHtml(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
