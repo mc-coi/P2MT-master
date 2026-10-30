@@ -4,6 +4,7 @@
    parses under `node --check`.
 2. Every call to a shared-module helper passes an argument count the
    function actually accepts.
+3. No page declares the same element id twice.
 
 Check 2 exists because three call sites passed a hand-generated document ID
 to db.js's addDoc(collection, data), which takes two arguments. The ID went
@@ -129,6 +130,31 @@ def check_arity():
     return problems
 
 
+def check_duplicate_ids():
+    """An id used twice in one page.
+
+    getElementById returns the FIRST match, so the second element is simply
+    never found: it is never filled in, never shown, never updated, and
+    nothing errors. This check exists because a search-and-replace meant to
+    add one element to a modal also matched an identical block in a filter
+    bar, and the warning it was supposed to show appeared in the filter bar
+    while the modal stayed blank.
+    """
+    problems = []
+    for path in sorted(glob.glob(os.path.join(root, "*.html"))):
+        raw = open(path, encoding="utf-8", errors="ignore").read()
+        seen = {}
+        # Only static ids in the markup; ids built inside template literals
+        # (id="room-card-${room.id}") are generated per row and are not
+        # duplicates in the source.
+        for m in re.finditer(r'\sid\s*=\s*"([^"${}]+)"', raw):
+            seen.setdefault(m.group(1), []).append(raw[:m.start()].count('\n') + 1)
+        for el_id, lines in seen.items():
+            if len(lines) > 1:
+                problems.append(f"{os.path.relpath(path, root)}  id=\"{el_id}\" declared {len(lines)} times, on lines {', '.join(map(str, lines))}")
+    return problems
+
+
 def check_syntax():
     failures, count = [], 0
     for path in sorted(glob.glob(os.path.join(root, "*.html"))):
@@ -148,13 +174,17 @@ def check_syntax():
 
 failures, count = check_syntax()
 problems = check_arity()
+dupes = check_duplicate_ids()
 
 for p, i, e in failures:
     print(f"SYNTAX FAIL: {p} #{i}\n{e}\n")
 for p in problems:
     print(f"ARITY FAIL: {p}")
+for d in dupes:
+    print(f"DUPLICATE ID: {d}")
 
-if failures or problems:
+if failures or problems or dupes:
     sys.exit(1)
 print(f"All {count} scripts pass node --check")
 print(f"All shared-module calls pass the argument-count check ({len(signatures())} signatures)")
+print("No page declares the same element id twice")
