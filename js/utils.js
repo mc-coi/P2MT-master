@@ -86,7 +86,7 @@ export function getCurrentSemester() {
 // Accepts two signatures:
 //   exportCSV(data, filename)            — data is a full array (objects or array-of-arrays)
 //   exportCSV(headers, rows, filename)   — headers is a string[] and rows is an array of arrays
-export function exportCSV(data, filenameOrRows, filename) {
+export function exportCSV(data, filenameOrRows, filename = '') {
   // 3-arg form: exportCSV(headers, rows, filename)
   if (Array.isArray(filenameOrRows)) {
     data     = [data, ...filenameOrRows];  // combine headers + rows into array-of-arrays

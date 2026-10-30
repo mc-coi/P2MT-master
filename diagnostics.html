@@ -409,8 +409,7 @@
       const s = state.schedules;
       if (!s || !s.toDelete.length) return;
       const ok = await confirmTypedDelete(
-        `Delete ${s.toDelete.length} duplicate class schedule record(s)?`,
-        'DELETE'
+        `Delete ${s.toDelete.length} duplicate class schedule record(s)?`
       );
       if (!ok) return;
       await batchDelete('classSchedules', s.toDelete, 'schedStatus');
@@ -471,8 +470,7 @@
       const s = state.errooms;
       if (!s || !s.toDelete.length) return;
       const ok = await confirmTypedDelete(
-        `Delete ${s.toDelete.length} duplicate ER room placement(s)?`,
-        'DELETE'
+        `Delete ${s.toDelete.length} duplicate ER room placement(s)?`
       );
       if (!ok) return;
       await batchDelete('erRoomStudents', s.toDelete, 'erStatus');

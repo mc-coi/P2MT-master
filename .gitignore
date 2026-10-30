@@ -55,4 +55,5 @@ tools/sim/attendance.js
 tools/sim/tmiEngine.js
 tools/sim/data.js
 tools/sim/utils.js
+tools/sim/labInterventions.js
 tools/extracted/

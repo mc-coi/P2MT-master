@@ -10,6 +10,22 @@
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
   <link rel="stylesheet" href="./css/main.css">
   <style>
+    /* "Already has a Learning Lab" warning in the Add/Edit modal — same
+       visual language as the prior-intervention notice on Students. */
+    .lab-existing-note {
+      margin: 4px 0 14px; padding: 9px 11px; border-radius: 6px;
+      background: #fffbeb; border: 1px solid #fcd34d; color: #92400e;
+      font-size: 0.85rem; line-height: 1.45;
+    }
+    .lab-existing-note .len-head { font-weight: 700; }
+    .lab-existing-note ul { margin: 5px 0 0; padding-left: 18px; }
+    .lab-existing-note li { margin: 1px 0; }
+    .lab-existing-note .len-now { display:inline-block; margin-left:4px; padding:0 6px; border-radius:8px;
+                                  background:#fde68a; color:#78350f; font-size:0.75rem; font-weight:700; }
+    .lab-existing-note.len-clear { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+    [data-theme="dark"] .lab-existing-note { background: rgba(217,119,6,0.18); border-color: rgba(252,211,77,0.5); color: #FCD34D; }
+    [data-theme="dark"] .lab-existing-note.len-clear { background: rgba(22,163,74,0.18); border-color: rgba(187,247,208,0.4); color: #86EFAC; }
+
     .day-badge { display: inline-block; width: 24px; height: 24px; border-radius: 3px; text-align: center; line-height: 24px; font-size: 11px; font-weight: bold; color: white; margin: 2px; }
     .day-m { background-color: #2196F3; }
     .day-t { background-color: #009688; }
@@ -110,6 +126,9 @@
           </label></div>
           <div><label>School Year<input class="w3-input w3-border" type="text" id="labSchoolYear"></label></div>
         </div>
+        <!-- Shown as soon as a student is picked, if they already have a lab
+             running or still to come. -->
+        <div id="lab-existing-note" class="lab-existing-note" style="display:none;"></div>
 
         <div class="form-row">
           <div><label>Semester<select class="w3-input w3-border" id="labSemester"><option>Fall</option><option>Spring</option></select></label></div>
@@ -287,7 +306,8 @@
     import { initNav } from './js/nav.js';
     import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete } from './js/utils.js';
+    import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete, escapeHtml, studentDisplayName } from './js/utils.js';
+    import { syncLabIntervention, removeLabIntervention, openLabsForStudent } from './js/labInterventions.js';
 
     window.getAll = getAll;
     window.getById = getById;
@@ -429,6 +449,7 @@
       document.getElementById('labModalTitle').textContent = 'Add Learning Lab';
       document.getElementById('labStudentId').value = '';
       document.getElementById('labStudentDisplay').innerHTML = '';
+      showExistingLabNote(null);
       document.getElementById('labTeacherSelect').value = '';
       document.getElementById('labClassName').value = '';
       document.getElementById('labComment').value = '';
@@ -484,6 +505,7 @@
         document.getElementById('labSemester').value = schedule.semester || '';
         document.getElementById('labStartDate').value = schedule.startDate || '';
         document.getElementById('labEndDate').value = schedule.endDate || '';
+        showExistingLabNote(schedule.studentId, schedule);
         
         // Load first session
         document.querySelectorAll('.session1Days').forEach(el => el.checked = (schedule.classDays || []).includes(el.value));
@@ -544,7 +566,45 @@
       document.getElementById('labStudentDisplay').innerHTML = `<div class="w3-text-blue"><strong>${name}</strong> (${aNum})</div>`;
       document.getElementById('labStudentSearch').value = '';
       document.getElementById('labStudentDropdown').style.display = 'none';
+      showExistingLabNote(id);
     };
+
+    // Warn, the moment a student is picked, that they already have a Learning
+    // Lab running or still to come. `editing` is the lab open in the modal, so
+    // an edit doesn't warn about the very lab being edited. Reads nothing:
+    // allSchedules is loaded with the page.
+    function showExistingLabNote(studentId, editing = null) {
+      const note = document.getElementById('lab-existing-note');
+      if (!note) return;
+      if (!studentId) { note.style.display = 'none'; note.innerHTML = ''; return; }
+
+      const sameLab = l => editing &&
+        l.className === (editing.className || 'Learning Lab') &&
+        l.teacherLastName === (editing.teacherLastName || '') &&
+        l.startDate === (editing.startDate || '') &&
+        l.endDate === (editing.endDate || '');
+      const labs = openLabsForStudent(studentId, allSchedules).filter(l => !sameLab(l));
+
+      note.style.display = 'block';
+      if (!labs.length) {
+        note.className = 'lab-existing-note len-clear';
+        note.innerHTML = '<span class="len-head"><i class="fas fa-check-circle"></i> No current Learning Lab</span> for this student.';
+        return;
+      }
+
+      const d = v => v ? formatDate(v) : '?';
+      const running = labs.filter(l => l.running).length;
+      note.className = 'lab-existing-note';
+      note.innerHTML =
+        `<span class="len-head"><i class="fas fa-triangle-exclamation"></i> ` +
+        `This student already has ${labs.length === 1 ? 'a Learning Lab' : `${labs.length} Learning Labs`}` +
+        `${running ? (running === labs.length ? ' running now' : ` (${running} running now)`) : ' scheduled'}.</span>` +
+        `<ul>${labs.map(l =>
+          `<li>${escapeHtml(l.className)}${l.teacherLastName ? ` · ${escapeHtml(l.teacherLastName)}` : ''}` +
+          ` · ${escapeHtml(d(l.startDate))} – ${escapeHtml(d(l.endDate))}` +
+          `${l.running ? '<span class="len-now">NOW</span>' : ''}</li>`
+        ).join('')}</ul>`;
+    }
 
 
 
@@ -574,6 +634,9 @@
 
         const scheduleIds = [];
         const createdSchedules = [];
+        // The lab as it was before this edit, so its intervention can be moved
+        // if the dates or the student changed.
+        const before = currentEditId ? allSchedules.find(s => s.id === currentEditId) : null;
 
         // Create schedules for each session
         for (let i = 1; i <= 5; i++) {
@@ -619,6 +682,29 @@
         // No attendance rows are pre-created: the schedule itself (classDays +
         // start/end date) defines which days the lab meets, and Class
         // Attendance builds the roster from it. Only absences are stored.
+
+        // A Learning Lab is a Level 1 Academic intervention for its duration.
+        // A failure here is reported but doesn't undo the lab itself.
+        if (createdSchedules.length) {
+          try {
+            const res = await syncLabIntervention({
+              studentId,
+              studentName:     studentDisplayName(student),
+              startDate,
+              endDate,
+              className,
+              teacherLastName,
+              assignedBy:      getCurrentUser()?.displayName || getCurrentUser()?.email || 'Learning Lab',
+              previous:        before ? { studentId: before.studentId, startDate: before.startDate, endDate: before.endDate } : null,
+            });
+            if (res.action === 'skipped' && res.reason === 'no dates') {
+              showToast('No Academic intervention added — set a start and end date so it can be removed when the lab ends', 'warning');
+            }
+          } catch (err) {
+            console.error('Learning Lab intervention error:', err);
+            showToast('Lab saved, but its Academic intervention could not be added', 'warning');
+          }
+        }
 
         showToast('Learning lab saved successfully', 'success');
         const wasNewAssignment = !currentEditId;
@@ -825,6 +911,19 @@
 
         for (const schedule of relatedSchedules) {
           await deleteDoc('classSchedules', schedule.id);
+        }
+
+        // Take the lab's Academic intervention with it — unless another lab
+        // for the same student and dates is still standing, since the two
+        // share one intervention record.
+        const goneIds = new Set(relatedSchedules.map(s => s.id));
+        const ranges = new Map();
+        relatedSchedules.forEach(s => ranges.set(`${s.startDate}|${s.endDate}`, s));
+        for (const s of ranges.values()) {
+          const stillUsed = allSchedules.some(o =>
+            !goneIds.has(o.id) && o.learningLab && o.studentId === s.studentId &&
+            o.startDate === s.startDate && o.endDate === s.endDate);
+          if (!stillUsed) await removeLabIntervention(s.studentId, s.startDate, s.endDate);
         }
 
         showToast('Learning lab deleted successfully', 'success');

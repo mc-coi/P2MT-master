@@ -567,6 +567,7 @@
     import { getAll, getById, getWhere, addDoc, updateDoc, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete, studentDisplayName, escapeHtml } from './js/utils.js';
+    import { isInterventionLive, sweepExpiredLabInterventions } from './js/labInterventions.js';
     import { recalcTMIForStudent, resolveStaffSurname } from './js/tmiEngine.js';
     import { saveEvent, deleteEvent, EVENTS_COLLECTION } from './js/attendance.js';
 
@@ -1302,7 +1303,12 @@
     // =====================================================
     async function loadInterventions() {
       try {
-        interventionsData = await getAll('studentInterventions');
+        const all = await getAll('studentInterventions');
+        // A Learning Lab's Academic intervention lives only for the lab's
+        // dates. Delete the ones whose lab has ended — from data already in
+        // hand, so no extra reads — and hide any whose lab hasn't started.
+        const removed = new Set(await sweepExpiredLabInterventions(all));
+        interventionsData = all.filter(r => !removed.has(r.id) && isInterventionLive(r));
       } catch (err) {
         console.error('Error loading interventions:', err);
         interventionsData = [];

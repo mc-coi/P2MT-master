@@ -20,7 +20,7 @@ out_dir = os.path.join(root, "tools", "extracted")
 os.makedirs(out_dir, exist_ok=True)
 
 # Modules whose exported functions have strict, positional signatures.
-SIGNATURE_SOURCES = ["js/db.js", "js/attendance.js", "js/tmiEngine.js", "js/data.js"]
+SIGNATURE_SOURCES = ["js/db.js", "js/attendance.js", "js/tmiEngine.js", "js/data.js", "js/labInterventions.js", "js/utils.js"]
 
 
 def strip_noncode(s):
@@ -118,6 +118,13 @@ def check_arity():
         raw = open(path, encoding="utf-8", errors="ignore").read()
         code = strip_noncode(raw)
         for name, (lo, hi) in sigs.items():
+            # A page that declares its own function of this name (and doesn't
+            # import the shared one) is calling its local version — e.g.
+            # student-profile.html's getInitials(first, last) — so the shared
+            # signature says nothing about those calls.
+            if re.search(r'(?<![.\w$])function\s+%s\s*\(' % re.escape(name), code) and \
+               not re.search(r'import\s*\{[^}]*\b%s\b[^}]*\}' % re.escape(name), code):
+                continue
             for m in re.finditer(r'(?<![.\w$])%s\s*\(' % re.escape(name), code):
                 # Skip the declaration itself and re-exports like `window.x = x`
                 preceding = code[max(0, m.start() - 40):m.start()]

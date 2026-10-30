@@ -364,6 +364,7 @@
     import { fetchClassLogs, fetchDailyLogs, ABSENCE_CODES } from './js/attendance.js';
     import * as Data from './js/data.js';
     import { initNav }                      from './js/nav.js';
+    import { isInterventionLive }           from './js/labInterventions.js';
 
     // ── Shared helpers ──────────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
@@ -517,7 +518,8 @@
 
         buildAttendance(mergedAttLogs, range, studentMap, anumToId);
         buildTMI(tmiLogs, range, studentMap);
-        buildInterventions(intLogs, range, studentMap);
+        // A Learning Lab's intervention only counts while its lab is running.
+        buildInterventions(intLogs.filter(r => isInterventionLive(r)), range, studentMap);
         buildER(erAssign, erWorkshops, erClearance, range, studentMap);
       } catch(e) {
         console.error(e);

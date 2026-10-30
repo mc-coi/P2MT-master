@@ -100,6 +100,24 @@ first name ("ZACHARY MCCOY") where the staff record has the name the person
 goes by ("Zach"). `resolveStaffSurname()` handles that; match on email where
 one is available, because it is exact.
 
+## Learning Lab interventions
+
+Assigning a Learning Lab automatically creates a **Level 1 Academic**
+intervention that exists only for the lab's dates (`js/labInterventions.js`).
+Its ID is `lab_{studentId}_{startDate}_{endDate}`, so create / move / delete
+never need a query. With no Cloud Functions nothing can delete it on the end
+date, so:
+
+- **any page that lists `studentInterventions` must filter through
+  `isInterventionLive()`** — that is what hides a lab's intervention before
+  the lab starts and after it ends. A new reader that skips it will show
+  stale records.
+- Students and Student Profile delete expired ones via
+  `sweepExpiredLabInterventions()` from data already loaded (no extra reads).
+
+Labs created from Schedule Admin's "Learning Lab" checkbox have no dates and
+get no intervention; the Learning Lab page is the supported path.
+
 ## DataTables
 
 jQuery DataTables, and it has bitten this codebase repeatedly:

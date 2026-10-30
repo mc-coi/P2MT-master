@@ -677,6 +677,7 @@
         import { fetchClassLogs, fetchDailyLogs, classLogDate, dailyLogDate } from './js/attendance.js';
         import * as Data from './js/data.js';
         import { formatDate, showToast } from './js/utils.js';
+        import { isInterventionLive, sweepExpiredLabInterventions } from './js/labInterventions.js';
 
         // ── Tab switching — defined first so it works even if data load is slow ──
         window.switchTab = function(event, tabName) {
@@ -808,7 +809,11 @@
             contactLogs = val(contactsResult)
                 .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-            studentInterventions = val(interventionsResult)
+            // Learning Lab interventions exist only for the lab's dates.
+            const rawInterventions = val(interventionsResult);
+            const sweptIds = new Set(await sweepExpiredLabInterventions(rawInterventions).catch(() => []));
+            studentInterventions = rawInterventions
+                .filter(r => !sweptIds.has(r.id) && isInterventionLive(r))
                 .sort((a, b) => (b.dateTime || '').localeCompare(a.dateTime || ''));
 
             erClearedHistory = val(erClearedResult).sort((a,b) => (b.clearedDate||'').localeCompare(a.clearedDate||''));
