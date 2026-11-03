@@ -782,7 +782,7 @@
     import { getAll, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, listenWhere } from './js/db.js';
     import { saveEvent, deleteEvent, fetchClassLogs, EVENTS_COLLECTION } from './js/attendance.js';
     import * as Data from './js/data.js';
-    import { showToast, confirmTypedDelete, mailMergeCell as csvCell }  from './js/utils.js';
+    import { showToast, confirmTypedDelete, mailMergeCell as csvCell, splitEmails }  from './js/utils.js';
 
     // ── Data ─────────────────────────────────────────────────────────────────────
     let students              = [];
@@ -1459,16 +1459,7 @@
       return `${p(d.getHours())}${p(d.getMinutes())}`;
     }
 
-    // One guardian field can hold more than one address — a household with two
-    // parents is usually typed in as "a@x.org; b@y.com". A mail merge treats the
-    // whole cell as a single recipient, so that row silently reaches nobody.
-    // Every place an address leaves this page goes through here first.
-    function splitEmails(raw) {
-      return String(raw || '')
-        .split(/[;,]+|\s+/)
-        .map(e => e.trim())
-        .filter(e => e.includes('@'));
-    }
+    // splitEmails() lives in utils.js now, shared with Email Students.
 
     // ── Guardian email save ───────────────────────────────────────────────────────
     window.saveGuardianEmail = async function(input) {

@@ -14,18 +14,31 @@ Run the checks. They are fast and they catch the classes of bug that have
 actually happened here:
 
 ```sh
-./tools/sim/run.sh      # 11 simulation suites + both static checks
+./tools/sim/run.sh      # simulation suites, static checks, and browser e2e tests
 ```
 
+The e2e tests run real pages in jsdom and need one dev-only dependency:
+`cd tools && npm install` once. Without it `run.sh` skips them and says so.
+The app itself stays dependency-free. **Deploy config isn't in this repo** — if
+you install, make sure the hosting deploy ignores `tools/` (in `firebase.json`,
+`"ignore": ["tools/**", ...]`) so `node_modules` isn't published.
+
 `tools/sim/` runs the real `js/` modules against a Firestore stub that counts
-reads, writes and batches. `tools/extract.py` runs `node --check` over every
-page's module script and every `js/*.js`, plus an argument-count check against
-the real signatures in `db.js`, `attendance.js`, `tmiEngine.js` and `data.js`.
-That second check exists because three call sites passed a document ID to
-`addDoc(collection, data)` — valid JavaScript, silently wrong, no UI error.
+reads, writes and batches. `tools/extract.py` runs four static checks, each of
+which exists because the bug it catches already happened here, silently:
+
+- `node --check` over every page's module script and every `js/*.js`
+- **argument counts** against the real signatures of the shared modules —
+  three call sites passed a document ID to `addDoc(collection, data)`
+- **duplicate element ids** — `getElementById` returns the first, so the
+  second element is never found (a modal's warning rendered in a filter bar)
+- **unreachable inline handlers** — `onclick="fn()"` runs in global scope, and
+  a `<script type="module">` keeps its functions private, so a handler calling
+  one throws and the click quietly does less. Expose it with `window.fn = fn`.
 
 The suites import copies of the `js/` modules so that `./db.js` resolves to the
-stub; `run.sh` syncs them first. Never edit `tools/sim/{attendance,tmiEngine,data,utils}.js`
+stub; `run.sh` syncs them first. Never edit the `js/` module copies in `tools/sim/`
+(`attendance`, `tmiEngine`, `data`, `utils`, `labInterventions`, `guardians`)
 — they are overwritten on every run.
 
 When a fixture fails after a deliberate behaviour change, change the fixture
@@ -117,6 +130,19 @@ date, so:
 
 Labs created from Schedule Admin's "Learning Lab" checkbox have no dates and
 get no intervention; the Learning Lab page is the supported path.
+
+## Emailing parents
+
+`js/guardians.js` maps a student to parent/guardian addresses **by A# only**,
+the same link the Parents page uses, so what's on Parents is who gets mailed.
+There is deliberately no name-based fallback (the ER Emailer has one; a loose
+match can mail another family's parent). The ER grid's typed override is used
+only when a student has no parent record with an address.
+
+Outlook's web compose link (`outlook.office.com/mail/deeplink/compose`)
+carries `to`, `subject` and `body` reliably; `cc`/`bcc` are not reliable, so
+a family's addresses all go in `to`. Never put several families in one message.
+`mailto:` does nothing on most school machines — don't use it.
 
 ## DataTables
 

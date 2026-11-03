@@ -5,6 +5,8 @@
 2. Every call to a shared-module helper passes an argument count the
    function actually accepts.
 3. No page declares the same element id twice.
+4. Every function an inline handler (onclick="…") calls is reachable from
+   global scope.
 
 Check 2 exists because three call sites passed a hand-generated document ID
 to db.js's addDoc(collection, data), which takes two arguments. The ID went
@@ -20,7 +22,7 @@ out_dir = os.path.join(root, "tools", "extracted")
 os.makedirs(out_dir, exist_ok=True)
 
 # Modules whose exported functions have strict, positional signatures.
-SIGNATURE_SOURCES = ["js/db.js", "js/attendance.js", "js/tmiEngine.js", "js/data.js", "js/labInterventions.js", "js/utils.js"]
+SIGNATURE_SOURCES = ["js/db.js", "js/attendance.js", "js/tmiEngine.js", "js/data.js", "js/labInterventions.js", "js/utils.js", "js/guardians.js"]
 
 
 def strip_noncode(s):
@@ -162,6 +164,62 @@ def check_duplicate_ids():
     return problems
 
 
+# Names an inline handler may use without the page defining them.
+_HANDLER_BUILTINS = set("""
+  if else return new typeof void delete in of instanceof true false null undefined this event
+  window document location history navigator console localStorage sessionStorage
+  alert confirm prompt print open close setTimeout clearTimeout setInterval clearInterval
+  requestAnimationFrame fetch encodeURIComponent decodeURIComponent parseInt parseFloat isNaN
+  Number String Boolean Array Object Date Math JSON Promise Set Map RegExp Error
+  $ jQuery
+""".split())
+
+
+def _exposed_names(raw):
+    """Names a page makes reachable from an onclick attribute."""
+    names = set()
+    names |= set(re.findall(r'window\.([A-Za-z_$][\w$]*)\s*=(?!=)', raw))
+    for blk in re.findall(r'Object\.assign\(\s*window\s*,\s*\{([^}]*)\}', raw, re.S):
+        for part in blk.split(','):
+            part = part.strip()
+            if part:
+                names.add(re.split(r'\s*:\s*', part)[0].strip())
+    # Classic (non-module) scripts put their top-level declarations on window.
+    for attrs, body in re.findall(r'<script([^>]*)>(.*?)</script>', raw, re.S):
+        if 'module' in attrs:
+            continue
+        names |= set(re.findall(r'\bfunction\s+([A-Za-z_$][\w$]*)', body))
+        names |= set(re.findall(r'\b(?:var|let|const)\s+([A-Za-z_$][\w$]*)', body))
+    return names
+
+
+def check_inline_handlers():
+    """An inline handler calling a function the page never puts on window.
+
+    A <script type="module"> keeps its functions private, but onclick="…"
+    runs in global scope — so onclick="updateSelCount()" throws
+    'updateSelCount is not defined' even though the function is right there
+    in the page. Nothing visible happens: the click just does less than it
+    should. That is exactly how the "N selected" counter on Email Students
+    stopped counting clicks on the checkbox itself.
+    """
+    problems = []
+    for path in sorted(glob.glob(os.path.join(root, "*.html"))):
+        raw = open(path, encoding="utf-8", errors="ignore").read()
+        exposed = _exposed_names(raw)
+        handler_re = re.compile(r'\son[a-z]+\s*=\s*(?:"([^"]*)"|\\"((?:(?!\\").)*)\\")', re.S)
+        for m in handler_re.finditer(raw):
+            body = m.group(1) if m.group(1) is not None else m.group(2)
+            body = re.sub(r'\$\{[^}]*\}', 'x', body)          # template interpolations
+            body = re.sub(r"'(?:[^'\\]|\\.)*'", "''", body)  # string literals
+            for name in re.findall(r'(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(', body):
+                if name in _HANDLER_BUILTINS or name in exposed:
+                    continue
+                line = raw[:m.start()].count('\n') + 1
+                problems.append(f"{os.path.relpath(path, root)}:{line}  inline handler calls {name}(), which is not on window")
+    return problems
+
+
 def check_syntax():
     failures, count = [], 0
     for path in sorted(glob.glob(os.path.join(root, "*.html"))):
@@ -182,6 +240,7 @@ def check_syntax():
 failures, count = check_syntax()
 problems = check_arity()
 dupes = check_duplicate_ids()
+handlers = check_inline_handlers()
 
 for p, i, e in failures:
     print(f"SYNTAX FAIL: {p} #{i}\n{e}\n")
@@ -189,9 +248,12 @@ for p in problems:
     print(f"ARITY FAIL: {p}")
 for d in dupes:
     print(f"DUPLICATE ID: {d}")
+for h in handlers:
+    print(f"UNREACHABLE HANDLER: {h}")
 
-if failures or problems or dupes:
+if failures or problems or dupes or handlers:
     sys.exit(1)
 print(f"All {count} scripts pass node --check")
 print(f"All shared-module calls pass the argument-count check ({len(signatures())} signatures)")
 print("No page declares the same element id twice")
+print("Every inline handler calls a function reachable from global scope")

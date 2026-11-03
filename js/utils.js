@@ -470,3 +470,35 @@ export function escapeHtml(v) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
 }
+
+// One email field can hold more than one address — a household with two
+// parents is usually typed in as "a@x.org; b@y.com". A mail merge treats the
+// whole cell as a single recipient, so that row silently reaches nobody.
+// Every place an address leaves the app goes through here first.
+export function splitEmails(raw) {
+  return String(raw || '')
+    .split(/[;,]+|\s+/)
+    .map(e => e.trim())
+    .filter(e => e.includes('@'));
+}
+
+// A template body (HTML or plain text) as plain text, for places that can only
+// carry plain text — an Outlook compose link, a mail-merge CSV.
+export function bodyToPlainText(raw) {
+  if (!raw) return '';
+  if (!/<[a-z][\s\S]*>/i.test(raw)) return raw;
+  return raw
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<\/div>/gi, '\n')
+    .replace(/<\/li>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, '&')          // last, so "&amp;lt;" stays "&lt;"
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}

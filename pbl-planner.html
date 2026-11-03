@@ -1168,6 +1168,9 @@
       });
       exportCSV(headers, rows, 'pbl-teams.csv');
     }
+    // The Teams "CSV" button calls this from an onclick attribute, which runs
+    // in global scope; without this line the button silently did nothing.
+    window.downloadTeamsCSV = downloadTeamsCSV;
 
     // ── Email Modal ───────────────────────────────────────────────────────────────
     let pblEmailTemplates  = [];

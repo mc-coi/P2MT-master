@@ -1,0 +1,9 @@
+{
+  "name": "p2mt-dev-tools",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only test tooling. The app itself has no dependencies and no build step.",
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

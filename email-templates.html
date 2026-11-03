@@ -70,6 +70,12 @@
     .sel-bar button { padding: 3px 10px; border-radius: 5px; border: 1px solid #e2e8f0; background: white; font-size: 11px; font-weight: 600; cursor: pointer; color: #475569; }
     .sel-bar button:hover { border-color: var(--primary); color: var(--primary); }
     .sel-count { font-weight: 700; color: var(--primary); }
+    .addr-count { color: #94a3b8; margin-left: 4px; }
+    .send-to-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; font-size: 13px; }
+    .send-to-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .04em; }
+    .send-to-opt { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-primary); }
+    .send-to-opt input { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; }
+    .opened-note { font-size: 12px; color: #16a34a; font-weight: 600; margin-left: 6px; }
 
     /* ── Preview panel ── */
     .preview-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 380px; color: var(--text-muted); gap: 12px; text-align: center; }
@@ -238,6 +244,12 @@
 
           <p class="panel-section-title">Recipients</p>
 
+          <div class="send-to-row">
+            <span class="send-to-label">Send to</span>
+            <label class="send-to-opt"><input type="checkbox" id="send-to-students" checked onchange="onRecipientModeChanged()"> Students</label>
+            <label class="send-to-opt"><input type="checkbox" id="send-to-parents" onchange="onRecipientModeChanged()"> Parents / Guardians</label>
+          </div>
+
           <div class="form-row">
             <input type="text" id="student-search" placeholder="&#xf002; Search students by name…" oninput="filterStudentList()" style="font-family: inherit;">
           </div>
@@ -262,7 +274,7 @@
               <button onclick="selectAllStudents()">Select All</button>
               <button onclick="clearStudents()" style="margin-left:4px;">Clear</button>
             </div>
-            <span><span class="sel-count" id="sel-count">0</span> selected</span>
+            <span><span class="sel-count" id="sel-count">0</span> selected<span id="addr-count" class="addr-count"></span></span>
           </div>
 
           <div id="student-checklist" class="student-checklist">
@@ -482,7 +494,8 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     import { initNav }             from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
-    import { showToast, confirmTypedDelete } from './js/utils.js';
+    import { showToast, confirmTypedDelete, splitEmails, bodyToPlainText, mailMergeCell } from './js/utils.js';
+    import { buildGuardianIndex, guardianEmailsFor } from './js/guardians.js';
 
     // ── Data ────────────────────────────────────────────────────────────────────
     let templates = [];
@@ -495,6 +508,8 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     // ── Send / preview state ────────────────────────────────────────────────────
     let previewMsgs = [];
     let previewIdx  = 0;
+    let guardianIndex = buildGuardianIndex([], []);
+    let openedIdx = new Set();   // which previewed messages have been opened in Outlook
 
     // ── Variable definitions ────────────────────────────────────────────────────
     const VARS = [
@@ -555,6 +570,15 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
           Data.get('pblTeams'),
           Data.get('students'),
         ]);
+        // Parents and the ER grid's manual guardian addresses, for "send to
+        // parents". Both are cached reference data, so a repeat visit is free.
+        try {
+          const [parents, overrides] = await Promise.all([
+            Data.get('parents').catch(() => []),
+            Data.get('guardianEmails').catch(() => []),
+          ]);
+          guardianIndex = buildGuardianIndex(parents, overrides);
+        } catch (err) { console.warn('Parent emails unavailable', err); }
         renderGrid();
         populateSendDropdowns();
         handleUrlParams();
@@ -782,14 +806,50 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
       list.innerHTML = visible.map(s => {
         const name    = esc(`${s.lastName}, ${s.firstName}`);
         const isChk   = checked.has(s.id) ? 'checked' : '';
-        const noEmail = !s.email ? '<span class="no-email">(no email)</span>' : '';
+        const noEmail = missingNote(s);
         return `<div class="student-check-item" onclick="toggleStudent('${s.id}',this)">
-          <input type="checkbox" id="chk-${s.id}" data-sid="${s.id}" ${isChk} onclick="event.stopPropagation();updateSelCount();rebuildPreview();">
+          <input type="checkbox" id="chk-${s.id}" data-sid="${s.id}" ${isChk} onclick="event.stopPropagation();onStudentChecked();">
           <label for="chk-${s.id}" onclick="event.preventDefault();">${name}${noEmail}</label>
         </div>`;
       }).join('');
       updateSelCount();
     }
+
+    // Clicking the checkbox square itself. Its onclick runs in global scope,
+    // where updateSelCount() — private to this module — doesn't exist; it used
+    // to call that directly, threw, and the counter only moved when you clicked
+    // the student's name instead of the box.
+    window.onStudentChecked = function() {
+      updateSelCount();
+      rebuildPreview();
+    };
+
+    // Who the current "Send to" boxes reach for one student.
+    function recipientsFor(student) {
+      const toStudents = document.getElementById('send-to-students')?.checked;
+      const toParents  = document.getElementById('send-to-parents')?.checked;
+      const own     = toStudents ? splitEmails(student.email) : [];
+      const parents = toParents  ? guardianEmailsFor(student, guardianIndex) : [];
+      return { own, parents, all: [...own, ...parents] };
+    }
+
+    function missingNote(student) {
+      const toStudents = document.getElementById('send-to-students')?.checked;
+      const toParents  = document.getElementById('send-to-parents')?.checked;
+      const gaps = [];
+      if (toStudents && !splitEmails(student.email).length) gaps.push('student');
+      if (toParents  && !guardianEmailsFor(student, guardianIndex).length) gaps.push('parent');
+      return gaps.length ? `<span class="no-email">(no ${gaps.join(' or ')} email)</span>` : '';
+    }
+
+    window.onRecipientModeChanged = function() {
+      const s = document.getElementById('send-to-students');
+      const p = document.getElementById('send-to-parents');
+      // Sending to nobody isn't a mode — keep at least one ticked.
+      if (!s.checked && !p.checked) { s.checked = true; showToast('Pick students, parents, or both', 'info'); }
+      filterStudentList();          // refresh the "(no … email)" notes
+      rebuildPreview();
+    };
 
     window.toggleStudent = function(id, row) {
       const cb = row.querySelector(`input[type="checkbox"]`);
@@ -804,9 +864,15 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     }
 
     function updateSelCount() {
-      const n = getCheckedIds().size;
+      const ids = getCheckedIds();
       const el = document.getElementById('sel-count');
-      if (el) el.textContent = n;
+      if (el) el.textContent = ids.size;
+      const addr = document.getElementById('addr-count');
+      if (addr) {
+        let n = 0;
+        ids.forEach(id => { const st = students.find(x => x.id === id); if (st) n += recipientsFor(st).all.length; });
+        addr.textContent = ids.size ? ` · ${n} address${n !== 1 ? 'es' : ''}` : '';
+      }
     }
 
     window.filterStudentList = function() {
@@ -835,17 +901,24 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
       const checkedIds = getCheckedIds();
       if (!checkedIds.size) { showEmptyPreview('Select at least one student to preview'); return; }
 
+      // One message per student, addressed to the student, their parents, or
+      // both. A family shares one email; no family sees another's addresses.
       const msgs = [...checkedIds].map(sid => {
         const student = students.find(s => s.id === sid);
         if (!student) return null;
         const data = buildData(student);
+        const r = recipientsFor(student);
         return {
-          to:      student.email || '',
+          toList:  r.all,
+          own:     r.own,
+          parents: r.parents,
+          to:      r.all.join(', '),
           name:    `${student.firstName} ${student.lastName}`,
           subject: merge(tmpl.subject || tmpl.emailSubject || '', data),
           body:    merge(tmpl.body    || tmpl.templateContent || '', data),
         };
-      }).filter(Boolean);
+      }).filter(Boolean)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
       setPreview(msgs);
     };
@@ -861,6 +934,7 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     function setPreview(msgs) {
       previewMsgs = msgs;
       previewIdx  = 0;
+      openedIdx   = new Set();
       if (!msgs.length) { showEmptyPreview('No students found for this selection'); return; }
       document.getElementById('preview-empty').style.display   = 'none';
       document.getElementById('preview-content').style.display = '';
@@ -870,12 +944,24 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     function renderSlide() {
       const msg = previewMsgs[previewIdx];
       if (!msg) return;
-      document.getElementById('prev-to').textContent      = msg.to ? `${msg.name} <${msg.to}>` : `${msg.name} (no email on file)`;
+      const parts = [];
+      if (msg.own.length)     parts.push(`${msg.name} <${msg.own.join(', ')}>`);
+      if (msg.parents.length) parts.push(`Parents: ${msg.parents.join(', ')}`);
+      document.getElementById('prev-to').textContent      = parts.length ? parts.join('  ·  ') : `${msg.name} — no email on file for who you're sending to`;
       document.getElementById('prev-subject').textContent = msg.subject;
-      document.getElementById('prev-body').textContent    = msg.body;
+      // Plain text, exactly as Outlook will receive it.
+      document.getElementById('prev-body').textContent    = bodyToPlainText(msg.body);
       document.getElementById('prev-count').textContent   = `${previewIdx + 1} of ${previewMsgs.length}`;
-      document.getElementById('btn-send-txt').textContent = `Open in Outlook (${previewIdx + 1} of ${previewMsgs.length})`;
-      document.getElementById('rcpt-label').textContent   = `${previewMsgs.length} recipient${previewMsgs.length !== 1 ? 's' : ''}`;
+      document.getElementById('btn-send-txt').textContent = openedIdx.has(previewIdx)
+        ? `Open again (${previewIdx + 1} of ${previewMsgs.length})`
+        : `Open in Outlook (${previewIdx + 1} of ${previewMsgs.length})`;
+      document.getElementById('btn-send').disabled = !msg.toList.length;
+      const sendable = previewMsgs.filter(m => m.toList.length).length;
+      const opened = openedIdx.size;
+      document.getElementById('rcpt-label').innerHTML =
+        `${sendable} email${sendable !== 1 ? 's' : ''}` +
+        (sendable < previewMsgs.length ? ` (${previewMsgs.length - sendable} with no address)` : '') +
+        (opened ? `<span class="opened-note"><i class="fas fa-check"></i> ${opened} opened</span>` : '');
       document.getElementById('btn-prev').disabled = previewIdx === 0;
       document.getElementById('btn-next').disabled = previewIdx === previewMsgs.length - 1;
     }
@@ -941,25 +1027,48 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     }
 
     // ── mailto / mail-merge helpers ───────────────────────────────────────────────
-    // Open the currently-previewed message in Outlook via mailto:
+    // Open the previewed message ready to send in Outlook on the web, then step
+    // to the next one so a batch is a run of Open → Send → Open → Send.
+    //
+    // This used to be a mailto: link, which hands the message to whatever
+    // desktop mail app the computer has registered — on most school machines
+    // that's nothing, so the button appeared to do nothing at all. The ER
+    // Emailer already opened Outlook on the web this way and it works here.
+    //
+    // Only to/subject/body: Outlook's compose link drops cc and bcc
+    // unreliably, so the student and their parents all go in To.
     window.openCurrentInOutlook = function() {
       if (!previewMsgs.length) { showToast('No emails to send — build a preview first', 'warning'); return; }
       const msg = previewMsgs[previewIdx];
       if (!msg) return;
-      const to      = encodeURIComponent(msg.to      || '');
-      const subject = encodeURIComponent(msg.subject || '');
-      const body    = encodeURIComponent(msg.body    || '');
-      window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+      if (!msg.toList.length) { showToast(`No email address for ${msg.name}`, 'warning'); return; }
+
+      const url = 'https://outlook.office.com/mail/deeplink/compose' +
+        `?to=${encodeURIComponent(msg.toList.join(','))}` +
+        `&subject=${encodeURIComponent(msg.subject || '')}` +
+        `&body=${encodeURIComponent(bodyToPlainText(msg.body))}`;
+      const win = window.open(url, '_blank');
+      if (!win) { showToast('Pop-up blocked — allow pop-ups for this site, then try again', 'warning'); return; }
+
+      openedIdx.add(previewIdx);
+      // Move on to the next message that has an address.
+      let next = previewIdx + 1;
+      while (next < previewMsgs.length && !previewMsgs[next].toList.length) next++;
+      if (next < previewMsgs.length) previewIdx = next;
+      else showToast(`All ${openedIdx.size} opened in Outlook — remember to press Send in each`, 'success');
+      renderSlide();
     };
 
     // Download all previewed messages as a Mail Merge CSV
     window.downloadAllMailMerge = function() {
       if (!previewMsgs.length) { showToast('No emails to export — build a preview first', 'warning'); return; }
-      const csvCell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      // One row per address (Word's merge sends to one address per row), and
+      // mailMergeCell keeps each row on one physical line — the same two fixes
+      // the ER export needed before Outlook would accept it.
       const rows = ['Email,Subject,Body',
-        ...previewMsgs.filter(m => m.to).map(m =>
-          [csvCell(m.to), csvCell(m.subject), csvCell(m.body)].join(',')
-        )
+        ...previewMsgs.flatMap(m => m.toList.map(addr =>
+          [mailMergeCell(addr), mailMergeCell(m.subject), mailMergeCell(bodyToPlainText(m.body))].join(',')
+        ))
       ];
       const bom  = '\uFEFF';
       const blob = new Blob([bom + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });

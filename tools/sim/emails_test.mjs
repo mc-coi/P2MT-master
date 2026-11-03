@@ -10,11 +10,12 @@ import fs from 'fs';
 let fails = 0;
 function t(n, c, d) { console.log((c ? "PASS" : "FAIL") + " - " + n + (d ? " :: " + d : "")); if (!c) { fails++; process.exitCode = 1; } }
 
-const src = fs.readFileSync(new URL('../../er-emailer.html', import.meta.url), 'utf8');
-const start = src.indexOf('    function splitEmails(raw) {');
-const end = src.indexOf('\n    }\n', start) + 7;
-if (start < 0) { console.log('FAIL - could not find splitEmails in er-emailer.html'); process.exit(1); }
-const splitEmails = new Function(src.slice(start, end) + '\n return splitEmails;')();
+const { splitEmails } = await import('./utils.js');
+// It must still be what the ER page actually uses.
+const erSrc = fs.readFileSync(new URL('../../er-emailer.html', import.meta.url), 'utf8');
+if (!/import \{[^}]*\bsplitEmails\b[^}]*\}\s*from '\.\/js\/utils\.js'/.test(erSrc)) {
+  console.log('FAIL - er-emailer.html no longer imports splitEmails from utils.js'); process.exitCode = 1;
+}
 
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
