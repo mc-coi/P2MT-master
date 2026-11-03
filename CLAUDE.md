@@ -144,6 +144,12 @@ carries `to`, `subject` and `body` reliably; `cc`/`bcc` are not reliable, so
 a family's addresses all go in `to`. Never put several families in one message.
 `mailto:` does nothing on most school machines — don't use it.
 
+Word mail merge only sends through **classic** Outlook; the new Outlook can't.
+When every message in a batch is identical, Email Students offers one email
+with everyone in **Bcc**: it copies the addresses to the clipboard (batches of
+400, under Exchange's 500-recipient cap) and opens compose with only subject
+and body — never addresses in the link.
+
 ## DataTables
 
 jQuery DataTables, and it has bitten this codebase repeatedly:

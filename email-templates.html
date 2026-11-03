@@ -75,6 +75,13 @@
     .send-to-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .04em; }
     .send-to-opt { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; color: var(--text-primary); }
     .send-to-opt input { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; }
+    .bcc-banner { display: flex; align-items: center; gap: 14px; justify-content: space-between; flex-wrap: wrap;
+                  margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: #eff6ff; border: 1.5px solid #bfdbfe;
+                  font-size: 13px; color: #1e3a8a; line-height: 1.45; }
+    .bcc-banner-text { flex: 1; min-width: 240px; }
+    .bcc-detail { display: block; margin-top: 3px; color: #3b82f6; font-size: 12px; }
+    .send-help { margin: 10px 0 0; font-size: 12px; color: #94a3b8; line-height: 1.5; }
+    [data-theme="dark"] .bcc-banner { background: rgba(37,99,235,0.15); border-color: rgba(147,197,253,0.4); color: #BFDBFE; }
     .opened-note { font-size: 12px; color: #16a34a; font-weight: 600; margin-left: 6px; }
 
     /* ── Preview panel ── */
@@ -317,9 +324,23 @@
 
             <div class="preview-body-wrap" id="prev-body"></div>
 
+            <!-- Shown only when every email in the batch comes out identical. -->
+            <div id="bcc-banner" class="bcc-banner" style="display:none;">
+              <div class="bcc-banner-text">
+                <strong>Every email here is the same.</strong>
+                Send it as <strong>one email with everyone in Bcc</strong> — works in the new Outlook,
+                and families can't see each other's addresses.
+                <span id="bcc-detail" class="bcc-detail"></span>
+              </div>
+              <button class="btn-send" id="btn-bcc" onclick="sendAsOneBcc()">
+                <i class="fas fa-users"></i> <span id="btn-bcc-txt">Send as one email (Bcc)</span>
+              </button>
+            </div>
+
             <div class="send-footer">
               <span class="rcpt-label" id="rcpt-label"></span>
-              <button class="btn-send" id="btn-csv-all" onclick="downloadAllMailMerge()" style="background:#475569;" title="Download all as Mail Merge CSV for Outlook">
+              <button class="btn-send" id="btn-csv-all" onclick="downloadAllMailMerge()" style="background:#475569;"
+                      title="For Word mail merge — needs classic Outlook. The new Outlook can't send a Word mail merge.">
                 <i class="fas fa-file-csv"></i> Download All CSV
               </button>
               <button class="btn-send" id="btn-send" onclick="openCurrentInOutlook()">
@@ -327,6 +348,10 @@
                 <span id="btn-send-txt">Open in Outlook</span>
               </button>
             </div>
+            <p class="send-help">
+              <strong>Open in Outlook</strong> works in the new and classic Outlook, one family at a time.
+              <strong>Download All CSV</strong> is for a Word mail merge, which only works with <em>classic</em> Outlook.
+            </p>
           </div>
 
         </div>
@@ -439,6 +464,24 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
 
 
   <!-- ══ Azure / Outlook setup modal ════════════════════════════════════ -->
+  <!-- Fallback when the browser won't let the page copy to the clipboard. -->
+  <div id="modal-bcc-copy" class="modal-bd">
+    <div class="modal-box" style="max-width: 600px;">
+      <div class="modal-head">
+        <h2><i class="fas fa-users" style="color:#0078d4; margin-right:8px;"></i>Copy the Bcc addresses</h2>
+        <button class="modal-close" onclick="document.getElementById('modal-bcc-copy').classList.remove('open')">&times;</button>
+      </div>
+      <p style="font-size:14px; color:var(--text-muted); margin:0 0 10px;">
+        Copy these (they're already selected — press <strong>Ctrl+C</strong> or <strong>⌘C</strong>), then in the
+        Outlook window that just opened click <strong>Bcc</strong> and paste. Leave <strong>To</strong> empty.
+      </p>
+      <textarea id="bcc-copy-text" readonly rows="8" style="width:100%; font-family:monospace; font-size:12px;"></textarea>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="document.getElementById('modal-bcc-copy').classList.remove('open')">Done</button>
+      </div>
+    </div>
+  </div>
+
   <div id="modal-azure" class="modal-bd">
     <div class="modal-box" style="max-width: 580px;">
       <div class="modal-head">
@@ -510,6 +553,8 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     let previewIdx  = 0;
     let guardianIndex = buildGuardianIndex([], []);
     let openedIdx = new Set();   // which previewed messages have been opened in Outlook
+    let bcc = null;              // one-email plan when every message is identical
+    let bccNext = 0;             // next batch to send
 
     // ── Variable definitions ────────────────────────────────────────────────────
     const VARS = [
@@ -935,6 +980,9 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
       previewMsgs = msgs;
       previewIdx  = 0;
       openedIdx   = new Set();
+      bcc         = planBcc(msgs);
+      bccNext     = 0;
+      renderBccBanner();
       if (!msgs.length) { showEmptyPreview('No students found for this selection'); return; }
       document.getElementById('preview-empty').style.display   = 'none';
       document.getElementById('preview-content').style.display = '';
@@ -969,6 +1017,84 @@ Sessions run {{labStartDate}} through {{labEndDate}}.</pre>
     window.previewStep = function(dir) {
       const next = previewIdx + dir;
       if (next >= 0 && next < previewMsgs.length) { previewIdx = next; renderSlide(); }
+    };
+
+    // ── One email, everyone in Bcc ────────────────────────────────────────────────
+    // The new Outlook can't run a Word mail merge (Word hands messages to classic
+    // Outlook through an interface the new one doesn't have). When a template
+    // has nothing personal in it — an announcement — every message is the same,
+    // and one email with everyone in Bcc does the job in either Outlook.
+    //
+    // Exchange Online refuses a message with more than 500 recipients, so the
+    // list is split into batches comfortably under that.
+    const BCC_BATCH = 400;
+
+    function planBcc(msgs) {
+      const sendable = msgs.filter(m => m.toList.length);
+      if (sendable.length < 2) return null;
+      const first = sendable[0];
+      const firstBody = bodyToPlainText(first.body);
+      const identical = sendable.every(m => m.subject === first.subject && bodyToPlainText(m.body) === firstBody);
+      if (!identical) return null;
+
+      const seen = new Set(), addrs = [];
+      sendable.forEach(m => m.toList.forEach(a => {
+        const k = a.toLowerCase();
+        if (!seen.has(k)) { seen.add(k); addrs.push(a); }
+      }));
+      const batches = [];
+      for (let i = 0; i < addrs.length; i += BCC_BATCH) batches.push(addrs.slice(i, i + BCC_BATCH));
+      return { subject: first.subject, body: firstBody, addrs, batches };
+    }
+
+    function renderBccBanner() {
+      const banner = document.getElementById('bcc-banner');
+      if (!banner) return;
+      if (!bcc) { banner.style.display = 'none'; return; }
+      banner.style.display = '';
+      const n = bcc.batches.length;
+      document.getElementById('bcc-detail').textContent =
+        `${bcc.addrs.length} address${bcc.addrs.length !== 1 ? 'es' : ''}` +
+        (n > 1 ? ` — sent as ${n} emails of up to ${BCC_BATCH}, to stay under Outlook's 500-recipient limit` : '');
+      const txt = document.getElementById('btn-bcc-txt');
+      if (bccNext >= n)      txt.textContent = n > 1 ? 'All batches opened — send each in Outlook' : 'Opened — press Send in Outlook';
+      else if (n > 1)        txt.textContent = `Send batch ${bccNext + 1} of ${n} (Bcc)`;
+      else                   txt.textContent = 'Send as one email (Bcc)';
+    }
+
+    window.sendAsOneBcc = function() {
+      if (!bcc) return;
+      if (bccNext >= bcc.batches.length) bccNext = 0;          // allow a second go
+      const batch = bcc.batches[bccNext];
+      const list  = batch.join('; ');
+
+      // Both must start inside this click: the clipboard needs this page to
+      // still have focus, and the pop-up blocker needs the click. So start the
+      // copy first, open Outlook second, and deal with a failed copy after.
+      const copying = (navigator.clipboard && navigator.clipboard.writeText)
+        ? navigator.clipboard.writeText(list)
+        : Promise.reject(new Error('no clipboard'));
+
+      // No To and no Bcc in the link: Outlook's compose link doesn't fill Bcc
+      // reliably, and a To full of families would show everyone's address.
+      const url = 'https://outlook.office.com/mail/deeplink/compose' +
+        `?subject=${encodeURIComponent(bcc.subject || '')}` +
+        `&body=${encodeURIComponent(bcc.body || '')}`;
+      const win = window.open(url, '_blank');
+
+      const batchNote = bcc.batches.length > 1 ? ` (batch ${bccNext + 1} of ${bcc.batches.length})` : '';
+      copying.then(
+        () => showToast(`${batch.length} addresses copied${batchNote} — in Outlook click Bcc, paste, then Send`, 'success'),
+        () => {
+          const ta = document.getElementById('bcc-copy-text');
+          ta.value = list;
+          document.getElementById('modal-bcc-copy').classList.add('open');
+          ta.focus(); ta.select();
+        });
+      if (!win) { showToast('Pop-up blocked — allow pop-ups for this site, then try again', 'warning'); return; }
+
+      bccNext++;
+      renderBccBanner();
     };
 
     // ── Merge helpers ─────────────────────────────────────────────────────────────
