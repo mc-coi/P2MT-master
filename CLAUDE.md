@@ -17,8 +17,9 @@ actually happened here:
 ./tools/sim/run.sh      # simulation suites, static checks, and browser e2e tests
 ```
 
-The e2e tests run real pages in jsdom and need one dev-only dependency:
-`cd tools && npm install` once. Without it `run.sh` skips them and says so.
+The e2e tests run real pages in jsdom (`tools/e2e/harness.cjs` boots any
+page) and need dev-only dependencies: `cd tools && npm install` once, or point
+`NODE_PATH` at a jsdom + jquery install elsewhere. Without it `run.sh` skips them and says so.
 The app itself stays dependency-free. **Deploy config isn't in this repo** — if
 you install, make sure the hosting deploy ignores `tools/` (in `firebase.json`,
 `"ignore": ["tools/**", ...]`) so `node_modules` isn't published.
@@ -132,6 +133,13 @@ Labs created from Schedule Admin's "Learning Lab" checkbox have no dates and
 get no intervention; the Learning Lab page is the supported path.
 
 ## Emailing parents
+
+**Every intervention email to a student also goes to their parents** —
+Learning Lab, TMI, ER, and Email Students (Parents is ticked by default).
+Build the To line with `familyRecipients()` from `js/guardians.js`; a new
+intervention email path that addresses only the student is a bug. With TMI's
+bulk notifications, parents get the Parent Template if one is chosen and the
+student's email otherwise — never both.
 
 `js/guardians.js` maps a student to parent/guardian addresses **by A# only**,
 the same link the Parents page uses, so what's on Parents is who gets mailed.

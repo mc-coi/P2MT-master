@@ -924,6 +924,15 @@
         p2mtTemplatesList  = tmplList || [];
         allClassSchedules  = cs       || [];
 
+        // Every parent on a record, not just the first field that has one.
+        // This used to take guardian OR mother OR father, so a second parent
+        // never received an ER notification. Multiple addresses are kept as one
+        // "a; b" string; every send path splits them with splitEmails().
+        const allParentEmails = p => [p.guardianEmail, p.motherEmail, p.fatherEmail]
+          .flatMap(splitEmails)
+          .filter((e, i, a) => a.findIndex(x => x.toLowerCase() === e.toLowerCase()) === i)   // once each, as typed
+          .join('; ');
+
         // Build a robust lookup: stores each parent email under THREE keys so
         // format mismatches (A70446 vs 70446 vs a70446) are all caught.
         const parentEmailByANum = {};
@@ -938,7 +947,7 @@
         };
 
         (parentsList || []).forEach(p => {
-          const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
+          const email = allParentEmails(p);
           addParentKey(p.chattStateANumber, email);
         });
 
@@ -967,7 +976,7 @@
 
         const parentByName = {};
         (parentsList || []).forEach(p => {
-          const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
+          const email = allParentEmails(p);
           if (!email) return;
           const raw = (p.studentName || '').trim().toLowerCase();
           if (raw) parentByName[raw] = email;
@@ -995,13 +1004,13 @@
           const ln = (s.lastName  || '').trim().toLowerCase();
           if (!fn || !ln) return;
           const match = (parentsList || []).find(p => {
-            const email = p.guardianEmail || p.motherEmail || p.fatherEmail || '';
+            const email = allParentEmails(p);
             if (!email) return false;
             const pname = (p.studentName || '').toLowerCase();
             return pname.includes(fn) && pname.includes(ln);
           });
           if (match) {
-            const email = match.guardianEmail || match.motherEmail || match.fatherEmail || '';
+            const email = allParentEmails(match);
             guardianEmails[s.id] = email;
             nameMatchCount++;
           }
@@ -2068,14 +2077,17 @@
 
       const mergedSubject = merge(tmpl.subject, data);
       const mergedBody    = merge(tmpl.body, data);
-      const toAddr        = encodeURIComponent(student.email || '');
+      // Student and parents together in To. This used to put the parents in
+      // Cc, which Outlook's compose link doesn't fill reliably — parents could
+      // silently be left off an ER notification. One family per message.
       const gEmail        = guardianEmails[studentId] || '';
-      const ccList        = splitEmails(gEmail).join(',');   // mail clients want commas, not semicolons
-      const cc            = ccList ? `&cc=${encodeURIComponent(ccList)}` : '';
+      const toList        = [...splitEmails(student.email), ...splitEmails(gEmail)]
+                              .filter((e, i, a) => a.findIndex(x => x.toLowerCase() === e.toLowerCase()) === i);
+      const toAddr        = encodeURIComponent(toList.join(','));
       const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
 
       // Open in Outlook Web compose (avoids Mail.app / no-SMTP-server errors)
-      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${toAddr}${cc.replace('&cc=','&cc=')}&subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${toAddr}&subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
       window.open(outlookUrl, '_blank');
     };
 
@@ -2376,14 +2388,17 @@
 
       const mergedSubject = merge(tmpl.subject, data);
       const mergedBody    = merge(tmpl.body, data);
-      const toAddr        = encodeURIComponent(student.email || '');
+      // Student and parents together in To. This used to put the parents in
+      // Cc, which Outlook's compose link doesn't fill reliably — parents could
+      // silently be left off an ER notification. One family per message.
       const gEmail        = guardianEmails[studentId] || '';
-      const ccList        = splitEmails(gEmail).join(',');   // mail clients want commas, not semicolons
-      const cc            = ccList ? `&cc=${encodeURIComponent(ccList)}` : '';
+      const toList        = [...splitEmails(student.email), ...splitEmails(gEmail)]
+                              .filter((e, i, a) => a.findIndex(x => x.toLowerCase() === e.toLowerCase()) === i);
+      const toAddr        = encodeURIComponent(toList.join(','));
       const plainBody     = bodyToPlainText(mergedBody).replace(/\r?\n/g, '\r\n');
 
       // Open in Outlook Web compose
-      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${toAddr}${cc.replace('&cc=','&cc=')}&subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
+      const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${toAddr}&subject=${encodeURIComponent(mergedSubject)}&body=${encodeURIComponent(plainBody)}`;
       window.open(outlookUrl, '_blank');
     };
 

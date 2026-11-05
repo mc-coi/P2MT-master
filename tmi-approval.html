@@ -200,7 +200,7 @@
           <div class="w3-col m5" style="padding-left:6px;padding-right:6px;">
             <label style="font-weight:600;display:block;margin-bottom:4px;">Parent Template</label>
             <select id="bulk-parent-template" class="w3-select w3-border" onchange="rebuildBulkNotifications()">
-              <option value="">— Skip parent emails —</option>
+              <option value="">— Same email as the student —</option>
             </select>
           </div>
           <div class="w3-col m2" style="padding-left:6px;">
@@ -210,6 +210,7 @@
         </div>
         <p style="font-size:12px;color:#64748b;margin:-6px 0 10px;">
           TMI Date applies to every notification in this batch — use it for <code>{{tmiDate}}</code> in your templates.
+          Parents always receive a copy: the student's email, or the Parent Template's version if you pick one.
         </p>
         <div id="notificationsList" style="max-height:400px;overflow-y:auto;"></div>
         <div class="w3-bar w3-margin-top">
@@ -258,6 +259,7 @@
     import { getById, getWhere, updateDoc } from './js/db.js';
     import { fetchClassLogs } from './js/attendance.js';
     import * as Data from './js/data.js';
+    import { buildGuardianIndex, familyRecipients, describeRecipients } from './js/guardians.js';
     import { formatDate, exportCSV, showToast, rememberRange, recallRange, studentDisplayName, mailMergeCell as tmiCsvCell } from './js/utils.js';
     import { recalcTMIForWindow, fetchTMIRecordsForRange, qualifies,
              startSession, endSession, editSession, removeSession, setServedBase,
@@ -266,6 +268,8 @@
     let interventions = [];
     let students = [];
     let parents = [];
+    // Parents are always included on a student's TMI email (guardians.js).
+    let guardianIndex = buildGuardianIndex([], []);
     let templates = [];
     let classAttendanceLogs = [];  // used only to resolve the specific absence date for {{absenceDate}}
     let unconfirmedCount = 0;      // records skipped because TMI Review hasn't confirmed them
@@ -376,11 +380,14 @@
     // range in loadRecordsForRange(), never in full.
     async function loadInitialData() {
       try {
-        [students, parents, templates] = await Promise.all([
+        let overrides;
+        [students, parents, templates, overrides] = await Promise.all([
           Data.get('students'),
           Data.get('parents'),
           Data.get('p2mtTemplates'),
+          Data.get('guardianEmails').catch(() => []),
         ]);
+        guardianIndex = buildGuardianIndex(parents, overrides);
       } catch (error) {
         console.error('Error loading initial data:', error);
         throw error;
@@ -1181,21 +1188,27 @@
 
       for (let student of tmiData) {
         // ── Student row ───────────────────────────────────────────────────
+        // Parents are always included. With no Parent Template they get the
+        // student's email; with one, they get that version instead (never both).
+        const studentRec = students.find(s => s.id === student.studentId)
+                        || { chattStateANumber: student.chattStateA };
+        const family = familyRecipients(studentRec, guardianIndex);
+
         if (studentTemplate) {
-          const studentRec = students.find(s => s.id === student.studentId);
-          const studentEmail = studentRec?.email || studentRec?.studentEmail || '';
+          const emails = parentTemplate ? family.own : family.all;
+          const studentEmail = emails.join(', ');
           const subject = mergeTmiFields(studentTemplate.subject || studentTemplate.emailSubject || '', student, tmiDate);
           const content = mergeTmiFields(studentTemplate.body    || studentTemplate.templateContent || '', student, tmiDate);
 
           $('#notificationsList').append(`
             <div class="filter-bar" style="background:#f8fafc;color:#1e293b;display:block;">
               <h3 style="color:#1e293b;">${student.studentName} (Student)</h3>
-              <p style="color:#1e293b;"><b>To:</b> ${studentEmail || '<em style="color:#dc2626">no email on file</em>'}</p>
+              <p style="color:#1e293b;"><b>To:</b> ${studentEmail || '<em style="color:#dc2626">no email on file</em>'}${!parentTemplate && !family.parents.length ? ' <em style="color:#b45309">(no parent email on file)</em>' : ''}</p>
               <p style="color:#1e293b;"><b>Subject:</b> ${subject}</p>
               <p style="white-space:pre-wrap;background:#ffffff;color:#1e293b;padding:8px;border-radius:4px;border:1px solid #e2e8f0;">${content}</p>
             </div>
           `);
-          allNotifications.push({ email: studentEmail, to: student.studentName, subject, content });
+          allNotifications.push({ emails, to: student.studentName, subject, content });
         }
 
         // ── Parent row — match by chattStateANumber (same key Fix A#s uses) ─
@@ -1205,9 +1218,10 @@
             const pNum = (p.chattStateANumber || '').trim().toUpperCase();
             return pNum && pNum === aNum;
           });
-          const parentEmail = parent
-            ? (parent.guardianEmail || parent.motherEmail || parent.fatherEmail || '')
-            : '';
+          // Every parent on file, not just the first field that has one —
+          // this used to pick guardian OR mother OR father and drop the rest.
+          const parentEmails = family.parents;
+          const parentEmail  = parentEmails.join(', ');
           const parentName  = parent
             ? (parent.motherName || parent.fatherName || 'Parent/Guardian')
             : 'Parent/Guardian';
@@ -1222,7 +1236,7 @@
               <p style="white-space:pre-wrap;background:#ffffff;color:#1e293b;padding:8px;border-radius:4px;border:1px solid #e2e8f0;">${content}</p>
             </div>
           `);
-          allNotifications.push({ email: parentEmail, to: parentName, subject, content });
+          allNotifications.push({ emails: parentEmails, to: parentName, subject, content });
         }
       }
     };
@@ -1239,11 +1253,10 @@
     function downloadBulkMailMerge() {
       if (!allNotifications.length) { showToast('No notifications to export', 'warning'); return; }
       const rows = ['Email,Subject,Body',
-        ...allNotifications
-          .filter(n => n.email)
-          .map(n => [tmiCsvCell(n.email), tmiCsvCell(n.subject), tmiCsvCell(n.content)].join(','))
+        ...allNotifications.flatMap(n => (n.emails || []).map(addr =>
+          [tmiCsvCell(addr), tmiCsvCell(n.subject), tmiCsvCell(n.content)].join(',')))
       ];
-      const missing = allNotifications.filter(n => !n.email).length;
+      const missing = allNotifications.filter(n => !(n.emails || []).length).length;
       tmiTriggerDownload('tmi-notifications.csv', rows.join('\r\n'));
       const msg = missing > 0
         ? `✓ Downloaded ${rows.length - 1} rows (${missing} skipped — no email on file)`
@@ -1294,7 +1307,10 @@
     window.openEmailModal = function(id, name, isComplete) {
       emailModalStudent = tmiData.find(s => s.id === id) || { id, studentName: name };
 
-      document.getElementById('email-student-name').textContent = name;
+      const rec = students.find(s => s.id === emailModalStudent?.studentId);
+      document.getElementById('email-student-name').textContent = rec
+        ? (describeRecipients(name, familyRecipients(rec, guardianIndex)) || `${name} — no email on file`)
+        : name;
       document.getElementById('email-preview').textContent = 'Select a template above to preview the email.';
       document.getElementById('email-tmi-date').value = lastEmailTmiDate;
 
@@ -1382,9 +1398,14 @@
       const tmpl = templates.find(t => t.id === sel.value);
       if (!tmpl) { showToast('Select a template first', 'warning'); return; }
       const studentRec = students.find(s => s.id === emailModalStudent?.studentId);
-      const toEmail = studentRec?.email || studentRec?.studentEmail || '';
-      if (!toEmail) { showToast('No email address found for this student', 'warning'); return; }
-      const subject   = tmpl.subject || tmpl.emailSubject || '';
+      // The student and their parents, one family in To (see guardians.js).
+      const recipients = familyRecipients(studentRec, guardianIndex);
+      if (!recipients.all.length) { showToast('No email address found for this student or their parents', 'warning'); return; }
+      const toEmail = recipients.all.join(',');
+      // The subject is merged the same way as the body. It used to go out raw,
+      // so families received "TMI for {{studentName}}" as the subject line.
+      const tmiDate   = document.getElementById('email-tmi-date').value;
+      const subject   = mergeTmiFields(tmpl.subject || tmpl.emailSubject || '', emailModalStudent, tmiDate);
       const bodyText  = document.getElementById('email-preview').textContent;
       const plainBody = bodyToPlainText(bodyText).replace(/\r?\n/g, '\r\n');
       const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(toEmail)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainBody)}`;

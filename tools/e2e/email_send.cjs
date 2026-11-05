@@ -86,6 +86,9 @@ const tick = () => new Promise(r => setTimeout(r, 30));
   t('Clear resets to zero', count() === '0');
 
   // ── recipients ──
+  t('parents are ticked by default', $('#send-to-parents').checked === true && $('#send-to-students').checked === true);
+  // The rest of this scenario starts from students-only, so untick parents.
+  $('#send-to-parents').checked = false; w.onRecipientModeChanged();
   $('#send-template').value = 't1'; w.rebuildPreview();
   $('#chk-s1').click(); $('#chk-s2').click(); $('#chk-s3').click();
   t('students only: three selected, two addresses (Ben has none)', count() === '3' && addr() === '· 2 addresses', addr());
@@ -184,7 +187,8 @@ const tick = () => new Promise(r => setTimeout(r, 30));
     await tick();
     const modal = b.$('#modal-bcc-copy');
     t('a refused clipboard opens the copy box', modal.classList.contains('open'));
-    t('the copy box holds the addresses', b.$('#bcc-copy-text').value === 'aa@students.hcde.org; cc@students.hcde.org', b.$('#bcc-copy-text').value);
+    // Parents are on by default, so Ann's two parents are included.
+    t('the copy box holds the addresses, parents included', b.$('#bcc-copy-text').value === 'aa@students.hcde.org; mom.adams@x.com; dad.adams@y.com; cc@students.hcde.org', b.$('#bcc-copy-text').value);
     t('Outlook still opens', b.opened.length === 1);
   }
 

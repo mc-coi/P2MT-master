@@ -16,10 +16,12 @@ python3 ../extract.py || status=1
 
 # Browser-level tests run the real pages in jsdom. They need one dev
 # dependency, kept out of the app: `cd tools && npm install` once.
-if [ -d ../node_modules/jsdom ]; then
+E2E_PATH="${NODE_PATH:-../node_modules}"
+if [ -d "$E2E_PATH/jsdom" ] || [ -d ../node_modules/jsdom ]; then
   for f in ../e2e/*.cjs; do
+    case "$f" in *harness.cjs) continue ;; esac
     printf '%-24s ' "$(basename "$f")"
-    out=$(NODE_PATH=../node_modules node "$f" 2>&1) || status=1
+    out=$(NODE_PATH="$E2E_PATH:../node_modules" timeout 90 node "$f" 2>&1) || status=1
     pass=$(printf '%s' "$out" | grep -c '^PASS' || true)
     fail=$(printf '%s' "$out" | grep -c '^FAIL' || true)
     printf '%s pass, %s fail\n' "$pass" "$fail"

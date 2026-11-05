@@ -251,10 +251,13 @@
 
           <p class="panel-section-title">Recipients</p>
 
+          <!-- Parents are on by default: an email to a student about an
+               intervention always goes to their parents too. Untick for
+               anything that should reach students only. -->
           <div class="send-to-row">
             <span class="send-to-label">Send to</span>
             <label class="send-to-opt"><input type="checkbox" id="send-to-students" checked onchange="onRecipientModeChanged()"> Students</label>
-            <label class="send-to-opt"><input type="checkbox" id="send-to-parents" onchange="onRecipientModeChanged()"> Parents / Guardians</label>
+            <label class="send-to-opt"><input type="checkbox" id="send-to-parents" checked onchange="onRecipientModeChanged()"> Parents / Guardians</label>
           </div>
 
           <div class="form-row">

@@ -54,3 +54,25 @@ t("empty inputs don't throw",
   eq(guardianEmailsFor(st('s1', 'A100001'), buildGuardianIndex()), []) && eq(guardianEmailsFor(null, idx), []));
 
 console.log(fails ? `\n${fails} FAILED` : "\nAll guardian-matching tests passed.");
+
+// ── familyRecipients / describeRecipients: the To line for every intervention email ──
+{
+  const { familyRecipients, describeRecipients } = await import('./guardians.js');
+  const fam = familyRecipients({ id: 's1', chattStateANumber: 'A100001', email: 'ann@students.hcde.org' }, idx);
+  t("the student comes first, then parents", eq(fam.all, ['ann@students.hcde.org', 'mom@x.com', 'dad@y.com']), JSON.stringify(fam.all));
+  t("own and parents are reported separately", eq(fam.own, ['ann@students.hcde.org']) && fam.parents.length === 2);
+  t("a student with no address still reaches their parents",
+    eq(familyRecipients({ id: 's2', chattStateANumber: 'A100002', email: '' }, idx).all, ['g1@x.com', 'g2@y.com']));
+  t("studentEmail is accepted where email isn't set",
+    familyRecipients({ id: 'sx', chattStateANumber: 'A100006', studentEmail: 'x@students.hcde.org' }, idx).own[0] === 'x@students.hcde.org');
+  t("no student record gives nobody", familyRecipients(null, idx).all.length === 0);
+
+  t("To line names the student and lists parents",
+    describeRecipients('Ann Adams', fam) === 'Ann Adams <ann@students.hcde.org>  ·  Parents: mom@x.com, dad@y.com',
+    describeRecipients('Ann Adams', fam));
+  t("To line says when no parent email is on file",
+    describeRecipients('Cy', familyRecipients({ id: 's6', chattStateANumber: 'A100006', email: 'cy@s.org' }, idx)).endsWith('no parent email on file'));
+  t("parents-only To line has no empty student part",
+    describeRecipients('Ben', familyRecipients({ id: 's2', chattStateANumber: 'A100002', email: '' }, idx)) === 'Parents: g1@x.com, g2@y.com');
+}
+console.log(fails ? `\n${fails} FAILED (incl. family recipients)` : "Family-recipient tests passed.");

@@ -277,7 +277,7 @@
     <div class="w3-modal-content w3-card" style="max-width:660px;">
       <button class="modal-close-btn" onclick="closeLabEmailModal()">×</button>
       <div class="modal-body">
-        <h2><i class="fas fa-envelope"></i> Email Student</h2>
+        <h2><i class="fas fa-envelope"></i> Email Student &amp; Parents</h2>
         <p style="margin:0 0 12px;"><b>To:</b> <span id="lab-email-student-name" style="color:#2563eb;"></span></p>
         <label class="form-label">Select Template</label>
         <select id="lab-email-template-select" class="w3-select w3-border w3-margin-bottom" onchange="previewLabEmailTemplate()">
@@ -308,6 +308,22 @@
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete, escapeHtml, studentDisplayName } from './js/utils.js';
     import { syncLabIntervention, removeLabIntervention, openLabsForStudent } from './js/labInterventions.js';
+    import { buildGuardianIndex, familyRecipients, describeRecipients } from './js/guardians.js';
+
+    // Parents are always copied on a student's Learning Lab email. Loaded the
+    // first time the email window opens; both lists are cached reference data.
+    let guardianIndex = null;
+    async function ensureGuardianIndex() {
+      if (guardianIndex) return guardianIndex;
+      try {
+        const [parents, overrides] = await Promise.all([
+          Data.get('parents').catch(() => []),
+          Data.get('guardianEmails').catch(() => []),
+        ]);
+        guardianIndex = buildGuardianIndex(parents, overrides);
+      } catch (_) { guardianIndex = buildGuardianIndex([], []); }
+      return guardianIndex;
+    }
 
     window.getAll = getAll;
     window.getById = getById;
@@ -809,12 +825,16 @@
         .replace(/\{\{labSessionSummary\}\}/gi, labSessionSummary);
     }
 
-    window.openLabEmailModal = function(id) {
+    window.openLabEmailModal = async function(id) {
       const schedule = allSchedules.find(s => s.id === id);
       if (!schedule) { showToast('Could not find that learning lab record', 'error'); return; }
       labEmailScheduleId = id;
 
-      document.getElementById('lab-email-student-name').textContent = schedule.studentName || '';
+      const student = allStudents.find(s => s.id === schedule.studentId);
+      const idx = await ensureGuardianIndex();
+      document.getElementById('lab-email-student-name').textContent = student
+        ? describeRecipients(`${student.firstName} ${student.lastName}`, familyRecipients(student, idx)) || `${schedule.studentName || ''} — no email on file`
+        : (schedule.studentName || '');
       document.getElementById('lab-email-preview').textContent = 'Select a template above to preview the email.';
 
       const sel = document.getElementById('lab-email-template-select');
@@ -855,8 +875,10 @@
 
       const schedule = allSchedules.find(s => s.id === labEmailScheduleId);
       const student  = allStudents.find(s => s.id === schedule?.studentId);
-      const toEmail  = student?.email || student?.studentEmail || '';
-      if (!toEmail) { showToast('No email address found for this student', 'warning'); return; }
+      // The student and their parents, one family in To (see guardians.js).
+      const recipients = familyRecipients(student, guardianIndex || buildGuardianIndex([], []));
+      if (!recipients.all.length) { showToast('No email address found for this student or their parents', 'warning'); return; }
+      const toEmail  = recipients.all.join(',');
 
       const sessions  = getLabSiblingSessions(labEmailScheduleId);
       const subject   = mergeLabFields(tmpl.subject || tmpl.emailSubject || '', schedule, sessions);

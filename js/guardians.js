@@ -56,3 +56,24 @@ export function guardianEmailsFor(student, index) {
     return true;
   });
 }
+
+// Everyone an intervention email to a student should reach: the student, then
+// their parents/guardians. Every page that emails a student about an
+// intervention (Learning Lab, TMI, ER, dress code via Email Students) builds
+// its To line from this, so the rule "parents are always included" lives in
+// one place. All of one family's addresses go in To — Outlook's compose link
+// doesn't fill Cc/Bcc reliably — and a message never mixes families.
+export function familyRecipients(student, index) {
+  const own = splitEmails(student?.email || student?.studentEmail || '');
+  const parents = guardianEmailsFor(student, index);
+  return { own, parents, all: [...own, ...parents] };
+}
+
+// "Ann Adams <a@x> · Parents: m@x, d@y" — for a preview's To line.
+export function describeRecipients(name, r) {
+  const parts = [];
+  if (r.own.length)     parts.push(`${name} <${r.own.join(', ')}>`);
+  if (r.parents.length) parts.push(`Parents: ${r.parents.join(', ')}`);
+  else if (r.own.length) parts.push('no parent email on file');
+  return parts.join('  ·  ');
+}
