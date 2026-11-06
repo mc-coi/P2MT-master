@@ -156,6 +156,20 @@
       .alert-row { padding: 10px 12px; gap: 8px; }
       .alert-name { font-size: 12px; }
     }
+    /* ── Staff alerts ── */
+    .sa-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-top: 1px solid var(--border, #e2e8f0); }
+    .sa-row:first-child { border-top: none; }
+    .sa-icon { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+               background: #fee2e2; color: #dc2626; flex-shrink: 0; }
+    .sa-main { flex: 1; min-width: 0; }
+    .sa-head { font-weight: 700; font-size: 14px; color: var(--text-primary); }
+    .sa-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .sa-reveal { margin-top: 6px; font-size: 13px; }
+    .sa-reveal a { color: var(--primary); font-weight: 700; text-decoration: none; }
+    .sa-btn { padding: 6px 12px; border-radius: 6px; border: 1.5px solid var(--border, #e2e8f0); background: var(--surface, #fff);
+              font-size: 12px; font-weight: 600; cursor: pointer; color: var(--text-secondary, #475569); white-space: nowrap; }
+    .sa-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .sa-btn.sa-show { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
   </style>
 </head>
 <body>
@@ -203,6 +217,18 @@
       </div>
     </div>
 
+    <!-- Alerts addressed to the signed-in person (chosen in Admin). Hidden
+         entirely when there are none, so most people never see it. -->
+    <div class="card w3-margin-bottom" id="staff-alerts-card" style="display:none;">
+      <div class="card-header">
+        <div class="card-title">
+          <i class="fas fa-bell" style="margin-right:6px;color:#dc2626;"></i>Alerts for you
+        </div>
+        <span style="font-size:12px;color:var(--text-muted);">Names are hidden until you click</span>
+      </div>
+      <div id="staff-alerts-body"></div>
+    </div>
+
     <!-- Today's Attendance Summary -->
     <div class="card w3-margin-bottom">
       <div class="card-header">
@@ -244,10 +270,67 @@
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { fetchClassLogsForDate, fetchDailyLogsForDate, fetchSessions, classLogDate, dailyLogDate } from './js/attendance.js';
+    import { loadMyAlerts, dismissAlert, alertHeadline } from './js/staffAlerts.js';
+    import { escapeHtml } from './js/utils.js';
 
     await initAuth();
     if (!getCurrentUser()) { window.location.href = 'index.html'; }
     initNav('home');
+
+    // ══════════════════════════════════════
+    //  STAFF ALERTS — addressed to whoever is signed in
+    // ══════════════════════════════════════
+    // The student's name stays hidden until "Show student" is clicked: Home is
+    // often left open on a screen students can see. Clicks are handled by
+    // delegation on the card, so nothing here depends on onclick="" reaching
+    // module-private functions.
+    let myAlerts = [];
+    function renderStaffAlerts() {
+      const card = document.getElementById('staff-alerts-card');
+      const body = document.getElementById('staff-alerts-body');
+      if (!myAlerts.length) { card.style.display = 'none'; body.innerHTML = ''; return; }
+      card.style.display = '';
+      body.innerHTML = myAlerts.map(a => {
+        const when = a.createdAt ? new Date(a.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        const until = a.expiresAt ? new Date(a.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+        return `<div class="sa-row" data-id="${escapeHtml(a.id)}">
+          <div class="sa-icon"><i class="fas fa-triangle-exclamation"></i></div>
+          <div class="sa-main">
+            <div class="sa-head">${escapeHtml(alertHeadline(a))}</div>
+            <div class="sa-meta">${escapeHtml(when)}${a.createdBy ? ` · by ${escapeHtml(a.createdBy)}` : ''}${until ? ` · shown until ${escapeHtml(until)}` : ''}</div>
+            <div class="sa-reveal" hidden>
+              <a href="./student-profile.html?id=${encodeURIComponent(a.studentId || '')}">${escapeHtml(a.studentName || 'Student')}</a>
+              ${a.reason ? `<span style="color:var(--text-muted);"> — ${escapeHtml(String(a.reason).slice(0, 140))}</span>` : ''}
+            </div>
+          </div>
+          <button class="sa-btn sa-show" data-act="show"><i class="fas fa-eye"></i> Show student</button>
+          <button class="sa-btn" data-act="dismiss" title="Remove this alert for you"><i class="fas fa-check"></i> Dismiss</button>
+        </div>`;
+      }).join('');
+    }
+
+    document.getElementById('staff-alerts-body').addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      const row = btn.closest('.sa-row');
+      if (btn.dataset.act === 'show') {
+        const reveal = row.querySelector('.sa-reveal');
+        const showing = !reveal.hidden;
+        reveal.hidden = showing;
+        btn.innerHTML = showing ? '<i class="fas fa-eye"></i> Show student' : '<i class="fas fa-eye-slash"></i> Hide';
+      } else if (btn.dataset.act === 'dismiss') {
+        btn.disabled = true;
+        try {
+          await dismissAlert(row.dataset.id);
+          myAlerts = myAlerts.filter(a => a.id !== row.dataset.id);
+          renderStaffAlerts();
+        } catch (err) { console.error('Dismiss alert failed', err); btn.disabled = false; }
+      }
+    });
+
+    loadMyAlerts(getCurrentUser()?.email)
+      .then(list => { myAlerts = list; renderStaffAlerts(); })
+      .catch(err => console.warn('Staff alerts unavailable', err));
 
     // ── Date display ──
     const today = new Date();

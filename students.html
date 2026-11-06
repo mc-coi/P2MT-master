@@ -568,6 +568,7 @@
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete, studentDisplayName, escapeHtml } from './js/utils.js';
     import { isInterventionLive, sweepExpiredLabInterventions } from './js/labInterventions.js';
+    import { shouldAlert, sendInterventionAlert } from './js/staffAlerts.js';
     import { recalcTMIForStudent, resolveStaffSurname } from './js/tmiEngine.js';
     import { saveEvent, deleteEvent, EVENTS_COLLECTION } from './js/attendance.js';
 
@@ -1512,7 +1513,19 @@
           await createDressCodeTmi(interventionId, s, dateTime, comments, assignedBy);
         }
 
-        showToast('Intervention saved', 'success');
+        // Level 2 Academic and Level 3 Dress Code alert the staff chosen in
+        // Admin (Home screen, for a week). An alert failing doesn't undo the
+        // intervention, which is already saved.
+        let alertNote = '';
+        if (shouldAlert(record)) {
+          const n = await sendInterventionAlert({
+            interventionId, studentId: assignStudentId, studentName: record.studentName,
+            category, level, reason: comments, createdBy: assignedBy,
+          }).catch(err => { console.error('Staff alert error:', err); return -1; });
+          alertNote = n > 0 ? ` — ${n} staff alerted` : n === 0 ? ' (no alert recipients set in Admin)' : ' — but the staff alert failed';
+        }
+
+        showToast('Intervention saved' + alertNote, alertNote.includes('failed') ? 'warning' : 'success');
         closeAssignModal();
         await loadInterventions();
         renderInterventionList();

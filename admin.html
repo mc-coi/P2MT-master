@@ -214,6 +214,25 @@
           </button>
         </div>
 
+        <!-- Intervention alerts: who is told about serious interventions -->
+        <div class="w3-card settings-card w3-margin-top" style="border-left: 4px solid #dc2626;">
+          <h3 style="color:#b91c1c;"><i class="fas fa-bell" style="margin-right:8px;"></i>Intervention Alerts</h3>
+          <p class="w3-text-grey" style="margin-bottom:12px;">
+            These staff get an alert on their Home screen for a week when a student is given a
+            <strong>Level 2 Academic</strong> or <strong>Level 3 Dress Code</strong> intervention —
+            including the Level 2 that's added automatically when a student gets a second Learning Lab.
+            The student's name stays hidden until they click.
+          </p>
+          <input type="text" id="alert-staff-search" class="w3-input w3-border" placeholder="Filter staff…" style="max-width:320px;margin-bottom:8px;">
+          <div id="alert-staff-list" style="max-height:260px;overflow-y:auto;border:1.5px solid #e2e8f0;border-radius:8px;padding:6px 10px;background:#fafafa;">
+            <div class="w3-text-grey" style="padding:8px;">Loading staff…</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
+            <button id="btn-save-alert-staff" class="w3-button btn-primary"><i class="fas fa-save"></i> Save Alert Recipients</button>
+            <span id="alert-staff-count" class="w3-text-grey" style="font-size:13px;"></span>
+          </div>
+        </div>
+
         <!-- Year-End Data Management -->
         <div class="w3-card settings-card w3-margin-top" style="border-left: 4px solid #dc2626;">
           <h3 style="color:#dc2626;"><i class="fas fa-calendar-times" style="margin-right:8px;"></i>Year-End Data Management</h3>
@@ -502,11 +521,12 @@
   <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script type="module">
-    import { initAuth } from './js/auth.js';
+    import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc, batchWrite } from './js/db.js';
     import * as Data from './js/data.js';
-    import { exportCSV, showToast, generateId } from './js/utils.js';
+    import { exportCSV, showToast, generateId, escapeHtml } from './js/utils.js';
+    import { getAlertRecipients, setAlertRecipients } from './js/staffAlerts.js';
 
     let studentsData = [];
     let staffData = [];
@@ -550,6 +570,60 @@
       renderStaffTable();
       renderParentsTable();
       renderInterventionTypesTable();
+      initAlertRecipients();
+    }
+
+    // ── Intervention alert recipients ───────────────────────────────────────────
+    // Staff are listed from the cached staff list; only those with an email can
+    // receive alerts, because an alert is addressed by email. Wired with
+    // addEventListener rather than onclick="" (module functions aren't global).
+    let alertRecipients = new Set();
+    async function initAlertRecipients() {
+      try { alertRecipients = new Set(await getAlertRecipients()); }
+      catch (err) { console.warn('Could not load alert recipients', err); }
+      renderAlertStaffList();
+      document.getElementById('alert-staff-search').addEventListener('input', renderAlertStaffList);
+      document.getElementById('alert-staff-list').addEventListener('change', e => {
+        const cb = e.target.closest('input[type="checkbox"][data-email]');
+        if (!cb) return;
+        if (cb.checked) alertRecipients.add(cb.dataset.email); else alertRecipients.delete(cb.dataset.email);
+        updateAlertCount();
+      });
+      document.getElementById('btn-save-alert-staff').addEventListener('click', async () => {
+        const btn = document.getElementById('btn-save-alert-staff');
+        btn.disabled = true;
+        try {
+          const saved = await setAlertRecipients([...alertRecipients], getCurrentUser()?.email || '');
+          alertRecipients = new Set(saved);
+          showToast(`Alert recipients saved — ${saved.length} staff`, 'success');
+        } catch (err) {
+          console.error('Saving alert recipients failed', err);
+          showToast('Could not save alert recipients', 'error');
+        } finally { btn.disabled = false; updateAlertCount(); }
+      });
+    }
+
+    function renderAlertStaffList() {
+      const q = (document.getElementById('alert-staff-search').value || '').toLowerCase();
+      const list = document.getElementById('alert-staff-list');
+      const staff = [...(staffData || [])]
+        .sort((a, b) => (a.lastName || '').localeCompare(b.lastName || ''))
+        .filter(st => !q || `${st.firstName} ${st.lastName} ${st.email}`.toLowerCase().includes(q));
+      if (!staff.length) { list.innerHTML = '<div class="w3-text-grey" style="padding:8px;">No staff match</div>'; updateAlertCount(); return; }
+      list.innerHTML = staff.map(st => {
+        const email = String(st.email || '').trim().toLowerCase();
+        const name = escapeHtml(`${st.lastName || ''}, ${st.firstName || ''}`);
+        if (!email) return `<div style="padding:5px 2px;color:#94a3b8;font-size:13px;">${name} <em>(no email — can't receive alerts)</em></div>`;
+        return `<label style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:13px;cursor:pointer;">
+          <input type="checkbox" data-email="${escapeHtml(email)}" ${alertRecipients.has(email) ? 'checked' : ''}>
+          <span>${name} <span style="color:#94a3b8;">${escapeHtml(email)}</span></span></label>`;
+      }).join('');
+      updateAlertCount();
+    }
+
+    function updateAlertCount() {
+      const n = alertRecipients.size;
+      document.getElementById('alert-staff-count').textContent = n ? `${n} selected` : 'Nobody selected — no alerts will be sent';
     }
 
     async function loadAllData() {

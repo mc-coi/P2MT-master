@@ -57,6 +57,7 @@ tools/sim/data.js
 tools/sim/utils.js
 tools/sim/labInterventions.js
 tools/sim/guardians.js
+tools/sim/staffAlerts.js
 tools/extracted/
 
 # dev-only test tooling (cd tools && npm install)

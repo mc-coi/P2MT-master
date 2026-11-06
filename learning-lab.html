@@ -304,11 +304,12 @@
   <script type="module">
     import { initAuth, getCurrentUser } from './js/auth.js';
     import { initNav } from './js/nav.js';
-    import { getAll, getById, addDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
+    import { getAll, getById, addDoc, setDoc, updateDoc, deleteDoc, getWhere, getWhereMultiple, batchWrite } from './js/db.js';
     import * as Data from './js/data.js';
     import { formatDate, exportCSV, importCSV, showToast, showModal, getCurrentSchoolYear, getCurrentSemester, confirmTypedDelete, escapeHtml, studentDisplayName } from './js/utils.js';
     import { syncLabIntervention, removeLabIntervention, openLabsForStudent } from './js/labInterventions.js';
     import { buildGuardianIndex, familyRecipients, describeRecipients } from './js/guardians.js';
+    import { sendInterventionAlert } from './js/staffAlerts.js';
 
     // Parents are always copied on a student's Learning Lab email. Loaded the
     // first time the email window opens; both lists are cached reference data.
@@ -615,6 +616,7 @@
         `<span class="len-head"><i class="fas fa-triangle-exclamation"></i> ` +
         `This student already has ${labs.length === 1 ? 'a Learning Lab' : `${labs.length} Learning Labs`}` +
         `${running ? (running === labs.length ? ' running now' : ` (${running} running now)`) : ' scheduled'}.</span>` +
+        (editing ? '' : ' Saving will also add a <strong>Level 2 Academic</strong> intervention.') +
         `<ul>${labs.map(l =>
           `<li>${escapeHtml(l.className)}${l.teacherLastName ? ` · ${escapeHtml(l.teacherLastName)}` : ''}` +
           ` · ${escapeHtml(d(l.startDate))} – ${escapeHtml(d(l.endDate))}` +
@@ -653,6 +655,9 @@
         // The lab as it was before this edit, so its intervention can be moved
         // if the dates or the student changed.
         const before = currentEditId ? allSchedules.find(s => s.id === currentEditId) : null;
+        // A new lab while another is still running or scheduled is an escalation
+        // (see below). Checked before saving, so the new lab isn't counted.
+        const openBefore = currentEditId ? [] : openLabsForStudent(studentId, allSchedules);
 
         // Create schedules for each session
         for (let i = 1; i <= 5; i++) {
@@ -719,6 +724,45 @@
           } catch (err) {
             console.error('Learning Lab intervention error:', err);
             showToast('Lab saved, but its Academic intervention could not be added', 'warning');
+          }
+        }
+
+        // Second Learning Lab while one is still open → a permanent Level 2
+        // Academic intervention, and an alert to the staff chosen in Admin.
+        // The Level 1 stays and still ends with its own lab. This record is
+        // not a lab intervention (different source), so it is never swept.
+        if (createdSchedules.length && openBefore.length) {
+          try {
+            const p = n => String(n).padStart(2, '0');
+            const now = new Date();
+            const nowLocal = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}T${p(now.getHours())}:${p(now.getMinutes())}`;
+            const prior = openBefore.map(l => `${l.className}${l.startDate ? ` (${l.startDate} to ${l.endDate})` : ''}`).join('; ');
+            const assignedBy = getCurrentUser()?.displayName || getCurrentUser()?.email || 'Learning Lab';
+            const record = {
+              studentId,
+              studentName: studentDisplayName(student),
+              category:    'Academic',
+              level:       2,
+              dateTime:    nowLocal,
+              comments:    `Second Learning Lab (${className || 'Learning Lab'}) assigned while one was still open: ${prior}. Added automatically.`,
+              assignedBy,
+              source:      'learningLabEscalation',
+              createdAt:   now.toISOString(),
+            };
+            const id = (startDate && endDate) ? `lab2_${studentId}_${startDate}_${endDate}` : null;
+            const interventionId = id ? (await setDoc('studentInterventions', id, record), id)
+                                      : await addDoc('studentInterventions', record);
+            const alerted = await sendInterventionAlert({
+              interventionId, studentId, studentName: record.studentName,
+              category: 'Academic', level: 2, reason: 'Second Learning Lab', createdBy: assignedBy,
+            }).catch(err => { console.error('Staff alert error:', err); return -1; });
+            showToast(alerted > 0
+              ? `Level 2 Academic intervention added — ${alerted} staff alerted`
+              : alerted === 0 ? 'Level 2 Academic intervention added (no alert recipients set in Admin)'
+                              : 'Level 2 Academic intervention added, but the staff alert failed', alerted < 0 ? 'warning' : 'info');
+          } catch (err) {
+            console.error('Level 2 escalation error:', err);
+            showToast('Lab saved, but the Level 2 Academic intervention could not be added', 'warning');
           }
         }
 

@@ -1,36 +1,56 @@
 // Boot a real P2MT page in jsdom: its own markup, its own module script.
 //
-// The page script runs inside one private function scope, exactly like a
-// <script type="module">, so only what it assigns to window is reachable from
-// onclick="" — the same rule the browser applies.
+// The page script runs inside one private, async function scope, like a
+// <script type="module"> (which may use top-level await), so only what it
+// assigns to window is reachable from onclick="" — the browser's rule.
 //
-// Imports are replaced, not faked wholesale: shared modules that don't touch
-// Firestore (utils, guardians, labInterventions) are the real files, inlined.
-// Firestore, auth and nav are stubbed; reference data comes from fixtures.
+// A small module loader stands in for the browser's. The real shared modules
+// that don't touch Firestore (utils, guardians, labInterventions, staffAlerts)
+// are each loaded into their own scope as a namespace, and every import —
+// in a page or a module — binds only the names it lists. So a page sees what
+// it imports and nothing else, and two modules can each keep a private
+// `COLLECTION`. Imports from modules that aren't loaded (db, auth, nav, data,
+// attendance, tmiEngine) are dropped; those names come from the stubs below.
+//
 // jQuery is real (pages load it from a CDN); DataTables is a stand-in, since
-// these tests are about what the page does, not how the table paginates.
+// these tests are about what a page does, not how its table paginates.
 const fs = require('fs');
 const path = require('path');
 const { JSDOM } = require('jsdom');
 const ROOT = path.resolve(__dirname, '..', '..');
 
-const moduleSource = f => fs.readFileSync(path.join(ROOT, 'js', f), 'utf8')
-  .replace(/^\s*import[^;]*;\s*$/gm, '')
-  .replace(/^export\s+/gm, '');
+// Loaded in this order, so a module's own imports already exist.
+const LOADABLE = ['utils.js', 'guardians.js', 'labInterventions.js', 'staffAlerts.js'];
+// Supplied by the harness instead of utils, so tests can observe them.
+const STUBBED = new Set(['showToast', 'confirmTypedDelete']);
+
+const IMPORT_RE = /^\s*import\s*(\{[^}]*\}|\*\s+as\s+\w+)\s*from\s*['"]([^'"]+)['"];?\s*$/gm;
+
+function bindImports(src, loaded) {
+  return src.replace(IMPORT_RE, (all, spec, from) => {
+    const file = path.basename(from);
+    if (!loaded.includes(file)) return '';                       // name comes from the stubs
+    if (spec.startsWith('*')) return `const ${spec.split(/\s+as\s+/)[1].trim()} = __mods['${file}'];`;
+    const parts = spec.slice(1, -1).split(',').map(x => x.trim()).filter(Boolean)
+      .map(x => { const [a, b] = x.split(/\s+as\s+/).map(y => y.trim()); return { from: a, to: b || a }; })
+      .filter(x => !STUBBED.has(x.to));
+    if (!parts.length) return '';
+    return `const { ${parts.map(x => (x.from === x.to ? x.from : `${x.from}: ${x.to}`)).join(', ')} } = __mods['${file}'];`;
+  });
+}
+
+function loadModule(file, loaded) {
+  const src = fs.readFileSync(path.join(ROOT, 'js', file), 'utf8');
+  const names = [...src.matchAll(/^export\s+(?:async\s+)?(?:function|const|let|class)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);
+  const body = bindImports(src, loaded).replace(/^export\s+/gm, '');
+  return `__mods['${file}'] = (() => {\n${body}\nreturn { ${names.join(', ')} };\n})();`;
+}
 
 function bootPage(page, fixtures, { inline = [], stubs = '' } = {}) {
   const html = fs.readFileSync(path.join(ROOT, page), 'utf8');
   const m = html.match(/<script type="module">([\s\S]*?)<\/script>/);
-  // Imports are stripped, but a renamed import (\`mailMergeCell as tmiCsvCell\`)
-  // must keep working under the page's name for it.
-  const aliases = [];
-  for (const imp of m[1].matchAll(/import\s*\{([^}]*)\}\s*from/g)) {
-    for (const part of imp[1].split(',')) {
-      const am = part.trim().match(/^(\w+)\s+as\s+(\w+)$/);
-      if (am) aliases.push(`const ${am[2]} = ${am[1]};`);
-    }
-  }
-  const pageScript = aliases.join('\n') + '\n' + m[1].replace(/^\s*import[^;]*;\s*$/gm, '');
+  const loaded = LOADABLE.filter(f => f === 'utils.js' || inline.includes(f));
+  const pageScript = bindImports(m[1], loaded);
   // External <script src> tags can't load here; drop them and supply jQuery.
   const shell = html.replace(m[0], '').replace(/<script[^>]*\bsrc=[^>]*><\/script>/g, '');
 
@@ -38,6 +58,8 @@ function bootPage(page, fixtures, { inline = [], stubs = '' } = {}) {
   const w = dom.window;
   const opened = [], toasts = [], writes = [];
   w.open = (url) => { opened.push(url); return {}; };
+  w.confirm = () => false; w.alert = () => {};
+  w.fetch = () => Promise.reject(new Error('no network in tests'));
   w.__toasts = toasts; w.__fixtures = fixtures; w.__writes = writes;
   // Anything the page logs as an error — including a throw while starting —
   // is recorded, so a half-booted page can't pass a test by accident.
@@ -57,14 +79,12 @@ function bootPage(page, fixtures, { inline = [], stubs = '' } = {}) {
     jQuery.fn.dataTable = jQuery.fn.DataTable;
   `);
 
-  const realUtils = moduleSource('utils.js')
-    .replace(/function showToast\(/, 'function __realShowToast(')
-    .replace(/function confirmTypedDelete\(/, 'function __realConfirm(');
-
-  w.eval(`(function () {
+  w.eval(`(async function () {
     const getById = async (c, id) => (window.__fixtures[c] || []).find(d => d.id === id) || null;
     const getAll = async (c) => window.__fixtures[c] || [];
-    const getWhere = async () => [], getWhereMultiple = async () => [];
+    // Equality queries answered from fixtures, like the real one-field query.
+    const getWhere = async (c, f, op, v) => (window.__fixtures[c] || []).filter(d => op === '==' ? d[f] === v : true);
+    const getWhereMultiple = async () => [];
     const addDoc = async (c, d) => { window.__writes.push(['add', c, d]); return 'new' + window.__writes.length; };
     const setDoc = async (c, id, d) => { window.__writes.push(['set', c, id, d]); };
     const updateDoc = async (c, id, d) => { window.__writes.push(['update', c, id, d]); };
@@ -74,11 +94,11 @@ function bootPage(page, fixtures, { inline = [], stubs = '' } = {}) {
     const getCurrentUser = () => ({ uid: 'u1', email: 'zmccoy@x.org', displayName: 'Zach McCoy' });
     const initNav = () => {};
     const Data = { get: async (c) => window.__fixtures[c] || [] };
-    ${realUtils}
     const showToast = (msg) => window.__toasts.push(msg);
     const confirmTypedDelete = async () => true;
-    ${inline.map(moduleSource).join('\n')}
     ${stubs}
+    const __mods = {};
+    ${loaded.map(f => loadModule(f, loaded)).join('\n')}
     ${pageScript}
   })();`);
 

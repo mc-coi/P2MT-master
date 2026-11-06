@@ -22,7 +22,7 @@ out_dir = os.path.join(root, "tools", "extracted")
 os.makedirs(out_dir, exist_ok=True)
 
 # Modules whose exported functions have strict, positional signatures.
-SIGNATURE_SOURCES = ["js/db.js", "js/attendance.js", "js/tmiEngine.js", "js/data.js", "js/labInterventions.js", "js/utils.js", "js/guardians.js"]
+SIGNATURE_SOURCES = ["js/db.js", "js/attendance.js", "js/tmiEngine.js", "js/data.js", "js/labInterventions.js", "js/utils.js", "js/guardians.js", "js/staffAlerts.js"]
 
 
 def strip_noncode(s):

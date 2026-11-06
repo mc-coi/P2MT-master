@@ -158,6 +158,22 @@ with everyone in **Bcc**: it copies the addresses to the clipboard (batches of
 400, under Exchange's 500-recipient cap) and opens compose with only subject
 and body — never addresses in the link.
 
+## Staff alerts
+
+`js/staffAlerts.js`. A **Level 2 Academic** or **Level 3 Dress Code**
+intervention (rules in `ALERT_RULES`) alerts the staff chosen in Admin →
+Settings → Intervention Alerts (`settings/interventionAlerts`). One doc per
+recipient in `staffAlerts`, found on Home with a single `forEmail ==` query (no
+index). Alerts show for 7 days, then Home deletes them from what it read. The
+student's name is stored but **hidden on Home until clicked** — screens are
+visible to students. Any writer of an intervention should call
+`sendInterventionAlert()` when `shouldAlert()` is true.
+
+A **new** Learning Lab while the student has another running or scheduled adds
+a permanent Level 2 Academic (`source: 'learningLabEscalation'`, ID
+`lab2_{studentId}_{start}_{end}`) — not a lab intervention, so never swept —
+and alerts. Editing a lab never escalates.
+
 ## DataTables
 
 jQuery DataTables, and it has bitten this codebase repeatedly:
