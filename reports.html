@@ -248,7 +248,7 @@
           </div>
         </div>
         <div class="chart-box">
-          <h4><i class="fas fa-chalkboard-teacher"></i> TMI by Class / Teacher</h4>
+          <h4><i class="fas fa-chalkboard-teacher"></i> TMI by Teacher</h4>
           <div class="chart-wrap" style="height:280px;"><canvas id="chart-tmi-class"></canvas></div>
         </div>
       </div>
@@ -337,14 +337,14 @@
           <div class="chart-wrap" style="height:260px;"><canvas id="chart-er-workshops"></canvas></div>
         </div>
         <div class="chart-box">
-          <h4><i class="fas fa-chalkboard-teacher"></i> Teacher</h4>
+          <h4><i class="fas fa-chalkboard-teacher"></i> Clearances by Teacher</h4>
           <div class="chart-wrap" style="height:260px;"><canvas id="chart-er-class"></canvas></div>
         </div>
         <div class="chart-box">
-          <h4><i class="fas fa-user"></i> Top 10 Students by ER Frequency</h4>
+          <h4><i class="fas fa-user"></i> Top 10 Students by ER Classes</h4>
           <div style="overflow-y:auto;max-height:260px;">
             <table class="rpt-table" id="tbl-er-students">
-              <thead><tr><th>#</th><th>Student</th><th>Assignments</th><th>Classes</th></tr></thead>
+              <thead><tr><th>#</th><th>Student</th><th>Classes with ER</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
@@ -365,6 +365,8 @@
     import * as Data from './js/data.js';
     import { initNav }                      from './js/nav.js';
     import { isInterventionLive }           from './js/labInterventions.js';
+    import { servedSummary }                from './js/tmiEngine.js';
+    import { studentDisplayName }           from './js/utils.js';
 
     // ── Shared helpers ──────────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
@@ -434,11 +436,13 @@
       });
     }
 
+    // Every chart here counts whole things, so axes step in whole numbers
+    // (precision:0) — no "0.5 assignments".
     function hBarOpts(max) {
       return {
         indexAxis:'y', responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{display:false} },
-        scales:{ x:{ beginAtZero:true, ticks:{font:{size:10}}, ...(max?{suggestedMax:max}:{}) },
+        scales:{ x:{ beginAtZero:true, ticks:{font:{size:10}, precision:0}, ...(max?{suggestedMax:max}:{}) },
                  y:{ ticks:{font:{size:11}} } },
       };
     }
@@ -447,9 +451,50 @@
       return {
         responsive:true, maintainAspectRatio:false,
         plugins:{ legend:{display:false} },
-        scales:{ x:{ ticks:{font:{size:11}} }, y:{ beginAtZero:true, ticks:{font:{size:10}} } },
+        scales:{ x:{ ticks:{font:{size:11}} }, y:{ beginAtZero:true, ticks:{font:{size:10}, precision:0} } },
       };
     }
+
+    // ── Houses ──────────────────────────────────────────────────────────────────
+    // "Telsa" is a typo for Tesla in some student records; it's counted as Tesla.
+    // Each house keeps one colour on every chart.
+    function normHouse(h) {
+      const v = String(h || '').trim();
+      return /^(tesla|telsa)$/i.test(v) ? 'Tesla' : v;
+    }
+    const HOUSE_COLORS = {
+      tesla:      '#16A34A',   // green
+      staupers:   '#DC2626',   // red
+      einstein:   '#7C3AED',   // purple
+      einstien:   '#7C3AED',
+      mirzakhani: '#1CC6B5',   // turquoise
+    };
+    const houseColor = (h, i) => HOUSE_COLORS[String(h).toLowerCase()] || PALETTE[i % PALETTE.length];
+
+    // ── Extended Remediation isn't a class ──────────────────────────────────────
+    // ER absences are mirrored into attendance under these names; they are left
+    // out of anything that ranks classes or teachers.
+    const ER_CLASS_NAMES = ['extended remediation', 'early release', 'er'];
+    const isErClass = name => ER_CLASS_NAMES.includes(String(name || '').trim().toLowerCase());
+
+    // ── One student, however a record refers to them ────────────────────────────
+    // Records carry a studentId, an A#, or both, in varying case. Everything is
+    // resolved to the roster's student id; anything that can't be is left out of
+    // every figure — totals included, so a section's numbers always agree with
+    // each other — rather than shown as "Unknown".
+    let studentMap = {}, anumToId = {}, erClassNames = {};
+    function resolveStudent(r) {
+      if (r?.studentId && studentMap[r.studentId]) return r.studentId;
+      const a = String(r?.chattStateANumber || '').trim().toUpperCase();
+      if (a) {
+        if (anumToId[a]) return anumToId[a];
+        const num = a.startsWith('A') ? a.slice(1) : a;
+        if (anumToId['A' + num]) return anumToId['A' + num];
+        if (anumToId[num]) return anumToId[num];
+      }
+      return null;
+    }
+    const nameOf = id => studentMap[id] ? studentDisplayName(studentMap[id]) : '';
 
     // ── Table builder ───────────────────────────────────────────────────────────
     function fillTable(tableId, rows) {
@@ -485,7 +530,7 @@
           Data.get('students'),
         ]);
 
-        const studentMap = {};
+        studentMap = {};
         students.forEach(s => { studentMap[s.id] = s; });
 
         // Reverse lookup: normalized A# → student.id. Attendance records from
@@ -494,7 +539,7 @@
         // roster, or carry no studentId at all — this resolves them back to
         // one canonical student so a student's absences aren't split across
         // multiple rows in the Top 10 table.
-        const anumToId = {};
+        anumToId = {};
         students.forEach(s => {
           const anum = (s.chattStateANumber || '').trim().toUpperCase();
           if (anum) anumToId[anum] = s.id;
@@ -502,25 +547,27 @@
 
         // Merge attendance collections, de-duplicating by student+date.
         // Class records take priority; daily records fill gaps for manually-logged absences.
+        // Keyed on the resolved student, not the raw A#, which varies in case.
+        const dayKey = (l, d) => `${resolveStudent(l) || String(l.chattStateANumber||'').trim().toUpperCase()}|${d}`;
         const classAbsKeys = new Set(
           rawClassLogs.filter(l => ['T','U','E'].includes(l.attendanceCode))
-                      .map(l => `${l.chattStateANumber}|${(l.classDate||l.date||'').substring(0,10)}`)
+                      .map(l => dayKey(l, (l.classDate||l.date||'').substring(0,10)))
         );
         const mergedAttLogs = [
           ...rawClassLogs,
           ...rawDailyLogs
             .filter(l => {
               const d = (l.absenceDate || l.date || '').substring(0,10);
-              return !classAbsKeys.has(`${l.chattStateANumber}|${d}`);
+              return !classAbsKeys.has(dayKey(l, d));
             })
             .map(l => ({ ...l, classDate: l.absenceDate || l.date || '' })),
         ];
 
-        buildAttendance(mergedAttLogs, range, studentMap, anumToId);
-        buildTMI(tmiLogs, range, studentMap);
+        buildAttendance(mergedAttLogs, range);
+        buildTMI(tmiLogs, range);
         // A Learning Lab's intervention only counts while its lab is running.
-        buildInterventions(intLogs.filter(r => isInterventionLive(r)), range, studentMap);
-        buildER(erAssign, erWorkshops, erClearance, range, studentMap);
+        buildInterventions(intLogs.filter(r => isInterventionLive(r)), range);
+        buildER(erAssign, erWorkshops, erClearance, range);
       } catch(e) {
         console.error(e);
         showToast('Error loading report data', 'error');
@@ -532,17 +579,21 @@
     // ═══════════════════════════════════════════════════════════════════════════
     //  ATTENDANCE REPORT
     // ═══════════════════════════════════════════════════════════════════════════
-    function buildAttendance(logs, range, studentMap, anumToId) {
+    function buildAttendance(logs, range) {
+      // Absences, tardies and excused only (daily logs can carry other codes),
+      // in range, and not Learning Labs. ER absences are kept in the totals —
+      // they're real absences — but never ranked as a class.
       const filtered = logs.filter(l => {
         const d = (l.classDate || l.date || '').substring(0,10);
-        return d && d >= range.start && d <= range.end && !l.learningLab;
+        return d && d >= range.start && d <= range.end && !l.learningLab
+            && ['U','T','E'].includes(l.attendanceCode) && resolveStudent(l);
       });
       rawData.attendance = filtered;
 
       const uLogs = filtered.filter(l => l.attendanceCode === 'U');
       const tLogs = filtered.filter(l => l.attendanceCode === 'T');
       const eLogs = filtered.filter(l => l.attendanceCode === 'E');
-      const uniqueStudents = new Set(filtered.map(l => l.studentId)).size;
+      const uniqueStudents = new Set(filtered.map(resolveStudent).filter(Boolean)).size;
 
       $('att-total').textContent    = filtered.length;
       $('att-u').textContent        = uLogs.length;
@@ -569,7 +620,7 @@
         ],
       }, { responsive:true, maintainAspectRatio:false,
            plugins:{legend:{labels:{font:{size:11},boxWidth:12}}},
-           scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,beginAtZero:true,ticks:{font:{size:10}}}} });
+           scales:{x:{stacked:true,ticks:{font:{size:11}}},y:{stacked:true,beginAtZero:true,ticks:{font:{size:10},precision:0}}} });
 
       // Absences by month
       const monthCount = {};
@@ -585,12 +636,13 @@
                      pointBackgroundColor:'#4F46E5', pointRadius:4 }],
       }, { responsive:true, maintainAspectRatio:false,
            plugins:{legend:{display:false}},
-           scales:{x:{ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{font:{size:10}}}} });
+           scales:{x:{ticks:{font:{size:10}}},y:{beginAtZero:true,ticks:{font:{size:10},precision:0}}} });
 
-      // Top 10 missed classes
+      // Top 10 missed classes — real classes only: no ER, nothing unnamed.
       const classCount = {};
       uLogs.concat(tLogs).forEach(l => {
-        const key = (l.className||'Unknown') + (l.teacherLastName ? ` (${l.teacherLastName})` : '');
+        if (!l.className || isErClass(l.className)) return;
+        const key = l.className + (l.teacherLastName ? ` (${l.teacherLastName})` : '');
         classCount[key] = (classCount[key]||0)+1;
       });
       const topClasses = Object.entries(classCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
@@ -600,33 +652,16 @@
                     backgroundColor: PALETTE.map(c=>c+'CC') }],
       }, hBarOpts());
 
-      // Top 10 students — resolve every record back to one canonical student
-      // via the roster (studentId first, then normalized A#) before grouping.
-      // Records logged from different pages can carry the A# with different
-      // casing/whitespace or omit studentId entirely; grouping on the raw
-      // field (as before) silently split one student's absences into several
-      // rows, so no single row crossed the Top 10 cutoff.
-      const resolveKey = l => {
-        if (l.studentId && studentMap[l.studentId]) return l.studentId;
-        const anum = (l.chattStateANumber || '').trim().toUpperCase();
-        if (anum && anumToId?.[anum]) return anumToId[anum];
-        return l.studentId || anum || null;
-      };
+      // Top 10 students, each resolved to one roster entry.
       const studentAbsMap = {};
       filtered.forEach(l => {
-        const key = resolveKey(l);
-        if (!key) return;
-        if (!studentAbsMap[key]) {
-          const s = studentMap[key];
-          studentAbsMap[key] = {name: s ? `${s.lastName}, ${s.firstName}` : (l.studentName || 'Unknown'), U:0, T:0, E:0};
-        }
-        const code = l.attendanceCode;
-        if (code==='U') studentAbsMap[key].U++;
-        else if (code==='T') studentAbsMap[key].T++;
-        else if (code==='E') studentAbsMap[key].E++;
+        const id = resolveStudent(l);
+        if (!id) return;
+        const r = studentAbsMap[id] || (studentAbsMap[id] = { name: nameOf(id), U:0, T:0, E:0 });
+        r[l.attendanceCode]++;
       });
       const topStudents = Object.values(studentAbsMap)
-        .sort((a,b)=>(b.U+b.T)-(a.U+a.T)).slice(0,10);
+        .sort((a,b)=>(b.U+b.T)-(a.U+a.T) || a.name.localeCompare(b.name)).slice(0,10);
       fillTable('tbl-att-students', topStudents.map((s,i) => [
         i+1, s.name,
         `<span style="color:#EF4444;font-weight:700;">${s.U}</span>`,
@@ -638,19 +673,23 @@
     // ═══════════════════════════════════════════════════════════════════════════
     //  TMI REPORT
     // ═══════════════════════════════════════════════════════════════════════════
-    function buildTMI(logs, range, studentMap) {
+    function buildTMI(logs, range) {
       // Fall back through the date fields the various write paths use, so TMI
       // records created outside Class Attendance are still counted.
       const tmiDate = l => l.startDate || l.dateTime || l.createDate || l.createdAt || '';
       const tmi = logs.filter(l =>
-        l.interventionType === 'TMI' && inRange(tmiDate(l), range)
+        l.interventionType === 'TMI' && inRange(tmiDate(l), range) && resolveStudent(l)
       );
       rawData.tmi = tmi;
 
-      const totalAssigned  = tmi.reduce((s,l)=>s+(+l.tmiMinutes||0),0);
-      const totalServed    = tmi.reduce((s,l)=>s+(+l.tmiMinutesServed||0),0);
-      const totalRemaining = tmi.reduce((s,l)=>s+(+l.tmiMinutesRemaining||0),0);
-      const uniqueStudents = new Set(tmi.map(l=>l.studentId)).size;
+      // Served time comes from the sign-in/out sittings on each record — the
+      // stored tmiMinutesServed/Remaining fields go stale once sittings exist.
+      const served = l => servedSummary(l).served;
+      const totalAssigned  = tmi.reduce((n,l)=>n+(+l.tmiMinutes||0),0);
+      const totalServed    = tmi.reduce((n,l)=>n+Math.min(served(l), +l.tmiMinutes||0),0);
+      const totalRemaining = Math.max(0, totalAssigned - totalServed);
+      const ids = tmi.map(resolveStudent);
+      const uniqueStudents = new Set(ids.filter(Boolean)).size;
       const pct = totalAssigned ? Math.round(totalServed/totalAssigned*100) : 0;
 
       $('tmi-students').textContent  = uniqueStudents;
@@ -659,52 +698,55 @@
       $('tmi-remaining').textContent = totalRemaining;
       $('tmi-pct').textContent       = pct + '%';
 
-      // Status doughnut
-      const statusMap = { 'Pending Review':0, 'Reviewed':0, 'Closed':0 };
-      tmi.forEach(l => { const s = l.interventionStatus||'Pending Review'; statusMap[s]=(statusMap[s]||0)+1; });
+      // Status — every status in use. Manual TMI is saved as "Pending", which
+      // the old fixed three-slice chart silently dropped.
+      const statusLabel = s => (!s || s === 'Pending') ? 'Pending Review' : s;
+      const statusColors = { 'Pending Review':'#F59E0BCC', 'Reviewed':'#3B82F6CC', 'Closed':'#10B981CC' };
+      const statusMap = {};
+      tmi.forEach(l => { const k = statusLabel(l.interventionStatus); statusMap[k]=(statusMap[k]||0)+1; });
+      const statuses = Object.keys(statusMap).sort((a,b) =>
+        (['Pending Review','Reviewed','Closed'].indexOf(a)+99)%99 - (['Pending Review','Reviewed','Closed'].indexOf(b)+99)%99);
       mkChart('chart-tmi-status', 'doughnut', {
-        labels: ['Pending Review','Reviewed','Closed'],
-        datasets:[{ data:[statusMap['Pending Review'],statusMap['Reviewed'],statusMap['Closed']],
-                    backgroundColor:['#F59E0BCC','#3B82F6CC','#10B981CC'], borderWidth:2 }],
+        labels: statuses,
+        datasets:[{ data: statuses.map(k=>statusMap[k]),
+                    backgroundColor: statuses.map((k,i)=>statusColors[k]||PALETTE[i]+'CC'), borderWidth:2 }],
       }, { responsive:true, maintainAspectRatio:false,
            plugins:{legend:{position:'bottom',labels:{font:{size:11},boxWidth:14}}} });
 
-      // By house
-      const houseMap = {};
-      tmi.forEach(l => {
-        const s = studentMap[l.studentId];
-        const h = (s?.house)||'Unknown';
-        houseMap[h] = (houseMap[h]||0)+1;
+      // By house / grade — students, counted once each (the label says
+      // "Students"; this used to count TMI records).
+      const houseSets = {}, gradeSets = {};
+      ids.forEach(id => {
+        if (!id) return;
+        const s = studentMap[id];
+        const h = normHouse(s.house);
+        if (h) (houseSets[h] = houseSets[h] || new Set()).add(id);
+        const g = s.yearOfGraduation || s.graduationYear;
+        if (g) (gradeSets[g] = gradeSets[g] || new Set()).add(id);
       });
-      const houses = Object.entries(houseMap).sort((a,b)=>b[1]-a[1]);
+      const houses = Object.entries(houseSets).map(([h,set])=>[h,set.size]).sort((a,b)=>b[1]-a[1]);
       mkChart('chart-tmi-house', 'bar', {
         labels: houses.map(([h])=>h),
-        datasets:[{ label:'Students', data:houses.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'CC') }],
+        datasets:[{ label:'Students', data:houses.map(([,v])=>v), backgroundColor:houses.map(([h],i)=>houseColor(h,i)) }],
       }, vBarOpts());
-
-      // By grade
-      const gradeMap = {};
-      tmi.forEach(l => {
-        const s = studentMap[l.studentId];
-        const g = s?.yearOfGraduation || s?.graduationYear || 'Unknown';
-        gradeMap[g] = (gradeMap[g]||0)+1;
-      });
-      const grades = Object.entries(gradeMap).sort((a,b)=>a[0]>b[0]?1:-1);
+      const grades = Object.entries(gradeSets).map(([g,set])=>[g,set.size]).sort((a,b)=>String(a[0]).localeCompare(String(b[0])));
       mkChart('chart-tmi-grade', 'bar', {
         labels: grades.map(([g])=>g),
         datasets:[{ label:'Students', data:grades.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'BB') }],
       }, vBarOpts());
 
-      // Top 10 students by minutes
+      // Top 10 students by minutes — status is that of their latest record.
       const sMap = {};
-      tmi.forEach(l => {
-        if (!l.studentId) return;
-        if (!sMap[l.studentId]) sMap[l.studentId] = {name:l.studentName||'Unknown',assigned:0,served:0,status:l.interventionStatus||'—'};
-        sMap[l.studentId].assigned += (+l.tmiMinutes||0);
-        sMap[l.studentId].served   += (+l.tmiMinutesServed||0);
-        sMap[l.studentId].status    = l.interventionStatus;
+      tmi.forEach((l, i) => {
+        const id = ids[i];
+        if (!id) return;
+        const r = sMap[id] || (sMap[id] = { name: nameOf(id), assigned:0, served:0, latest:'', status:'' });
+        r.assigned += (+l.tmiMinutes||0);
+        r.served   += Math.min(served(l), +l.tmiMinutes||0);
+        const d = tmiDate(l);
+        if (d >= r.latest) { r.latest = d; r.status = statusLabel(l.interventionStatus); }
       });
-      const topTMI = Object.values(sMap).sort((a,b)=>b.assigned-a.assigned).slice(0,10);
+      const topTMI = Object.values(sMap).sort((a,b)=>b.assigned-a.assigned || a.name.localeCompare(b.name)).slice(0,10);
       const statusColor = s => s==='Closed'?'#10B981':s==='Reviewed'?'#3B82F6':'#F59E0B';
       fillTable('tbl-tmi-students', topTMI.map((s,i) => [
         i+1, s.name,
@@ -713,16 +755,19 @@
         `<span style="color:${statusColor(s.status)};font-weight:600;font-size:11px;">${s.status||'—'}</span>`,
       ]));
 
-      // By class/teacher
-      const classMap = {};
+      // By teacher. A week's TMI record can come from several teachers (the
+      // `teachers` list); the single className on it is only whichever class
+      // triggered it first, so ranking by class was misleading.
+      const teacherCount = {};
       tmi.forEach(l => {
-        const key = l.className ? `${l.className}${l.teacherLastName?' ('+l.teacherLastName+')':''}` : (l.teacherLastName||'Unknown');
-        classMap[key] = (classMap[key]||0)+1;
+        const list = (Array.isArray(l.teachers) && l.teachers.length) ? l.teachers : [l.teacherLastName];
+        [...new Set(list.map(t => String(t || '').trim()).filter(Boolean))]
+          .forEach(t => { teacherCount[t] = (teacherCount[t]||0)+1; });
       });
-      const topClass = Object.entries(classMap).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const topTeachers = Object.entries(teacherCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
       mkChart('chart-tmi-class', 'bar', {
-        labels: topClass.map(([k])=>k.length>26?k.substring(0,24)+'…':k),
-        datasets:[{ label:'TMI Records', data:topClass.map(([,v])=>v),
+        labels: topTeachers.map(([k])=>k),
+        datasets:[{ label:'TMI Records', data:topTeachers.map(([,v])=>v),
                     backgroundColor:PALETTE.map(c=>c+'CC') }],
       }, hBarOpts());
     }
@@ -730,15 +775,17 @@
     // ═══════════════════════════════════════════════════════════════════════════
     //  INTERVENTIONS REPORT
     // ═══════════════════════════════════════════════════════════════════════════
-    function buildInterventions(logs, range, studentMap) {
-      const filtered = logs.filter(l => inRange(l.dateTime, range));
+    function buildInterventions(logs, range) {
+      // Only interventions with a category and a student on the roster.
+      const filtered = logs.filter(l => inRange(l.dateTime, range) && l.category && resolveStudent(l));
       rawData.interventions = filtered;
+      const ids = filtered.map(resolveStudent);
 
-      const uniqueStudents = new Set(filtered.map(l=>l.studentId)).size;
+      const uniqueStudents = new Set(ids).size;
       const avg = uniqueStudents ? (filtered.length/uniqueStudents).toFixed(1) : '0';
 
       const catCount = {};
-      filtered.forEach(l => { const c=l.category||'Unknown'; catCount[c]=(catCount[c]||0)+1; });
+      filtered.forEach(l => { catCount[l.category]=(catCount[l.category]||0)+1; });
       const topCat = Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0];
 
       $('int-total').textContent    = filtered.length;
@@ -746,36 +793,33 @@
       $('int-avg').textContent      = avg;
       $('int-top-cat').textContent  = topCat ? topCat[0] : '—';
 
-      // By category
       const cats = Object.entries(catCount).sort((a,b)=>b[1]-a[1]);
       mkChart('chart-int-cat', 'bar', {
         labels: cats.map(([c])=>c),
         datasets:[{ label:'Count', data:cats.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'CC') }],
       }, vBarOpts());
 
-      // By house
+      // By house (interventions, not students — matches the chart label)
       const houseMap = {};
-      filtered.forEach(l => {
-        const s = studentMap[l.studentId];
-        const h = s?.house||'Unknown';
-        houseMap[h]=(houseMap[h]||0)+1;
+      ids.forEach(id => {
+        const h = normHouse(studentMap[id].house);
+        if (h) houseMap[h]=(houseMap[h]||0)+1;
       });
       const houses = Object.entries(houseMap).sort((a,b)=>b[1]-a[1]);
       mkChart('chart-int-house', 'bar', {
         labels: houses.map(([h])=>h),
-        datasets:[{ label:'Interventions', data:houses.map(([,v])=>v), backgroundColor:PALETTE.map(c=>c+'CC') }],
+        datasets:[{ label:'Interventions', data:houses.map(([,v])=>v), backgroundColor:houses.map(([h],i)=>houseColor(h,i)) }],
       }, vBarOpts());
 
       // Top 10 students
       const sMap = {};
-      filtered.forEach(l => {
-        if (!l.studentId) return;
-        if (!sMap[l.studentId]) sMap[l.studentId]={name:l.studentName||'Unknown',count:0,cats:{}};
-        sMap[l.studentId].count++;
-        const c=l.category||'Unknown';
-        sMap[l.studentId].cats[c]=(sMap[l.studentId].cats[c]||0)+1;
+      filtered.forEach((l, i) => {
+        const id = ids[i];
+        const r = sMap[id] || (sMap[id] = { name: nameOf(id), count:0, cats:{} });
+        r.count++;
+        r.cats[l.category]=(r.cats[l.category]||0)+1;
       });
-      const topStudents = Object.values(sMap).sort((a,b)=>b.count-a.count).slice(0,10);
+      const topStudents = Object.values(sMap).sort((a,b)=>b.count-a.count || a.name.localeCompare(b.name)).slice(0,10);
       fillTable('tbl-int-students', topStudents.map((s,i) => {
         const topCatEntry = Object.entries(s.cats).sort((a,b)=>b[1]-a[1])[0];
         return [i+1, s.name, `<strong>${s.count}</strong>`, topCatEntry?topCatEntry[0]:'—'];
@@ -784,7 +828,8 @@
       // By level
       const levelMap = {};
       filtered.forEach(l => {
-        const key = `${l.category||'Unknown'} L${l.level||'?'}`;
+        if (!l.level) return;
+        const key = `${l.category} L${l.level}`;
         levelMap[key]=(levelMap[key]||0)+1;
       });
       const levels = Object.entries(levelMap).sort((a,b)=>b[1]-a[1]).slice(0,12);
@@ -798,56 +843,41 @@
     // ═══════════════════════════════════════════════════════════════════════════
     //  ER REPORT
     // ═══════════════════════════════════════════════════════════════════════════
-    function buildER(assignments, workshops, clearance, range, studentMap) {
+    function buildER(assignments, workshops, clearance, range) {
       // periodKey format is "YYYY-MM-DD_YYYY-MM-DD" — use the period start date for range filtering
-      const filtered = assignments.filter(a => {
-        const periodStart = (a.periodKey||'').split('_')[0] || a.date || '';
-        return inRange(periodStart, range);
-      });
+      const periodStart = r => (r.periodKey||'').split('_')[0] || r.date || '';
+      const filtered = assignments.filter(a => inRange(periodStart(a), range) && resolveStudent(a));
       rawData.er = filtered;
 
-      // Filter clearance by the same period range (erClearance has periodKey too)
+      // Clearances need a period to be placed in a date range. Undated ones used
+      // to be counted in every year's report.
       const filteredClearance = clearance.filter(c => {
-        const periodStart = (c.periodKey||'').split('_')[0] || '';
-        return periodStart ? inRange(periodStart, range) : true; // include legacy records with no periodKey
+        const d = (c.periodKey||'').split('_')[0];
+        return d && inRange(d, range);
       });
 
-      // Build workshop name lookup
+      // Only ER classes that still exist and aren't "Extended Remediation"
+      // itself. An assignment pointing at a deleted class has no name to show.
       const wsMap = {};
-      workshops.forEach(w => { wsMap[w.id] = w.name||w.id; });
+      workshops.forEach(w => { if (w.name && !isErClass(w.name)) wsMap[w.id] = w.name; });
+      erClassNames = wsMap;   // for the CSV export
+      const idsOf = a => Array.isArray(a.workshopIds) ? a.workshopIds
+                       : Array.isArray(a.workshopId)  ? a.workshopId
+                       : (a.workshopIds || a.workshopId) ? [a.workshopIds || a.workshopId] : [];
 
-      // Flatten assignments — each assignment has workshopIds (array of workshop IDs, one per checkmark)
       const rows = [];
+      const classesByStudent = {};
       filtered.forEach(a => {
-        const wsIds = Array.isArray(a.workshopIds) ? a.workshopIds
-                    : Array.isArray(a.workshopId)  ? a.workshopId   // legacy field name fallback
-                    : (a.workshopIds || a.workshopId) ? [a.workshopIds || a.workshopId] : [];
-        wsIds.forEach(wid => {
-          rows.push({ studentId:a.studentId, periodKey:a.periodKey, workshopId:wid, workshopName:wsMap[wid]||wid });
+        const sid = resolveStudent(a);
+        [...new Set(idsOf(a))].filter(wid => wsMap[wid]).forEach(wid => {
+          rows.push({ studentId: sid, workshopName: wsMap[wid] });
+          (classesByStudent[sid] = classesByStudent[sid] || new Set()).add(wid);
         });
       });
 
-      // Clearance-based class info (range-filtered)
-      const clearByStudent = {};
-      filteredClearance.forEach(c => {
-        if (!clearByStudent[c.studentId]) clearByStudent[c.studentId]=new Set();
-        if (c.className) clearByStudent[c.studentId].add(c.className+(c.teacherLastName?` (${c.teacherLastName})`:''));
-      });
-
-      // Assignment-based class count per student (workshopIds = actual checkmarks)
-      const assignClassesByStudent = {};
-      filtered.forEach(a => {
-        const wsIds = Array.isArray(a.workshopIds) ? a.workshopIds
-                    : Array.isArray(a.workshopId)  ? a.workshopId
-                    : (a.workshopIds || a.workshopId) ? [a.workshopIds || a.workshopId] : [];
-        assignClassesByStudent[a.studentId] = (assignClassesByStudent[a.studentId] || new Set());
-        wsIds.forEach(wid => assignClassesByStudent[a.studentId].add(wid));
-      });
-
-      const uniqueStudents = new Set(filtered.map(a=>a.studentId)).size;
+      const uniqueStudents = Object.keys(classesByStudent).length;
       const avg = uniqueStudents ? (rows.length/uniqueStudents).toFixed(1) : '0';
 
-      // Workshop counts
       const wsCount = {};
       rows.forEach(r => { wsCount[r.workshopName]=(wsCount[r.workshopName]||0)+1; });
       const topWs = Object.entries(wsCount).sort((a,b)=>b[1]-a[1]);
@@ -857,7 +887,6 @@
       $('er-avg').textContent          = avg;
       $('er-top-workshop').textContent = topWs[0]?topWs[0][0]:'—';
 
-      // Most assigned workshops chart
       const topWs10 = topWs.slice(0,10);
       mkChart('chart-er-workshops', 'bar', {
         labels: topWs10.map(([k])=>k.length>24?k.substring(0,22)+'…':k),
@@ -865,46 +894,28 @@
                     backgroundColor:PALETTE.map(c=>c+'CC') }],
       }, hBarOpts());
 
-      // Teacher sign-off chart (from filteredClearance — how many clearances each teacher/class issued)
-      const classCount = {};
+      // Clearances by teacher — all of a teacher's classes combined.
+      const teacherCount = {};
       filteredClearance.forEach(c => {
-        const key = c.className?(c.className+(c.teacherLastName?` (${c.teacherLastName})`:'')):c.teacherLastName||'Unknown';
-        classCount[key]=(classCount[key]||0)+1;
+        const t = String(c.teacherLastName || '').trim();
+        if (t) teacherCount[t]=(teacherCount[t]||0)+1;
       });
-      const topClasses = Object.entries(classCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const topTeachers = Object.entries(teacherCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
       mkChart('chart-er-class', 'bar', {
-        labels: topClasses.map(([k])=>k.length>26?k.substring(0,24)+'…':k),
-        datasets:[{ label:'Clearances', data:topClasses.map(([,v])=>v),
+        labels: topTeachers.map(([k])=>k),
+        datasets:[{ label:'Clearances', data:topTeachers.map(([,v])=>v),
                     backgroundColor:PALETTE.map(c=>c+'BB') }],
       }, hBarOpts());
 
-      // Top 10 students by ER frequency
-      const sMap = {};
-      rows.forEach(r => {
-        if (!r.studentId) return;
-        if (!sMap[r.studentId]) {
-          const s=studentMap[r.studentId];
-          sMap[r.studentId]={name:(s?`${s.firstName} ${s.lastName}`:r.studentId),count:0,assignedClasses:0};
-        }
-        sMap[r.studentId].count++;
-      });
-      Object.keys(sMap).forEach(sid => {
-        // assignedClasses = distinct workshopIds for this student (= distinct missing-work classes)
-        sMap[sid].assignedClasses = assignClassesByStudent[sid]?.size || 0;
-      });
-      const topStudents = Object.values(sMap).sort((a,b)=>b.count-a.count).slice(0,10);
-      fillTable('tbl-er-students', topStudents.map((s,i)=>[
-        i+1, s.name,
-        `<strong>${s.count}</strong>`,
-        s.assignedClasses||'—',
-      ]));
+      // Top 10 students by how many classes they have ER for.
+      const topStudents = Object.entries(classesByStudent)
+        .map(([sid, set]) => ({ name: nameOf(sid), classes: set.size }))
+        .sort((a,b)=>b.classes-a.classes || a.name.localeCompare(b.name)).slice(0,10);
+      fillTable('tbl-er-students', topStudents.map((s,i)=>[i+1, s.name, `<strong>${s.classes}</strong>`]));
 
       // Classes per student distribution — one pie slice per exact count (1, 2, 3 … max)
       const classDist = {};
-      Object.keys(assignClassesByStudent).forEach(sid => {
-        const n = assignClassesByStudent[sid].size;
-        classDist[n] = (classDist[n] || 0) + 1;
-      });
+      Object.values(classesByStudent).forEach(set => { classDist[set.size] = (classDist[set.size] || 0) + 1; });
       const maxClasses = Math.max(0, ...Object.keys(classDist).map(Number));
       const distLabels = Array.from({length: maxClasses}, (_, i) => `${i+1} class${i+1!==1?'es':''}`);
       const distData   = Array.from({length: maxClasses}, (_, i) => classDist[i+1] || 0);
@@ -922,24 +933,25 @@
     window.exportSection = function(section) {
       const map = {
         attendance: () => rawData.attendance.map(l=>({
-          Date: (l.classDate||l.date||'').substring(0,10), Student: l.studentName||'',
+          Date: (l.classDate||l.date||'').substring(0,10), Student: nameOf(resolveStudent(l)) || l.studentName||'',
           'A#': l.chattStateANumber||'', Code: l.attendanceCode||'',
           Class: l.className||'', Teacher: l.teacherLastName||'',
           Excuse: l.excuseType||'', Comment: l.comment||'',
         })),
         tmi: () => rawData.tmi.map(l=>({
-          Student: l.studentName||'', 'A#': l.chattStateANumber||'',
+          Student: nameOf(resolveStudent(l)) || l.studentName||'', 'A#': l.chattStateANumber||'',
           'Start Date': l.startDate||'', Status: l.interventionStatus||'',
-          'Minutes Assigned': l.tmiMinutes||0, 'Minutes Served': l.tmiMinutesServed||0,
-          'Minutes Remaining': l.tmiMinutesRemaining||0, Class: l.className||'', Teacher: l.teacherLastName||'',
+          'Minutes Assigned': l.tmiMinutes||0, 'Minutes Served': Math.min(servedSummary(l).served, l.tmiMinutes||0),
+          'Minutes Remaining': Math.max(0, (l.tmiMinutes||0) - servedSummary(l).served),
+          Teachers: (Array.isArray(l.teachers) && l.teachers.length ? l.teachers : [l.teacherLastName||'']).join(', '),
         })),
         interventions: () => rawData.interventions.map(l=>({
-          Student: l.studentName||'', Date: (l.dateTime||'').substring(0,10),
+          Student: nameOf(resolveStudent(l)) || l.studentName||'', Date: (l.dateTime||'').substring(0,10),
           Category: l.category||'', Level: l.level||'', Comments: l.comments||'',
         })),
         er: () => rawData.er.map(a=>({
-          'Period Start': (a.periodKey||'').split('_')[0]||'', 'Student ID': a.studentId||'',
-          Classes: Array.isArray(a.workshopIds)?a.workshopIds.join(', '):(a.workshopIds||''),
+          'Period Start': (a.periodKey||'').split('_')[0]||'', Student: nameOf(resolveStudent(a)),
+          Classes: (Array.isArray(a.workshopIds)?a.workshopIds:[a.workshopIds]).map(id => erClassNames[id]).filter(Boolean).join(', '),
         })),
       };
       const rows = map[section]?.();

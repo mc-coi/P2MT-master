@@ -94,8 +94,8 @@ function bootPage(page, fixtures, { inline = [], stubs = '' } = {}) {
     const getCurrentUser = () => ({ uid: 'u1', email: 'zmccoy@x.org', displayName: 'Zach McCoy' });
     const initNav = () => {};
     const Data = { get: async (c) => window.__fixtures[c] || [] };
-    const showToast = (msg) => window.__toasts.push(msg);
-    const confirmTypedDelete = async () => true;
+    ${/function\s+showToast\s*\(/.test(pageScript) ? '' : 'const showToast = (msg) => window.__toasts.push(msg);'}
+    ${/function\s+confirmTypedDelete\s*\(/.test(pageScript) ? '' : 'const confirmTypedDelete = async () => true;'}
     ${stubs}
     const __mods = {};
     ${loaded.map(f => loadModule(f, loaded)).join('\n')}
