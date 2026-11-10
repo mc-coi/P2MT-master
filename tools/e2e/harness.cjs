@@ -5,7 +5,7 @@
 // assigns to window is reachable from onclick="" — the browser's rule.
 //
 // A small module loader stands in for the browser's. The real shared modules
-// that don't touch Firestore (utils, guardians, labInterventions, staffAlerts)
+// that don't touch Firestore (utils, guardians, labInterventions, staffAlerts, cleanup)
 // are each loaded into their own scope as a namespace, and every import —
 // in a page or a module — binds only the names it lists. So a page sees what
 // it imports and nothing else, and two modules can each keep a private
@@ -20,7 +20,7 @@ const { JSDOM } = require('jsdom');
 const ROOT = path.resolve(__dirname, '..', '..');
 
 // Loaded in this order, so a module's own imports already exist.
-const LOADABLE = ['utils.js', 'guardians.js', 'labInterventions.js', 'staffAlerts.js'];
+const LOADABLE = ['utils.js', 'guardians.js', 'labInterventions.js', 'staffAlerts.js', 'cleanup.js'];
 // Supplied by the harness instead of utils, so tests can observe them.
 const STUBBED = new Set(['showToast', 'confirmTypedDelete']);
 

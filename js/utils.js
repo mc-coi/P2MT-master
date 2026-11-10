@@ -502,3 +502,16 @@ export function bodyToPlainText(raw) {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
+// A house name as stored. "Telsa" is a known typo for Tesla that arrived
+// through CSV imports; it, and any capitalisation of Tesla, become "Tesla".
+// Other houses are only trimmed.
+export function normalizeHouse(h) {
+  const v = String(h ?? '').trim();
+  return /^(tesla|telsa)$/i.test(v) ? 'Tesla' : v;
+}
+
+// A usable email address: something@domain.tld, no spaces.
+export function isValidEmail(e) {
+  return /^[^\s@;,]+@[^\s@;,]+\.[A-Za-z]{2,}$/.test(String(e ?? '').trim());
+}

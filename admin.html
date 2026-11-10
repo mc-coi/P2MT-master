@@ -22,6 +22,12 @@
     .form-full { grid-column: 1 / -1; }
     .settings-card { max-width: 500px; padding: 20px; margin-bottom: 20px; }
     .template-button { margin: 5px; }
+    .cleanup-row { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+                   padding: 12px 0; border-top: 1px solid #e2e8f0; }
+    .cleanup-title { font-weight: 700; font-size: 14px; }
+    .cleanup-desc { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .cleanup-status { font-size: 12px; margin-top: 4px; color: #0f766e; font-weight: 600; }
+    .cleanup-status.none { color: #94a3b8; font-weight: 400; }
   </style>
 </head>
 <body>
@@ -230,6 +236,33 @@
           <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
             <button id="btn-save-alert-staff" class="w3-button btn-primary"><i class="fas fa-save"></i> Save Alert Recipients</button>
             <span id="alert-staff-count" class="w3-text-grey" style="font-size:13px;"></span>
+          </div>
+        </div>
+
+        <!-- One-time data clean-ups. Each shows what it would change first. -->
+        <div class="w3-card settings-card w3-margin-top" style="border-left: 4px solid #0d9488;">
+          <h3 class="w3-text-teal"><i class="fas fa-broom" style="margin-right:8px;"></i>Data Clean-up</h3>
+          <p class="w3-text-grey" style="margin-bottom:14px;">
+            One-time fixes. Each shows what it will change before it changes anything, and running one again does nothing.
+          </p>
+
+          <div class="cleanup-row">
+            <div>
+              <div class="cleanup-title">Fix house spelling</div>
+              <div class="cleanup-desc">Changes "Telsa" (and other spellings of Tesla) to <strong>Tesla</strong> on student and staff records.</div>
+              <div id="house-fix-status" class="cleanup-status"></div>
+            </div>
+            <button id="btn-house-fix" class="w3-button btn-primary" disabled><i class="fas fa-spell-check"></i> Fix</button>
+          </div>
+
+          <div class="cleanup-row">
+            <div>
+              <div class="cleanup-title">Add Academic interventions to existing Learning Labs</div>
+              <div class="cleanup-desc">Labs running now or still to come that were set up before labs carried a Level 1 Academic intervention.
+                Doesn't add Level 2s or send staff alerts.</div>
+              <div id="lab-backfill-status" class="cleanup-status"></div>
+            </div>
+            <button id="btn-lab-backfill" class="w3-button btn-primary" disabled><i class="fas fa-flask"></i> Add</button>
           </div>
         </div>
 
@@ -525,8 +558,9 @@
     import { initNav } from './js/nav.js';
     import { getAll, addDoc, updateDoc, deleteDoc, batchWrite } from './js/db.js';
     import * as Data from './js/data.js';
-    import { exportCSV, showToast, generateId, escapeHtml } from './js/utils.js';
+    import { exportCSV, showToast, generateId, escapeHtml, normalizeHouse } from './js/utils.js';
     import { getAlertRecipients, setAlertRecipients } from './js/staffAlerts.js';
+    import { planHouseFixes, applyHouseFixes, planLabBackfill, applyLabBackfill } from './js/cleanup.js';
 
     let studentsData = [];
     let staffData = [];
@@ -571,6 +605,78 @@
       renderParentsTable();
       renderInterventionTypesTable();
       initAlertRecipients();
+      initCleanups();
+    }
+
+    // ── Data clean-up ───────────────────────────────────────────────────────────
+    // Plans are worked out from data already on the page (students, staff) plus
+    // the cached schedules and one read of intervention IDs; buttons are enabled
+    // only when there's something to do, and confirm with the exact count.
+    async function initCleanups() {
+      const setStatus = (id, text, none) => {
+        const el = document.getElementById(id);
+        el.textContent = text; el.classList.toggle('none', !!none);
+      };
+
+      // House spelling
+      let housePlan = planHouseFixes(studentsData, staffData);
+      const showHouse = () => {
+        const n = housePlan.length;
+        setStatus('house-fix-status', n ? `${n} record${n !== 1 ? 's' : ''} to fix: ` +
+          [...new Set(housePlan.map(c => `"${c.from}"`))].join(', ') : 'Nothing to fix.', !n);
+        document.getElementById('btn-house-fix').disabled = !n;
+      };
+      showHouse();
+      document.getElementById('btn-house-fix').addEventListener('click', async (e) => {
+        const n = housePlan.length;
+        if (!n || !confirm(`Change the house to Tesla on ${n} record${n !== 1 ? 's' : ''}?`)) return;
+        e.currentTarget.disabled = true;
+        try {
+          const done = await applyHouseFixes(housePlan);
+          housePlan.forEach(c => {
+            const list = c.collection === 'students' ? studentsData : staffData;
+            const r = list.find(x => x.id === c.id); if (r) r.house = c.to;
+          });
+          housePlan = [];
+          showToast(`House fixed on ${done} record${done !== 1 ? 's' : ''}`, 'success');
+        } catch (err) { console.error(err); showToast('House fix stopped partway — run it again to finish', 'error'); }
+        housePlan = planHouseFixes(studentsData, staffData);
+        showHouse();
+      });
+
+      // Learning Lab interventions
+      let labPlan = [];
+      const showLab = () => {
+        const n = labPlan.length;
+        setStatus('lab-backfill-status', n ? `${n} lab${n !== 1 ? 's' : ''} need${n === 1 ? 's' : ''} one: ` +
+          labPlan.slice(0, 5).map(p => p.studentName).join('; ') + (n > 5 ? ` and ${n - 5} more` : '')
+          : 'Every current Learning Lab already has one.', !n);
+        document.getElementById('btn-lab-backfill').disabled = !n;
+      };
+      try {
+        const [schedules, interventions] = await Promise.all([
+          Data.get('classSchedules'),
+          getAll('studentInterventions'),
+        ]);
+        labPlan = planLabBackfill(schedules, interventions.map(i => i.id), studentsData);
+        showLab();
+        document.getElementById('btn-lab-backfill').addEventListener('click', async (e) => {
+          const n = labPlan.length;
+          if (!n || !confirm(`Add a Level 1 Academic intervention for ${n} Learning Lab${n !== 1 ? 's' : ''}?`)) return;
+          e.currentTarget.disabled = true;
+          try {
+            const done = await applyLabBackfill(labPlan, 'Learning Lab (added by clean-up)');
+            showToast(`Added ${done} Academic intervention${done !== 1 ? 's' : ''}`, 'success');
+            labPlan = [];
+          } catch (err) { console.error(err); showToast('Stopped partway — run it again to finish', 'error'); }
+          const fresh = await getAll('studentInterventions').catch(() => []);
+          labPlan = planLabBackfill(schedules, fresh.map(i => i.id), studentsData);
+          showLab();
+        });
+      } catch (err) {
+        console.error(err);
+        setStatus('lab-backfill-status', 'Could not load Learning Labs.', true);
+      }
     }
 
     // ── Intervention alert recipients ───────────────────────────────────────────
@@ -1583,7 +1689,7 @@
                     email: row['Email'] || '',
                     chattStateANumber: row['ChattState A#'] || '',
                     yearOfGraduation: row['Graduation Year'] || '',
-                    house: row['House'] || '',
+                    house: normalizeHouse(row['House'] || ''),
                     googleCalendarId: row['Google Calendar ID'] || null
                   }
                 });
@@ -1599,7 +1705,7 @@
                     email: row['Email'] || '',
                     chattStateANumber: row['ChattState A#'] || '',
                     myersBrigg: row['Myers-Brigg'] || '',
-                    house: row['House'] || '',
+                    house: normalizeHouse(row['House'] || ''),
                     houseGrade: row['House Grade'] || '',
                     twitterAccount: row['Twitter'] || '',
                     status: row['Status'] || 'Active'

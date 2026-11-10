@@ -566,7 +566,7 @@
     import { initNav } from './js/nav.js';
     import { getAll, getById, getWhere, addDoc, updateDoc, deleteDoc } from './js/db.js';
     import * as Data from './js/data.js';
-    import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete, studentDisplayName, escapeHtml } from './js/utils.js';
+    import { formatDate, exportCSV, showToast, showModal, confirmTypedDelete, studentDisplayName, escapeHtml, normalizeHouse } from './js/utils.js';
     import { isInterventionLive, sweepExpiredLabInterventions } from './js/labInterventions.js';
     import { shouldAlert, sendInterventionAlert } from './js/staffAlerts.js';
     import { recalcTMIForStudent, resolveStaffSurname } from './js/tmiEngine.js';
@@ -1259,7 +1259,7 @@
                 email:             row['Student_Email']       || row['Email']            || row['email']             || '',
                 chattStateANumber: row['Chatt_State_A_Number']|| row['ChattState A#']    || row['chattStateANumber'] || '',
                 yearOfGraduation:  row['Year_of_Graduation']  || row['Graduation Year']  || row['yearOfGraduation']  || '',
-                house:             row['House']               || row['house']            || '',
+                house:             normalizeHouse(row['House'] || row['house'] || ''),
                 studentNumber:     row['Student_Number']      || row['Student Number']   || '',
                 googleCalendarId:  row['googleCalendarID']    || row['Google Calendar ID']|| row['googleCalendarId'] || ''
               });

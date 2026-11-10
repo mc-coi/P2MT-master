@@ -366,7 +366,7 @@
     import { initNav }                      from './js/nav.js';
     import { isInterventionLive }           from './js/labInterventions.js';
     import { servedSummary }                from './js/tmiEngine.js';
-    import { studentDisplayName }           from './js/utils.js';
+    import { studentDisplayName, normalizeHouse } from './js/utils.js';
 
     // ── Shared helpers ──────────────────────────────────────────────────────────
     const $ = id => document.getElementById(id);
@@ -458,10 +458,7 @@
     // ── Houses ──────────────────────────────────────────────────────────────────
     // "Telsa" is a typo for Tesla in some student records; it's counted as Tesla.
     // Each house keeps one colour on every chart.
-    function normHouse(h) {
-      const v = String(h || '').trim();
-      return /^(tesla|telsa)$/i.test(v) ? 'Tesla' : v;
-    }
+    const normHouse = normalizeHouse;   // utils.js: "Telsa" → Tesla
     const HOUSE_COLORS = {
       tesla:      '#16A34A',   // green
       staupers:   '#DC2626',   // red

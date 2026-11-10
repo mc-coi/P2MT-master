@@ -7,5 +7,5 @@
 # Run this after changing anything in js/, before running the suites.
 set -e
 cd "$(dirname "$0")"
-cp ../../js/attendance.js ../../js/tmiEngine.js ../../js/data.js ../../js/utils.js ../../js/labInterventions.js ../../js/guardians.js ../../js/staffAlerts.js .
+cp ../../js/attendance.js ../../js/tmiEngine.js ../../js/data.js ../../js/utils.js ../../js/labInterventions.js ../../js/guardians.js ../../js/staffAlerts.js ../../js/cleanup.js .
 echo "synced js/ modules into tools/sim/"

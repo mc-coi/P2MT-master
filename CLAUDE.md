@@ -174,6 +174,19 @@ a permanent Level 2 Academic (`source: 'learningLabEscalation'`, ID
 `lab2_{studentId}_{start}_{end}`) — not a lab intervention, so never swept —
 and alerts. Editing a lab never escalates.
 
+## Data quality
+
+- House names go through `normalizeHouse()` (utils.js) on CSV import and in
+  Reports: "Telsa" was a recurring import typo for Tesla.
+- Parents → **Check Contact Info** lists families an intervention email would
+  miss, using `contactProblems()` in guardians.js — the same A# matching as
+  sending, so the list is exactly who'd be missed. The Parents page itself
+  matches parent records by normalised A# (`parentFor()`); it used exact
+  match, so a family could be emailed but show blank, and editing created a
+  duplicate record.
+- One-time fixes live in Admin → Settings → Data Clean-up (`js/cleanup.js`):
+  each plans first, writes only what it showed, and is safe to re-run.
+
 ## DataTables
 
 jQuery DataTables, and it has bitten this codebase repeatedly:
